@@ -1,0 +1,330 @@
+  当前 syl 的 crate 大方向是对的：syntax -> hir -> sema -> elab -> hw -> emit，外侧再由 session/query/lsp/cli 组织工具链。主要问题不是“分层错了”，而是一些层的内部职责还太宽，尤其是 syl_elab 和 syl_sema。如果要对标 Chisel/FIRRTL/CIRCT，syl 应该学
+  的是稳定 IR、pass pipeline、metadata/annotation、opaque boundary、测试门槛，而不是复制宿主语言式生成器。
+
+  ## 与 Chisel 的关键对照
+
+  Chisel 的成熟点：
+
+  - Scala 负责生成器表达力，Chisel AST/FIRRTL/CIRCT 负责后端流水线。
+  - FIRRTL/CIRCT 提供明确的中间表示和 transform pipeline。
+  - annotation/metadata 机制支撑 transform、blackbox、backend、verification。
+  - 工具链和生态成熟，能处理大项目和外部 IP。
+
+  Chisel 的弱点正是 syl 想解决的点：
+
+  - 生成器语义藏在 Scala 运行时里，静态分析边界弱。
+  - elaboration 之后很多 source intent 已丢失。
+  - 错误诊断、driver ownership、protocol/capability 很难成为语言级事实。
+  - IDE/LSP 很难理解硬件语义，只能理解 Scala 外壳。
+
+  syl 的长期方向应该是：保留语言原生静态分析优势，但补齐 Chisel/FIRRTL/CIRCT 在工程流水线上的成熟度。
+
+  ———
+
+```
+  ## [ ] Phase N：表示未完成。 
+  ## [x] Phase N：表示完成。 
+```
+
+执行时，必须遵照 AGENTS.md。S1 主 Agent 先派出任务给 Work SubAgent（使用 gpt-4-xhigh），然后 S2 Review SubAgent （ gpt-4-medium）检查并反馈问题，S3 主 Agent 审核和仔细分析后传达给 Work SubAgent 整改。S4 整改完之后 Review SubAgent 重复检查(S2~S4)……这是循环过程，直到本 Phase 问题收敛。每个 S 步骤，在对应 .tmp/rfc/roadmap.md 的对应 Phase下标记一个 Log 行。整个Phase 问题收敛完成后只有 Review Agent 有权独立地标记为完成，然后才能进入下一个 Phase.
+
+  ## [ ] Phase 0：架构契约冻结
+
+  目标：先把每个 crate 的职责和阶段输入输出钉死，防止后续继续在错误边界上堆逻辑。
+
+  MUST FIX：
+
+  - syl_syntax 只负责 lexer/parser/CST/AST/error recovery，不允许出现 resolved/type/elab 语义。
+  - syl_hir 只放纯 HIR 数据和 stable IDs，不放 checker 逻辑。
+  - syl_sema 产出 semantic side tables：类型、名字解析、const facts、capability facts。
+  - syl_elab 只消费 typed HIR + semantic facts，产出 elaboration graph / HW graph。
+  - syl_emit 只消费 HW IR，不负责修复前端语义错误。
+  - syl_session 是 orchestration，不拥有语义模型。
+  - syl_query 是查询 API，不变成共享 DTO 垃圾桶。
+  - syl_lsp 只做协议适配、UTF-16 坐标、诊断发布、取消、debounce。
+
+  退出标准：
+
+  - 每个 crate README 写清楚输入、输出、禁止依赖。
+  - crate dependency graph 单向，不能反向依赖。
+  - public API 能解释“为什么必须 public”。
+
+  Log
+  - 时间 - 完成的任务
+  - 2026-05-23 S1 - 主 Agent 派出 Work SubAgent，执行 Phase 0 架构契约冻结：补齐 crate README 职责边界、建立依赖方向验证、避免进入后续 Phase 逻辑。
+
+  ———
+
+  ## [ ] Phase 1：IR 所有权收敛
+
+  目标：解决“多个阶段各自偷偷定义类似 IR”的问题。长期工业级编译器最怕 IR 边界模糊，因为后续 pass、LSP、增量编译都会被拖垮。
+
+  建议 IR 层级：
+
+  - AST：纯语法树，保留源码结构，服务 parser/recovery/format/LSP。
+  - HIR：脱糖后的语言结构，稳定 ID，仍不带类型。
+  - TIR：不是一棵新树，而是 HIR + side tables。
+  - Const MIR：只服务 fn/编译期计算，禁止混入硬件 graph。
+  - Map IR：只表示纯组合 map 的表达式语义。
+  - EIR：elaboration graph，表示 cell/module/interface/view/driver/capability。
+  - HW IR：后端无关的硬件结构图，接近 RTL/netlist，但仍保留源映射。
+  - SV AST：SystemVerilog emission 专用，不应反向污染 HW IR。
+
+  MUST FIX：
+
+  - Const MIR 和 Map IR 的 owner 必须唯一。
+  - EIR 数据结构和 builder/checker 分离。
+  - HW IR 不应该携带 sema/elab 临时状态。
+  - TIR 必须基于 side tables，而不是 mutable typed nodes。
+
+  退出标准：
+
+  - 任意一个 pass 的输入输出可以用一句话说明。
+  - 删除一个 pass 不应该破坏前后 IR 的数据定义。
+  - 每层 IR 都有 golden/debug dump，便于诊断和测试。
+
+  ———
+
+  ## [ ] Phase 2：前端工业化
+
+  目标：让 parser 和 syntax 层成为 LSP、formatter、diagnostic 的可靠地基。
+
+  MUST FIX：
+
+  - AST 定义、token、parser mechanics、error recovery 分离。
+  - syl_syntax 的入口文件不要继续膨胀。
+  - 所有语法错误必须可恢复，不能一错全崩。
+  - trivia/comment/Span 保留策略要明确。
+  - AST node ID 和 source range 要稳定，支持 LSP 增量诊断。
+
+  需要补的测试：
+
+  - grammar golden tests。
+  - invalid syntax recovery tests。
+  - source span precision tests。
+  - examples 全量 parse tests。
+
+  退出标准：
+
+  - LSP 可以在半成品代码上给诊断。
+  - parser 不依赖后续阶段才能报出基本错误。
+  - AST dump 稳定，可用于回归测试。
+
+  ———
+
+  ## [ ] Phase 3：语义层硬化
+
+  目标：把类型、名字、capability、layout、const eval 都变成可查询、可缓存、可诊断的事实。
+
+  MUST FIX：
+
+  - Name resolution 产出明确 package/module/import graph。
+  - Type identity 必须 canonicalized，不能靠字符串或临时结构比较。
+  - Domain、Clock、Reset、view capability 必须是一等语义事实。
+  - Layout/encoding facts 必须进入类型或附属 side table。
+  - Const eval 必须 deterministic、sandboxed、可缓存。
+  - 错误必须结构化，不能靠字符串拼接。
+
+  重点设计：
+
+  - ResolutionTable<HirId, Res>
+  - TypeTable<HirId, TyId>
+  - CapabilityTable<HirId, CapabilityFacts>
+  - ConstFacts<HirId, ConstValue>
+  - LayoutFacts<TyId, Layout>
+  - ProtocolFacts<InterfaceId, ProtocolSummary>
+
+  退出标准：
+
+  - sema 不生成硬件。
+  - sema 的结果可以被 CLI、LSP、elab 共同消费。
+  - LSP hover/go-to-definition/type info 不需要触发 elaboration。
+
+  ———
+
+  ## [ ] Phase 4：Elaboration 拆成严格 pipeline
+
+  目标：syl_elab 可以继续是一个 crate，但内部必须从“巨型阶段”变成多个明确 pass。
+
+  建议内部 pass：
+
+  - expansion：展开 cell、实例、泛型参数。
+  - binding：绑定 signal/reg/interface/view。
+  - eir_build：构造 EIR。
+  - map_lowering：把 map lowering 到组合表达式。
+  - driver_facts：收集 driver ownership。
+  - drc：multi-driver、undriven、domain、capability 检查。
+  - hw_lowering：EIR 到 HW IR。
+  - trace：保留 source/elaboration stack。
+
+  MUST FIX：
+
+  - driver analysis 不能混在 builder 副作用里。
+  - EIR builder 不要同时做 lowering、validation、diagnostic。
+  - multi-driver conflict 必须基于 effect/capability summary，不只靠展开后碰运气。
+  - cell 和 module 边界语义必须固定：inline generator vs hierarchy boundary。
+
+  退出标准：
+
+  - 每个 pass 可以单独测试。
+  - EIR dump 能解释“谁创建了什么、谁驱动了什么”。
+  - driver conflict 能定位到调用栈和源代码位置。
+
+  ———
+
+  ## [ ] Phase 5：Opaque Boundary 与 Metadata
+
+  目标：解决工业库、外部 IP、预编译包的问题。这是从玩具语言走向工业语言的分水岭。
+
+  Chisel/FIRRTL/CIRCT 的经验是：不能只靠源码可见性，必须有 machine-readable metadata。
+
+  MUST FIX：
+
+  - extern module 摘要必须机器可读。
+  - precompiled cell 必须带 semantic summary。
+  - driver/capability/domain/layout/latency/protocol facts 必须能进入编译产物。
+  - 用户不应手写全量 effect，但编译产物必须保存推导结果。
+  - blackbox/vendor IP 必须有明确 trust boundary。
+
+  建议 summary 内容：
+
+  - ports/views/capabilities。
+  - driven fields。
+  - consumed fields。
+  - domain behavior。
+  - latency class。
+  - layout/encoding。
+  - protocol preservation。
+  - unsafe/backend constraints。
+
+  退出标准：
+
+  - 一个没有源码的库仍然能参与 multi-driver 检查。
+  - extern IP 不需要重复写 drives y 这种能从签名推导的信息。
+  - public API 摘要能被 LSP、CLI、elab 共同读取。
+
+  ———
+
+  ## [ ] Phase 6：Backend 与验证层分离
+
+  目标：不要让 SystemVerilog emitter 变成最后的语义垃圾处理器。
+
+  MUST FIX：
+
+  - HW IR normalization 和 SV emission 分离。
+  - backend-independent checks 放在 HW 层或 elab validation 层。
+  - SV emitter 只负责合法打印和少量目标语言约束检查。
+  - Verilator smoke test 进入 CI。
+  - golden SV output 进入回归测试。
+
+  长期应该支持：
+
+  - SystemVerilog backend。
+  - HW IR textual dump。
+  - source map。
+  - assertion/formal hook。
+  - waveform/source trace metadata。
+  - backend feature flags。
+
+  退出标准：
+
+  - 同一个 HW IR 可以输出 debug dump 和 SV。
+  - emitter 不需要知道 HIR/TIR。
+  - Verilator 可以覆盖 examples 和 integration cases。
+
+  ———
+
+  ## [ ] Phase 7：Query / Session / LSP 增量化
+
+  目标：让 IDE 不是“每次全量编译”，而是基于稳定 query key 的编译服务。
+
+  MUST FIX：
+
+  - session 管 workspace、VFS、package graph、cache invalidation。
+  - query 只暴露 compiler facts，不拥有 workspace DTO。
+  - lsp 只做协议转换，不塞 compiler state。
+  - diagnostics 要能按 file/package/stage 分组。
+  - 所有 long-running query 支持取消。
+
+  建议模型：
+
+  - WorkspaceSnapshot
+  - PackageGraph
+  - SourceDatabase
+  - SyntaxQuery
+  - SemaQuery
+  - ElabQuery
+  - DiagnosticQuery
+  - LspAdapter
+
+  退出标准：
+
+  - 改一个文件只 invalidate 相关 package。
+  - hover/completion 不触发完整 emit。
+  - LSP 能在 parse/sema/elab 不同失败阶段给部分结果。
+
+  ———
+
+  ## [ ] Phase 8：标准库与组合 API
+
+  目标：补齐语言生态的“好用层”，但不污染核心编译器。
+
+  MUST FIX：
+
+  - std 应该作为普通 Syl 库存在，而不是 compiler magic。
+  - Stream/Stage/Link API 的语义必须能被 compiler summary 表达。
+  - 官方组合库不能绕过 driver/capability 检查。
+  - 用户自定义 cell 必须和官方库享有同等组合能力。
+
+  建议标准库分层：
+
+  - std.logic：基础 bit/word/map。
+  - std.bundle：layout/encoding helpers。
+  - std.stream：ready-valid。
+  - std.stage：pipeline/skid/register slice。
+  - std.cdc：跨域原语。
+  - std.vendor：extern wrapper pattern。
+  - std.assert：property/formal helpers。
+
+  退出标准：
+
+  - examples 主要通过 std 组合，而不是手写底层 wire。
+  - std 本身也通过同一套 checker。
+  - std 的 public summaries 可用于 opaque library 测试。
+
+  ———
+
+  ## [ ] Phase 9：工业质量门槛
+
+  目标：让项目可以承载长期外部贡献和真实硬件项目。
+
+  MUST FIX：
+
+  - conformance suite。
+  - error code 稳定化。
+  - public API review。
+  - crate-level MSRV / feature policy。
+  - fuzz parser。
+  - differential tests。
+  - snapshot tests。
+  - release metadata。
+  - compatibility tests for examples/std。
+
+  需要建立的质量线：
+
+  - cargo fmt
+  - cargo clippy --workspace --all-targets
+  - cargo test --workspace
+  - parser fuzz。
+  - examples parse/sema/elab/emit。
+  - Verilator smoke。
+  - documentation syntax check。
+  - public API surface check。
+
+  退出标准：
+
+  - 新增语法必须带 parser/sema/elab/backend 测试。
+  - 新增 IR 字段必须解释 owner 和 lifecycle。
+  - 新增 public API 必须说明消费者。
+
+  ———
