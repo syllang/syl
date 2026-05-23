@@ -1,0 +1,17 @@
+[package]
+name = "syl_elab"
+description = "Elaboration pipeline, expansion tracking, and hardware validation for Syl."
+documentation = "https://docs.rs/syl_elab"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+readme = "README.md"
+
+[dependencies]
+syl_hir.workspace = true
+syl_hw.workspace = true
+syl_sema.workspace = true
+syl_span.workspace = true
+syl_syntax.workspace = true
+thiserror.workspace = true

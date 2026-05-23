@@ -1,0 +1,18 @@
+[package]
+name = "syl_session"
+description = "Workspace session, virtual file system, import resolution, and analysis snapshots for Syl."
+documentation = "https://docs.rs/syl_session"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+readme = "README.md"
+
+[dependencies]
+syl_elab.workspace = true
+syl_hw.workspace = true
+syl_sema.workspace = true
+syl_span.workspace = true
+syl_syntax.workspace = true
+thiserror.workspace = true
+url.workspace = true

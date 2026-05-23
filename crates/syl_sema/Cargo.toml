@@ -1,0 +1,20 @@
+[package]
+name = "syl_sema"
+description = "Name resolution, type checking, const evaluation, and semantic facts for Syl."
+documentation = "https://docs.rs/syl_sema"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+readme = "README.md"
+
+[dependencies]
+syl_hir.workspace = true
+syl_syntax.workspace = true
+syl_span.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+syl_elab.workspace = true
+syl_emit.workspace = true
+syl_hw.workspace = true

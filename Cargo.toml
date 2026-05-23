@@ -1,0 +1,40 @@
+[workspace]
+members = [
+    "crates/syl",
+    "crates/syl_syntax",
+    "crates/syl_span",
+    "crates/syl_hir",
+    "crates/syl_sema",
+    "crates/syl_hw",
+    "crates/syl_elab",
+    "crates/syl_emit",
+    "crates/syl_session",
+    "crates/syl_query",
+    "crates/syl_lsp",
+    "crates/sylc",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+license = "Apache-2.0"
+
+[workspace.dependencies]
+syl_elab = { path = "crates/syl_elab", version = "0.1.0" }
+syl_emit = { path = "crates/syl_emit", version = "0.1.0" }
+syl_hir = { path = "crates/syl_hir", version = "0.1.0" }
+syl_hw = { path = "crates/syl_hw", version = "0.1.0" }
+syl_query = { path = "crates/syl_query", version = "0.1.0" }
+syl_sema = { path = "crates/syl_sema", version = "0.1.0" }
+syl_session = { path = "crates/syl_session", version = "0.1.0" }
+syl_span = { path = "crates/syl_span", version = "0.1.0" }
+syl_syntax = { path = "crates/syl_syntax", version = "0.1.0" }
+thiserror = "1"
+tokio = { version = "1", features = ["io-std", "macros", "rt-multi-thread", "sync", "time", "test-util"] }
+tower-lsp = "0.20"
+url = "2"
+
+[workspace.metadata.release-plz]
+release = true

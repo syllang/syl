@@ -1,0 +1,24 @@
+[package]
+name = "sylc"
+description = "Command-line compiler for Syl."
+documentation = "https://docs.rs/sylc"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+readme = "README.md"
+
+[[bin]]
+name = "sylc"
+path = "src/main.rs"
+
+[dependencies]
+syl_emit.workspace = true
+syl_session.workspace = true
+syl_span.workspace = true
+syl_syntax.workspace = true
+
+[dev-dependencies]
+syl_elab.workspace = true
+syl_hw.workspace = true
+syl_sema.workspace = true

@@ -1,0 +1,13 @@
+[package]
+name = "syl_hir"
+description = "HIR data model and stable HIR identifiers for Syl."
+documentation = "https://docs.rs/syl_hir"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+readme = "README.md"
+
+[dependencies]
+syl_syntax.workspace = true
+syl_span.workspace = true

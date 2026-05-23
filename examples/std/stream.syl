@@ -1,0 +1,74 @@
+// Syl example standard library: ready/valid streams.
+//
+// This file is intentionally small. It demonstrates how an official library
+// exposes reusable hardware generation without compiler-private shortcuts.
+
+package examples.std.stream
+
+interface Stream<T> {
+    payload: T
+    valid: Bit
+    ready: Bit
+
+    view source {
+        out payload
+        out valid
+        in ready
+    }
+
+    view sink {
+        in payload
+        in valid
+        out ready
+    }
+
+    view tap {
+        in payload
+        in valid
+        in ready
+    }
+}
+
+map stream_fire<T>(stream: Stream<T>.tap) -> Bit =
+    stream.valid and stream.ready
+
+cell stream_connect<T>(
+    up: in Stream<T>.sink,
+) -> down: Stream<T>.source {
+    down.valid := up.valid
+    down.payload := up.payload
+    up.ready := down.ready
+}
+
+cell stream_skid_buffer<T, D: Domain>(
+    clk: in Clock<D>,
+    rst: in Reset<D>,
+    up: in Stream<T>.sink,
+) -> down: Stream<T>.source {
+    reg data: T reset(rst, zero<T>())
+    reg full: Bit reset(rst, 0)
+
+    signal push: Bit := up.valid and (not full or down.ready)
+    signal pop: Bit := (full or up.valid) and down.ready
+
+    up.ready := not full or down.ready
+    down.valid := full or up.valid
+    down.payload :=
+        select priority {
+            full => data,
+            default => up.payload,
+        }
+
+    next data :=
+        select priority {
+            push and (not pop or full) => up.payload,
+            default => data,
+        }
+
+    next full :=
+        select unique {
+            push and not pop => 1,
+            not push and pop => 0,
+            default => full,
+        }
+}

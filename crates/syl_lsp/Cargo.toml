@@ -1,0 +1,16 @@
+[package]
+name = "syl_lsp"
+description = "Language Server Protocol adapter for Syl."
+documentation = "https://docs.rs/syl_lsp"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+readme = "README.md"
+
+[dependencies]
+syl_query.workspace = true
+syl_session.workspace = true
+syl_span.workspace = true
+tokio.workspace = true
+tower-lsp.workspace = true

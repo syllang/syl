@@ -1,0 +1,360 @@
+use super::{BindingKind, HardwareBlockMode, Phase, TirConstKind, TirType, TypePhaseChecker};
+use crate::{
+    CompileError, EirError,
+    hir::{HirBlock, HirBodyExpr, HirExprNode, HirStmt},
+    tir_const::TirConstEnv,
+};
+use syl_hir::LocalId;
+use syl_span::Span;
+use syl_syntax::BinaryOp;
+
+mod expr;
+
+#[derive(Clone, Copy)]
+struct ElabForLoop<'a> {
+    id: Option<LocalId>,
+    name: &'a str,
+    span: Span,
+}
+
+struct HardwareCheckContext<'a> {
+    env: &'a TirConstEnv,
+    mode: HardwareBlockMode,
+    errors: &'a mut Vec<CompileError>,
+}
+
+impl TypePhaseChecker {
+    pub(super) fn check_hardware_block(
+        &mut self,
+        body: &HirBlock,
+        env: &TirConstEnv,
+        mode: HardwareBlockMode,
+        errors: &mut Vec<CompileError>,
+    ) -> Result<(), CompileError> {
+        let mut env = env.clone();
+        self.checked_blocks += 1;
+        for stmt in &body.stmts {
+            match stmt {
+                HirStmt::Var { span, .. }
+                | HirStmt::Let { span, .. }
+                | HirStmt::While { span, .. }
+                | HirStmt::Return(_, span) => errors.push(CompileError::lowering_at(
+                    EirError::IllegalHardwareStatement,
+                    *span,
+                )),
+                HirStmt::ElabIf {
+                    cond,
+                    then_block,
+                    else_block,
+                    ..
+                } => {
+                    self.check_elab_if(
+                        cond,
+                        then_block,
+                        else_block.as_ref(),
+                        HardwareCheckContext {
+                            env: &env,
+                            mode,
+                            errors,
+                        },
+                    )?;
+                }
+                HirStmt::ElabFor {
+                    id,
+                    name,
+                    range,
+                    body,
+                    span,
+                    ..
+                } => {
+                    self.check_elab_for(
+                        ElabForLoop {
+                            id: *id,
+                            name,
+                            span: *span,
+                        },
+                        range,
+                        body,
+                        HardwareCheckContext {
+                            env: &env,
+                            mode,
+                            errors,
+                        },
+                    )?;
+                }
+                HirStmt::Const {
+                    id,
+                    name,
+                    ty,
+                    value,
+                    span,
+                    ..
+                } => {
+                    Self::record_recoverable(
+                        errors,
+                        self.record_decl_local_binding(name, *id, *span, BindingKind::Const),
+                    );
+                    if let Some(ty) = ty
+                        && let Some(explicit_ty) = Self::record_recoverable(
+                            errors,
+                            self.type_from_mir_type_ref(self.current_owner()?, ty),
+                        )
+                    {
+                        Self::record_recoverable(
+                            errors,
+                            self.record_decl_local_type(name, *id, *span, explicit_ty.clone()),
+                        );
+                        Self::record_recoverable(errors, self.record_expr_type(value, explicit_ty));
+                    }
+                    Self::record_recoverable(errors, self.record_phase(value, Phase::Const));
+                    if let Some(kind) = ty.as_ref().and_then(|ty| self.mir_type_kind(ty)) {
+                        env = env.with_binding(name, kind);
+                    }
+                }
+                HirStmt::Alias {
+                    id,
+                    name,
+                    value,
+                    span,
+                    ..
+                } => {
+                    Self::record_recoverable(
+                        errors,
+                        self.record_decl_local_binding(name, *id, *span, BindingKind::Local),
+                    );
+                    Self::record_recoverable(errors, self.record_phase(value, Phase::Hardware));
+                    self.check_generator_binding_expr(value, errors)?;
+                }
+                HirStmt::Signal {
+                    id,
+                    name,
+                    ty,
+                    value,
+                    span,
+                } => {
+                    Self::record_recoverable(
+                        errors,
+                        self.record_decl_local_binding(name, *id, *span, BindingKind::Local),
+                    );
+                    if let Some(ty) = ty
+                        && let Some(explicit_ty) = Self::record_recoverable(
+                            errors,
+                            self.type_from_mir_type_ref(self.current_owner()?, ty),
+                        )
+                    {
+                        Self::record_recoverable(
+                            errors,
+                            self.record_decl_local_type(name, *id, *span, explicit_ty),
+                        );
+                    }
+                    if let Some(value) = value {
+                        Self::record_recoverable(errors, self.record_phase(value, Phase::Hardware));
+                        self.check_signal_initializer_expr(value, errors)?;
+                    }
+                }
+                HirStmt::Reg {
+                    id,
+                    name,
+                    ty,
+                    reset,
+                    span,
+                } => {
+                    Self::record_recoverable(
+                        errors,
+                        self.record_decl_local_binding(name, *id, *span, BindingKind::Local),
+                    );
+                    if let Some(ty) = ty
+                        && let Some(explicit_ty) = Self::record_recoverable(
+                            errors,
+                            self.type_from_mir_type_ref(self.current_owner()?, ty),
+                        )
+                    {
+                        Self::record_recoverable(
+                            errors,
+                            self.record_decl_local_type(name, *id, *span, explicit_ty),
+                        );
+                    }
+                    if let Some(reset) = reset {
+                        if let Some(domain) = &reset.domain {
+                            self.check_hardware_value_expr(domain, errors)?;
+                        }
+                        self.check_hardware_value_expr(&reset.value, errors)?;
+                    }
+                }
+                HirStmt::Next { value, .. } => {
+                    Self::record_recoverable(errors, self.record_phase(value, Phase::Hardware));
+                    self.check_hardware_value_expr(value, errors)?;
+                }
+                HirStmt::Inst {
+                    id,
+                    name,
+                    callee,
+                    span,
+                    ..
+                } => {
+                    let binding_name = self.instance_binding_name(name, *span);
+                    Self::record_recoverable(
+                        errors,
+                        self.record_decl_local_binding(
+                            &binding_name,
+                            *id,
+                            *span,
+                            BindingKind::Local,
+                        ),
+                    );
+                    Self::record_recoverable(errors, self.record_phase(callee, Phase::Hardware));
+                    self.check_generator_binding_expr(callee, errors)?;
+                }
+                HirStmt::Expr(expr) => {
+                    Self::record_recoverable(errors, self.record_phase(expr, Phase::Hardware));
+                    self.check_hardware_stmt_expr(expr, mode, errors)?;
+                }
+                _ => {}
+            }
+        }
+        if let Some(tail) = &body.tail {
+            self.check_hardware_stmt_expr(tail, mode, errors)?;
+        }
+        Ok(())
+    }
+
+    fn check_elab_if(
+        &mut self,
+        cond: &HirBodyExpr,
+        then_block: &HirBlock,
+        else_block: Option<&HirBlock>,
+        context: HardwareCheckContext<'_>,
+    ) -> Result<(), CompileError> {
+        Self::record_recoverable(context.errors, self.record_phase(cond, Phase::Const));
+        Self::record_recoverable(context.errors, self.require_const_bool(cond, context.env));
+        match context.env.const_bool_value(cond, self) {
+            Some(true) => {
+                self.check_hardware_block(then_block, context.env, context.mode, context.errors)
+            }
+            Some(false) => {
+                if let Some(block) = else_block {
+                    return self.check_hardware_block(
+                        block,
+                        context.env,
+                        context.mode,
+                        context.errors,
+                    );
+                }
+                Ok(())
+            }
+            None => {
+                self.check_hardware_block(
+                    then_block,
+                    context.env,
+                    HardwareBlockMode::Control,
+                    context.errors,
+                )?;
+                if let Some(block) = else_block {
+                    self.check_hardware_block(
+                        block,
+                        context.env,
+                        HardwareBlockMode::Control,
+                        context.errors,
+                    )?;
+                }
+                Ok(())
+            }
+        }
+    }
+
+    fn check_elab_for(
+        &mut self,
+        loop_decl: ElabForLoop<'_>,
+        range: &HirBodyExpr,
+        body: &HirBlock,
+        context: HardwareCheckContext<'_>,
+    ) -> Result<(), CompileError> {
+        Self::record_recoverable(
+            context.errors,
+            self.record_decl_local_binding(
+                loop_decl.name,
+                loop_decl.id,
+                loop_decl.span,
+                BindingKind::Const,
+            ),
+        );
+        Self::record_recoverable(
+            context.errors,
+            self.record_decl_local_type(loop_decl.name, loop_decl.id, loop_decl.span, TirType::Nat),
+        );
+        Self::record_recoverable(context.errors, self.record_phase(range, Phase::Const));
+        Self::record_recoverable(context.errors, self.require_const_range(range, context.env));
+        let loop_env = context.env.with_binding(loop_decl.name, TirConstKind::Nat);
+        match context.env.const_range_bounds(range, self) {
+            Some((start, end)) if start >= end => Ok(()),
+            Some(_) => self.check_hardware_block(body, &loop_env, context.mode, context.errors),
+            None => self.check_hardware_block(
+                body,
+                &loop_env,
+                HardwareBlockMode::Control,
+                context.errors,
+            ),
+        }
+    }
+
+    fn check_generator_binding_expr(
+        &mut self,
+        expr: &HirBodyExpr,
+        errors: &mut Vec<CompileError>,
+    ) -> Result<(), CompileError> {
+        match &expr.node {
+            HirExprNode::Call { callee, args } | HirExprNode::Inst { callee, args } => {
+                self.check_generator_args(args, errors)?;
+                if self.hardware_generator_name(callee).is_some() {
+                    Self::record_recoverable(errors, self.record_phase(callee, Phase::Hardware));
+                    return Ok(());
+                }
+                self.check_hardware_value_call(callee, args, errors)
+            }
+            _ => self.check_hardware_value_expr(expr, errors),
+        }
+    }
+
+    fn check_signal_initializer_expr(
+        &mut self,
+        expr: &HirBodyExpr,
+        errors: &mut Vec<CompileError>,
+    ) -> Result<(), CompileError> {
+        match &expr.node {
+            HirExprNode::Inst { callee, args } => {
+                self.check_generator_args(args, errors)?;
+                if self.hardware_generator_name(callee).is_some() {
+                    Self::record_recoverable(errors, self.record_phase(callee, Phase::Hardware));
+                    Ok(())
+                } else {
+                    self.check_hardware_value_call(callee, args, errors)
+                }
+            }
+            _ => self.check_hardware_value_expr(expr, errors),
+        }
+    }
+
+    fn check_hardware_stmt_expr(
+        &mut self,
+        expr: &HirBodyExpr,
+        mode: HardwareBlockMode,
+        errors: &mut Vec<CompileError>,
+    ) -> Result<(), CompileError> {
+        if let HirExprNode::Binary {
+            op: BinaryOp::Assign,
+            left,
+            right,
+        } = &expr.node
+        {
+            self.check_place_expr(left, errors)?;
+            self.check_hardware_value_expr(right, errors)?;
+            return Ok(());
+        }
+        if matches!(&expr.node, HirExprNode::CompileError { .. })
+            && mode == HardwareBlockMode::Control
+        {
+            return Ok(());
+        }
+        self.check_hardware_value_expr(expr, errors)
+    }
+}

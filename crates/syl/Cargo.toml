@@ -1,0 +1,16 @@
+[package]
+name = "syl"
+description = "User-facing facade for the Syl hardware description language toolchain."
+documentation = "https://docs.rs/syl"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+readme = "README.md"
+
+[dependencies]
+syl_emit.workspace = true
+syl_query.workspace = true
+syl_session.workspace = true
+syl_span.workspace = true
+syl_syntax.workspace = true

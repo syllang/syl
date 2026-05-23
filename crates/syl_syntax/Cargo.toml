@@ -1,0 +1,12 @@
+[package]
+name = "syl_syntax"
+description = "Lexer, parser, lossless syntax tree, and typed syntax AST for Syl."
+documentation = "https://docs.rs/syl_syntax"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+readme = "README.md"
+
+[dependencies]
+syl_span.workspace = true

@@ -1,0 +1,35 @@
+name: ci
+
+on:
+  pull_request:
+  merge_group:
+    types: [checks_requested]
+  push:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+
+permissions:
+  contents: read
+
+jobs:
+  baseline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - uses: Swatinem/rust-cache@v2
+        if: github.event_name != 'merge_group'
+
+      - name: Install system tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ripgrep verilator
+
+      - name: Baseline
+        run: scripts/check_baseline.sh

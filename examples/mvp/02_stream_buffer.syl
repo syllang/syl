@@ -1,0 +1,48 @@
+// MVP end-to-end sample 02: imported interface plus inline cell expansion.
+//
+// Compiler stages exercised:
+// - multi-source use resolution
+// - interface view capability checking
+// - cell result endpoint capabilities
+// - reg/signal objects created inside an imported cell
+// - field-level interface driver completeness
+//
+// Compiler-provided forms used here:
+// - package, use, bundle, map, module, alias, signal
+// - in, out through imported Stream views
+// - Nat, Bit, UInt<W>, Domain, Clock<D>, Reset<D>
+
+package examples.mvp.stream_buffer
+
+use examples.std.stream.Stream
+use examples.std.stream.stream_skid_buffer
+
+bundle Word<W: Nat> {
+    data: UInt<W>,
+    last: Bit,
+}
+
+map set_last_if_zero<W: Nat>(word: Word<W>) -> Word<W> =
+    Word<W> {
+        data: word.data,
+        last: word.last or (word.data eq 0),
+    }
+
+module BufferedWordPipe<W: Nat = 32, D: Domain>(
+    clk: in Clock<D>,
+    rst: in Reset<D>,
+    up: in Stream<Word<W>>.sink,
+    down: out Stream<Word<W>>.source,
+) {
+    alias buffered = stream_skid_buffer<Word<W>, D>(
+        clk: clk,
+        rst: rst,
+        up: up,
+    )
+
+    signal payload: Word<W> := set_last_if_zero<W>(buffered.payload)
+
+    down.valid := buffered.valid
+    down.payload := payload
+    buffered.ready := down.ready
+}

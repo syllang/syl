@@ -1,0 +1,216 @@
+// Draft Syl syntax sketch.
+// Goal: one compact file that exposes the v0 facts required by static analysis.
+// Closed-world rule for this example:
+// - Every project symbol used below is defined in this file.
+// - Anything not defined here must be listed in this compiler-provided section.
+//
+// Compiler-provided syntax forms and keywords used here:
+// - package, const, fn, var, while, return, enum, bundle, interface
+// - view, map, cell, module, extern
+// - Domain kind parameters, in, out, alias, reg, signal, inst, reset
+// - if, for, next, select, priority, unique, match
+// - @name(args...) declaration metadata syntax, demonstrated by @layout(packed)
+// - package path components are namespace declarations, not external names
+//
+// Compiler-provided primitive types and type forms used here:
+// - Nat, Bool, Bit, UInt<W>, Domain, Clock<D>, Reset<D>
+// - [N] T array type, value[index] indexing, T.field projection
+// - Item<Args> generic application, .Variant enum shorthand
+// - Stream<T>.source/sink interface view selection syntax
+// - Type { field: value } aggregate literal and call(name: value) named args
+// - module result values and `inst Module(...)` as a driver expression
+//
+// Compiler-provided literals, operators, and intrinsics used here:
+// - true/false proposition literals, target-typed numeric literals, string literals
+// - =, :=, :, ->, <, ==, +, <<, implies, .. ranges used by const/proposition expressions
+// - and, or, not, xor, eq for hardware expressions
+// - zero<T>(), compile_error(message)
+//
+// Semantic assumptions demonstrated here:
+// - Generic parameters use `W: Nat`; `const` is only used for value declarations.
+// - `D: Domain` is a generic kind parameter, not a runtime port or named argument.
+// - A declaration with `D: Domain` uses D as the default domain in its body.
+// - A domainless combinational extern module is domain-agnostic at the call site.
+// - `if` conditions are const/proposition Bool expressions, not hardware Bit.
+// - `for` ranges are elaboration-time finite ranges.
+// - `alias x = rhs` only binds a name; it does not create a driver.
+// - `signal x: T := expr` is a local continuous driver.
+// - `target := expr` is a compiler-owned continuous driver.
+// - `next reg := expr` is a register next-state definition.
+// - `return` is only valid inside fn, not inside map/cell/module bodies.
+// - Hardware Bit levels are written as 0/1; true/false are Bool proposition literals.
+// - Hardware logic uses and/or/not/xor/eq; const/proposition logic uses &&/||/!/==.
+// - Interface field completeness is checked per field and per capability.
+// - Cell result endpoints expose connection capabilities, such as driving a
+//   result source endpoint's ready field from a downstream consumer.
+// - Protocol rules, formal checks, timing relations, and user-visible effect
+//   annotations are intentionally deferred from this v0 syntax sketch.
+
+package examples.minimal_features
+
+const DATA_W: Nat = 32
+const LANES: Nat = 2
+
+fn clog2(x: Nat) -> Nat {
+    var n: Nat = 0
+    var p: Nat = 1
+
+    while p < x {
+        p = p << 1
+        n = n + 1
+    }
+
+    return n
+}
+
+enum Op {
+    Add,
+    Xor,
+}
+
+// Stable bit layout is explicit. Ordinary bundles below remain structural.
+@layout(packed)
+bundle PackedWord<W: Nat> {
+    data: UInt<W>,
+    last: Bit,
+}
+
+bundle Packet<W: Nat> {
+    data: UInt<W>,
+    op: Op,
+    last: Bit,
+}
+
+interface Stream<T> {
+    payload: T
+    valid: Bit
+    ready: Bit
+
+    view source {
+        out payload
+        out valid
+        in ready
+    }
+
+    view sink {
+        in payload
+        in valid
+        out ready
+    }
+}
+
+map select_result<W: Nat>(
+    op: Op,
+    base: UInt<W>,
+    xor_value: UInt<W>,
+) -> UInt<W> =
+    match op {
+        .Add => base + 1,
+        .Xor => xor_value,
+    }
+
+extern module VendorXor<W: Nat>(
+    a: in UInt<W>,
+    b: in UInt<W>,
+) -> y: UInt<W>
+
+cell skid_buffer<T, D: Domain>(
+    clk: in Clock<D>,
+    rst: in Reset<D>,
+    in_stream: in Stream<T>.sink,
+) -> out_stream: Stream<T>.source {
+    reg data: T reset(rst, zero<T>())
+    reg full: Bit reset(rst, 0)
+
+    signal push: Bit := in_stream.valid and (not full or out_stream.ready)
+    signal pop: Bit := (full or in_stream.valid) and out_stream.ready
+
+    in_stream.ready := not full or out_stream.ready
+    out_stream.valid := full or in_stream.valid
+    out_stream.payload :=
+        select priority {
+            full => data,
+            default => in_stream.payload,
+        }
+
+    next data :=
+        select priority {
+            push and (not pop or full) => in_stream.payload,
+            default => data,
+        }
+
+    next full :=
+        select unique {
+            push and not pop => 1,
+            not push and pop => 0,
+            default => full,
+        }
+}
+
+module Lane<W: Nat, D: Domain>(
+    clk: in Clock<D>,
+    rst: in Reset<D>,
+    in_stream: in Stream<Packet<W>>.sink,
+    out_stream: out Stream<Packet<W>>.source,
+) {
+    const IDX_W: Nat = clog2(W)
+
+    if IDX_W == 0 {
+        compile_error("Lane width must require at least one index bit")
+    }
+
+    alias buffered = skid_buffer<Packet<W>, D>(
+        clk: clk,
+        rst: rst,
+        in_stream: in_stream,
+    )
+
+    signal xor_data: UInt<W> :=
+        inst VendorXor<W>(
+            a: buffered.payload.data,
+            b: 1,
+        )
+
+    signal result: UInt<W> :=
+        select_result<W>(
+            op: buffered.payload.op,
+            base: buffered.payload.data,
+            xor_value: xor_data,
+        )
+
+    signal transformed: Packet<W> := Packet<W> {
+        data: result,
+        op: buffered.payload.op,
+        last: buffered.payload.last,
+    }
+
+    out_stream.valid := buffered.valid
+    out_stream.payload := transformed
+    // `buffered` is a cell result source endpoint. The caller owns the connection
+    // capability for its ready field and routes downstream backpressure into it.
+    buffered.ready := out_stream.ready
+}
+
+module MiniTop<
+    W: Nat = DATA_W,
+    N: Nat = LANES,
+    D: Domain,
+>(
+    clk: in Clock<D>,
+    rst: in Reset<D>,
+    in_streams: in [N] Stream<Packet<W>>.sink,
+    out_streams: out [N] Stream<Packet<W>>.source,
+) {
+    if N == 0 {
+        compile_error("MiniTop requires at least one lane")
+    }
+
+    for lane in 0..N {
+        inst lanes[lane] = Lane<W, D>(
+            clk: clk,
+            rst: rst,
+            in_stream: in_streams[lane],
+            out_stream: out_streams[lane],
+        )
+    }
+}

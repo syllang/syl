@@ -1,0 +1,383 @@
+use crate::{
+    CompileError, ConstEvalError, LoweringError, TirError,
+    const_mir::{ConstExpr, ConstExprKind, ConstFunction, ConstMirProgram, ConstStmt, Terminator},
+    mir::{MirBinaryOp, MirTypeRef, MirUnaryOp},
+};
+use std::collections::BTreeMap;
+use syl_hir::DefId;
+use syl_span::Span;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum ConstKind {
+    Nat,
+    Bool,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum ConstValue {
+    Unknown(ConstKind),
+    Int(u64),
+    Bool(bool),
+}
+
+#[derive(Clone, Debug, Default)]
+#[non_exhaustive]
+pub struct ConstEvalEnv {
+    bindings: BTreeMap<String, ConstValue>,
+    owner: Option<DefId>,
+}
+
+impl ConstEvalEnv {
+    pub fn with_owner(owner: Option<DefId>) -> Self {
+        Self {
+            bindings: BTreeMap::new(),
+            owner,
+        }
+    }
+
+    pub fn bind(&mut self, name: impl Into<String>, value: ConstValue) {
+        self.bindings.insert(name.into(), value);
+    }
+
+    pub fn value(&self, name: &str) -> Option<ConstValue> {
+        self.bindings.get(name).copied()
+    }
+
+    pub fn owner(&self) -> Option<DefId> {
+        self.owner
+    }
+}
+
+#[non_exhaustive]
+pub struct ConstEvaluator<'program> {
+    program: &'program ConstMirProgram,
+    call_stack: Vec<String>,
+    remaining_steps: usize,
+}
+
+impl<'program> ConstEvaluator<'program> {
+    pub fn new(program: &'program ConstMirProgram) -> Self {
+        Self {
+            program,
+            call_stack: Vec::new(),
+            remaining_steps: 10_000,
+        }
+    }
+
+    pub fn kind_for_type(&self, ty: &MirTypeRef) -> Option<ConstKind> {
+        match ty.type_name() {
+            Some("Nat") => Some(ConstKind::Nat),
+            Some("Bool") => Some(ConstKind::Bool),
+            _ => None,
+        }
+    }
+
+    pub fn expr_value(
+        &mut self,
+        expr: &ConstExpr,
+        env: &mut ConstEvalEnv,
+    ) -> Result<ConstValue, CompileError> {
+        self.mir_expr_value(expr, env)
+    }
+
+    fn binary_result(
+        &self,
+        op: MirBinaryOp,
+        lhs: ConstValue,
+        rhs: ConstValue,
+        span: Span,
+    ) -> Result<ConstValue, CompileError> {
+        if matches!(lhs, ConstValue::Unknown(_)) || matches!(rhs, ConstValue::Unknown(_)) {
+            return self.unknown_binary_value(op, lhs, rhs, span);
+        }
+        match (op, lhs, rhs) {
+            (MirBinaryOp::Eq, ConstValue::Int(a), ConstValue::Int(b)) => {
+                Ok(ConstValue::Bool(a == b))
+            }
+            (MirBinaryOp::Eq, ConstValue::Bool(a), ConstValue::Bool(b)) => {
+                Ok(ConstValue::Bool(a == b))
+            }
+            (MirBinaryOp::NotEq, ConstValue::Int(a), ConstValue::Int(b)) => {
+                Ok(ConstValue::Bool(a != b))
+            }
+            (MirBinaryOp::NotEq, ConstValue::Bool(a), ConstValue::Bool(b)) => {
+                Ok(ConstValue::Bool(a != b))
+            }
+            (MirBinaryOp::Lt, ConstValue::Int(a), ConstValue::Int(b)) => {
+                Ok(ConstValue::Bool(a < b))
+            }
+            (MirBinaryOp::LtEq, ConstValue::Int(a), ConstValue::Int(b)) => {
+                Ok(ConstValue::Bool(a <= b))
+            }
+            (MirBinaryOp::Gt, ConstValue::Int(a), ConstValue::Int(b)) => {
+                Ok(ConstValue::Bool(a > b))
+            }
+            (MirBinaryOp::GtEq, ConstValue::Int(a), ConstValue::Int(b)) => {
+                Ok(ConstValue::Bool(a >= b))
+            }
+            (MirBinaryOp::AndAnd, ConstValue::Bool(a), ConstValue::Bool(b)) => {
+                Ok(ConstValue::Bool(a && b))
+            }
+            (MirBinaryOp::OrOr, ConstValue::Bool(a), ConstValue::Bool(b)) => {
+                Ok(ConstValue::Bool(a || b))
+            }
+            (MirBinaryOp::Add, ConstValue::Int(a), ConstValue::Int(b)) => {
+                Ok(ConstValue::Int(a + b))
+            }
+            (MirBinaryOp::Sub, ConstValue::Int(a), ConstValue::Int(b)) => {
+                Ok(ConstValue::Int(a.saturating_sub(b)))
+            }
+            (MirBinaryOp::Mul, ConstValue::Int(a), ConstValue::Int(b)) => {
+                Ok(ConstValue::Int(a * b))
+            }
+            (MirBinaryOp::Div, ConstValue::Int(a), ConstValue::Int(b)) if b != 0 => {
+                Ok(ConstValue::Int(a / b))
+            }
+            (MirBinaryOp::Rem, ConstValue::Int(a), ConstValue::Int(b)) if b != 0 => {
+                Ok(ConstValue::Int(a % b))
+            }
+            (MirBinaryOp::Shl, ConstValue::Int(a), ConstValue::Int(b)) => {
+                Ok(ConstValue::Int(a << b))
+            }
+            _ => Err(self.const_error(ConstEvalError::InvalidConstBinaryExpression, span)),
+        }
+    }
+
+    fn unknown_binary_value(
+        &self,
+        op: MirBinaryOp,
+        lhs: ConstValue,
+        rhs: ConstValue,
+        span: Span,
+    ) -> Result<ConstValue, CompileError> {
+        let lhs_kind = self.kind_of(lhs);
+        let rhs_kind = self.kind_of(rhs);
+        match op {
+            MirBinaryOp::Eq | MirBinaryOp::NotEq => {
+                if lhs_kind == rhs_kind {
+                    Ok(ConstValue::Unknown(ConstKind::Bool))
+                } else {
+                    Err(self.const_error(ConstEvalError::ConstEqualityTypeMismatch, span))
+                }
+            }
+            MirBinaryOp::Lt | MirBinaryOp::LtEq | MirBinaryOp::Gt | MirBinaryOp::GtEq => {
+                self.require_kind(lhs_kind, ConstKind::Nat, span)?;
+                self.require_kind(rhs_kind, ConstKind::Nat, span)?;
+                Ok(ConstValue::Unknown(ConstKind::Bool))
+            }
+            MirBinaryOp::AndAnd | MirBinaryOp::OrOr => {
+                self.require_kind(lhs_kind, ConstKind::Bool, span)?;
+                self.require_kind(rhs_kind, ConstKind::Bool, span)?;
+                Ok(ConstValue::Unknown(ConstKind::Bool))
+            }
+            MirBinaryOp::Add
+            | MirBinaryOp::Sub
+            | MirBinaryOp::Mul
+            | MirBinaryOp::Div
+            | MirBinaryOp::Rem
+            | MirBinaryOp::Shl => {
+                self.require_kind(lhs_kind, ConstKind::Nat, span)?;
+                self.require_kind(rhs_kind, ConstKind::Nat, span)?;
+                Ok(ConstValue::Unknown(ConstKind::Nat))
+            }
+            _ => Err(self.const_error(ConstEvalError::InvalidConstBinaryExpression, span)),
+        }
+    }
+
+    fn eval_function(
+        &mut self,
+        function: &ConstFunction,
+        values: BTreeMap<String, ConstValue>,
+    ) -> Result<ConstValue, CompileError> {
+        if function.is_unsupported() {
+            return Err(CompileError::lowering_at(
+                ConstEvalError::InvalidElaborationExpression,
+                function
+                    .unsupported_span()
+                    .unwrap_or_else(|| function.span()),
+            ));
+        }
+        self.call_stack.push(function.name().to_string());
+        let mut env = ConstEvalEnv::with_owner(Some(function.def()));
+        for (name, value) in values {
+            env.bind(name, value);
+        }
+        let block = function.block(function.entry()).ok_or_else(|| {
+            CompileError::lowering_at(
+                ConstEvalError::InvalidElaborationExpression,
+                function.span(),
+            )
+        })?;
+        let _entry_exists = block;
+        let result = self.execute_function(function, &mut env);
+        self.call_stack.pop();
+        result
+    }
+
+    fn execute_function(
+        &mut self,
+        function: &ConstFunction,
+        env: &mut ConstEvalEnv,
+    ) -> Result<ConstValue, CompileError> {
+        let mut current = function.entry();
+        loop {
+            self.consume_step(function.span())?;
+            let block = function.block(current).ok_or_else(|| {
+                CompileError::lowering_at(
+                    ConstEvalError::InvalidElaborationExpression,
+                    function.span(),
+                )
+            })?;
+            for stmt in block.stmts() {
+                self.eval_stmt(stmt, env)?;
+            }
+            match block.terminator() {
+                Terminator::Goto(target) => current = *target,
+                Terminator::Branch {
+                    cond,
+                    then_block,
+                    else_block,
+                } => match self.mir_expr_value(cond, env)? {
+                    ConstValue::Bool(true) => current = *then_block,
+                    ConstValue::Bool(false) => current = *else_block,
+                    ConstValue::Unknown(ConstKind::Bool) => {
+                        return Err(CompileError::lowering_at(
+                            ConstEvalError::InvalidElaborationExpression,
+                            cond.span(),
+                        ));
+                    }
+                    ConstValue::Unknown(ConstKind::Nat) | ConstValue::Int(_) => {
+                        return Err(CompileError::lowering_at(
+                            TirError::ElaborationIfRequiresBool,
+                            cond.span(),
+                        ));
+                    }
+                },
+                Terminator::Return(Some(expr)) => return self.mir_expr_value(expr, env),
+                Terminator::Return(None) => {
+                    return Err(CompileError::lowering_at(
+                        ConstEvalError::InvalidElaborationExpression,
+                        function.span(),
+                    ));
+                }
+            }
+        }
+    }
+
+    fn eval_stmt(&mut self, stmt: &ConstStmt, env: &mut ConstEvalEnv) -> Result<(), CompileError> {
+        match stmt {
+            ConstStmt::Assign { local, value } => {
+                self.consume_step(value.span())?;
+                let value = self.mir_expr_value(value, env)?;
+                env.bind(local.name(), value);
+                Ok(())
+            }
+        }
+    }
+
+    fn mir_expr_value(
+        &mut self,
+        expr: &ConstExpr,
+        env: &mut ConstEvalEnv,
+    ) -> Result<ConstValue, CompileError> {
+        self.consume_step(expr.span())?;
+        match expr.kind() {
+            ConstExprKind::Local(local) => env.value(local.name()).ok_or_else(|| {
+                CompileError::lowering_at(
+                    ConstEvalError::UnknownElaborationIdentifier {
+                        name: local.name().to_string(),
+                    },
+                    expr.span(),
+                )
+            }),
+            ConstExprKind::Unknown(kind) => Ok(ConstValue::Unknown(*kind)),
+            ConstExprKind::Int(value) => Ok(ConstValue::Int(*value)),
+            ConstExprKind::Bool(value) => Ok(ConstValue::Bool(*value)),
+            ConstExprKind::Unary { op, expr: inner } => {
+                let value = self.mir_expr_value(inner, env)?;
+                match (*op, value) {
+                    (MirUnaryOp::Not, ConstValue::Bool(value)) => Ok(ConstValue::Bool(!value)),
+                    (MirUnaryOp::Not, ConstValue::Unknown(ConstKind::Bool)) => {
+                        Ok(ConstValue::Unknown(ConstKind::Bool))
+                    }
+                    _ => Err(CompileError::lowering_at(
+                        ConstEvalError::InvalidConstUnaryExpression,
+                        expr.span(),
+                    )),
+                }
+            }
+            ConstExprKind::Binary { op, left, right } => {
+                let lhs = self.mir_expr_value(left, env)?;
+                let rhs = self.mir_expr_value(right, env)?;
+                self.binary_result(*op, lhs, rhs, expr.span())
+            }
+            ConstExprKind::Call { callee, args } => {
+                let Some(function) = self.program.function(*callee) else {
+                    let name = format!("def#{}", callee.get());
+                    return Err(CompileError::lowering_at(
+                        ConstEvalError::UnknownElaborationIdentifier { name },
+                        expr.span(),
+                    ));
+                };
+                let mut values = BTreeMap::new();
+                for (param, arg) in function.params().iter().zip(args) {
+                    values.insert(param.clone(), self.mir_expr_value(arg, env)?);
+                }
+                if values
+                    .values()
+                    .any(|value| matches!(value, ConstValue::Unknown(_)))
+                {
+                    return function.ret_kind().map(ConstValue::Unknown).ok_or_else(|| {
+                        CompileError::lowering_at(
+                            ConstEvalError::InvalidElaborationExpression,
+                            expr.span(),
+                        )
+                    });
+                }
+                self.eval_function(function, values)
+            }
+            ConstExprKind::Unsupported => Err(CompileError::lowering_at(
+                ConstEvalError::InvalidElaborationExpression,
+                expr.span(),
+            )),
+        }
+    }
+
+    fn consume_step(&mut self, span: Span) -> Result<(), CompileError> {
+        if self.remaining_steps == 0 {
+            return Err(CompileError::lowering_at(
+                ConstEvalError::InvalidElaborationExpression,
+                span,
+            ));
+        }
+        self.remaining_steps -= 1;
+        Ok(())
+    }
+
+    fn kind_of(&self, value: ConstValue) -> ConstKind {
+        match value {
+            ConstValue::Bool(_) => ConstKind::Bool,
+            ConstValue::Int(_) => ConstKind::Nat,
+            ConstValue::Unknown(kind) => kind,
+        }
+    }
+
+    fn require_kind(
+        &self,
+        actual: ConstKind,
+        expected: ConstKind,
+        span: Span,
+    ) -> Result<(), CompileError> {
+        if actual == expected {
+            Ok(())
+        } else {
+            Err(self.const_error(ConstEvalError::ConstComparisonTypeMismatch, span))
+        }
+    }
+
+    fn const_error(&self, kind: impl Into<LoweringError>, span: Span) -> CompileError {
+        CompileError::lowering_at(kind, span)
+    }
+}

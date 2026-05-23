@@ -1,0 +1,15 @@
+[package]
+name = "syl_query"
+description = "Protocol-neutral semantic query API for Syl analysis snapshots."
+documentation = "https://docs.rs/syl_query"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+readme = "README.md"
+
+[dependencies]
+syl_sema.workspace = true
+syl_session.workspace = true
+syl_span.workspace = true
+syl_syntax.workspace = true
