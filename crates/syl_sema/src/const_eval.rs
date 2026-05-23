@@ -18,7 +18,7 @@ pub enum ConstKind {
 #[non_exhaustive]
 pub enum ConstValue {
     Unknown(ConstKind),
-    Int(u64),
+    Nat(u64),
     Bool(bool),
 }
 
@@ -93,28 +93,28 @@ impl<'program> ConstEvaluator<'program> {
             return self.unknown_binary_value(op, lhs, rhs, span);
         }
         match (op, lhs, rhs) {
-            (MirBinaryOp::Eq, ConstValue::Int(a), ConstValue::Int(b)) => {
+            (MirBinaryOp::Eq, ConstValue::Nat(a), ConstValue::Nat(b)) => {
                 Ok(ConstValue::Bool(a == b))
             }
             (MirBinaryOp::Eq, ConstValue::Bool(a), ConstValue::Bool(b)) => {
                 Ok(ConstValue::Bool(a == b))
             }
-            (MirBinaryOp::NotEq, ConstValue::Int(a), ConstValue::Int(b)) => {
+            (MirBinaryOp::NotEq, ConstValue::Nat(a), ConstValue::Nat(b)) => {
                 Ok(ConstValue::Bool(a != b))
             }
             (MirBinaryOp::NotEq, ConstValue::Bool(a), ConstValue::Bool(b)) => {
                 Ok(ConstValue::Bool(a != b))
             }
-            (MirBinaryOp::Lt, ConstValue::Int(a), ConstValue::Int(b)) => {
+            (MirBinaryOp::Lt, ConstValue::Nat(a), ConstValue::Nat(b)) => {
                 Ok(ConstValue::Bool(a < b))
             }
-            (MirBinaryOp::LtEq, ConstValue::Int(a), ConstValue::Int(b)) => {
+            (MirBinaryOp::LtEq, ConstValue::Nat(a), ConstValue::Nat(b)) => {
                 Ok(ConstValue::Bool(a <= b))
             }
-            (MirBinaryOp::Gt, ConstValue::Int(a), ConstValue::Int(b)) => {
+            (MirBinaryOp::Gt, ConstValue::Nat(a), ConstValue::Nat(b)) => {
                 Ok(ConstValue::Bool(a > b))
             }
-            (MirBinaryOp::GtEq, ConstValue::Int(a), ConstValue::Int(b)) => {
+            (MirBinaryOp::GtEq, ConstValue::Nat(a), ConstValue::Nat(b)) => {
                 Ok(ConstValue::Bool(a >= b))
             }
             (MirBinaryOp::AndAnd, ConstValue::Bool(a), ConstValue::Bool(b)) => {
@@ -123,23 +123,23 @@ impl<'program> ConstEvaluator<'program> {
             (MirBinaryOp::OrOr, ConstValue::Bool(a), ConstValue::Bool(b)) => {
                 Ok(ConstValue::Bool(a || b))
             }
-            (MirBinaryOp::Add, ConstValue::Int(a), ConstValue::Int(b)) => {
-                Ok(ConstValue::Int(a + b))
+            (MirBinaryOp::Add, ConstValue::Nat(a), ConstValue::Nat(b)) => {
+                Ok(ConstValue::Nat(a + b))
             }
-            (MirBinaryOp::Sub, ConstValue::Int(a), ConstValue::Int(b)) => {
-                Ok(ConstValue::Int(a.saturating_sub(b)))
+            (MirBinaryOp::Sub, ConstValue::Nat(a), ConstValue::Nat(b)) => {
+                Ok(ConstValue::Nat(a.saturating_sub(b)))
             }
-            (MirBinaryOp::Mul, ConstValue::Int(a), ConstValue::Int(b)) => {
-                Ok(ConstValue::Int(a * b))
+            (MirBinaryOp::Mul, ConstValue::Nat(a), ConstValue::Nat(b)) => {
+                Ok(ConstValue::Nat(a * b))
             }
-            (MirBinaryOp::Div, ConstValue::Int(a), ConstValue::Int(b)) if b != 0 => {
-                Ok(ConstValue::Int(a / b))
+            (MirBinaryOp::Div, ConstValue::Nat(a), ConstValue::Nat(b)) if b != 0 => {
+                Ok(ConstValue::Nat(a / b))
             }
-            (MirBinaryOp::Rem, ConstValue::Int(a), ConstValue::Int(b)) if b != 0 => {
-                Ok(ConstValue::Int(a % b))
+            (MirBinaryOp::Rem, ConstValue::Nat(a), ConstValue::Nat(b)) if b != 0 => {
+                Ok(ConstValue::Nat(a % b))
             }
-            (MirBinaryOp::Shl, ConstValue::Int(a), ConstValue::Int(b)) => {
-                Ok(ConstValue::Int(a << b))
+            (MirBinaryOp::Shl, ConstValue::Nat(a), ConstValue::Nat(b)) => {
+                Ok(ConstValue::Nat(a << b))
             }
             _ => Err(self.const_error(ConstEvalError::InvalidConstBinaryExpression, span)),
         }
@@ -248,7 +248,7 @@ impl<'program> ConstEvaluator<'program> {
                             cond.span(),
                         ));
                     }
-                    ConstValue::Unknown(ConstKind::Nat) | ConstValue::Int(_) => {
+                    ConstValue::Unknown(ConstKind::Nat) | ConstValue::Nat(_) => {
                         return Err(CompileError::lowering_at(
                             TirError::ElaborationIfRequiresBool,
                             cond.span(),
@@ -293,7 +293,7 @@ impl<'program> ConstEvaluator<'program> {
                 )
             }),
             ConstExprKind::Unknown(kind) => Ok(ConstValue::Unknown(*kind)),
-            ConstExprKind::Int(value) => Ok(ConstValue::Int(*value)),
+            ConstExprKind::Nat(value) => Ok(ConstValue::Nat(*value)),
             ConstExprKind::Bool(value) => Ok(ConstValue::Bool(*value)),
             ConstExprKind::Unary { op, expr: inner } => {
                 let value = self.mir_expr_value(inner, env)?;
@@ -359,7 +359,7 @@ impl<'program> ConstEvaluator<'program> {
     fn kind_of(&self, value: ConstValue) -> ConstKind {
         match value {
             ConstValue::Bool(_) => ConstKind::Bool,
-            ConstValue::Int(_) => ConstKind::Nat,
+            ConstValue::Nat(_) => ConstKind::Nat,
             ConstValue::Unknown(kind) => kind,
         }
     }

@@ -303,9 +303,9 @@ impl MapConstExpr {
         }
     }
 
-    pub fn int_value(&self) -> Option<u64> {
+    pub fn nat_value(&self) -> Option<u64> {
         match &self.kind {
-            MapConstExprKind::Int(_, value) => Some(*value),
+            MapConstExprKind::Nat(_, value) => Some(*value),
             _ => None,
         }
     }
@@ -334,7 +334,7 @@ impl MapConstExpr {
     pub fn fact_key(&self) -> String {
         match &self.kind {
             MapConstExprKind::Ident(name) | MapConstExprKind::Opaque(name) => name.clone(),
-            MapConstExprKind::Int(text, _) | MapConstExprKind::Bool(text, _) => text.clone(),
+            MapConstExprKind::Nat(text, _) | MapConstExprKind::Bool(text, _) => text.clone(),
             MapConstExprKind::Unary { op, expr } => {
                 format!("({}{})", Self::unary_symbol(*op), expr.fact_key())
             }
@@ -368,7 +368,7 @@ impl MapConstExpr {
                 },
                 span: self.span,
             },
-            MapConstExprKind::Int(_, _)
+            MapConstExprKind::Nat(_, _)
             | MapConstExprKind::Bool(_, _)
             | MapConstExprKind::Opaque(_) => self.clone(),
         }
@@ -377,7 +377,7 @@ impl MapConstExpr {
     fn from_type_arg(ty: &MapTypeRef) -> Option<Self> {
         let name = ty.path_name()?;
         let kind = if let Ok(value) = name.parse::<u64>() {
-            MapConstExprKind::Int(name.to_string(), value)
+            MapConstExprKind::Nat(name.to_string(), value)
         } else if name == "true" {
             MapConstExprKind::Bool(name.to_string(), true)
         } else if name == "false" {
@@ -428,9 +428,9 @@ impl MapConstExpr {
 
 impl From<&MirConstExpr> for MapConstExpr {
     fn from(expr: &MirConstExpr) -> Self {
-        if let Some(value) = expr.int_value() {
+        if let Some(value) = expr.nat_value() {
             return Self {
-                kind: MapConstExprKind::Int(value.to_string(), value),
+                kind: MapConstExprKind::Nat(value.to_string(), value),
                 span: expr.span(),
             };
         }
@@ -476,7 +476,7 @@ impl From<&MirConstExpr> for MapConstExpr {
 #[non_exhaustive]
 enum MapConstExprKind {
     Ident(String),
-    Int(String, u64),
+    Nat(String, u64),
     Bool(String, bool),
     Unary {
         op: MapUnaryOp,

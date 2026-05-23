@@ -164,7 +164,7 @@ impl ConstExprKind {
         match self {
             Self::Local(local) => local.node_count(),
             Self::Unknown(_) => 1,
-            Self::Int(value) => usize::from(*value != 0),
+            Self::Nat(value) => usize::from(*value != 0),
             Self::Bool(value) => usize::from(*value),
             Self::Unary { expr, .. } => 1 + expr.node_count(),
             Self::Binary { left, right, .. } => 1 + left.node_count() + right.node_count(),
@@ -181,7 +181,7 @@ impl ConstExprKind {
             Self::Unary { expr, .. } => expr.local_ref_count(),
             Self::Binary { left, right, .. } => left.local_ref_count() + right.local_ref_count(),
             Self::Call { args, .. } => args.iter().map(ConstExpr::local_ref_count).sum(),
-            Self::Unknown(_) | Self::Int(_) | Self::Bool(_) | Self::Unsupported => 0,
+            Self::Unknown(_) | Self::Nat(_) | Self::Bool(_) | Self::Unsupported => 0,
         }
     }
 
@@ -193,7 +193,7 @@ impl ConstExprKind {
                 left.resolved_local_ref_count() + right.resolved_local_ref_count()
             }
             Self::Call { args, .. } => args.iter().map(ConstExpr::resolved_local_ref_count).sum(),
-            Self::Unknown(_) | Self::Int(_) | Self::Bool(_) | Self::Unsupported => 0,
+            Self::Unknown(_) | Self::Nat(_) | Self::Bool(_) | Self::Unsupported => 0,
         }
     }
 }

@@ -86,7 +86,7 @@ impl<'checker> TirConstTermResolver<'checker> {
     }
 
     pub(crate) fn resolve_mir_const_expr(&self, expr: &MirConstExpr) -> TirConstTerm {
-        if let Some(value) = expr.int_value() {
+        if let Some(value) = expr.nat_value() {
             return TirConstTerm::NatLiteral(value);
         }
         if let Some(value) = expr.bool_value() {

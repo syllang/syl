@@ -328,9 +328,9 @@ impl MirConstExpr {
         }
     }
 
-    pub fn int(value: u64, span: Span) -> Self {
+    pub fn nat(value: u64, span: Span) -> Self {
         Self {
-            kind: MirConstExprKind::Int(value),
+            kind: MirConstExprKind::Nat(value),
             span,
         }
     }
@@ -379,9 +379,9 @@ impl MirConstExpr {
         }
     }
 
-    pub fn int_value(&self) -> Option<u64> {
+    pub fn nat_value(&self) -> Option<u64> {
         match &self.kind {
-            MirConstExprKind::Int(value) => Some(*value),
+            MirConstExprKind::Nat(value) => Some(*value),
             _ => None,
         }
     }
@@ -422,7 +422,7 @@ impl MirConstExpr {
                 right.subst_type_vars(replacements),
                 self.span,
             ),
-            MirConstExprKind::Int(_)
+            MirConstExprKind::Nat(_)
             | MirConstExprKind::Bool(_)
             | MirConstExprKind::Unsupported => self.clone(),
         }
@@ -431,7 +431,7 @@ impl MirConstExpr {
     fn from_type_arg(ty: &MirTypeRef) -> Option<Self> {
         let name = ty.path_name()?;
         let kind = if let Ok(value) = name.parse::<u64>() {
-            MirConstExprKind::Int(value)
+            MirConstExprKind::Nat(value)
         } else if name == "true" {
             MirConstExprKind::Bool(true)
         } else if name == "false" {
@@ -450,7 +450,7 @@ impl MirConstExpr {
 #[non_exhaustive]
 pub enum MirConstExprKind {
     Ident(String),
-    Int(u64),
+    Nat(u64),
     Bool(bool),
     Unary {
         op: MirUnaryOp,
@@ -469,7 +469,7 @@ impl From<&Expr> for MirConstExpr {
         let span = expr.span();
         let kind = match expr {
             Expr::Ident(name, _) => MirConstExprKind::Ident(name.clone()),
-            Expr::Int(value, _) => MirConstExprKind::Int(*value),
+            Expr::Int(value, _) => MirConstExprKind::Nat(*value),
             Expr::Bool(value, _) => MirConstExprKind::Bool(*value),
             Expr::Unary { op, expr, .. } => MirConstExprKind::Unary {
                 op: MirUnaryOp::from(*op),

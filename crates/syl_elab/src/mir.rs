@@ -26,7 +26,7 @@ impl MirConstExprFacts for MirConstExpr {
         if let Some(name) = self.ident() {
             return name.to_string();
         }
-        if let Some(value) = self.int_value() {
+        if let Some(value) = self.nat_value() {
             return value.to_string();
         }
         if let Some(value) = self.bool_value() {

@@ -219,8 +219,8 @@ impl ConstExpr {
         Self::new(ConstExprKind::Unknown(kind), span)
     }
 
-    pub fn int(value: u64, span: Span) -> Self {
-        Self::new(ConstExprKind::Int(value), span)
+    pub fn nat(value: u64, span: Span) -> Self {
+        Self::new(ConstExprKind::Nat(value), span)
     }
 
     pub fn bool_value(value: bool, span: Span) -> Self {
@@ -269,7 +269,7 @@ impl ConstExpr {
 pub enum ConstExprKind {
     Local(ConstLocalRef),
     Unknown(ConstKind),
-    Int(u64),
+    Nat(u64),
     Bool(bool),
     Unary {
         op: MirUnaryOp,
@@ -570,7 +570,7 @@ impl<'a, 'b> FunctionLowerer<'a, 'b> {
                         ConstExpr::local(self.local_ref_for_expr(expr, name), expr.span())
                     })
             }
-            HirExprNode::Int(value) => ConstExpr::int(*value, expr.span()),
+            HirExprNode::Int(value) => ConstExpr::nat(*value, expr.span()),
             HirExprNode::Bool(value) => ConstExpr::bool_value(*value, expr.span()),
             HirExprNode::Group(inner) => self.lower_expr(inner),
             HirExprNode::Unary {

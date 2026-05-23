@@ -231,7 +231,7 @@ impl<'a> EirBuilder<'a> {
             .unwrap_or_else(|| MirTypeRef::path_type(vec!["Nat".to_string()], request.span));
         let physical_name = env.local_name(request.name);
         let code = match self.elab_const_value(request.value, env)? {
-            ConstValue::Int(value) => EirExpr::Int(value),
+            ConstValue::Nat(value) => EirExpr::Int(value),
             ConstValue::Bool(value) => EirExpr::Bool(value),
             ConstValue::Unknown(_) => EirExpr::ident(&physical_name),
             _ => EirExpr::unsupported("unsupported const value"),
@@ -624,8 +624,8 @@ impl<'a> EirBuilder<'a> {
         let start_value = self.elab_require_const_nat(start, env, "for range start")?;
         let end_value = self.elab_require_const_nat(end, env, "for range end")?;
         let (start_int, end_int) = match (start_value, end_value) {
-            (ConstValue::Int(start), ConstValue::Int(end)) if start >= end => return Ok(Vec::new()),
-            (ConstValue::Int(start), ConstValue::Int(end)) => (Some(start), Some(end)),
+            (ConstValue::Nat(start), ConstValue::Nat(end)) if start >= end => return Ok(Vec::new()),
+            (ConstValue::Nat(start), ConstValue::Nat(end)) => (Some(start), Some(end)),
             _ => (None, None),
         };
         if let (Some(start), Some(end)) = (start_int, end_int) {

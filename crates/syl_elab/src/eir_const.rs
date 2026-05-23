@@ -47,7 +47,7 @@ impl<'a> EirBuilder<'a> {
 
     fn const_value_for_var(&self, var: &VarInfo) -> Option<ConstValue> {
         match &var.code {
-            EirExpr::Int(value) => Some(ConstValue::Int(*value)),
+            EirExpr::Int(value) => Some(ConstValue::Nat(*value)),
             EirExpr::Bool(value) => Some(ConstValue::Bool(*value)),
             _ => self
                 .const_mir

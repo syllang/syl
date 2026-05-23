@@ -27,7 +27,7 @@ impl ConstMirProgram {
         match self.elab_value(program, expr, env)? {
             ConstValue::Bool(value) => Ok(Some(value)),
             ConstValue::Unknown(ConstKind::Bool) => Ok(None),
-            ConstValue::Unknown(ConstKind::Nat) | ConstValue::Int(_) | ConstValue::Unknown(_) => {
+            ConstValue::Unknown(ConstKind::Nat) | ConstValue::Nat(_) | ConstValue::Unknown(_) => {
                 Err(CompileError::lowering_at(
                     TirError::ElaborationIfRequiresBool,
                     expr.span(),
@@ -61,7 +61,7 @@ impl ConstMirProgram {
             Err(error) => return Err(error),
         };
         match value {
-            ConstValue::Int(_) | ConstValue::Unknown(ConstKind::Nat) => Ok(value),
+            ConstValue::Nat(_) | ConstValue::Unknown(ConstKind::Nat) => Ok(value),
             ConstValue::Bool(_) | ConstValue::Unknown(ConstKind::Bool) | ConstValue::Unknown(_) => {
                 Err(CompileError::lowering_at(
                     TirError::RequiresNatExpression {
@@ -103,7 +103,7 @@ impl<'program, 'env> ElabConstLowerer<'program, 'env> {
     fn lower(&self, expr: &ElabExpr) -> Result<ConstExpr, CompileError> {
         match &expr.node {
             ElabExprNode::Ident(name) => self.ident_expr(expr, name),
-            ElabExprNode::Int(value) => Ok(ConstExpr::int(*value, expr.span())),
+            ElabExprNode::Int(value) => Ok(ConstExpr::nat(*value, expr.span())),
             ElabExprNode::Bool(value) => Ok(ConstExpr::bool_value(*value, expr.span())),
             ElabExprNode::Group(expr) | ElabExprNode::GenericApp { callee: expr, .. } => {
                 self.lower(expr)
@@ -143,7 +143,7 @@ impl<'program, 'env> ElabConstLowerer<'program, 'env> {
             .program
             .enum_variant_value_by_name(self.env.owner(), name)
         {
-            return Ok(ConstExpr::int(value, expr.span()));
+            return Ok(ConstExpr::nat(value, expr.span()));
         }
         Err(CompileError::lowering_at(
             ConstEvalError::UnknownElaborationIdentifier {

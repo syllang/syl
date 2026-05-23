@@ -61,8 +61,8 @@ impl MapTypeLowerer {
 
     fn lower_const_expr_inner(&mut self, expr: &MapConstExpr) -> MirConstExpr {
         debug_assert!(self.const_expr_depth < 1024);
-        if let Some(value) = expr.int_value() {
-            return MirConstExpr::int(value, expr.span());
+        if let Some(value) = expr.nat_value() {
+            return MirConstExpr::nat(value, expr.span());
         }
         if let Some(value) = expr.bool_value() {
             return MirConstExpr::bool_value_expr(value, expr.span());
@@ -370,7 +370,7 @@ impl<'a> EirBuilder<'a> {
     }
 
     fn const_expr_value(&self, expr: &MirConstExpr) -> EirExpr {
-        if let Some(value) = expr.int_value() {
+        if let Some(value) = expr.nat_value() {
             return EirExpr::Int(value);
         }
         if let Some(value) = expr.bool_value() {
