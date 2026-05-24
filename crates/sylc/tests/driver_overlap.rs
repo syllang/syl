@@ -1,9 +1,8 @@
 mod support;
 
 use support::MiddleCompiler;
+use syl_elab::ElaborationOutput;
 use syl_hw::{HwPlace, HwPlaceExpr, ParametricHwDesign};
-use syl_span::SourceId;
-use syl_syntax::SourceParser;
 
 struct DriverHarness {
     middle: MiddleCompiler,
@@ -24,22 +23,16 @@ impl DriverHarness {
         self.compile_hwir_sources(&[source])
     }
 
+    fn compile_output(&self, source: &str) -> Result<ElaborationOutput, String> {
+        self.compile_output_sources(&[source])
+    }
+
     fn compile_hwir_sources(&self, sources: &[&str]) -> Result<ParametricHwDesign, String> {
-        let mut files = Vec::new();
-        for (source_id, source) in sources.iter().enumerate() {
-            let file = SourceParser::new_in(source, SourceId::new(source_id))
-                .parse_file()
-                .map_err(|errs| {
-                    errs.iter()
-                        .map(ToString::to_string)
-                        .collect::<Vec<_>>()
-                        .join("\n")
-                })?;
-            files.push(file);
-        }
-        self.middle
-            .compile_files(&files)
-            .map_err(|err| err.to_string())
+        self.middle.compile_sources(sources)
+    }
+
+    fn compile_output_sources(&self, sources: &[&str]) -> Result<ElaborationOutput, String> {
+        self.middle.output_sources(sources)
     }
 }
 
@@ -61,8 +54,8 @@ module Bad(y: out UInt<2>) {
 
 #[test]
 fn projection_driver_fact_keeps_structured_index_expr() {
-    let hwir = DriverHarness::new()
-        .compile_hwir(
+    let output = DriverHarness::new()
+        .compile_output(
             r#"
 module Top(y: out UInt<2>) {
     y[0] := 1
@@ -71,8 +64,11 @@ module Top(y: out UInt<2>) {
 "#,
         )
         .expect("projection drive should compile");
+    let metadata = output
+        .metadata()
+        .expect("successful elaboration must expose hardware metadata");
 
-    assert!(hwir.driver_facts().iter().any(|fact| {
+    assert!(metadata.driver_facts().iter().any(|fact| {
         matches!(
             fact.target_place(),
             HwPlace::Index {
@@ -450,8 +446,8 @@ module Top<X: Bool, Z: Bool>(y: out Bit) {
 
 #[test]
 fn driver_facts_expose_object_identity() {
-    let hwir = DriverHarness::new()
-        .compile_hwir(
+    let output = DriverHarness::new()
+        .compile_output(
             r#"
 module Top(y: out Bit) {
     signal tmp: Bit := 1
@@ -460,15 +456,18 @@ module Top(y: out Bit) {
 "#,
         )
         .expect("driver metadata should compile");
+    let metadata = output
+        .metadata()
+        .expect("successful elaboration must expose hardware metadata");
 
-    let tmp_object = hwir
+    let tmp_object = metadata
         .create_facts()
         .iter()
         .find(|fact| fact.module() == "Top" && fact.name() == "tmp")
         .map(|fact| fact.object_id())
         .expect("tmp signal must have an object id");
 
-    assert!(hwir.driver_facts().iter().any(|fact| {
+    assert!(metadata.driver_facts().iter().any(|fact| {
         matches!(
             fact.target_place(),
             HwPlace::Object { id, name } if *id == tmp_object && name == "tmp"

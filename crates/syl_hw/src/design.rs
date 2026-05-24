@@ -1,160 +1,28 @@
-use crate::{HwCellSummary, HwExpr, HwPlace, ObjectId};
+use crate::HwExpr;
 use syl_span::SourceId;
 
 #[non_exhaustive]
 pub struct HwDesign {
     modules: Vec<HwModule>,
-    driver_facts: Vec<HwDriveFact>,
-    read_facts: Vec<HwReadFact>,
-    create_facts: Vec<HwCreateFact>,
-    cell_summaries: Vec<HwCellSummary>,
 }
 
 impl HwDesign {
-    pub fn new(
-        modules: Vec<HwModule>,
-        driver_facts: Vec<HwDriveFact>,
-        read_facts: Vec<HwReadFact>,
-        create_facts: Vec<HwCreateFact>,
-        cell_summaries: Vec<HwCellSummary>,
-    ) -> Self {
-        Self {
-            modules,
-            driver_facts,
-            read_facts,
-            create_facts,
-            cell_summaries,
-        }
+    pub fn new(modules: Vec<HwModule>) -> Self {
+        Self { modules }
+    }
+
+    pub fn debug_dump(&self) -> String {
+        let modules = self
+            .modules
+            .iter()
+            .map(|module| module.name().to_string())
+            .collect::<Vec<_>>()
+            .join(", ");
+        format!("hw_design modules={} [{}]", self.modules.len(), modules)
     }
 
     pub fn modules(&self) -> &[HwModule] {
         &self.modules
-    }
-
-    pub fn driver_facts(&self) -> &[HwDriveFact] {
-        &self.driver_facts
-    }
-
-    pub fn read_facts(&self) -> &[HwReadFact] {
-        &self.read_facts
-    }
-
-    pub fn create_facts(&self) -> &[HwCreateFact] {
-        &self.create_facts
-    }
-
-    pub fn cell_summaries(&self) -> &[HwCellSummary] {
-        &self.cell_summaries
-    }
-}
-
-#[derive(Debug)]
-#[non_exhaustive]
-pub struct HwDriveFact {
-    module: String,
-    target: HwPlace,
-    target_text: String,
-    guard: HwGuard,
-    guard_text: String,
-    origin: HwOrigin,
-}
-
-impl HwDriveFact {
-    pub fn new(
-        module: impl Into<String>,
-        target: HwPlace,
-        guard: HwGuard,
-        origin: HwOrigin,
-    ) -> Self {
-        let target_text = target.display();
-        let guard_text = guard.display();
-        Self {
-            module: module.into(),
-            target,
-            target_text,
-            guard,
-            guard_text,
-            origin,
-        }
-    }
-
-    pub fn module(&self) -> &str {
-        &self.module
-    }
-
-    pub fn target(&self) -> &str {
-        &self.target_text
-    }
-
-    pub fn target_place(&self) -> &HwPlace {
-        &self.target
-    }
-
-    pub fn guard(&self) -> &str {
-        &self.guard_text
-    }
-
-    pub fn guard_model(&self) -> &HwGuard {
-        &self.guard
-    }
-
-    pub fn origin(&self) -> &HwOrigin {
-        &self.origin
-    }
-}
-
-#[derive(Debug)]
-#[non_exhaustive]
-pub struct HwReadFact {
-    module: String,
-    source: HwPlace,
-    source_text: String,
-    guard: HwGuard,
-    guard_text: String,
-    origin: HwOrigin,
-}
-
-impl HwReadFact {
-    pub fn new(
-        module: impl Into<String>,
-        source: HwPlace,
-        guard: HwGuard,
-        origin: HwOrigin,
-    ) -> Self {
-        let source_text = source.display();
-        let guard_text = guard.display();
-        Self {
-            module: module.into(),
-            source,
-            source_text,
-            guard,
-            guard_text,
-            origin,
-        }
-    }
-
-    pub fn module(&self) -> &str {
-        &self.module
-    }
-
-    pub fn source(&self) -> &str {
-        &self.source_text
-    }
-
-    pub fn source_place(&self) -> &HwPlace {
-        &self.source
-    }
-
-    pub fn guard(&self) -> &str {
-        &self.guard_text
-    }
-
-    pub fn guard_model(&self) -> &HwGuard {
-        &self.guard
-    }
-
-    pub fn origin(&self) -> &HwOrigin {
-        &self.origin
     }
 }
 
@@ -204,54 +72,6 @@ impl HwGuardFrame {
             Self::IfElse { label } => format!("{label}:else"),
             Self::Loop { label } => label.clone(),
         }
-    }
-}
-
-#[derive(Debug)]
-#[non_exhaustive]
-pub struct HwCreateFact {
-    module: String,
-    name: String,
-    object_id: ObjectId,
-    kind: HwCreateKind,
-    origin: HwOrigin,
-}
-
-impl HwCreateFact {
-    pub fn new(
-        module: impl Into<String>,
-        name: impl Into<String>,
-        object_id: ObjectId,
-        kind: HwCreateKind,
-        origin: HwOrigin,
-    ) -> Self {
-        Self {
-            module: module.into(),
-            name: name.into(),
-            object_id,
-            kind,
-            origin,
-        }
-    }
-
-    pub fn module(&self) -> &str {
-        &self.module
-    }
-
-    pub fn name(&self) -> &str {
-        &self.name
-    }
-
-    pub fn kind(&self) -> HwCreateKind {
-        self.kind
-    }
-
-    pub fn object_id(&self) -> ObjectId {
-        self.object_id
-    }
-
-    pub fn origin(&self) -> &HwOrigin {
-        &self.origin
     }
 }
 
@@ -342,13 +162,6 @@ impl HwExpansion {
     pub fn span_end(&self) -> usize {
         self.span_end
     }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[non_exhaustive]
-pub enum HwCreateKind {
-    Signal,
-    Storage,
 }
 
 #[derive(Debug)]

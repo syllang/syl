@@ -1,7 +1,8 @@
 mod support;
 
 use support::MiddleCompiler;
-use syl_hw::{HwPlace, ParametricHwDesign};
+use syl_elab::ElaborationOutput;
+use syl_hw::HwPlace;
 use syl_span::{SourceId, Span};
 use syl_syntax::SourceParser;
 
@@ -16,7 +17,7 @@ impl StaticFactHarness {
         }
     }
 
-    fn compile_hwir(&self, source: &str) -> Result<ParametricHwDesign, String> {
+    fn compile_output(&self, source: &str) -> Result<ElaborationOutput, String> {
         let file = SourceParser::new(source).parse_file().map_err(|errs| {
             errs.iter()
                 .map(ToString::to_string)
@@ -24,15 +25,15 @@ impl StaticFactHarness {
                 .join("\n")
         })?;
         self.middle
-            .compile_files(&[file])
+            .output_files(&[file])
             .map_err(|err| err.to_string())
     }
 }
 
 #[test]
 fn instance_input_expression_read_fact_uses_object_place() {
-    let hwir = StaticFactHarness::new()
-        .compile_hwir(
+    let output = StaticFactHarness::new()
+        .compile_output(
             r#"
 extern module UseBit(x: in Bit)
 
@@ -43,8 +44,11 @@ module Top(a: in Bit, y: out Bit) {
 "#,
         )
         .expect("instance input expression should compile");
+    let metadata = output
+        .metadata()
+        .expect("successful elaboration must expose hardware metadata");
 
-    let top_reads: Vec<_> = hwir
+    let top_reads: Vec<_> = metadata
         .read_facts()
         .iter()
         .filter(|fact| fact.module() == "Top")
@@ -64,8 +68,8 @@ module Top(a: in Bit, y: out Bit) {
 
 #[test]
 fn extern_module_out_port_records_driver_fact() {
-    let hwir = StaticFactHarness::new()
-        .compile_hwir(
+    let output = StaticFactHarness::new()
+        .compile_output(
             r#"
 extern module DriveBit(y: out Bit)
 
@@ -75,8 +79,11 @@ module Top(y: out Bit) {
 "#,
         )
         .expect("extern module out port should be represented by port-direction facts");
+    let metadata = output
+        .metadata()
+        .expect("successful elaboration must expose hardware metadata");
 
-    assert!(hwir.driver_facts().iter().any(|fact| {
+    assert!(metadata.driver_facts().iter().any(|fact| {
         fact.module() == "Top"
             && (matches!(fact.target_place(), HwPlace::Object { name, .. } if name == "y")
                 || matches!(fact.target_place(), HwPlace::Ident(name) if name == "y"))
@@ -85,8 +92,8 @@ module Top(y: out Bit) {
 
 #[test]
 fn inline_cell_result_aggregate_assign_uses_result_object_identity() {
-    let hwir = StaticFactHarness::new()
-        .compile_hwir(
+    let output = StaticFactHarness::new()
+        .compile_output(
             r#"
 bundle Pair {
     lo: Bit,
@@ -107,8 +114,11 @@ module Top(y: out Pair) {
 "#,
         )
         .expect("cell result aggregate assignment should target the inlined result object");
+    let metadata = output
+        .metadata()
+        .expect("successful elaboration must expose hardware metadata");
 
-    assert!(hwir.driver_facts().iter().any(|fact| {
+    assert!(metadata.driver_facts().iter().any(|fact| {
         matches!(fact.target_place(), HwPlace::Object { name, .. } if name == "made")
     }));
 }
@@ -125,7 +135,10 @@ module Bad(y: out Bit) {
     let file = SourceParser::new_in(source, source_id)
         .parse_file()
         .expect("test source must parse");
-    let diagnostics = MiddleCompiler::new().session(&[file]).diagnostics();
+    let output = MiddleCompiler::new()
+        .output_files(&[file])
+        .expect("duplicate driver fixture must produce elaboration output");
+    let diagnostics = output.diagnostics();
     let diagnostic = diagnostics
         .iter()
         .find(|diagnostic| diagnostic.code.as_deref() == Some("E_MIDDLE_DUPLICATE_HARDWARE_DRIVER"))

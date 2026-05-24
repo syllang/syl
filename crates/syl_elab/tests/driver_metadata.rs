@@ -1,7 +1,8 @@
 mod support;
 
 use support::MiddleCompiler;
-use syl_hw::{HwGuardFrame, HwItem, HwPlace, ParametricHwDesign, ParametricHwItem};
+use syl_elab::ElaborationOutput;
+use syl_hw::{HwGuardFrame, HwItem, HwPlace, ParametricHwItem};
 use syl_syntax::SourceParser;
 
 struct DriverMetadataHarness {
@@ -15,7 +16,7 @@ impl DriverMetadataHarness {
         }
     }
 
-    fn compile_hwir(&self, sources: &[&str]) -> Result<ParametricHwDesign, String> {
+    fn compile_output(&self, sources: &[&str]) -> Result<ElaborationOutput, String> {
         let mut files = Vec::new();
         for source in sources {
             let file = SourceParser::new(source).parse_file().map_err(|errs| {
@@ -27,15 +28,15 @@ impl DriverMetadataHarness {
             files.push(file);
         }
         self.middle
-            .compile_files(&files)
+            .output_files(&files)
             .map_err(|err| err.to_string())
     }
 }
 
 #[test]
 fn inline_cell_driver_facts_keep_expansion_origin() {
-    let hwir = DriverMetadataHarness::new()
-        .compile_hwir(&[r#"
+    let output = DriverMetadataHarness::new()
+        .compile_output(&[r#"
 cell MakeBit() -> y: Bit {
     y := 1
 }
@@ -46,8 +47,11 @@ module Top(y: out Bit) {
 }
 "#])
         .expect("inline cell expansion must still compile");
+    let metadata = output
+        .metadata()
+        .expect("successful elaboration must expose hardware metadata");
 
-    let fact = hwir
+    let fact = metadata
         .driver_facts()
         .iter()
         .find(|fact| {
@@ -68,8 +72,8 @@ module Top(y: out Bit) {
 
 #[test]
 fn hwir_items_keep_expansion_origin() {
-    let hwir = DriverMetadataHarness::new()
-        .compile_hwir(&[r#"
+    let output = DriverMetadataHarness::new()
+        .compile_output(&[r#"
 cell MakeBit() -> y: Bit {
     signal tmp: Bit := 1
     y := tmp
@@ -81,6 +85,9 @@ module Top(y: out Bit) {
 }
 "#])
         .expect("inline cell expansion must still compile");
+    let hwir = output
+        .hwir()
+        .expect("successful elaboration must produce HW IR");
     let module = hwir
         .modules()
         .iter()
@@ -108,37 +115,43 @@ module Top(y: out Bit) {
 
 #[test]
 fn exposes_driver_metadata_on_hwir() {
-    let hwir = DriverMetadataHarness::new()
-        .compile_hwir(&[r#"
+    let output = DriverMetadataHarness::new()
+        .compile_output(&[r#"
 module Top(y: out Bit) {
     signal tmp: Bit := 1
     y := tmp
 }
 "#])
-        .expect("middle pipeline must produce HWIR with driver facts");
+        .expect("middle pipeline must produce HWIR with sidecar driver metadata");
+    let metadata = output
+        .metadata()
+        .expect("successful elaboration must expose hardware metadata");
 
     assert!(
-        hwir.driver_facts()
+        metadata
+            .driver_facts()
             .iter()
             .any(|fact| fact.module() == "Top" && fact.target() == "y" && fact.guard() == "root")
     );
-    assert!(hwir.driver_facts().iter().any(|fact| {
+    assert!(metadata.driver_facts().iter().any(|fact| {
         fact.module() == "Top"
             && (matches!(fact.target_place(), HwPlace::Ident(name) if name == "y")
                 || matches!(fact.target_place(), HwPlace::Object { name, .. } if name == "y"))
     }));
     assert!(
-        hwir.read_facts()
+        metadata
+            .read_facts()
             .iter()
             .any(|fact| fact.module() == "Top" && fact.source() == "tmp" && fact.guard() == "root")
     );
-    assert!(hwir.read_facts().iter().any(|fact| {
+    assert!(metadata.read_facts().iter().any(|fact| {
         fact.module() == "Top"
             && (matches!(fact.source_place(), HwPlace::Ident(name) if name == "tmp")
                 || matches!(fact.source_place(), HwPlace::Object { name, .. } if name == "tmp"))
     }));
     assert!(
-        hwir.create_facts()
+        metadata
+            .create_facts()
             .iter()
             .any(|fact| fact.module() == "Top" && fact.name() == "tmp")
     );
@@ -146,8 +159,8 @@ module Top(y: out Bit) {
 
 #[test]
 fn exposes_structured_driver_guards_on_hwir() {
-    let hwir = DriverMetadataHarness::new()
-        .compile_hwir(&[r#"
+    let output = DriverMetadataHarness::new()
+        .compile_output(&[r#"
 module Top<ENABLE: Bool>(y: out Bit) {
     if ENABLE {
         y := 0
@@ -157,8 +170,11 @@ module Top<ENABLE: Bool>(y: out Bit) {
 }
 "#])
         .expect("if/else guarded drivers must be represented as mutually exclusive facts");
+    let metadata = output
+        .metadata()
+        .expect("successful elaboration must expose hardware metadata");
 
-    let guarded_y: Vec<_> = hwir
+    let guarded_y: Vec<_> = metadata
         .driver_facts()
         .iter()
         .filter(|fact| fact.module() == "Top" && fact.target() == "y")

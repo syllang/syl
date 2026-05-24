@@ -1,6 +1,7 @@
 mod ids;
 pub use ids::{DefId, ExprId, LocalId, PackageId};
 
+mod dump;
 pub mod model;
 pub mod name;
 pub mod resolution;

@@ -162,6 +162,33 @@ pub(crate) struct EirBuilder<'a> {
     pub(crate) program: &'a ElabProgram,
 }
 
+#[non_exhaustive]
+pub(crate) struct Elaborator<'a> {
+    program: &'a ElabProgram,
+    const_mir: &'a ConstMirProgram,
+    map_ir: &'a MapIrProgram,
+}
+
+impl<'a> Elaborator<'a> {
+    pub(crate) fn new(
+        program: &'a ElabProgram,
+        const_mir: &'a ConstMirProgram,
+        map_ir: &'a MapIrProgram,
+    ) -> Self {
+        Self {
+            program,
+            const_mir,
+            map_ir,
+        }
+    }
+
+    pub(crate) fn elaborate(self) -> Result<EirDesign, CompileError> {
+        let _const_mir_nodes = self.const_mir.node_count();
+        let _map_ir_nodes = self.map_ir.len();
+        EirBuilder::new(self.program, self.const_mir, self.map_ir).build_design()
+    }
+}
+
 impl<'a> EirBuilder<'a> {
     pub(crate) fn new(
         program: &'a ElabProgram,

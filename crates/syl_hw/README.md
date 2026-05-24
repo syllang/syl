@@ -35,7 +35,7 @@ driver-analysis scratch state, or semantic temporaries should leak into it.
 ## Allowed Responsibilities
 
 - define HW IR structs, enums, builders, and IDs
-- carry source origin and hardware facts as data
+- carry source origin and backend-neutral hardware structure as data
 - provide a backend-neutral exchange format between elaboration and emission
 
 ## Forbidden Responsibilities

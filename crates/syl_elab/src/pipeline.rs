@@ -3,6 +3,8 @@ use crate::{
     const_mir::ConstMirProgram,
     driver::{DriverAnalyzer, DriverFacts},
     eir::EirDesign,
+    hardware_metadata::HardwareMetadata,
+    hardware_metadata_lower::HardwareMetadataLowerer,
     hw_lower::HwLowerer,
     map_ir::MapIrProgram,
 };
@@ -45,6 +47,7 @@ pub struct ElaborationOutput {
     map_ir: Option<MapIrStage>,
     eir: Option<EirStage>,
     drivers: Option<DriverStage>,
+    metadata: Option<HardwareMetadata>,
     hwir: Option<ParametricHwDesign>,
     diagnostics: Vec<Diagnostic>,
 }
@@ -64,6 +67,10 @@ impl ElaborationOutput {
 
     pub fn drivers(&self) -> Option<&DriverStage> {
         self.drivers.as_ref()
+    }
+
+    pub fn metadata(&self) -> Option<&HardwareMetadata> {
+        self.metadata.as_ref()
     }
 
     pub fn hwir(&self) -> Option<&ParametricHwDesign> {
@@ -188,6 +195,10 @@ impl EirStage {
             .analyze_collect()
             .map(DriverStage::new)
     }
+
+    pub fn lower_hwir(&self) -> Result<ParametricHwDesign, CompileError> {
+        HwLowerer::new(&self.design).lower()
+    }
 }
 
 #[non_exhaustive]
@@ -212,8 +223,8 @@ impl DriverStage {
         self.facts.creates().len()
     }
 
-    pub fn lower_hwir(&self, eir: &EirStage) -> Result<ParametricHwDesign, CompileError> {
-        HwLowerer::new(&eir.design, &self.facts).lower()
+    pub fn metadata(&self) -> Result<HardwareMetadata, CompileError> {
+        HardwareMetadataLowerer::new(&self.facts).lower()
     }
 }
 
@@ -225,6 +236,7 @@ impl fmt::Debug for ElaborationOutput {
             .field("has_map_ir", &self.map_ir.is_some())
             .field("has_eir", &self.eir.is_some())
             .field("has_drivers", &self.drivers.is_some())
+            .field("has_metadata", &self.metadata.is_some())
             .field("has_hwir", &self.hwir.is_some())
             .field("diagnostic_count", &self.diagnostics.len())
             .finish()

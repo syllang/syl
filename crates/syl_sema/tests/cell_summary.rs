@@ -1,7 +1,8 @@
 mod support;
 
 use support::MiddleCompiler;
-use syl_hw::{HwPlace as HardwarePlace, ParametricHwDesign};
+use syl_elab::ElaborationOutput;
+use syl_hw::HwPlace as HardwarePlace;
 use syl_sema::cell_summary::{
     CellBoundarySummary, CellSummaryDeclaration, CellSummaryRegistry, HwPlace as SummaryPlace,
 };
@@ -19,7 +20,7 @@ impl CellSummaryHarness {
         }
     }
 
-    fn compile_hwir(&self, source: &str) -> Result<ParametricHwDesign, String> {
+    fn compile_output(&self, source: &str) -> Result<ElaborationOutput, String> {
         let file = SourceParser::new(source).parse_file().map_err(|errs| {
             errs.iter()
                 .map(ToString::to_string)
@@ -27,15 +28,15 @@ impl CellSummaryHarness {
                 .join("\n")
         })?;
         self.middle
-            .compile_files(&[file])
+            .output_files(&[file])
             .map_err(|err| err.to_string())
     }
 }
 
 #[test]
 fn inline_cell_expansion_exports_public_driver_summary() {
-    let hwir = CellSummaryHarness::new()
-        .compile_hwir(
+    let output = CellSummaryHarness::new()
+        .compile_output(
             r#"
 cell MakePair() -> y: Bit {
     signal tmp: Bit := 1
@@ -49,8 +50,11 @@ module Top(y: out Bit) {
 "#,
         )
         .expect("cell expansion must compile into parent module");
+    let metadata = output
+        .metadata()
+        .expect("successful elaboration must expose hardware metadata");
 
-    let summary = hwir
+    let summary = metadata
         .cell_summaries()
         .iter()
         .find(|summary| summary.callable() == "MakePair" && summary.instance() == "made")

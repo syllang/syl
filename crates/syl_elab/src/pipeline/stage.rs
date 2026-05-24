@@ -1,5 +1,5 @@
 use super::{ConstMirStage, EirStage, MapIrStage};
-use crate::{CompileError, eir::Elaborator, program::ElabProgram, tir::TirDesign};
+use crate::{CompileError, eir_build::Elaborator, program::ElabProgram, tir::TirDesign};
 
 #[non_exhaustive]
 pub struct ElabStage {

@@ -138,6 +138,10 @@ impl HirAnalysis {
         self.design.locals.len()
     }
 
+    pub fn debug_dump(&self) -> String {
+        self.design.debug_dump()
+    }
+
     pub fn check_tir(&self) -> Result<TirAnalysis, CompileError> {
         TypePhaseChecker::new(Arc::clone(&self.design))
             .check()

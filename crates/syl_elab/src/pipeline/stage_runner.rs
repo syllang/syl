@@ -1,5 +1,8 @@
 use super::{ConstMirStage, DriverStage, EirStage, ElabStage, ElaborationOutput, MapIrStage};
-use crate::{CompileError, const_mir::ConstMirBuilder, map_ir::MapIrBuilder};
+use crate::{
+    CompileError, const_mir::ConstMirBuilder, hardware_metadata::HardwareMetadata,
+    map_ir::MapIrBuilder,
+};
 use syl_hw::ParametricHwDesign;
 use syl_sema::TirAnalysis;
 use syl_span::Diagnostic;
@@ -16,8 +19,8 @@ impl<'tir_stage> TirStageRunner<'tir_stage> {
 
     pub(super) fn compile_hwir(&self) -> Result<ParametricHwDesign, CompileError> {
         let eir = self.elaborate_eir()?;
-        let facts = eir.analyze_drivers()?;
-        facts.lower_hwir(&eir)
+        eir.analyze_drivers()?;
+        eir.lower_hwir()
     }
 
     pub(super) fn diagnostics(&self) -> Vec<Diagnostic> {
@@ -46,6 +49,7 @@ struct ElaborationOutputBuilder<'tir_stage> {
     map_ir: Option<MapIrStage>,
     eir: Option<EirStage>,
     drivers: Option<DriverStage>,
+    metadata: Option<HardwareMetadata>,
     hwir: Option<ParametricHwDesign>,
     diagnostics: Vec<Diagnostic>,
 }
@@ -58,6 +62,7 @@ impl<'tir_stage> ElaborationOutputBuilder<'tir_stage> {
             map_ir: None,
             eir: None,
             drivers: None,
+            metadata: None,
             hwir: None,
             diagnostics: Vec::new(),
         }
@@ -77,6 +82,7 @@ impl<'tir_stage> ElaborationOutputBuilder<'tir_stage> {
         if self.drivers.is_none() {
             return self.finish();
         }
+        self.lower_metadata();
         self.lower_hwir();
         self.finish()
     }
@@ -133,12 +139,24 @@ impl<'tir_stage> ElaborationOutputBuilder<'tir_stage> {
     }
 
     fn lower_hwir(&mut self) {
-        let (Some(eir), Some(drivers)) = (&self.eir, &self.drivers) else {
+        let Some(eir) = &self.eir else {
             return;
         };
-        match drivers.lower_hwir(eir) {
+        match eir.lower_hwir() {
             Ok(hwir) => {
                 self.hwir = Some(hwir);
+            }
+            Err(error) => self.diagnostics.push(Diagnostic::from(error)),
+        }
+    }
+
+    fn lower_metadata(&mut self) {
+        let Some(drivers) = &self.drivers else {
+            return;
+        };
+        match drivers.metadata() {
+            Ok(metadata) => {
+                self.metadata = Some(metadata);
             }
             Err(error) => self.diagnostics.push(Diagnostic::from(error)),
         }
@@ -150,6 +168,7 @@ impl<'tir_stage> ElaborationOutputBuilder<'tir_stage> {
             map_ir: self.map_ir,
             eir: self.eir,
             drivers: self.drivers,
+            metadata: self.metadata,
             hwir: self.hwir,
             diagnostics: self.diagnostics,
         }

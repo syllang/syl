@@ -18,7 +18,7 @@ produces validated hardware graph output.
 
 - `HardwareCompiler` and elaboration-stage outputs rooted in TIR input
 - validated EIR plus driver-analysis results as internal elaboration boundaries
-- elaboration diagnostics and driver facts
+- elaboration diagnostics and elab-owned hardware metadata sidecars
 - `syl_hw::ParametricHwDesign` for backend consumption
 
 ## Allowed Dependencies

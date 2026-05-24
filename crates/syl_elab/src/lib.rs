@@ -21,6 +21,8 @@ mod eir_origin;
 mod eir_place;
 mod eir_type;
 mod eir_value;
+mod hardware_metadata;
+mod hardware_metadata_lower;
 mod hw_lower;
 mod map_ir;
 mod mir;
@@ -29,6 +31,10 @@ mod program;
 mod source;
 mod tir;
 
+pub use hardware_metadata::{
+    HardwareCellSummary, HardwareCellSummaryBuilder, HardwareCreateFact, HardwareCreateKind,
+    HardwareDriveFact, HardwareMetadata, HardwareReadFact,
+};
 pub use pipeline::{
     ConstMirStage, DriverStage, EirStage, ElabStage, ElaborationOutput, HardwareCompiler,
     MapIrStage,

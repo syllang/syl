@@ -1,29 +1,13 @@
-use crate::{HwCellSummary, HwExpr, HwItem, HwOrigin, HwParam, HwPort};
+use crate::{HwExpr, HwItem, HwOrigin, HwParam, HwPort};
 
 #[non_exhaustive]
 pub struct ParametricHwDesign {
     modules: Vec<ParametricHwModule>,
-    driver_facts: Vec<crate::HwDriveFact>,
-    read_facts: Vec<crate::HwReadFact>,
-    create_facts: Vec<crate::HwCreateFact>,
-    cell_summaries: Vec<HwCellSummary>,
 }
 
 impl ParametricHwDesign {
-    pub fn new(
-        modules: Vec<ParametricHwModule>,
-        driver_facts: Vec<crate::HwDriveFact>,
-        read_facts: Vec<crate::HwReadFact>,
-        create_facts: Vec<crate::HwCreateFact>,
-        cell_summaries: Vec<HwCellSummary>,
-    ) -> Self {
-        Self {
-            modules,
-            driver_facts,
-            read_facts,
-            create_facts,
-            cell_summaries,
-        }
+    pub fn new(modules: Vec<ParametricHwModule>) -> Self {
+        Self { modules }
     }
 
     pub fn debug_dump(&self) -> String {
@@ -33,35 +17,11 @@ impl ParametricHwDesign {
             .map(|module| module.name().to_string())
             .collect::<Vec<_>>()
             .join(", ");
-        format!(
-            "hwir modules={} driver_facts={} read_facts={} create_facts={} cell_summaries={} [{}]",
-            self.modules.len(),
-            self.driver_facts.len(),
-            self.read_facts.len(),
-            self.create_facts.len(),
-            self.cell_summaries.len(),
-            modules,
-        )
+        format!("hwir modules={} [{}]", self.modules.len(), modules,)
     }
 
     pub fn modules(&self) -> &[ParametricHwModule] {
         &self.modules
-    }
-
-    pub fn driver_facts(&self) -> &[crate::HwDriveFact] {
-        &self.driver_facts
-    }
-
-    pub fn read_facts(&self) -> &[crate::HwReadFact] {
-        &self.read_facts
-    }
-
-    pub fn create_facts(&self) -> &[crate::HwCreateFact] {
-        &self.create_facts
-    }
-
-    pub fn cell_summaries(&self) -> &[HwCellSummary] {
-        &self.cell_summaries
     }
 }
 

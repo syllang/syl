@@ -96,6 +96,7 @@
   - 2026-05-23 S2 - 主 Agent 派出 Review SubAgent，按 Phase 1 MUST FIX 和退出标准独立审查 IR owner 唯一性、EIR 数据/构建分离、TIR side-table 形态、HW IR 临时状态隔离和 debug dump 覆盖。
   - 2026-05-23 S2 - Review SubAgent 判定 Phase 1 未收敛：HW IR 仍把 driver/read/create/cell summary facts 作为 IR 字段，AST/HIR 缺少 debug dump/golden 证据，architecture_phase1_ir 过度依赖 substring 且漏扫 `syl_hw::design`，EIR 数据文件仍混入 `Elaborator` orchestration。
   - 2026-05-23 S3 - 主 Agent 审核 Review 结论后派 Work SubAgent 整改：将 driver/read/create/cell summary facts 移出 HW IR 核心模型，补齐 AST/HIR dump 证据，增强 architecture_phase1_ir 扫描范围，并把 EIR `Elaborator` 从数据文件迁出。
+  - 2026-05-23 S4 - Work SubAgent 完成 Phase 1 整改：删除 HW IR 中 driver/read/create/cell summary 临时字段并迁入 elab-owned `HardwareMetadata` sidecar，新增 AST/HIR debug dump，增强 architecture_phase1_ir 全目录 guard，将 EIR `Elaborator` 迁出数据文件；主 Agent 验证 architecture tests、workspace check、相关 driver/cell tests、targeted grep 和 `git diff --check` 均通过。
 
   ———
 

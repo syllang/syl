@@ -1,6 +1,7 @@
 use syl_span::Span;
 
 mod build;
+mod dump;
 mod lossless;
 
 pub mod lexer;

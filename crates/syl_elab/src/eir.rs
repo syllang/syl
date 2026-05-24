@@ -1,14 +1,10 @@
 use crate::{
-    CellBoundarySummary, CompileError,
-    const_mir::ConstMirProgram,
-    eir_build::EirBuilder,
+    CellBoundarySummary,
     eir_cell::EirCellExpansion,
     eir_expr::{EirBound, EirExpr},
     eir_guard::EirGuard,
     eir_origin::EirOrigin,
     eir_place::EirPlace,
-    map_ir::MapIrProgram,
-    program::ElabProgram,
 };
 
 mod assemble;
@@ -542,32 +538,5 @@ impl EirConnection {
 
     pub(crate) fn actual(&self) -> &EirExpr {
         &self.actual
-    }
-}
-
-#[non_exhaustive]
-pub(crate) struct Elaborator<'a> {
-    program: &'a ElabProgram,
-    const_mir: &'a ConstMirProgram,
-    map_ir: &'a MapIrProgram,
-}
-
-impl<'a> Elaborator<'a> {
-    pub(crate) fn new(
-        program: &'a ElabProgram,
-        const_mir: &'a ConstMirProgram,
-        map_ir: &'a MapIrProgram,
-    ) -> Self {
-        Self {
-            program,
-            const_mir,
-            map_ir,
-        }
-    }
-
-    pub(crate) fn elaborate(self) -> Result<EirDesign, CompileError> {
-        let _const_mir_nodes = self.const_mir.node_count();
-        let _map_ir_nodes = self.map_ir.len();
-        EirBuilder::new(self.program, self.const_mir, self.map_ir).build_design()
     }
 }
