@@ -372,6 +372,9 @@
   - std 本身也通过同一套 checker。
   - std 的 public summaries 可用于 opaque library 测试。
 
+  Log
+  - 2026-05-24 S1 - 主 Agent 派出 Work SubAgent，执行 Phase 8 标准库与组合 API：以普通 Syl 库形式建立 examples/std 分层骨架，优先覆盖 Stream/Stage/Link 组合 API、用户自定义 cell 与官方库同等组合能力、std 不绕过 driver/capability checker、public summaries 可进入 opaque library 测试；本阶段不得把 std 语义硬编码进编译器核心。
+
   ———
 
   ## [ ] Phase 9：工业质量门槛
