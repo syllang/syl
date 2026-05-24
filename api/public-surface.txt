@@ -126,8 +126,8 @@ syl_elab|use|HardwareDriveFact|named|source=hardware_metadata::HardwareDriveFact
 syl_elab|use|HardwareMetadata|named|source=hardware_metadata::HardwareMetadata
 syl_elab|use|HardwareReadFact|named|source=hardware_metadata::HardwareReadFact
 syl_elab|use|MapIrStage|named|source=pipeline::MapIrStage
-syl_elab|variant|syl_elab::hardware_metadata::HardwareCreateKind::Signal|public
-syl_elab|variant|syl_elab::hardware_metadata::HardwareCreateKind::Storage|public
+syl_elab|variant|syl_elab::hardware_metadata::HardwareCreateKind::Signal|unit
+syl_elab|variant|syl_elab::hardware_metadata::HardwareCreateKind::Storage|unit
 syl_emit|enum|syl_emit::CompileError|public
 syl_emit|enum|syl_emit::VerilogError|public
 syl_emit|method|syl_emit::CompileError::invalid_hwir|fn(report: syl_hw::HwValidationReport) -> Self
@@ -137,19 +137,19 @@ syl_emit|method|syl_emit::SystemVerilogBackend::debug_dump|fn(self: &Self, hwir:
 syl_emit|method|syl_emit::SystemVerilogBackend::emit|fn(self: &Self, hwir: &ParametricHwDesign) -> Result<String, CompileError>
 syl_emit|method|syl_emit::SystemVerilogBackend::new|fn() -> Self
 syl_emit|struct|syl_emit::SystemVerilogBackend|public
-syl_emit|variant|syl_emit::CompileError::InvalidHwir|public
-syl_emit|variant|syl_emit::CompileError::UnsupportedHwir|public
-syl_emit|variant|syl_emit::CompileError::Verilog|public
-syl_emit|variant|syl_emit::VerilogError::MismatchedDelimiter|public
-syl_emit|variant|syl_emit::VerilogError::ModuleWithoutName|public
-syl_emit|variant|syl_emit::VerilogError::UnclosedBeginBlock|public
-syl_emit|variant|syl_emit::VerilogError::UnclosedGenerateBlock|public
-syl_emit|variant|syl_emit::VerilogError::UnclosedModule|public
-syl_emit|variant|syl_emit::VerilogError::UnmatchedDelimiter|public
-syl_emit|variant|syl_emit::VerilogError::UnmatchedEndGenerate|public
-syl_emit|variant|syl_emit::VerilogError::UnmatchedEndModule|public
-syl_emit|variant|syl_emit::VerilogError::UnmatchedEnd|public
-syl_emit|variant|syl_emit::VerilogError::UnsupportedFunctionCall|public
+syl_emit|variant|syl_emit::CompileError::InvalidHwir|{ report: syl_hw::HwValidationReport }
+syl_emit|variant|syl_emit::CompileError::UnsupportedHwir|{ message: String }
+syl_emit|variant|syl_emit::CompileError::Verilog|{ kind: VerilogError }
+syl_emit|variant|syl_emit::VerilogError::MismatchedDelimiter|{ open: char, open_line: usize, close: char, line: usize }
+syl_emit|variant|syl_emit::VerilogError::ModuleWithoutName|{ line: usize }
+syl_emit|variant|syl_emit::VerilogError::UnclosedBeginBlock|unit
+syl_emit|variant|syl_emit::VerilogError::UnclosedGenerateBlock|unit
+syl_emit|variant|syl_emit::VerilogError::UnclosedModule|unit
+syl_emit|variant|syl_emit::VerilogError::UnmatchedDelimiter|{ open: char, open_line: usize }
+syl_emit|variant|syl_emit::VerilogError::UnmatchedEndGenerate|{ line: usize }
+syl_emit|variant|syl_emit::VerilogError::UnmatchedEndModule|{ line: usize }
+syl_emit|variant|syl_emit::VerilogError::UnmatchedEnd|{ line: usize }
+syl_emit|variant|syl_emit::VerilogError::UnsupportedFunctionCall|{ module: String, name: String }
 syl_hir|enum|syl_hir::model::HirDefKind|public
 syl_hir|enum|syl_hir::model::HirLocalKind|public
 syl_hir|enum|syl_hir::model::HirMemberKind|public
@@ -164,6 +164,10 @@ syl_hir|enum|syl_hir::model::type_ref::MirPattern|public
 syl_hir|enum|syl_hir::model::type_ref::MirSelectMode|public
 syl_hir|enum|syl_hir::model::type_ref::MirUnaryOp|public
 syl_hir|enum|syl_hir::resolution::HirResolution|public
+syl_hir|field|syl_hir::ids::DefId::0|usize
+syl_hir|field|syl_hir::ids::ExprId::0|usize
+syl_hir|field|syl_hir::ids::LocalId::0|usize
+syl_hir|field|syl_hir::ids::PackageId::0|usize
 syl_hir|field|syl_hir::model::HirDef::canonical_path|crate::name::HirPath
 syl_hir|field|syl_hir::model::HirDef::id|crate::DefId
 syl_hir|field|syl_hir::model::HirDef::kind|HirDefKind
@@ -523,105 +527,105 @@ syl_hir|use|MirTypeRef|named|source=type_ref::MirTypeRef
 syl_hir|use|MirUnaryOp|named|source=model::MirUnaryOp
 syl_hir|use|MirUnaryOp|named|source=type_ref::MirUnaryOp
 syl_hir|use|PackageId|named|source=ids::PackageId
-syl_hir|variant|syl_hir::model::HirDefKind::Bundle|public
-syl_hir|variant|syl_hir::model::HirDefKind::Cell|public
-syl_hir|variant|syl_hir::model::HirDefKind::Const|public
-syl_hir|variant|syl_hir::model::HirDefKind::Enum|public
-syl_hir|variant|syl_hir::model::HirDefKind::ExternModule|public
-syl_hir|variant|syl_hir::model::HirDefKind::Fn|public
-syl_hir|variant|syl_hir::model::HirDefKind::Interface|public
-syl_hir|variant|syl_hir::model::HirDefKind::Map|public
-syl_hir|variant|syl_hir::model::HirDefKind::Module|public
-syl_hir|variant|syl_hir::model::HirLocalKind::Alias|public
-syl_hir|variant|syl_hir::model::HirLocalKind::Const|public
-syl_hir|variant|syl_hir::model::HirLocalKind::Generic|public
-syl_hir|variant|syl_hir::model::HirLocalKind::Instance|public
-syl_hir|variant|syl_hir::model::HirLocalKind::Let|public
-syl_hir|variant|syl_hir::model::HirLocalKind::Loop|public
-syl_hir|variant|syl_hir::model::HirLocalKind::Param|public
-syl_hir|variant|syl_hir::model::HirLocalKind::Reg|public
-syl_hir|variant|syl_hir::model::HirLocalKind::Result|public
-syl_hir|variant|syl_hir::model::HirLocalKind::Signal|public
-syl_hir|variant|syl_hir::model::HirLocalKind::Var|public
-syl_hir|variant|syl_hir::model::HirMemberKind::Field|public
-syl_hir|variant|syl_hir::model::HirMemberKind::ViewField|public
-syl_hir|variant|syl_hir::model::HirMemberKind::View|public
-syl_hir|variant|syl_hir::model::body::HirExprNode::Aggregate|public
-syl_hir|variant|syl_hir::model::body::HirExprNode::Binary|public
-syl_hir|variant|syl_hir::model::body::HirExprNode::Block|public
-syl_hir|variant|syl_hir::model::body::HirExprNode::Bool|public
-syl_hir|variant|syl_hir::model::body::HirExprNode::Call|public
-syl_hir|variant|syl_hir::model::body::HirExprNode::CompileError|public
-syl_hir|variant|syl_hir::model::body::HirExprNode::Field|public
-syl_hir|variant|syl_hir::model::body::HirExprNode::GenericApp|public
-syl_hir|variant|syl_hir::model::body::HirExprNode::Group|public
-syl_hir|variant|syl_hir::model::body::HirExprNode::Ident|public
-syl_hir|variant|syl_hir::model::body::HirExprNode::Index|public
-syl_hir|variant|syl_hir::model::body::HirExprNode::Inst|public
-syl_hir|variant|syl_hir::model::body::HirExprNode::Int|public
-syl_hir|variant|syl_hir::model::body::HirExprNode::Match|public
-syl_hir|variant|syl_hir::model::body::HirExprNode::Range|public
-syl_hir|variant|syl_hir::model::body::HirExprNode::Select|public
-syl_hir|variant|syl_hir::model::body::HirExprNode::Str|public
-syl_hir|variant|syl_hir::model::body::HirExprNode::Unary|public
-syl_hir|variant|syl_hir::model::body::HirExprNode::Unsupported|public
-syl_hir|variant|syl_hir::model::body::HirStmt::Alias|public
-syl_hir|variant|syl_hir::model::body::HirStmt::Const|public
-syl_hir|variant|syl_hir::model::body::HirStmt::ElabFor|public
-syl_hir|variant|syl_hir::model::body::HirStmt::ElabIf|public
-syl_hir|variant|syl_hir::model::body::HirStmt::Error|public
-syl_hir|variant|syl_hir::model::body::HirStmt::Expr|public
-syl_hir|variant|syl_hir::model::body::HirStmt::Inst|public
-syl_hir|variant|syl_hir::model::body::HirStmt::Let|public
-syl_hir|variant|syl_hir::model::body::HirStmt::Next|public
-syl_hir|variant|syl_hir::model::body::HirStmt::Reg|public
-syl_hir|variant|syl_hir::model::body::HirStmt::Return|public
-syl_hir|variant|syl_hir::model::body::HirStmt::Signal|public
-syl_hir|variant|syl_hir::model::body::HirStmt::Var|public
-syl_hir|variant|syl_hir::model::body::HirStmt::While|public
-syl_hir|variant|syl_hir::model::callable::HirCallable::Cell|public
-syl_hir|variant|syl_hir::model::callable::HirCallable::Extern|public
-syl_hir|variant|syl_hir::model::callable::HirCallable::Module|public
-syl_hir|variant|syl_hir::model::item::HirDriveCapability::ReadOnly|public
-syl_hir|variant|syl_hir::model::item::HirDriveCapability::WriteOnly|public
-syl_hir|variant|syl_hir::model::item::HirPortDirection::In|public
-syl_hir|variant|syl_hir::model::item::HirPortDirection::Out|public
-syl_hir|variant|syl_hir::model::item::HirViewDirection::In|public
-syl_hir|variant|syl_hir::model::item::HirViewDirection::Out|public
-syl_hir|variant|syl_hir::model::type_ref::MirBinaryOp::Add|public
-syl_hir|variant|syl_hir::model::type_ref::MirBinaryOp::AndAnd|public
-syl_hir|variant|syl_hir::model::type_ref::MirBinaryOp::Assign|public
-syl_hir|variant|syl_hir::model::type_ref::MirBinaryOp::BitAnd|public
-syl_hir|variant|syl_hir::model::type_ref::MirBinaryOp::BitOr|public
-syl_hir|variant|syl_hir::model::type_ref::MirBinaryOp::BitXor|public
-syl_hir|variant|syl_hir::model::type_ref::MirBinaryOp::Div|public
-syl_hir|variant|syl_hir::model::type_ref::MirBinaryOp::Eq|public
-syl_hir|variant|syl_hir::model::type_ref::MirBinaryOp::Field|public
-syl_hir|variant|syl_hir::model::type_ref::MirBinaryOp::GtEq|public
-syl_hir|variant|syl_hir::model::type_ref::MirBinaryOp::Gt|public
-syl_hir|variant|syl_hir::model::type_ref::MirBinaryOp::LtEq|public
-syl_hir|variant|syl_hir::model::type_ref::MirBinaryOp::Lt|public
-syl_hir|variant|syl_hir::model::type_ref::MirBinaryOp::Mul|public
-syl_hir|variant|syl_hir::model::type_ref::MirBinaryOp::NotEq|public
-syl_hir|variant|syl_hir::model::type_ref::MirBinaryOp::OrOr|public
-syl_hir|variant|syl_hir::model::type_ref::MirBinaryOp::Rem|public
-syl_hir|variant|syl_hir::model::type_ref::MirBinaryOp::Shl|public
-syl_hir|variant|syl_hir::model::type_ref::MirBinaryOp::Sub|public
-syl_hir|variant|syl_hir::model::type_ref::MirBinaryOp::Unsupported|public
-syl_hir|variant|syl_hir::model::type_ref::MirPattern::Bool|public
-syl_hir|variant|syl_hir::model::type_ref::MirPattern::Ident|public
-syl_hir|variant|syl_hir::model::type_ref::MirPattern::Int|public
-syl_hir|variant|syl_hir::model::type_ref::MirPattern::Path|public
-syl_hir|variant|syl_hir::model::type_ref::MirPattern::Unsupported|public
-syl_hir|variant|syl_hir::model::type_ref::MirPattern::Wildcard|public
-syl_hir|variant|syl_hir::model::type_ref::MirSelectMode::Priority|public
-syl_hir|variant|syl_hir::model::type_ref::MirSelectMode::Unique|public
-syl_hir|variant|syl_hir::model::type_ref::MirUnaryOp::Neg|public
-syl_hir|variant|syl_hir::model::type_ref::MirUnaryOp::NotWord|public
-syl_hir|variant|syl_hir::model::type_ref::MirUnaryOp::Not|public
-syl_hir|variant|syl_hir::model::type_ref::MirUnaryOp::Unsupported|public
-syl_hir|variant|syl_hir::resolution::HirResolution::Def|public
-syl_hir|variant|syl_hir::resolution::HirResolution::Local|public
+syl_hir|variant|syl_hir::model::HirDefKind::Bundle|unit
+syl_hir|variant|syl_hir::model::HirDefKind::Cell|unit
+syl_hir|variant|syl_hir::model::HirDefKind::Const|unit
+syl_hir|variant|syl_hir::model::HirDefKind::Enum|unit
+syl_hir|variant|syl_hir::model::HirDefKind::ExternModule|unit
+syl_hir|variant|syl_hir::model::HirDefKind::Fn|unit
+syl_hir|variant|syl_hir::model::HirDefKind::Interface|unit
+syl_hir|variant|syl_hir::model::HirDefKind::Map|unit
+syl_hir|variant|syl_hir::model::HirDefKind::Module|unit
+syl_hir|variant|syl_hir::model::HirLocalKind::Alias|unit
+syl_hir|variant|syl_hir::model::HirLocalKind::Const|unit
+syl_hir|variant|syl_hir::model::HirLocalKind::Generic|unit
+syl_hir|variant|syl_hir::model::HirLocalKind::Instance|unit
+syl_hir|variant|syl_hir::model::HirLocalKind::Let|unit
+syl_hir|variant|syl_hir::model::HirLocalKind::Loop|unit
+syl_hir|variant|syl_hir::model::HirLocalKind::Param|unit
+syl_hir|variant|syl_hir::model::HirLocalKind::Reg|unit
+syl_hir|variant|syl_hir::model::HirLocalKind::Result|unit
+syl_hir|variant|syl_hir::model::HirLocalKind::Signal|unit
+syl_hir|variant|syl_hir::model::HirLocalKind::Var|unit
+syl_hir|variant|syl_hir::model::HirMemberKind::Field|{ ty: MirTypeRef }
+syl_hir|variant|syl_hir::model::HirMemberKind::ViewField|{ view: String }
+syl_hir|variant|syl_hir::model::HirMemberKind::View|unit
+syl_hir|variant|syl_hir::model::body::HirExprNode::Aggregate|{ ty: Box<super::MirTypeRef>, fields: Vec<HirNamedExpr> }
+syl_hir|variant|syl_hir::model::body::HirExprNode::Binary|{ op: syl_syntax::BinaryOp, left: Box<HirExpr>, right: Box<HirExpr> }
+syl_hir|variant|syl_hir::model::body::HirExprNode::Block|(HirBlock)
+syl_hir|variant|syl_hir::model::body::HirExprNode::Bool|(bool)
+syl_hir|variant|syl_hir::model::body::HirExprNode::Call|{ callee: Box<HirExpr>, args: Vec<HirInstArg> }
+syl_hir|variant|syl_hir::model::body::HirExprNode::CompileError|{ message: Box<HirExpr> }
+syl_hir|variant|syl_hir::model::body::HirExprNode::Field|{ base: Box<HirExpr>, field: String }
+syl_hir|variant|syl_hir::model::body::HirExprNode::GenericApp|{ callee: Box<HirExpr>, args: Vec<super::MirTypeRef> }
+syl_hir|variant|syl_hir::model::body::HirExprNode::Group|(Box<HirExpr>)
+syl_hir|variant|syl_hir::model::body::HirExprNode::Ident|(String)
+syl_hir|variant|syl_hir::model::body::HirExprNode::Index|{ base: Box<HirExpr>, index: Box<HirExpr> }
+syl_hir|variant|syl_hir::model::body::HirExprNode::Inst|{ callee: Box<HirExpr>, args: Vec<HirInstArg> }
+syl_hir|variant|syl_hir::model::body::HirExprNode::Int|(u64)
+syl_hir|variant|syl_hir::model::body::HirExprNode::Match|{ expr: Box<HirExpr>, arms: Vec<HirMatchArm> }
+syl_hir|variant|syl_hir::model::body::HirExprNode::Range|{ start: Box<HirExpr>, end: Box<HirExpr> }
+syl_hir|variant|syl_hir::model::body::HirExprNode::Select|{ mode: super::MirSelectMode, arms: Vec<HirSelectArm> }
+syl_hir|variant|syl_hir::model::body::HirExprNode::Str|(String)
+syl_hir|variant|syl_hir::model::body::HirExprNode::Unary|{ op: syl_syntax::UnaryOp, expr: Box<HirExpr> }
+syl_hir|variant|syl_hir::model::body::HirExprNode::Unsupported|unit
+syl_hir|variant|syl_hir::model::body::HirStmt::Alias|{ id: Option<crate::LocalId>, name: String, value: HirExpr, span: syl_span::Span }
+syl_hir|variant|syl_hir::model::body::HirStmt::Const|{ id: Option<crate::LocalId>, name: String, ty: Option<super::MirTypeRef>, value: HirExpr, span: syl_span::Span }
+syl_hir|variant|syl_hir::model::body::HirStmt::ElabFor|{ id: Option<crate::LocalId>, name: String, range: HirExpr, body: HirBlock, span: syl_span::Span }
+syl_hir|variant|syl_hir::model::body::HirStmt::ElabIf|{ cond: HirExpr, then_block: HirBlock, else_block: Option<HirBlock>, span: syl_span::Span }
+syl_hir|variant|syl_hir::model::body::HirStmt::Error|{ span: syl_span::Span }
+syl_hir|variant|syl_hir::model::body::HirStmt::Expr|(HirExpr)
+syl_hir|variant|syl_hir::model::body::HirStmt::Inst|{ id: Option<crate::LocalId>, name: HirExpr, callee: HirExpr, span: syl_span::Span }
+syl_hir|variant|syl_hir::model::body::HirStmt::Let|{ id: Option<crate::LocalId>, name: String, ty: Option<super::MirTypeRef>, value: Option<HirExpr>, span: syl_span::Span }
+syl_hir|variant|syl_hir::model::body::HirStmt::Next|{ name: String, value: HirExpr, span: syl_span::Span }
+syl_hir|variant|syl_hir::model::body::HirStmt::Reg|{ id: Option<crate::LocalId>, name: String, ty: Option<super::MirTypeRef>, reset: Option<HirRegReset>, span: syl_span::Span }
+syl_hir|variant|syl_hir::model::body::HirStmt::Return|(Option<HirExpr>, syl_span::Span)
+syl_hir|variant|syl_hir::model::body::HirStmt::Signal|{ id: Option<crate::LocalId>, name: String, ty: Option<super::MirTypeRef>, value: Option<HirExpr>, span: syl_span::Span }
+syl_hir|variant|syl_hir::model::body::HirStmt::Var|{ id: Option<crate::LocalId>, name: String, ty: Option<super::MirTypeRef>, value: Option<HirExpr>, span: syl_span::Span }
+syl_hir|variant|syl_hir::model::body::HirStmt::While|{ cond: HirExpr, body: HirBlock, span: syl_span::Span }
+syl_hir|variant|syl_hir::model::callable::HirCallable::Cell|(super::HirCallableItem)
+syl_hir|variant|syl_hir::model::callable::HirCallable::Extern|(super::HirExternModuleItem)
+syl_hir|variant|syl_hir::model::callable::HirCallable::Module|(super::HirCallableItem)
+syl_hir|variant|syl_hir::model::item::HirDriveCapability::ReadOnly|unit
+syl_hir|variant|syl_hir::model::item::HirDriveCapability::WriteOnly|unit
+syl_hir|variant|syl_hir::model::item::HirPortDirection::In|unit
+syl_hir|variant|syl_hir::model::item::HirPortDirection::Out|unit
+syl_hir|variant|syl_hir::model::item::HirViewDirection::In|unit
+syl_hir|variant|syl_hir::model::item::HirViewDirection::Out|unit
+syl_hir|variant|syl_hir::model::type_ref::MirBinaryOp::Add|unit
+syl_hir|variant|syl_hir::model::type_ref::MirBinaryOp::AndAnd|unit
+syl_hir|variant|syl_hir::model::type_ref::MirBinaryOp::Assign|unit
+syl_hir|variant|syl_hir::model::type_ref::MirBinaryOp::BitAnd|unit
+syl_hir|variant|syl_hir::model::type_ref::MirBinaryOp::BitOr|unit
+syl_hir|variant|syl_hir::model::type_ref::MirBinaryOp::BitXor|unit
+syl_hir|variant|syl_hir::model::type_ref::MirBinaryOp::Div|unit
+syl_hir|variant|syl_hir::model::type_ref::MirBinaryOp::Eq|unit
+syl_hir|variant|syl_hir::model::type_ref::MirBinaryOp::Field|unit
+syl_hir|variant|syl_hir::model::type_ref::MirBinaryOp::GtEq|unit
+syl_hir|variant|syl_hir::model::type_ref::MirBinaryOp::Gt|unit
+syl_hir|variant|syl_hir::model::type_ref::MirBinaryOp::LtEq|unit
+syl_hir|variant|syl_hir::model::type_ref::MirBinaryOp::Lt|unit
+syl_hir|variant|syl_hir::model::type_ref::MirBinaryOp::Mul|unit
+syl_hir|variant|syl_hir::model::type_ref::MirBinaryOp::NotEq|unit
+syl_hir|variant|syl_hir::model::type_ref::MirBinaryOp::OrOr|unit
+syl_hir|variant|syl_hir::model::type_ref::MirBinaryOp::Rem|unit
+syl_hir|variant|syl_hir::model::type_ref::MirBinaryOp::Shl|unit
+syl_hir|variant|syl_hir::model::type_ref::MirBinaryOp::Sub|unit
+syl_hir|variant|syl_hir::model::type_ref::MirBinaryOp::Unsupported|unit
+syl_hir|variant|syl_hir::model::type_ref::MirPattern::Bool|(bool, syl_span::Span)
+syl_hir|variant|syl_hir::model::type_ref::MirPattern::Ident|(String, syl_span::Span)
+syl_hir|variant|syl_hir::model::type_ref::MirPattern::Int|(u64, syl_span::Span)
+syl_hir|variant|syl_hir::model::type_ref::MirPattern::Path|(Vec<String>, syl_span::Span)
+syl_hir|variant|syl_hir::model::type_ref::MirPattern::Unsupported|(syl_span::Span)
+syl_hir|variant|syl_hir::model::type_ref::MirPattern::Wildcard|(syl_span::Span)
+syl_hir|variant|syl_hir::model::type_ref::MirSelectMode::Priority|unit
+syl_hir|variant|syl_hir::model::type_ref::MirSelectMode::Unique|unit
+syl_hir|variant|syl_hir::model::type_ref::MirUnaryOp::Neg|unit
+syl_hir|variant|syl_hir::model::type_ref::MirUnaryOp::NotWord|unit
+syl_hir|variant|syl_hir::model::type_ref::MirUnaryOp::Not|unit
+syl_hir|variant|syl_hir::model::type_ref::MirUnaryOp::Unsupported|unit
+syl_hir|variant|syl_hir::resolution::HirResolution::Def|(crate::DefId)
+syl_hir|variant|syl_hir::resolution::HirResolution::Local|(crate::LocalId)
 syl_hw|enum|syl_hw::design::HwDirection|public
 syl_hw|enum|syl_hw::design::HwGuardFrame|public
 syl_hw|enum|syl_hw::design::HwItem|public
@@ -634,6 +638,7 @@ syl_hw|enum|syl_hw::place::HwPlaceExpr|public
 syl_hw|enum|syl_hw::place::HwPlace|public
 syl_hw|enum|syl_hw::validate::diagnostic::HwBindingKind|public
 syl_hw|enum|syl_hw::validate::diagnostic::HwValidationDiagnostic|public
+syl_hw|field|syl_hw::ids::ObjectId::0|usize
 syl_hw|method|syl_hw::design::HwConnection::actual|fn(self: &Self) -> &HwExpr
 syl_hw|method|syl_hw::design::HwConnection::formal|fn(self: &Self) -> &str
 syl_hw|method|syl_hw::design::HwConnection::new|fn(formal: impl Into<String>, actual: HwExpr) -> Self
@@ -760,88 +765,88 @@ syl_hw|use|ObjectId|named|source=ids::ObjectId
 syl_hw|use|ParametricHwDesign|named|source=parametric::ParametricHwDesign
 syl_hw|use|ParametricHwItem|named|source=parametric::ParametricHwItem
 syl_hw|use|ParametricHwModule|named|source=parametric::ParametricHwModule
-syl_hw|variant|syl_hw::design::HwDirection::In|public
-syl_hw|variant|syl_hw::design::HwDirection::Out|public
-syl_hw|variant|syl_hw::design::HwGuardFrame::IfElse|public
-syl_hw|variant|syl_hw::design::HwGuardFrame::IfThen|public
-syl_hw|variant|syl_hw::design::HwGuardFrame::Loop|public
-syl_hw|variant|syl_hw::design::HwItem::ClockedStorage|public
-syl_hw|variant|syl_hw::design::HwItem::ContinuousDrive|public
-syl_hw|variant|syl_hw::design::HwItem::InitialError|public
-syl_hw|variant|syl_hw::design::HwItem::Instance|public
-syl_hw|variant|syl_hw::design::HwItem::SignalDecl|public
-syl_hw|variant|syl_hw::design::HwItem::StaticFor|public
-syl_hw|variant|syl_hw::design::HwItem::StaticIf|public
-syl_hw|variant|syl_hw::design::HwItem::StaticParam|public
-syl_hw|variant|syl_hw::design::HwItem::StorageDecl|public
-syl_hw|variant|syl_hw::expr::HwBinaryOp::Add|public
-syl_hw|variant|syl_hw::expr::HwBinaryOp::AndAnd|public
-syl_hw|variant|syl_hw::expr::HwBinaryOp::BitAnd|public
-syl_hw|variant|syl_hw::expr::HwBinaryOp::BitOr|public
-syl_hw|variant|syl_hw::expr::HwBinaryOp::BitXor|public
-syl_hw|variant|syl_hw::expr::HwBinaryOp::Div|public
-syl_hw|variant|syl_hw::expr::HwBinaryOp::Eq|public
-syl_hw|variant|syl_hw::expr::HwBinaryOp::GtEq|public
-syl_hw|variant|syl_hw::expr::HwBinaryOp::Gt|public
-syl_hw|variant|syl_hw::expr::HwBinaryOp::LtEq|public
-syl_hw|variant|syl_hw::expr::HwBinaryOp::Lt|public
-syl_hw|variant|syl_hw::expr::HwBinaryOp::Mul|public
-syl_hw|variant|syl_hw::expr::HwBinaryOp::NotEq|public
-syl_hw|variant|syl_hw::expr::HwBinaryOp::OrOr|public
-syl_hw|variant|syl_hw::expr::HwBinaryOp::Rem|public
-syl_hw|variant|syl_hw::expr::HwBinaryOp::Shl|public
-syl_hw|variant|syl_hw::expr::HwBinaryOp::Sub|public
-syl_hw|variant|syl_hw::expr::HwExpr::Binary|public
-syl_hw|variant|syl_hw::expr::HwExpr::Bool|public
-syl_hw|variant|syl_hw::expr::HwExpr::Call|public
-syl_hw|variant|syl_hw::expr::HwExpr::Concat|public
-syl_hw|variant|syl_hw::expr::HwExpr::Ident|public
-syl_hw|variant|syl_hw::expr::HwExpr::IndexedPartSelect|public
-syl_hw|variant|syl_hw::expr::HwExpr::Index|public
-syl_hw|variant|syl_hw::expr::HwExpr::Int|public
-syl_hw|variant|syl_hw::expr::HwExpr::Mux|public
-syl_hw|variant|syl_hw::expr::HwExpr::Select|public
-syl_hw|variant|syl_hw::expr::HwExpr::Slice|public
-syl_hw|variant|syl_hw::expr::HwExpr::Str|public
-syl_hw|variant|syl_hw::expr::HwExpr::Unary|public
-syl_hw|variant|syl_hw::expr::HwExpr::Zero|public
-syl_hw|variant|syl_hw::expr::HwSelectMode::Priority|public
-syl_hw|variant|syl_hw::expr::HwSelectMode::Unique|public
-syl_hw|variant|syl_hw::expr::HwUnaryOp::Neg|public
-syl_hw|variant|syl_hw::expr::HwUnaryOp::Not|public
-syl_hw|variant|syl_hw::parametric::ParametricHwItem::Core|public
-syl_hw|variant|syl_hw::parametric::ParametricHwItem::StaticFor|public
-syl_hw|variant|syl_hw::parametric::ParametricHwItem::StaticIf|public
-syl_hw|variant|syl_hw::place::HwPlace::Expr|public
-syl_hw|variant|syl_hw::place::HwPlace::Ident|public
-syl_hw|variant|syl_hw::place::HwPlace::IndexedPartSelect|public
-syl_hw|variant|syl_hw::place::HwPlace::Index|public
-syl_hw|variant|syl_hw::place::HwPlace::Object|public
-syl_hw|variant|syl_hw::place::HwPlace::Slice|public
-syl_hw|variant|syl_hw::place::HwPlaceExpr::Bool|public
-syl_hw|variant|syl_hw::place::HwPlaceExpr::Ident|public
-syl_hw|variant|syl_hw::place::HwPlaceExpr::Int|public
-syl_hw|variant|syl_hw::place::HwPlaceExpr::Op|public
-syl_hw|variant|syl_hw::place::HwPlaceExpr::Str|public
-syl_hw|variant|syl_hw::place::HwPlaceExpr::Zero|public
-syl_hw|variant|syl_hw::validate::diagnostic::HwBindingKind::GenerateIndex|public
-syl_hw|variant|syl_hw::validate::diagnostic::HwBindingKind::GenerateLabel|public
-syl_hw|variant|syl_hw::validate::diagnostic::HwBindingKind::Instance|public
-syl_hw|variant|syl_hw::validate::diagnostic::HwBindingKind::LocalParam|public
-syl_hw|variant|syl_hw::validate::diagnostic::HwBindingKind::Module|public
-syl_hw|variant|syl_hw::validate::diagnostic::HwBindingKind::Parameter|public
-syl_hw|variant|syl_hw::validate::diagnostic::HwBindingKind::Port|public
-syl_hw|variant|syl_hw::validate::diagnostic::HwBindingKind::Signal|public
-syl_hw|variant|syl_hw::validate::diagnostic::HwBindingKind::Storage|public
-syl_hw|variant|syl_hw::validate::diagnostic::HwValidationDiagnostic::DuplicateBinding|public
-syl_hw|variant|syl_hw::validate::diagnostic::HwValidationDiagnostic::DuplicateInstanceBinding|public
-syl_hw|variant|syl_hw::validate::diagnostic::HwValidationDiagnostic::DuplicateModule|public
-syl_hw|variant|syl_hw::validate::diagnostic::HwValidationDiagnostic::InvalidIdentifier|public
-syl_hw|variant|syl_hw::validate::diagnostic::HwValidationDiagnostic::InvalidWidth|public
-syl_hw|variant|syl_hw::validate::diagnostic::HwValidationDiagnostic::UnknownInstanceParam|public
-syl_hw|variant|syl_hw::validate::diagnostic::HwValidationDiagnostic::UnknownInstancePort|public
-syl_hw|variant|syl_hw::validate::diagnostic::HwValidationDiagnostic::UnknownInstanceTarget|public
-syl_hw|variant|syl_hw::validate::diagnostic::HwValidationDiagnostic::UnknownReference|public
+syl_hw|variant|syl_hw::design::HwDirection::In|unit
+syl_hw|variant|syl_hw::design::HwDirection::Out|unit
+syl_hw|variant|syl_hw::design::HwGuardFrame::IfElse|{ label: String }
+syl_hw|variant|syl_hw::design::HwGuardFrame::IfThen|{ label: String }
+syl_hw|variant|syl_hw::design::HwGuardFrame::Loop|{ label: String }
+syl_hw|variant|syl_hw::design::HwItem::ClockedStorage|{ clock: crate::HwExpr, target: crate::HwExpr, reset: Option<HwReset>, next: crate::HwExpr }
+syl_hw|variant|syl_hw::design::HwItem::ContinuousDrive|{ lhs: crate::HwExpr, rhs: crate::HwExpr }
+syl_hw|variant|syl_hw::design::HwItem::InitialError|{ message: crate::HwExpr }
+syl_hw|variant|syl_hw::design::HwItem::Instance|(HwInstance)
+syl_hw|variant|syl_hw::design::HwItem::SignalDecl|{ width: String, name: String }
+syl_hw|variant|syl_hw::design::HwItem::StaticFor|{ index: String, start: crate::HwExpr, end: crate::HwExpr, label: String, items: Vec<HwItem> }
+syl_hw|variant|syl_hw::design::HwItem::StaticIf|{ cond: crate::HwExpr, label: String, then_items: Vec<HwItem>, else_items: Vec<HwItem> }
+syl_hw|variant|syl_hw::design::HwItem::StaticParam|{ name: String, value: crate::HwExpr }
+syl_hw|variant|syl_hw::design::HwItem::StorageDecl|{ width: String, name: String }
+syl_hw|variant|syl_hw::expr::HwBinaryOp::Add|unit
+syl_hw|variant|syl_hw::expr::HwBinaryOp::AndAnd|unit
+syl_hw|variant|syl_hw::expr::HwBinaryOp::BitAnd|unit
+syl_hw|variant|syl_hw::expr::HwBinaryOp::BitOr|unit
+syl_hw|variant|syl_hw::expr::HwBinaryOp::BitXor|unit
+syl_hw|variant|syl_hw::expr::HwBinaryOp::Div|unit
+syl_hw|variant|syl_hw::expr::HwBinaryOp::Eq|unit
+syl_hw|variant|syl_hw::expr::HwBinaryOp::GtEq|unit
+syl_hw|variant|syl_hw::expr::HwBinaryOp::Gt|unit
+syl_hw|variant|syl_hw::expr::HwBinaryOp::LtEq|unit
+syl_hw|variant|syl_hw::expr::HwBinaryOp::Lt|unit
+syl_hw|variant|syl_hw::expr::HwBinaryOp::Mul|unit
+syl_hw|variant|syl_hw::expr::HwBinaryOp::NotEq|unit
+syl_hw|variant|syl_hw::expr::HwBinaryOp::OrOr|unit
+syl_hw|variant|syl_hw::expr::HwBinaryOp::Rem|unit
+syl_hw|variant|syl_hw::expr::HwBinaryOp::Shl|unit
+syl_hw|variant|syl_hw::expr::HwBinaryOp::Sub|unit
+syl_hw|variant|syl_hw::expr::HwExpr::Binary|{ op: HwBinaryOp, left: Box<HwExpr>, right: Box<HwExpr> }
+syl_hw|variant|syl_hw::expr::HwExpr::Bool|(bool)
+syl_hw|variant|syl_hw::expr::HwExpr::Call|{ name: String, args: Vec<HwExpr> }
+syl_hw|variant|syl_hw::expr::HwExpr::Concat|(Vec<HwExpr>)
+syl_hw|variant|syl_hw::expr::HwExpr::Ident|(String)
+syl_hw|variant|syl_hw::expr::HwExpr::IndexedPartSelect|{ value: Box<HwExpr>, index: Box<HwExpr>, width: String }
+syl_hw|variant|syl_hw::expr::HwExpr::Index|{ value: Box<HwExpr>, index: Box<HwExpr> }
+syl_hw|variant|syl_hw::expr::HwExpr::Int|(u64)
+syl_hw|variant|syl_hw::expr::HwExpr::Mux|{ cond: Box<HwExpr>, then_value: Box<HwExpr>, else_value: Box<HwExpr> }
+syl_hw|variant|syl_hw::expr::HwExpr::Select|{ mode: HwSelectMode, arms: Vec<HwSelectArm>, default: Box<HwExpr> }
+syl_hw|variant|syl_hw::expr::HwExpr::Slice|{ value: Box<HwExpr>, high: String, low: String }
+syl_hw|variant|syl_hw::expr::HwExpr::Str|(String)
+syl_hw|variant|syl_hw::expr::HwExpr::Unary|{ op: HwUnaryOp, expr: Box<HwExpr> }
+syl_hw|variant|syl_hw::expr::HwExpr::Zero|unit
+syl_hw|variant|syl_hw::expr::HwSelectMode::Priority|unit
+syl_hw|variant|syl_hw::expr::HwSelectMode::Unique|unit
+syl_hw|variant|syl_hw::expr::HwUnaryOp::Neg|unit
+syl_hw|variant|syl_hw::expr::HwUnaryOp::Not|unit
+syl_hw|variant|syl_hw::parametric::ParametricHwItem::Core|{ item: crate::HwItem, origin: crate::HwOrigin }
+syl_hw|variant|syl_hw::parametric::ParametricHwItem::StaticFor|{ index: String, start: crate::HwExpr, end: crate::HwExpr, label: String, items: Vec<ParametricHwItem>, origin: crate::HwOrigin }
+syl_hw|variant|syl_hw::parametric::ParametricHwItem::StaticIf|{ cond: crate::HwExpr, label: String, then_items: Vec<ParametricHwItem>, else_items: Vec<ParametricHwItem>, origin: crate::HwOrigin }
+syl_hw|variant|syl_hw::place::HwPlace::Expr|(HwPlaceExpr)
+syl_hw|variant|syl_hw::place::HwPlace::Ident|(String)
+syl_hw|variant|syl_hw::place::HwPlace::IndexedPartSelect|{ base: Box<HwPlace>, index: HwPlaceExpr, width: String }
+syl_hw|variant|syl_hw::place::HwPlace::Index|{ base: Box<HwPlace>, index: HwPlaceExpr }
+syl_hw|variant|syl_hw::place::HwPlace::Object|{ id: crate::ObjectId, name: String }
+syl_hw|variant|syl_hw::place::HwPlace::Slice|{ base: Box<HwPlace>, high: String, low: String }
+syl_hw|variant|syl_hw::place::HwPlaceExpr::Bool|(bool)
+syl_hw|variant|syl_hw::place::HwPlaceExpr::Ident|(String)
+syl_hw|variant|syl_hw::place::HwPlaceExpr::Int|(u64)
+syl_hw|variant|syl_hw::place::HwPlaceExpr::Op|{ name: String, args: Vec<HwPlaceExpr> }
+syl_hw|variant|syl_hw::place::HwPlaceExpr::Str|(String)
+syl_hw|variant|syl_hw::place::HwPlaceExpr::Zero|unit
+syl_hw|variant|syl_hw::validate::diagnostic::HwBindingKind::GenerateIndex|unit
+syl_hw|variant|syl_hw::validate::diagnostic::HwBindingKind::GenerateLabel|unit
+syl_hw|variant|syl_hw::validate::diagnostic::HwBindingKind::Instance|unit
+syl_hw|variant|syl_hw::validate::diagnostic::HwBindingKind::LocalParam|unit
+syl_hw|variant|syl_hw::validate::diagnostic::HwBindingKind::Module|unit
+syl_hw|variant|syl_hw::validate::diagnostic::HwBindingKind::Parameter|unit
+syl_hw|variant|syl_hw::validate::diagnostic::HwBindingKind::Port|unit
+syl_hw|variant|syl_hw::validate::diagnostic::HwBindingKind::Signal|unit
+syl_hw|variant|syl_hw::validate::diagnostic::HwBindingKind::Storage|unit
+syl_hw|variant|syl_hw::validate::diagnostic::HwValidationDiagnostic::DuplicateBinding|{ module: String, kind: HwBindingKind, name: String }
+syl_hw|variant|syl_hw::validate::diagnostic::HwValidationDiagnostic::DuplicateInstanceBinding|{ module: String, instance: String, kind: HwBindingKind, name: String }
+syl_hw|variant|syl_hw::validate::diagnostic::HwValidationDiagnostic::DuplicateModule|{ name: String }
+syl_hw|variant|syl_hw::validate::diagnostic::HwValidationDiagnostic::InvalidIdentifier|{ module: Option<String>, kind: HwBindingKind, name: String }
+syl_hw|variant|syl_hw::validate::diagnostic::HwValidationDiagnostic::InvalidWidth|{ module: String, kind: HwBindingKind, name: String, width: String }
+syl_hw|variant|syl_hw::validate::diagnostic::HwValidationDiagnostic::UnknownInstanceParam|{ module: String, instance: String, target: String, name: String }
+syl_hw|variant|syl_hw::validate::diagnostic::HwValidationDiagnostic::UnknownInstancePort|{ module: String, instance: String, target: String, name: String }
+syl_hw|variant|syl_hw::validate::diagnostic::HwValidationDiagnostic::UnknownInstanceTarget|{ module: String, instance: String, target: String }
+syl_hw|variant|syl_hw::validate::diagnostic::HwValidationDiagnostic::UnknownReference|{ module: String, name: String }
 syl_lsp|method|syl_lsp::SylLanguageServer::new|fn(client: Client) -> Self
 syl_lsp|method|syl_lsp::SylLspServerRunner::new|fn() -> Self
 syl_lsp|method|syl_lsp::SylLspServerRunner::serve|fn(self: &Self)
@@ -946,28 +951,28 @@ syl_query|use|ProjectQueries|named|source=api::ProjectQueries
 syl_query|use|ProjectQueries|named|source=snapshot::ProjectQueries
 syl_query|use|QueryError|named|source=error::QueryError
 syl_query|use|StageDiagnostics|named|source=navigation::StageDiagnostics
-syl_query|variant|syl_query::error::QueryError::Cancelled|public
-syl_query|variant|syl_query::navigation::CompletionItemKind::Constant|public
-syl_query|variant|syl_query::navigation::CompletionItemKind::Field|public
-syl_query|variant|syl_query::navigation::CompletionItemKind::Function|public
-syl_query|variant|syl_query::navigation::CompletionItemKind::Keyword|public
-syl_query|variant|syl_query::navigation::CompletionItemKind::Module|public
-syl_query|variant|syl_query::navigation::CompletionItemKind::Type|public
-syl_query|variant|syl_query::navigation::DiagnosticStage::Backend|public
-syl_query|variant|syl_query::navigation::DiagnosticStage::Elaboration|public
-syl_query|variant|syl_query::navigation::DiagnosticStage::Hir|public
-syl_query|variant|syl_query::navigation::DiagnosticStage::Parse|public
-syl_query|variant|syl_query::navigation::DiagnosticStage::Tir|public
-syl_query|variant|syl_query::navigation::DocumentSymbolKind::Constant|public
-syl_query|variant|syl_query::navigation::DocumentSymbolKind::EnumMember|public
-syl_query|variant|syl_query::navigation::DocumentSymbolKind::Field|public
-syl_query|variant|syl_query::navigation::DocumentSymbolKind::Function|public
-syl_query|variant|syl_query::navigation::DocumentSymbolKind::Module|public
-syl_query|variant|syl_query::navigation::DocumentSymbolKind::Package|public
-syl_query|variant|syl_query::navigation::DocumentSymbolKind::Parameter|public
-syl_query|variant|syl_query::navigation::DocumentSymbolKind::Type|public
-syl_query|variant|syl_query::navigation::DocumentSymbolKind::Variable|public
-syl_query|variant|syl_query::navigation::DocumentSymbolKind::View|public
+syl_query|variant|syl_query::error::QueryError::Cancelled|unit
+syl_query|variant|syl_query::navigation::CompletionItemKind::Constant|unit
+syl_query|variant|syl_query::navigation::CompletionItemKind::Field|unit
+syl_query|variant|syl_query::navigation::CompletionItemKind::Function|unit
+syl_query|variant|syl_query::navigation::CompletionItemKind::Keyword|unit
+syl_query|variant|syl_query::navigation::CompletionItemKind::Module|unit
+syl_query|variant|syl_query::navigation::CompletionItemKind::Type|unit
+syl_query|variant|syl_query::navigation::DiagnosticStage::Backend|unit
+syl_query|variant|syl_query::navigation::DiagnosticStage::Elaboration|unit
+syl_query|variant|syl_query::navigation::DiagnosticStage::Hir|unit
+syl_query|variant|syl_query::navigation::DiagnosticStage::Parse|unit
+syl_query|variant|syl_query::navigation::DiagnosticStage::Tir|unit
+syl_query|variant|syl_query::navigation::DocumentSymbolKind::Constant|unit
+syl_query|variant|syl_query::navigation::DocumentSymbolKind::EnumMember|unit
+syl_query|variant|syl_query::navigation::DocumentSymbolKind::Field|unit
+syl_query|variant|syl_query::navigation::DocumentSymbolKind::Function|unit
+syl_query|variant|syl_query::navigation::DocumentSymbolKind::Module|unit
+syl_query|variant|syl_query::navigation::DocumentSymbolKind::Package|unit
+syl_query|variant|syl_query::navigation::DocumentSymbolKind::Parameter|unit
+syl_query|variant|syl_query::navigation::DocumentSymbolKind::Type|unit
+syl_query|variant|syl_query::navigation::DocumentSymbolKind::Variable|unit
+syl_query|variant|syl_query::navigation::DocumentSymbolKind::View|unit
 syl_sema|enum|syl_sema::cell_summary::CellBoundarySummary|public
 syl_sema|enum|syl_sema::cell_summary::CellInstanceMatch|public
 syl_sema|enum|syl_sema::cell_summary::CellSummaryStatus|public
@@ -1024,6 +1029,7 @@ syl_sema|enum|syl_sema::tir::type_support::TirGenericArg|public
 syl_sema|enum|syl_sema::tir::type_support::TirType|public
 syl_sema|enum|syl_sema::tir::type_support::const_term::TirConstResolution|public
 syl_sema|enum|syl_sema::tir::type_support::const_term::TirConstTerm|public
+syl_sema|field|syl_sema::ids::TypeId::0|usize
 syl_sema|method|syl_sema::actual_binding::ActualFormalBinder::is_used|fn(self: &Self, name: &str) -> bool
 syl_sema|method|syl_sema::actual_binding::ActualFormalBinder::new|fn(formals: &[F]) -> Self
 syl_sema|method|syl_sema::actual_binding::ActualFormalBinder::resolve|fn(self: &mut Self, callable_name: &str, arg_name: Option<&str>, arg_span: Span) -> Result<&F, CompileError>
@@ -1583,317 +1589,317 @@ syl_sema|use|ViewFieldSummary|named|source=facts::ViewFieldSummary
 syl_sema|use|ViewFieldSummary|named|source=protocol::ViewFieldSummary
 syl_sema|use|WordEncoding|named|source=facts::WordEncoding
 syl_sema|use|WordEncoding|named|source=layout::WordEncoding
-syl_sema|variant|syl_sema::cell_summary::CellBoundarySummary::Available|public
-syl_sema|variant|syl_sema::cell_summary::CellBoundarySummary::Missing|public
-syl_sema|variant|syl_sema::cell_summary::CellBoundarySummary::UnsafeAssumed|public
-syl_sema|variant|syl_sema::cell_summary::CellInstanceMatch::Any|public
-syl_sema|variant|syl_sema::cell_summary::CellInstanceMatch::Exact|public
-syl_sema|variant|syl_sema::cell_summary::CellSummaryStatus::Available|public
-syl_sema|variant|syl_sema::cell_summary::CellSummaryStatus::Missing|public
-syl_sema|variant|syl_sema::cell_summary::CellSummaryStatus::UnsafeAssumed|public
-syl_sema|variant|syl_sema::cell_summary::HwPlace::Ident|public
-syl_sema|variant|syl_sema::completion::CompletionKind::Alias|public
-syl_sema|variant|syl_sema::completion::CompletionKind::Bundle|public
-syl_sema|variant|syl_sema::completion::CompletionKind::Cell|public
-syl_sema|variant|syl_sema::completion::CompletionKind::Const|public
-syl_sema|variant|syl_sema::completion::CompletionKind::Enum|public
-syl_sema|variant|syl_sema::completion::CompletionKind::ExternModule|public
-syl_sema|variant|syl_sema::completion::CompletionKind::Field|public
-syl_sema|variant|syl_sema::completion::CompletionKind::Fn|public
-syl_sema|variant|syl_sema::completion::CompletionKind::Generic|public
-syl_sema|variant|syl_sema::completion::CompletionKind::Instance|public
-syl_sema|variant|syl_sema::completion::CompletionKind::Interface|public
-syl_sema|variant|syl_sema::completion::CompletionKind::Let|public
-syl_sema|variant|syl_sema::completion::CompletionKind::Loop|public
-syl_sema|variant|syl_sema::completion::CompletionKind::Map|public
-syl_sema|variant|syl_sema::completion::CompletionKind::Module|public
-syl_sema|variant|syl_sema::completion::CompletionKind::Param|public
-syl_sema|variant|syl_sema::completion::CompletionKind::Reg|public
-syl_sema|variant|syl_sema::completion::CompletionKind::Result|public
-syl_sema|variant|syl_sema::completion::CompletionKind::Signal|public
-syl_sema|variant|syl_sema::completion::CompletionKind::Unknown|public
-syl_sema|variant|syl_sema::completion::CompletionKind::Var|public
-syl_sema|variant|syl_sema::completion::CompletionKind::ViewField|public
-syl_sema|variant|syl_sema::completion::CompletionKind::View|public
-syl_sema|variant|syl_sema::const_eval::ConstKind::Bool|public
-syl_sema|variant|syl_sema::const_eval::ConstKind::Nat|public
-syl_sema|variant|syl_sema::const_eval::ConstValue::Bool|public
-syl_sema|variant|syl_sema::const_eval::ConstValue::Nat|public
-syl_sema|variant|syl_sema::const_eval::ConstValue::Unknown|public
-syl_sema|variant|syl_sema::const_mir::ConstExprKind::Binary|public
-syl_sema|variant|syl_sema::const_mir::ConstExprKind::Bool|public
-syl_sema|variant|syl_sema::const_mir::ConstExprKind::Call|public
-syl_sema|variant|syl_sema::const_mir::ConstExprKind::Local|public
-syl_sema|variant|syl_sema::const_mir::ConstExprKind::Nat|public
-syl_sema|variant|syl_sema::const_mir::ConstExprKind::Unary|public
-syl_sema|variant|syl_sema::const_mir::ConstExprKind::Unknown|public
-syl_sema|variant|syl_sema::const_mir::ConstExprKind::Unsupported|public
-syl_sema|variant|syl_sema::const_mir::ConstStmt::Assign|public
-syl_sema|variant|syl_sema::const_mir::Terminator::Branch|public
-syl_sema|variant|syl_sema::const_mir::Terminator::Goto|public
-syl_sema|variant|syl_sema::const_mir::Terminator::Return|public
-syl_sema|variant|syl_sema::diagnostic::SemanticDiagnosticStage::Driver|public
-syl_sema|variant|syl_sema::diagnostic::SemanticDiagnosticStage::Lowering|public
-syl_sema|variant|syl_sema::error::CapabilityError::NotDrivable|public
-syl_sema|variant|syl_sema::error::CapabilityError::NotReadable|public
-syl_sema|variant|syl_sema::error::CapabilityError::SelectGuardRequiresBit|public
-syl_sema|variant|syl_sema::error::CapabilityError::UnknownInterface|public
-syl_sema|variant|syl_sema::error::CapabilityError::UnknownView|public
-syl_sema|variant|syl_sema::error::CapabilityError::UnresolvedName|public
-syl_sema|variant|syl_sema::error::CapabilityError::UnsupportedHardwareValueExpression|public
-syl_sema|variant|syl_sema::error::CompileError::Lowering|public
-syl_sema|variant|syl_sema::error::ConstEvalError::ConstArithmeticTypeMismatch|public
-syl_sema|variant|syl_sema::error::ConstEvalError::ConstComparisonTypeMismatch|public
-syl_sema|variant|syl_sema::error::ConstEvalError::ConstEqualityTypeMismatch|public
-syl_sema|variant|syl_sema::error::ConstEvalError::ConstLogicalTypeMismatch|public
-syl_sema|variant|syl_sema::error::ConstEvalError::HardwareValueInConstContext|public
-syl_sema|variant|syl_sema::error::ConstEvalError::InvalidConstBinaryExpression|public
-syl_sema|variant|syl_sema::error::ConstEvalError::InvalidConstUnaryExpression|public
-syl_sema|variant|syl_sema::error::ConstEvalError::InvalidElaborationExpression|public
-syl_sema|variant|syl_sema::error::ConstEvalError::NotElaborationTimeExpression|public
-syl_sema|variant|syl_sema::error::ConstEvalError::StepLimitExceeded|public
-syl_sema|variant|syl_sema::error::ConstEvalError::UnknownElaborationIdentifier|public
-syl_sema|variant|syl_sema::error::DriverError::DriverPlaceOutOfBounds|public
-syl_sema|variant|syl_sema::error::DriverError::DuplicateHardwareDriver|public
-syl_sema|variant|syl_sema::error::DriverError::DuplicateNextDriver|public
-syl_sema|variant|syl_sema::error::DriverError::MissingCellSummary|public
-syl_sema|variant|syl_sema::error::DriverError::NextTargetIsNotReg|public
-syl_sema|variant|syl_sema::error::DriverError::UndrivenOut|public
-syl_sema|variant|syl_sema::error::DriverError::UndrivenRead|public
-syl_sema|variant|syl_sema::error::DriverError::UndrivenSignal|public
-syl_sema|variant|syl_sema::error::DriverError::UnknownHardwareObject|public
-syl_sema|variant|syl_sema::error::DriverError::UnknownParameter|public
-syl_sema|variant|syl_sema::error::DriverError::UnsupportedHardwareValueExpression|public
-syl_sema|variant|syl_sema::error::EirError::AssignmentInMap|public
-syl_sema|variant|syl_sema::error::EirError::DuplicateArgument|public
-syl_sema|variant|syl_sema::error::EirError::DuplicateConnection|public
-syl_sema|variant|syl_sema::error::EirError::HardwareGeneratorCallInExpression|public
-syl_sema|variant|syl_sema::error::EirError::HardwareGeneratorCallInMap|public
-syl_sema|variant|syl_sema::error::EirError::IllegalHardwareStatement|public
-syl_sema|variant|syl_sema::error::EirError::InstanceCalleeMustBeName|public
-syl_sema|variant|syl_sema::error::EirError::InvalidElaborationExpression|public
-syl_sema|variant|syl_sema::error::EirError::InvalidInterfaceType|public
-syl_sema|variant|syl_sema::error::EirError::LocalBindingLoweringUnsupported|public
-syl_sema|variant|syl_sema::error::EirError::MissingAggregateField|public
-syl_sema|variant|syl_sema::error::EirError::RegisterRequiresClock|public
-syl_sema|variant|syl_sema::error::EirError::RegisterRequiresReset|public
-syl_sema|variant|syl_sema::error::EirError::RegisterRequiresType|public
-syl_sema|variant|syl_sema::error::EirError::SignalRequiresType|public
-syl_sema|variant|syl_sema::error::EirError::TooManyPositionalArguments|public
-syl_sema|variant|syl_sema::error::EirError::UnknownAggregateField|public
-syl_sema|variant|syl_sema::error::EirError::UnknownElaborationIdentifier|public
-syl_sema|variant|syl_sema::error::EirError::UnknownHardwareValueCall|public
-syl_sema|variant|syl_sema::error::EirError::UnknownInterface|public
-syl_sema|variant|syl_sema::error::EirError::UnknownParameter|public
-syl_sema|variant|syl_sema::error::EirError::UnknownView|public
-syl_sema|variant|syl_sema::error::EirError::UnsupportedHardwareValueExpression|public
-syl_sema|variant|syl_sema::error::HirError::AmbiguousImport|public
-syl_sema|variant|syl_sema::error::HirError::DuplicateBundle|public
-syl_sema|variant|syl_sema::error::HirError::DuplicateCallable|public
-syl_sema|variant|syl_sema::error::HirError::DuplicateConst|public
-syl_sema|variant|syl_sema::error::HirError::DuplicateEnumVariant|public
-syl_sema|variant|syl_sema::error::HirError::DuplicateEnum|public
-syl_sema|variant|syl_sema::error::HirError::DuplicateFn|public
-syl_sema|variant|syl_sema::error::HirError::DuplicateInterface|public
-syl_sema|variant|syl_sema::error::HirError::DuplicateMap|public
-syl_sema|variant|syl_sema::error::HirError::MissingHirDef|public
-syl_sema|variant|syl_sema::error::HirError::MissingHirExpr|public
-syl_sema|variant|syl_sema::error::HirError::MissingHirLocal|public
-syl_sema|variant|syl_sema::error::HirError::UnknownImport|public
-syl_sema|variant|syl_sema::error::HirError::UnresolvedName|public
-syl_sema|variant|syl_sema::error::HwirError::UnsupportedHardwareValueExpression|public
-syl_sema|variant|syl_sema::error::LoweringError::Capability|public
-syl_sema|variant|syl_sema::error::LoweringError::Const|public
-syl_sema|variant|syl_sema::error::LoweringError::Driver|public
-syl_sema|variant|syl_sema::error::LoweringError::Eir|public
-syl_sema|variant|syl_sema::error::LoweringError::Hir|public
-syl_sema|variant|syl_sema::error::LoweringError::Hwir|public
-syl_sema|variant|syl_sema::error::LoweringError::Tir|public
-syl_sema|variant|syl_sema::error::TirError::BoolInHardwareValue|public
-syl_sema|variant|syl_sema::error::TirError::ElaborationIfRequiresBool|public
-syl_sema|variant|syl_sema::error::TirError::InvalidElaborationExpression|public
-syl_sema|variant|syl_sema::error::TirError::MatchRequiresArm|public
-syl_sema|variant|syl_sema::error::TirError::MissingAggregateField|public
-syl_sema|variant|syl_sema::error::TirError::RequiresNatExpression|public
-syl_sema|variant|syl_sema::error::TirError::SelectRequiresDefault|public
-syl_sema|variant|syl_sema::error::TirError::SoftwareOperatorInHardware|public
-syl_sema|variant|syl_sema::error::TirError::UnknownAggregateField|public
-syl_sema|variant|syl_sema::error::TirError::UnknownType|public
-syl_sema|variant|syl_sema::facts::capability::CapabilityKind::Clock|public
-syl_sema|variant|syl_sema::facts::capability::CapabilityKind::Domain|public
-syl_sema|variant|syl_sema::facts::capability::CapabilityKind::Reset|public
-syl_sema|variant|syl_sema::facts::capability::CapabilityKind::Value|public
-syl_sema|variant|syl_sema::facts::capability::CapabilityKind::View|public
-syl_sema|variant|syl_sema::facts::capability::DomainFact::BuiltinDomain|public
-syl_sema|variant|syl_sema::facts::capability::DomainFact::Named|public
-syl_sema|variant|syl_sema::facts::capability::DomainFact::Unknown|public
-syl_sema|variant|syl_sema::facts::consts::ConstFactKey::Def|public
-syl_sema|variant|syl_sema::facts::layout::Layout::Aggregate|public
-syl_sema|variant|syl_sema::facts::layout::Layout::Array|public
-syl_sema|variant|syl_sema::facts::layout::Layout::Bit|public
-syl_sema|variant|syl_sema::facts::layout::Layout::Bool|public
-syl_sema|variant|syl_sema::facts::layout::Layout::Clock|public
-syl_sema|variant|syl_sema::facts::layout::Layout::Domain|public
-syl_sema|variant|syl_sema::facts::layout::Layout::Enum|public
-syl_sema|variant|syl_sema::facts::layout::Layout::Nat|public
-syl_sema|variant|syl_sema::facts::layout::Layout::Opaque|public
-syl_sema|variant|syl_sema::facts::layout::Layout::Reset|public
-syl_sema|variant|syl_sema::facts::layout::Layout::Str|public
-syl_sema|variant|syl_sema::facts::layout::Layout::Unknown|public
-syl_sema|variant|syl_sema::facts::layout::Layout::View|public
-syl_sema|variant|syl_sema::facts::layout::Layout::Word|public
-syl_sema|variant|syl_sema::facts::layout::LayoutConst::Known|public
-syl_sema|variant|syl_sema::facts::layout::LayoutConst::Symbol|public
-syl_sema|variant|syl_sema::facts::layout::LayoutConst::Unknown|public
-syl_sema|variant|syl_sema::facts::layout::WordEncoding::Bits|public
-syl_sema|variant|syl_sema::facts::layout::WordEncoding::SInt|public
-syl_sema|variant|syl_sema::facts::layout::WordEncoding::UInt|public
-syl_sema|variant|syl_sema::facts::protocol::ProtocolFieldDirection::In|public
-syl_sema|variant|syl_sema::facts::protocol::ProtocolFieldDirection::Out|public
-syl_sema|variant|syl_sema::facts::resolution::DefinitionKind::Bundle|public
-syl_sema|variant|syl_sema::facts::resolution::DefinitionKind::Cell|public
-syl_sema|variant|syl_sema::facts::resolution::DefinitionKind::Const|public
-syl_sema|variant|syl_sema::facts::resolution::DefinitionKind::Enum|public
-syl_sema|variant|syl_sema::facts::resolution::DefinitionKind::ExternModule|public
-syl_sema|variant|syl_sema::facts::resolution::DefinitionKind::Fn|public
-syl_sema|variant|syl_sema::facts::resolution::DefinitionKind::Interface|public
-syl_sema|variant|syl_sema::facts::resolution::DefinitionKind::Map|public
-syl_sema|variant|syl_sema::facts::resolution::DefinitionKind::Module|public
-syl_sema|variant|syl_sema::facts::resolution::HirFactId::Def|public
-syl_sema|variant|syl_sema::facts::resolution::HirFactId::Expr|public
-syl_sema|variant|syl_sema::facts::resolution::HirFactId::Local|public
-syl_sema|variant|syl_sema::facts::resolution::SemanticResolution::Def|public
-syl_sema|variant|syl_sema::facts::resolution::SemanticResolution::Local|public
-syl_sema|variant|syl_sema::map_ir::MapExpr::Aggregate|public
-syl_sema|variant|syl_sema::map_ir::MapExpr::Binary|public
-syl_sema|variant|syl_sema::map_ir::MapExpr::Bool|public
-syl_sema|variant|syl_sema::map_ir::MapExpr::BuiltinZero|public
-syl_sema|variant|syl_sema::map_ir::MapExpr::Call|public
-syl_sema|variant|syl_sema::map_ir::MapExpr::Field|public
-syl_sema|variant|syl_sema::map_ir::MapExpr::Ident|public
-syl_sema|variant|syl_sema::map_ir::MapExpr::Index|public
-syl_sema|variant|syl_sema::map_ir::MapExpr::Int|public
-syl_sema|variant|syl_sema::map_ir::MapExpr::Match|public
-syl_sema|variant|syl_sema::map_ir::MapExpr::Select|public
-syl_sema|variant|syl_sema::map_ir::MapExpr::Str|public
-syl_sema|variant|syl_sema::map_ir::MapExpr::Unary|public
-syl_sema|variant|syl_sema::map_ir::types::MapBinaryOp::Add|public
-syl_sema|variant|syl_sema::map_ir::types::MapBinaryOp::AndAnd|public
-syl_sema|variant|syl_sema::map_ir::types::MapBinaryOp::Assign|public
-syl_sema|variant|syl_sema::map_ir::types::MapBinaryOp::BitAnd|public
-syl_sema|variant|syl_sema::map_ir::types::MapBinaryOp::BitOr|public
-syl_sema|variant|syl_sema::map_ir::types::MapBinaryOp::BitXor|public
-syl_sema|variant|syl_sema::map_ir::types::MapBinaryOp::Div|public
-syl_sema|variant|syl_sema::map_ir::types::MapBinaryOp::Eq|public
-syl_sema|variant|syl_sema::map_ir::types::MapBinaryOp::Field|public
-syl_sema|variant|syl_sema::map_ir::types::MapBinaryOp::GtEq|public
-syl_sema|variant|syl_sema::map_ir::types::MapBinaryOp::Gt|public
-syl_sema|variant|syl_sema::map_ir::types::MapBinaryOp::LtEq|public
-syl_sema|variant|syl_sema::map_ir::types::MapBinaryOp::Lt|public
-syl_sema|variant|syl_sema::map_ir::types::MapBinaryOp::Mul|public
-syl_sema|variant|syl_sema::map_ir::types::MapBinaryOp::NotEq|public
-syl_sema|variant|syl_sema::map_ir::types::MapBinaryOp::OrOr|public
-syl_sema|variant|syl_sema::map_ir::types::MapBinaryOp::Rem|public
-syl_sema|variant|syl_sema::map_ir::types::MapBinaryOp::Shl|public
-syl_sema|variant|syl_sema::map_ir::types::MapBinaryOp::Sub|public
-syl_sema|variant|syl_sema::map_ir::types::MapBinaryOp::Unsupported|public
-syl_sema|variant|syl_sema::map_ir::types::MapPattern::Bool|public
-syl_sema|variant|syl_sema::map_ir::types::MapPattern::Ident|public
-syl_sema|variant|syl_sema::map_ir::types::MapPattern::Int|public
-syl_sema|variant|syl_sema::map_ir::types::MapPattern::Path|public
-syl_sema|variant|syl_sema::map_ir::types::MapPattern::Unsupported|public
-syl_sema|variant|syl_sema::map_ir::types::MapPattern::Wildcard|public
-syl_sema|variant|syl_sema::map_ir::types::MapSelectMode::Priority|public
-syl_sema|variant|syl_sema::map_ir::types::MapSelectMode::Unique|public
-syl_sema|variant|syl_sema::map_ir::types::MapUnaryOp::Neg|public
-syl_sema|variant|syl_sema::map_ir::types::MapUnaryOp::NotWord|public
-syl_sema|variant|syl_sema::map_ir::types::MapUnaryOp::Not|public
-syl_sema|variant|syl_sema::map_ir::types::MapUnaryOp::Unsupported|public
-syl_sema|variant|syl_sema::opaque_summary::model::BackendConstraint::ForbidsRetiming|public
-syl_sema|variant|syl_sema::opaque_summary::model::BackendConstraint::RequiresBackend|public
-syl_sema|variant|syl_sema::opaque_summary::model::BackendConstraint::RequiresBlackBoxArtifact|public
-syl_sema|variant|syl_sema::opaque_summary::model::OpaqueItemKind::ExternModule|public
-syl_sema|variant|syl_sema::opaque_summary::model::OpaqueItemKind::PrecompiledCell|public
-syl_sema|variant|syl_sema::opaque_summary::model::OpaqueItemKind::SourceCell|public
-syl_sema|variant|syl_sema::opaque_summary::model::SummaryCapability::Clock|public
-syl_sema|variant|syl_sema::opaque_summary::model::SummaryCapability::Domain|public
-syl_sema|variant|syl_sema::opaque_summary::model::SummaryCapability::Reset|public
-syl_sema|variant|syl_sema::opaque_summary::model::SummaryCapability::Unknown|public
-syl_sema|variant|syl_sema::opaque_summary::model::SummaryCapability::Value|public
-syl_sema|variant|syl_sema::opaque_summary::model::SummaryCapability::View|public
-syl_sema|variant|syl_sema::opaque_summary::model::SummaryDirection::In|public
-syl_sema|variant|syl_sema::opaque_summary::model::SummaryDirection::Out|public
-syl_sema|variant|syl_sema::opaque_summary::model::SummaryDomain::Builtin|public
-syl_sema|variant|syl_sema::opaque_summary::model::SummaryDomain::Named|public
-syl_sema|variant|syl_sema::opaque_summary::model::SummaryDomain::Unknown|public
-syl_sema|variant|syl_sema::opaque_summary::model::SummaryDomainBehavior::Clockless|public
-syl_sema|variant|syl_sema::opaque_summary::model::SummaryDomainBehavior::Explicit|public
-syl_sema|variant|syl_sema::opaque_summary::model::SummaryDomainBehavior::Unknown|public
-syl_sema|variant|syl_sema::opaque_summary::model::SummaryFieldDirection::In|public
-syl_sema|variant|syl_sema::opaque_summary::model::SummaryFieldDirection::Out|public
-syl_sema|variant|syl_sema::opaque_summary::model::SummaryLatencyClass::Sequential|public
-syl_sema|variant|syl_sema::opaque_summary::model::SummaryLatencyClass::Transparent|public
-syl_sema|variant|syl_sema::opaque_summary::model::SummaryLatencyClass::Unknown|public
-syl_sema|variant|syl_sema::opaque_summary::model::SummaryLayout::Aggregate|public
-syl_sema|variant|syl_sema::opaque_summary::model::SummaryLayout::Array|public
-syl_sema|variant|syl_sema::opaque_summary::model::SummaryLayout::Bit|public
-syl_sema|variant|syl_sema::opaque_summary::model::SummaryLayout::Bool|public
-syl_sema|variant|syl_sema::opaque_summary::model::SummaryLayout::Clock|public
-syl_sema|variant|syl_sema::opaque_summary::model::SummaryLayout::Domain|public
-syl_sema|variant|syl_sema::opaque_summary::model::SummaryLayout::Enum|public
-syl_sema|variant|syl_sema::opaque_summary::model::SummaryLayout::Nat|public
-syl_sema|variant|syl_sema::opaque_summary::model::SummaryLayout::Opaque|public
-syl_sema|variant|syl_sema::opaque_summary::model::SummaryLayout::Reset|public
-syl_sema|variant|syl_sema::opaque_summary::model::SummaryLayout::Str|public
-syl_sema|variant|syl_sema::opaque_summary::model::SummaryLayout::Unknown|public
-syl_sema|variant|syl_sema::opaque_summary::model::SummaryLayout::View|public
-syl_sema|variant|syl_sema::opaque_summary::model::SummaryLayout::Word|public
-syl_sema|variant|syl_sema::opaque_summary::model::SummaryLayoutConst::Known|public
-syl_sema|variant|syl_sema::opaque_summary::model::SummaryLayoutConst::Symbol|public
-syl_sema|variant|syl_sema::opaque_summary::model::SummaryLayoutConst::Unknown|public
-syl_sema|variant|syl_sema::opaque_summary::model::SummaryProtocolPreservation::Opaque|public
-syl_sema|variant|syl_sema::opaque_summary::model::SummaryProtocolPreservation::Preserved|public
-syl_sema|variant|syl_sema::opaque_summary::model::SummaryProtocolPreservation::Unknown|public
-syl_sema|variant|syl_sema::opaque_summary::model::SummaryWordEncoding::Bits|public
-syl_sema|variant|syl_sema::opaque_summary::model::SummaryWordEncoding::SInt|public
-syl_sema|variant|syl_sema::opaque_summary::model::SummaryWordEncoding::UInt|public
-syl_sema|variant|syl_sema::opaque_summary::model::TrustBoundary::SourceDerived|public
-syl_sema|variant|syl_sema::opaque_summary::model::TrustBoundary::TrustedPrecompiled|public
-syl_sema|variant|syl_sema::opaque_summary::model::TrustBoundary::UnsafeBlackBox|public
-syl_sema|variant|syl_sema::opaque_summary::model::TrustBoundary::VendorBlackBox|public
-syl_sema|variant|syl_sema::tir::BindingKind::Const|public
-syl_sema|variant|syl_sema::tir::BindingKind::Generic|public
-syl_sema|variant|syl_sema::tir::BindingKind::Local|public
-syl_sema|variant|syl_sema::tir::BindingKind::Port|public
-syl_sema|variant|syl_sema::tir::BindingRef::Def|public
-syl_sema|variant|syl_sema::tir::BindingRef::Local|public
-syl_sema|variant|syl_sema::tir::BuiltinIntrinsic::Zero|public
-syl_sema|variant|syl_sema::tir::Phase::Comb|public
-syl_sema|variant|syl_sema::tir::Phase::Const|public
-syl_sema|variant|syl_sema::tir::Phase::Hardware|public
-syl_sema|variant|syl_sema::tir::type_support::TirGenericArg::Const|public
-syl_sema|variant|syl_sema::tir::type_support::TirGenericArg::Type|public
-syl_sema|variant|syl_sema::tir::type_support::TirType::Array|public
-syl_sema|variant|syl_sema::tir::type_support::TirType::Bits|public
-syl_sema|variant|syl_sema::tir::type_support::TirType::Bit|public
-syl_sema|variant|syl_sema::tir::type_support::TirType::Bool|public
-syl_sema|variant|syl_sema::tir::type_support::TirType::Clock|public
-syl_sema|variant|syl_sema::tir::type_support::TirType::Domain|public
-syl_sema|variant|syl_sema::tir::type_support::TirType::Named|public
-syl_sema|variant|syl_sema::tir::type_support::TirType::Nat|public
-syl_sema|variant|syl_sema::tir::type_support::TirType::Reset|public
-syl_sema|variant|syl_sema::tir::type_support::TirType::SInt|public
-syl_sema|variant|syl_sema::tir::type_support::TirType::Str|public
-syl_sema|variant|syl_sema::tir::type_support::TirType::UInt|public
-syl_sema|variant|syl_sema::tir::type_support::TirType::Unknown|public
-syl_sema|variant|syl_sema::tir::type_support::TirType::View|public
-syl_sema|variant|syl_sema::tir::type_support::const_term::TirConstResolution::Def|public
-syl_sema|variant|syl_sema::tir::type_support::const_term::TirConstResolution::Local|public
-syl_sema|variant|syl_sema::tir::type_support::const_term::TirConstTerm::BoolLiteral|public
-syl_sema|variant|syl_sema::tir::type_support::const_term::TirConstTerm::Expr|public
-syl_sema|variant|syl_sema::tir::type_support::const_term::TirConstTerm::Named|public
-syl_sema|variant|syl_sema::tir::type_support::const_term::TirConstTerm::NatLiteral|public
-syl_sema|variant|syl_sema::tir::type_support::const_term::TirConstTerm::Unknown|public
+syl_sema|variant|syl_sema::cell_summary::CellBoundarySummary::Available|(CellSummary)
+syl_sema|variant|syl_sema::cell_summary::CellBoundarySummary::Missing|(OpaqueCellSummary)
+syl_sema|variant|syl_sema::cell_summary::CellBoundarySummary::UnsafeAssumed|(OpaqueCellSummary)
+syl_sema|variant|syl_sema::cell_summary::CellInstanceMatch::Any|unit
+syl_sema|variant|syl_sema::cell_summary::CellInstanceMatch::Exact|(String)
+syl_sema|variant|syl_sema::cell_summary::CellSummaryStatus::Available|unit
+syl_sema|variant|syl_sema::cell_summary::CellSummaryStatus::Missing|unit
+syl_sema|variant|syl_sema::cell_summary::CellSummaryStatus::UnsafeAssumed|unit
+syl_sema|variant|syl_sema::cell_summary::HwPlace::Ident|(String)
+syl_sema|variant|syl_sema::completion::CompletionKind::Alias|unit
+syl_sema|variant|syl_sema::completion::CompletionKind::Bundle|unit
+syl_sema|variant|syl_sema::completion::CompletionKind::Cell|unit
+syl_sema|variant|syl_sema::completion::CompletionKind::Const|unit
+syl_sema|variant|syl_sema::completion::CompletionKind::Enum|unit
+syl_sema|variant|syl_sema::completion::CompletionKind::ExternModule|unit
+syl_sema|variant|syl_sema::completion::CompletionKind::Field|unit
+syl_sema|variant|syl_sema::completion::CompletionKind::Fn|unit
+syl_sema|variant|syl_sema::completion::CompletionKind::Generic|unit
+syl_sema|variant|syl_sema::completion::CompletionKind::Instance|unit
+syl_sema|variant|syl_sema::completion::CompletionKind::Interface|unit
+syl_sema|variant|syl_sema::completion::CompletionKind::Let|unit
+syl_sema|variant|syl_sema::completion::CompletionKind::Loop|unit
+syl_sema|variant|syl_sema::completion::CompletionKind::Map|unit
+syl_sema|variant|syl_sema::completion::CompletionKind::Module|unit
+syl_sema|variant|syl_sema::completion::CompletionKind::Param|unit
+syl_sema|variant|syl_sema::completion::CompletionKind::Reg|unit
+syl_sema|variant|syl_sema::completion::CompletionKind::Result|unit
+syl_sema|variant|syl_sema::completion::CompletionKind::Signal|unit
+syl_sema|variant|syl_sema::completion::CompletionKind::Unknown|unit
+syl_sema|variant|syl_sema::completion::CompletionKind::Var|unit
+syl_sema|variant|syl_sema::completion::CompletionKind::ViewField|unit
+syl_sema|variant|syl_sema::completion::CompletionKind::View|unit
+syl_sema|variant|syl_sema::const_eval::ConstKind::Bool|unit
+syl_sema|variant|syl_sema::const_eval::ConstKind::Nat|unit
+syl_sema|variant|syl_sema::const_eval::ConstValue::Bool|(bool)
+syl_sema|variant|syl_sema::const_eval::ConstValue::Nat|(u64)
+syl_sema|variant|syl_sema::const_eval::ConstValue::Unknown|(ConstKind)
+syl_sema|variant|syl_sema::const_mir::ConstExprKind::Binary|{ op: syl_hir::MirBinaryOp, left: Box<ConstExpr>, right: Box<ConstExpr> }
+syl_sema|variant|syl_sema::const_mir::ConstExprKind::Bool|(bool)
+syl_sema|variant|syl_sema::const_mir::ConstExprKind::Call|{ callee: syl_hir::DefId, args: Vec<ConstExpr> }
+syl_sema|variant|syl_sema::const_mir::ConstExprKind::Local|(ConstLocalRef)
+syl_sema|variant|syl_sema::const_mir::ConstExprKind::Nat|(u64)
+syl_sema|variant|syl_sema::const_mir::ConstExprKind::Unary|{ op: syl_hir::MirUnaryOp, expr: Box<ConstExpr> }
+syl_sema|variant|syl_sema::const_mir::ConstExprKind::Unknown|(crate::const_eval::ConstKind)
+syl_sema|variant|syl_sema::const_mir::ConstExprKind::Unsupported|unit
+syl_sema|variant|syl_sema::const_mir::ConstStmt::Assign|{ local: ConstLocalRef, value: ConstExpr }
+syl_sema|variant|syl_sema::const_mir::Terminator::Branch|{ cond: ConstExpr, then_block: BlockId, else_block: BlockId }
+syl_sema|variant|syl_sema::const_mir::Terminator::Goto|(BlockId)
+syl_sema|variant|syl_sema::const_mir::Terminator::Return|(Option<ConstExpr>)
+syl_sema|variant|syl_sema::diagnostic::SemanticDiagnosticStage::Driver|unit
+syl_sema|variant|syl_sema::diagnostic::SemanticDiagnosticStage::Lowering|unit
+syl_sema|variant|syl_sema::error::CapabilityError::NotDrivable|{ target: String }
+syl_sema|variant|syl_sema::error::CapabilityError::NotReadable|{ target: String }
+syl_sema|variant|syl_sema::error::CapabilityError::SelectGuardRequiresBit|unit
+syl_sema|variant|syl_sema::error::CapabilityError::UnknownInterface|{ name: String }
+syl_sema|variant|syl_sema::error::CapabilityError::UnknownView|{ name: String }
+syl_sema|variant|syl_sema::error::CapabilityError::UnresolvedName|{ name: String }
+syl_sema|variant|syl_sema::error::CapabilityError::UnsupportedHardwareValueExpression|unit
+syl_sema|variant|syl_sema::error::CompileError::Lowering|{ kind: Box<LoweringError>, diagnostic: Box<syl_span::Diagnostic> }
+syl_sema|variant|syl_sema::error::ConstEvalError::ConstArithmeticTypeMismatch|unit
+syl_sema|variant|syl_sema::error::ConstEvalError::ConstComparisonTypeMismatch|unit
+syl_sema|variant|syl_sema::error::ConstEvalError::ConstEqualityTypeMismatch|unit
+syl_sema|variant|syl_sema::error::ConstEvalError::ConstLogicalTypeMismatch|unit
+syl_sema|variant|syl_sema::error::ConstEvalError::HardwareValueInConstContext|{ name: String }
+syl_sema|variant|syl_sema::error::ConstEvalError::InvalidConstBinaryExpression|unit
+syl_sema|variant|syl_sema::error::ConstEvalError::InvalidConstUnaryExpression|unit
+syl_sema|variant|syl_sema::error::ConstEvalError::InvalidElaborationExpression|unit
+syl_sema|variant|syl_sema::error::ConstEvalError::NotElaborationTimeExpression|{ context: String, source: Box<LoweringError> }
+syl_sema|variant|syl_sema::error::ConstEvalError::StepLimitExceeded|{ limit: usize }
+syl_sema|variant|syl_sema::error::ConstEvalError::UnknownElaborationIdentifier|{ name: String }
+syl_sema|variant|syl_sema::error::DriverError::DriverPlaceOutOfBounds|{ place: String, root: String }
+syl_sema|variant|syl_sema::error::DriverError::DuplicateHardwareDriver|{ name: String }
+syl_sema|variant|syl_sema::error::DriverError::DuplicateNextDriver|{ name: String }
+syl_sema|variant|syl_sema::error::DriverError::MissingCellSummary|{ callable: String, instance: String, status: String }
+syl_sema|variant|syl_sema::error::DriverError::NextTargetIsNotReg|{ name: String }
+syl_sema|variant|syl_sema::error::DriverError::UndrivenOut|{ name: String }
+syl_sema|variant|syl_sema::error::DriverError::UndrivenRead|{ name: String }
+syl_sema|variant|syl_sema::error::DriverError::UndrivenSignal|{ name: String }
+syl_sema|variant|syl_sema::error::DriverError::UnknownHardwareObject|{ module: String, name: String }
+syl_sema|variant|syl_sema::error::DriverError::UnknownParameter|{ name: String, callable: String }
+syl_sema|variant|syl_sema::error::DriverError::UnsupportedHardwareValueExpression|unit
+syl_sema|variant|syl_sema::error::EirError::AssignmentInMap|unit
+syl_sema|variant|syl_sema::error::EirError::DuplicateArgument|{ name: String }
+syl_sema|variant|syl_sema::error::EirError::DuplicateConnection|{ name: String }
+syl_sema|variant|syl_sema::error::EirError::HardwareGeneratorCallInExpression|{ name: String }
+syl_sema|variant|syl_sema::error::EirError::HardwareGeneratorCallInMap|{ name: String }
+syl_sema|variant|syl_sema::error::EirError::IllegalHardwareStatement|unit
+syl_sema|variant|syl_sema::error::EirError::InstanceCalleeMustBeName|unit
+syl_sema|variant|syl_sema::error::EirError::InvalidElaborationExpression|unit
+syl_sema|variant|syl_sema::error::EirError::InvalidInterfaceType|unit
+syl_sema|variant|syl_sema::error::EirError::LocalBindingLoweringUnsupported|unit
+syl_sema|variant|syl_sema::error::EirError::MissingAggregateField|{ ty: String, field: String }
+syl_sema|variant|syl_sema::error::EirError::RegisterRequiresClock|unit
+syl_sema|variant|syl_sema::error::EirError::RegisterRequiresReset|unit
+syl_sema|variant|syl_sema::error::EirError::RegisterRequiresType|unit
+syl_sema|variant|syl_sema::error::EirError::SignalRequiresType|unit
+syl_sema|variant|syl_sema::error::EirError::TooManyPositionalArguments|{ callable: String }
+syl_sema|variant|syl_sema::error::EirError::UnknownAggregateField|{ ty: String, field: String }
+syl_sema|variant|syl_sema::error::EirError::UnknownElaborationIdentifier|{ name: String }
+syl_sema|variant|syl_sema::error::EirError::UnknownHardwareValueCall|{ name: String }
+syl_sema|variant|syl_sema::error::EirError::UnknownInterface|{ name: String }
+syl_sema|variant|syl_sema::error::EirError::UnknownParameter|{ name: String, callable: String }
+syl_sema|variant|syl_sema::error::EirError::UnknownView|{ name: String }
+syl_sema|variant|syl_sema::error::EirError::UnsupportedHardwareValueExpression|unit
+syl_sema|variant|syl_sema::error::HirError::AmbiguousImport|{ name: String, candidates: String }
+syl_sema|variant|syl_sema::error::HirError::DuplicateBundle|{ name: String }
+syl_sema|variant|syl_sema::error::HirError::DuplicateCallable|{ name: String }
+syl_sema|variant|syl_sema::error::HirError::DuplicateConst|{ name: String }
+syl_sema|variant|syl_sema::error::HirError::DuplicateEnumVariant|{ name: String }
+syl_sema|variant|syl_sema::error::HirError::DuplicateEnum|{ name: String }
+syl_sema|variant|syl_sema::error::HirError::DuplicateFn|{ name: String }
+syl_sema|variant|syl_sema::error::HirError::DuplicateInterface|{ name: String }
+syl_sema|variant|syl_sema::error::HirError::DuplicateMap|{ name: String }
+syl_sema|variant|syl_sema::error::HirError::MissingHirDef|{ name: String }
+syl_sema|variant|syl_sema::error::HirError::MissingHirExpr|{ start: usize, end: usize }
+syl_sema|variant|syl_sema::error::HirError::MissingHirLocal|{ name: String, start: usize, end: usize }
+syl_sema|variant|syl_sema::error::HirError::UnknownImport|{ path: String, start: usize, end: usize }
+syl_sema|variant|syl_sema::error::HirError::UnresolvedName|{ name: String }
+syl_sema|variant|syl_sema::error::HwirError::UnsupportedHardwareValueExpression|unit
+syl_sema|variant|syl_sema::error::LoweringError::Capability|(CapabilityError)
+syl_sema|variant|syl_sema::error::LoweringError::Const|(ConstEvalError)
+syl_sema|variant|syl_sema::error::LoweringError::Driver|(DriverError)
+syl_sema|variant|syl_sema::error::LoweringError::Eir|(EirError)
+syl_sema|variant|syl_sema::error::LoweringError::Hir|(HirError)
+syl_sema|variant|syl_sema::error::LoweringError::Hwir|(HwirError)
+syl_sema|variant|syl_sema::error::LoweringError::Tir|(TirError)
+syl_sema|variant|syl_sema::error::TirError::BoolInHardwareValue|unit
+syl_sema|variant|syl_sema::error::TirError::ElaborationIfRequiresBool|unit
+syl_sema|variant|syl_sema::error::TirError::InvalidElaborationExpression|unit
+syl_sema|variant|syl_sema::error::TirError::MatchRequiresArm|unit
+syl_sema|variant|syl_sema::error::TirError::MissingAggregateField|{ ty: String, field: String }
+syl_sema|variant|syl_sema::error::TirError::RequiresNatExpression|{ context: String }
+syl_sema|variant|syl_sema::error::TirError::SelectRequiresDefault|unit
+syl_sema|variant|syl_sema::error::TirError::SoftwareOperatorInHardware|{ op: String }
+syl_sema|variant|syl_sema::error::TirError::UnknownAggregateField|{ ty: String, field: String }
+syl_sema|variant|syl_sema::error::TirError::UnknownType|{ name: String }
+syl_sema|variant|syl_sema::facts::capability::CapabilityKind::Clock|{ domain: DomainFact }
+syl_sema|variant|syl_sema::facts::capability::CapabilityKind::Domain|unit
+syl_sema|variant|syl_sema::facts::capability::CapabilityKind::Reset|{ domain: DomainFact }
+syl_sema|variant|syl_sema::facts::capability::CapabilityKind::Value|unit
+syl_sema|variant|syl_sema::facts::capability::CapabilityKind::View|(ViewCapabilityFacts)
+syl_sema|variant|syl_sema::facts::capability::DomainFact::BuiltinDomain|unit
+syl_sema|variant|syl_sema::facts::capability::DomainFact::Named|(crate::TypeId)
+syl_sema|variant|syl_sema::facts::capability::DomainFact::Unknown|unit
+syl_sema|variant|syl_sema::facts::consts::ConstFactKey::Def|(syl_hir::DefId)
+syl_sema|variant|syl_sema::facts::layout::Layout::Aggregate|{ name: String, fields: Vec<String> }
+syl_sema|variant|syl_sema::facts::layout::Layout::Array|{ len: LayoutConst, elem: Box<Layout> }
+syl_sema|variant|syl_sema::facts::layout::Layout::Bit|unit
+syl_sema|variant|syl_sema::facts::layout::Layout::Bool|unit
+syl_sema|variant|syl_sema::facts::layout::Layout::Clock|unit
+syl_sema|variant|syl_sema::facts::layout::Layout::Domain|unit
+syl_sema|variant|syl_sema::facts::layout::Layout::Enum|{ name: String, variants: Vec<String> }
+syl_sema|variant|syl_sema::facts::layout::Layout::Nat|unit
+syl_sema|variant|syl_sema::facts::layout::Layout::Opaque|{ label: String }
+syl_sema|variant|syl_sema::facts::layout::Layout::Reset|unit
+syl_sema|variant|syl_sema::facts::layout::Layout::Str|unit
+syl_sema|variant|syl_sema::facts::layout::Layout::Unknown|unit
+syl_sema|variant|syl_sema::facts::layout::Layout::View|{ interface: syl_hir::DefId, view: String, fields: Vec<String> }
+syl_sema|variant|syl_sema::facts::layout::Layout::Word|{ encoding: WordEncoding, width: LayoutConst }
+syl_sema|variant|syl_sema::facts::layout::LayoutConst::Known|(u64)
+syl_sema|variant|syl_sema::facts::layout::LayoutConst::Symbol|(String)
+syl_sema|variant|syl_sema::facts::layout::LayoutConst::Unknown|unit
+syl_sema|variant|syl_sema::facts::layout::WordEncoding::Bits|unit
+syl_sema|variant|syl_sema::facts::layout::WordEncoding::SInt|unit
+syl_sema|variant|syl_sema::facts::layout::WordEncoding::UInt|unit
+syl_sema|variant|syl_sema::facts::protocol::ProtocolFieldDirection::In|unit
+syl_sema|variant|syl_sema::facts::protocol::ProtocolFieldDirection::Out|unit
+syl_sema|variant|syl_sema::facts::resolution::DefinitionKind::Bundle|unit
+syl_sema|variant|syl_sema::facts::resolution::DefinitionKind::Cell|unit
+syl_sema|variant|syl_sema::facts::resolution::DefinitionKind::Const|unit
+syl_sema|variant|syl_sema::facts::resolution::DefinitionKind::Enum|unit
+syl_sema|variant|syl_sema::facts::resolution::DefinitionKind::ExternModule|unit
+syl_sema|variant|syl_sema::facts::resolution::DefinitionKind::Fn|unit
+syl_sema|variant|syl_sema::facts::resolution::DefinitionKind::Interface|unit
+syl_sema|variant|syl_sema::facts::resolution::DefinitionKind::Map|unit
+syl_sema|variant|syl_sema::facts::resolution::DefinitionKind::Module|unit
+syl_sema|variant|syl_sema::facts::resolution::HirFactId::Def|(syl_hir::DefId)
+syl_sema|variant|syl_sema::facts::resolution::HirFactId::Expr|(syl_hir::ExprId)
+syl_sema|variant|syl_sema::facts::resolution::HirFactId::Local|(syl_hir::LocalId)
+syl_sema|variant|syl_sema::facts::resolution::SemanticResolution::Def|(syl_hir::DefId)
+syl_sema|variant|syl_sema::facts::resolution::SemanticResolution::Local|(syl_hir::LocalId)
+syl_sema|variant|syl_sema::map_ir::MapExpr::Aggregate|{ ty: MapTypeRef, fields: Vec<MapNamedExpr> }
+syl_sema|variant|syl_sema::map_ir::MapExpr::Binary|{ op: MapBinaryOp, left: Box<MapExpr>, right: Box<MapExpr> }
+syl_sema|variant|syl_sema::map_ir::MapExpr::Bool|(bool)
+syl_sema|variant|syl_sema::map_ir::MapExpr::BuiltinZero|unit
+syl_sema|variant|syl_sema::map_ir::MapExpr::Call|{ callee: syl_hir::DefId, generic_args: Vec<MapGenericArg>, args: Vec<MapArg> }
+syl_sema|variant|syl_sema::map_ir::MapExpr::Field|{ base: Box<MapExpr>, field: String }
+syl_sema|variant|syl_sema::map_ir::MapExpr::Ident|(MapLocalRef)
+syl_sema|variant|syl_sema::map_ir::MapExpr::Index|{ base: Box<MapExpr>, index: Box<MapExpr> }
+syl_sema|variant|syl_sema::map_ir::MapExpr::Int|(u64)
+syl_sema|variant|syl_sema::map_ir::MapExpr::Match|{ value: Box<MapExpr>, arms: Vec<MapMatchArm> }
+syl_sema|variant|syl_sema::map_ir::MapExpr::Select|{ mode: MapSelectMode, arms: Vec<MapSelectArm> }
+syl_sema|variant|syl_sema::map_ir::MapExpr::Str|(String)
+syl_sema|variant|syl_sema::map_ir::MapExpr::Unary|{ op: MapUnaryOp, expr: Box<MapExpr> }
+syl_sema|variant|syl_sema::map_ir::types::MapBinaryOp::Add|unit
+syl_sema|variant|syl_sema::map_ir::types::MapBinaryOp::AndAnd|unit
+syl_sema|variant|syl_sema::map_ir::types::MapBinaryOp::Assign|unit
+syl_sema|variant|syl_sema::map_ir::types::MapBinaryOp::BitAnd|unit
+syl_sema|variant|syl_sema::map_ir::types::MapBinaryOp::BitOr|unit
+syl_sema|variant|syl_sema::map_ir::types::MapBinaryOp::BitXor|unit
+syl_sema|variant|syl_sema::map_ir::types::MapBinaryOp::Div|unit
+syl_sema|variant|syl_sema::map_ir::types::MapBinaryOp::Eq|unit
+syl_sema|variant|syl_sema::map_ir::types::MapBinaryOp::Field|unit
+syl_sema|variant|syl_sema::map_ir::types::MapBinaryOp::GtEq|unit
+syl_sema|variant|syl_sema::map_ir::types::MapBinaryOp::Gt|unit
+syl_sema|variant|syl_sema::map_ir::types::MapBinaryOp::LtEq|unit
+syl_sema|variant|syl_sema::map_ir::types::MapBinaryOp::Lt|unit
+syl_sema|variant|syl_sema::map_ir::types::MapBinaryOp::Mul|unit
+syl_sema|variant|syl_sema::map_ir::types::MapBinaryOp::NotEq|unit
+syl_sema|variant|syl_sema::map_ir::types::MapBinaryOp::OrOr|unit
+syl_sema|variant|syl_sema::map_ir::types::MapBinaryOp::Rem|unit
+syl_sema|variant|syl_sema::map_ir::types::MapBinaryOp::Shl|unit
+syl_sema|variant|syl_sema::map_ir::types::MapBinaryOp::Sub|unit
+syl_sema|variant|syl_sema::map_ir::types::MapBinaryOp::Unsupported|unit
+syl_sema|variant|syl_sema::map_ir::types::MapPattern::Bool|(bool)
+syl_sema|variant|syl_sema::map_ir::types::MapPattern::Ident|(String)
+syl_sema|variant|syl_sema::map_ir::types::MapPattern::Int|(u64)
+syl_sema|variant|syl_sema::map_ir::types::MapPattern::Path|(Vec<String>)
+syl_sema|variant|syl_sema::map_ir::types::MapPattern::Unsupported|unit
+syl_sema|variant|syl_sema::map_ir::types::MapPattern::Wildcard|unit
+syl_sema|variant|syl_sema::map_ir::types::MapSelectMode::Priority|unit
+syl_sema|variant|syl_sema::map_ir::types::MapSelectMode::Unique|unit
+syl_sema|variant|syl_sema::map_ir::types::MapUnaryOp::Neg|unit
+syl_sema|variant|syl_sema::map_ir::types::MapUnaryOp::NotWord|unit
+syl_sema|variant|syl_sema::map_ir::types::MapUnaryOp::Not|unit
+syl_sema|variant|syl_sema::map_ir::types::MapUnaryOp::Unsupported|unit
+syl_sema|variant|syl_sema::opaque_summary::model::BackendConstraint::ForbidsRetiming|unit
+syl_sema|variant|syl_sema::opaque_summary::model::BackendConstraint::RequiresBackend|{ backend: String }
+syl_sema|variant|syl_sema::opaque_summary::model::BackendConstraint::RequiresBlackBoxArtifact|{ artifact: String }
+syl_sema|variant|syl_sema::opaque_summary::model::OpaqueItemKind::ExternModule|unit
+syl_sema|variant|syl_sema::opaque_summary::model::OpaqueItemKind::PrecompiledCell|unit
+syl_sema|variant|syl_sema::opaque_summary::model::OpaqueItemKind::SourceCell|unit
+syl_sema|variant|syl_sema::opaque_summary::model::SummaryCapability::Clock|{ domain: SummaryDomain }
+syl_sema|variant|syl_sema::opaque_summary::model::SummaryCapability::Domain|unit
+syl_sema|variant|syl_sema::opaque_summary::model::SummaryCapability::Reset|{ domain: SummaryDomain }
+syl_sema|variant|syl_sema::opaque_summary::model::SummaryCapability::Unknown|unit
+syl_sema|variant|syl_sema::opaque_summary::model::SummaryCapability::Value|unit
+syl_sema|variant|syl_sema::opaque_summary::model::SummaryCapability::View|{ view: String, readable_fields: Vec<String>, writable_fields: Vec<String> }
+syl_sema|variant|syl_sema::opaque_summary::model::SummaryDirection::In|unit
+syl_sema|variant|syl_sema::opaque_summary::model::SummaryDirection::Out|unit
+syl_sema|variant|syl_sema::opaque_summary::model::SummaryDomain::Builtin|unit
+syl_sema|variant|syl_sema::opaque_summary::model::SummaryDomain::Named|(String)
+syl_sema|variant|syl_sema::opaque_summary::model::SummaryDomain::Unknown|unit
+syl_sema|variant|syl_sema::opaque_summary::model::SummaryDomainBehavior::Clockless|unit
+syl_sema|variant|syl_sema::opaque_summary::model::SummaryDomainBehavior::Explicit|{ clock_inputs: Vec<String>, reset_inputs: Vec<String> }
+syl_sema|variant|syl_sema::opaque_summary::model::SummaryDomainBehavior::Unknown|unit
+syl_sema|variant|syl_sema::opaque_summary::model::SummaryFieldDirection::In|unit
+syl_sema|variant|syl_sema::opaque_summary::model::SummaryFieldDirection::Out|unit
+syl_sema|variant|syl_sema::opaque_summary::model::SummaryLatencyClass::Sequential|unit
+syl_sema|variant|syl_sema::opaque_summary::model::SummaryLatencyClass::Transparent|unit
+syl_sema|variant|syl_sema::opaque_summary::model::SummaryLatencyClass::Unknown|unit
+syl_sema|variant|syl_sema::opaque_summary::model::SummaryLayout::Aggregate|{ name: String, fields: Vec<String> }
+syl_sema|variant|syl_sema::opaque_summary::model::SummaryLayout::Array|{ len: SummaryLayoutConst, elem: Box<SummaryLayout> }
+syl_sema|variant|syl_sema::opaque_summary::model::SummaryLayout::Bit|unit
+syl_sema|variant|syl_sema::opaque_summary::model::SummaryLayout::Bool|unit
+syl_sema|variant|syl_sema::opaque_summary::model::SummaryLayout::Clock|unit
+syl_sema|variant|syl_sema::opaque_summary::model::SummaryLayout::Domain|unit
+syl_sema|variant|syl_sema::opaque_summary::model::SummaryLayout::Enum|{ name: String, variants: Vec<String> }
+syl_sema|variant|syl_sema::opaque_summary::model::SummaryLayout::Nat|unit
+syl_sema|variant|syl_sema::opaque_summary::model::SummaryLayout::Opaque|{ label: String }
+syl_sema|variant|syl_sema::opaque_summary::model::SummaryLayout::Reset|unit
+syl_sema|variant|syl_sema::opaque_summary::model::SummaryLayout::Str|unit
+syl_sema|variant|syl_sema::opaque_summary::model::SummaryLayout::Unknown|unit
+syl_sema|variant|syl_sema::opaque_summary::model::SummaryLayout::View|{ protocol: String, view: String, fields: Vec<String> }
+syl_sema|variant|syl_sema::opaque_summary::model::SummaryLayout::Word|{ encoding: SummaryWordEncoding, width: SummaryLayoutConst }
+syl_sema|variant|syl_sema::opaque_summary::model::SummaryLayoutConst::Known|(u64)
+syl_sema|variant|syl_sema::opaque_summary::model::SummaryLayoutConst::Symbol|(String)
+syl_sema|variant|syl_sema::opaque_summary::model::SummaryLayoutConst::Unknown|unit
+syl_sema|variant|syl_sema::opaque_summary::model::SummaryProtocolPreservation::Opaque|unit
+syl_sema|variant|syl_sema::opaque_summary::model::SummaryProtocolPreservation::Preserved|unit
+syl_sema|variant|syl_sema::opaque_summary::model::SummaryProtocolPreservation::Unknown|unit
+syl_sema|variant|syl_sema::opaque_summary::model::SummaryWordEncoding::Bits|unit
+syl_sema|variant|syl_sema::opaque_summary::model::SummaryWordEncoding::SInt|unit
+syl_sema|variant|syl_sema::opaque_summary::model::SummaryWordEncoding::UInt|unit
+syl_sema|variant|syl_sema::opaque_summary::model::TrustBoundary::SourceDerived|unit
+syl_sema|variant|syl_sema::opaque_summary::model::TrustBoundary::TrustedPrecompiled|unit
+syl_sema|variant|syl_sema::opaque_summary::model::TrustBoundary::UnsafeBlackBox|{ rationale: String }
+syl_sema|variant|syl_sema::opaque_summary::model::TrustBoundary::VendorBlackBox|{ vendor: String }
+syl_sema|variant|syl_sema::tir::BindingKind::Const|unit
+syl_sema|variant|syl_sema::tir::BindingKind::Generic|unit
+syl_sema|variant|syl_sema::tir::BindingKind::Local|unit
+syl_sema|variant|syl_sema::tir::BindingKind::Port|unit
+syl_sema|variant|syl_sema::tir::BindingRef::Def|(syl_hir::DefId)
+syl_sema|variant|syl_sema::tir::BindingRef::Local|(syl_hir::LocalId)
+syl_sema|variant|syl_sema::tir::BuiltinIntrinsic::Zero|unit
+syl_sema|variant|syl_sema::tir::Phase::Comb|unit
+syl_sema|variant|syl_sema::tir::Phase::Const|unit
+syl_sema|variant|syl_sema::tir::Phase::Hardware|unit
+syl_sema|variant|syl_sema::tir::type_support::TirGenericArg::Const|(TirConstTerm)
+syl_sema|variant|syl_sema::tir::type_support::TirGenericArg::Type|(Box<TirType>)
+syl_sema|variant|syl_sema::tir::type_support::TirType::Array|{ len: TirConstTerm, elem: Box<TirType> }
+syl_sema|variant|syl_sema::tir::type_support::TirType::Bits|{ width: TirConstTerm }
+syl_sema|variant|syl_sema::tir::type_support::TirType::Bit|unit
+syl_sema|variant|syl_sema::tir::type_support::TirType::Bool|unit
+syl_sema|variant|syl_sema::tir::type_support::TirType::Clock|{ domain: Option<Box<TirType>> }
+syl_sema|variant|syl_sema::tir::type_support::TirType::Domain|unit
+syl_sema|variant|syl_sema::tir::type_support::TirType::Named|{ name: String, def: Option<syl_hir::DefId>, generic: Option<syl_hir::LocalId>, kind: Option<syl_hir::HirDefKind>, args: Vec<TirGenericArg> }
+syl_sema|variant|syl_sema::tir::type_support::TirType::Nat|unit
+syl_sema|variant|syl_sema::tir::type_support::TirType::Reset|{ domain: Option<Box<TirType>> }
+syl_sema|variant|syl_sema::tir::type_support::TirType::SInt|{ width: TirConstTerm }
+syl_sema|variant|syl_sema::tir::type_support::TirType::Str|unit
+syl_sema|variant|syl_sema::tir::type_support::TirType::UInt|{ width: TirConstTerm }
+syl_sema|variant|syl_sema::tir::type_support::TirType::Unknown|unit
+syl_sema|variant|syl_sema::tir::type_support::TirType::View|{ base: Box<TirType>, view: String }
+syl_sema|variant|syl_sema::tir::type_support::const_term::TirConstResolution::Def|(syl_hir::DefId)
+syl_sema|variant|syl_sema::tir::type_support::const_term::TirConstResolution::Local|(syl_hir::LocalId)
+syl_sema|variant|syl_sema::tir::type_support::const_term::TirConstTerm::BoolLiteral|(bool)
+syl_sema|variant|syl_sema::tir::type_support::const_term::TirConstTerm::Expr|{ label: String }
+syl_sema|variant|syl_sema::tir::type_support::const_term::TirConstTerm::Named|{ name: String, resolution: Option<TirConstResolution> }
+syl_sema|variant|syl_sema::tir::type_support::const_term::TirConstTerm::NatLiteral|(u64)
+syl_sema|variant|syl_sema::tir::type_support::const_term::TirConstTerm::Unknown|unit
 syl_session|enum|syl_session::document::DocumentOrigin|public
 syl_session|enum|syl_session::error::ProjectError|public
 syl_session|method|syl_session::cancel::CancellationToken::cancel|fn(self: &Self)
@@ -2124,15 +2130,15 @@ syl_session|use|WorkspacePackage|named|source=snapshot::WorkspacePackage
 syl_session|use|WorkspacePackage|named|source=workspace::WorkspacePackage
 syl_session|use|WorkspaceSnapshot|named|source=snapshot::WorkspaceSnapshot
 syl_session|use|WorkspaceSnapshot|named|source=workspace::WorkspaceSnapshot
-syl_session|variant|syl_session::document::DocumentOrigin::Disk|public
-syl_session|variant|syl_session::document::DocumentOrigin::Overlay|public
-syl_session|variant|syl_session::error::ProjectError::Cancelled|public
-syl_session|variant|syl_session::error::ProjectError::Canonicalize|public
-syl_session|variant|syl_session::error::ProjectError::DocumentNotOpen|public
-syl_session|variant|syl_session::error::ProjectError::ReadDirEntry|public
-syl_session|variant|syl_session::error::ProjectError::ReadDir|public
-syl_session|variant|syl_session::error::ProjectError::Read|public
-syl_session|variant|syl_session::error::ProjectError::StaleDocumentVersion|public
+syl_session|variant|syl_session::document::DocumentOrigin::Disk|unit
+syl_session|variant|syl_session::document::DocumentOrigin::Overlay|unit
+syl_session|variant|syl_session::error::ProjectError::Cancelled|unit
+syl_session|variant|syl_session::error::ProjectError::Canonicalize|{ path: std::path::PathBuf, source: std::io::Error }
+syl_session|variant|syl_session::error::ProjectError::DocumentNotOpen|{ uri: String }
+syl_session|variant|syl_session::error::ProjectError::ReadDirEntry|{ path: std::path::PathBuf, source: std::io::Error }
+syl_session|variant|syl_session::error::ProjectError::ReadDir|{ path: std::path::PathBuf, source: std::io::Error }
+syl_session|variant|syl_session::error::ProjectError::Read|{ path: std::path::PathBuf, source: std::io::Error }
+syl_session|variant|syl_session::error::ProjectError::StaleDocumentVersion|{ uri: String, requested: u64, current: u64 }
 syl_span|assoc_const|syl_span::SourceId::UNKNOWN|public
 syl_span|enum|syl_span::DiagnosticSeverity|public
 syl_span|field|syl_span::Diagnostic::code|Option<String>
@@ -2143,6 +2149,7 @@ syl_span|field|syl_span::Diagnostic::source|Option<String>
 syl_span|field|syl_span::Diagnostic::span|Span
 syl_span|field|syl_span::DiagnosticRelatedInfo::message|String
 syl_span|field|syl_span::DiagnosticRelatedInfo::span|Span
+syl_span|field|syl_span::SourceId::0|usize
 syl_span|field|syl_span::SourcePosition::character|usize
 syl_span|field|syl_span::SourcePosition::line|usize
 syl_span|field|syl_span::SourceRange::end|SourcePosition
@@ -2183,10 +2190,10 @@ syl_span|struct|syl_span::SourceMap|public
 syl_span|struct|syl_span::SourcePosition|public
 syl_span|struct|syl_span::SourceRange|public
 syl_span|struct|syl_span::Span|public
-syl_span|variant|syl_span::DiagnosticSeverity::Error|public
-syl_span|variant|syl_span::DiagnosticSeverity::Hint|public
-syl_span|variant|syl_span::DiagnosticSeverity::Information|public
-syl_span|variant|syl_span::DiagnosticSeverity::Warning|public
+syl_span|variant|syl_span::DiagnosticSeverity::Error|unit
+syl_span|variant|syl_span::DiagnosticSeverity::Hint|unit
+syl_span|variant|syl_span::DiagnosticSeverity::Information|unit
+syl_span|variant|syl_span::DiagnosticSeverity::Warning|unit
 syl_syntax|enum|syl_syntax::ast::BinaryOp|public
 syl_syntax|enum|syl_syntax::ast::DriveCapability|public
 syl_syntax|enum|syl_syntax::ast::Expr|public
@@ -2507,259 +2514,259 @@ syl_syntax|use|UseItem|named|source=ast::UseItem
 syl_syntax|use|ViewDecl|named|source=ast::ViewDecl
 syl_syntax|use|ViewDirection|named|source=ast::ViewDirection
 syl_syntax|use|ViewField|named|source=ast::ViewField
-syl_syntax|variant|syl_syntax::ast::BinaryOp::Add|public
-syl_syntax|variant|syl_syntax::ast::BinaryOp::AndAnd|public
-syl_syntax|variant|syl_syntax::ast::BinaryOp::AndWord|public
-syl_syntax|variant|syl_syntax::ast::BinaryOp::Assign|public
-syl_syntax|variant|syl_syntax::ast::BinaryOp::Div|public
-syl_syntax|variant|syl_syntax::ast::BinaryOp::EqEq|public
-syl_syntax|variant|syl_syntax::ast::BinaryOp::EqWord|public
-syl_syntax|variant|syl_syntax::ast::BinaryOp::Field|public
-syl_syntax|variant|syl_syntax::ast::BinaryOp::GtEq|public
-syl_syntax|variant|syl_syntax::ast::BinaryOp::Gt|public
-syl_syntax|variant|syl_syntax::ast::BinaryOp::LtEq|public
-syl_syntax|variant|syl_syntax::ast::BinaryOp::Lt|public
-syl_syntax|variant|syl_syntax::ast::BinaryOp::Mul|public
-syl_syntax|variant|syl_syntax::ast::BinaryOp::NotEq|public
-syl_syntax|variant|syl_syntax::ast::BinaryOp::OrOr|public
-syl_syntax|variant|syl_syntax::ast::BinaryOp::OrWord|public
-syl_syntax|variant|syl_syntax::ast::BinaryOp::Rem|public
-syl_syntax|variant|syl_syntax::ast::BinaryOp::Shl|public
-syl_syntax|variant|syl_syntax::ast::BinaryOp::Sub|public
-syl_syntax|variant|syl_syntax::ast::BinaryOp::XorWord|public
-syl_syntax|variant|syl_syntax::ast::DriveCapability::ReadOnly|public
-syl_syntax|variant|syl_syntax::ast::DriveCapability::WriteOnly|public
-syl_syntax|variant|syl_syntax::ast::Expr::Aggregate|public
-syl_syntax|variant|syl_syntax::ast::Expr::Binary|public
-syl_syntax|variant|syl_syntax::ast::Expr::Block|public
-syl_syntax|variant|syl_syntax::ast::Expr::Bool|public
-syl_syntax|variant|syl_syntax::ast::Expr::Call|public
-syl_syntax|variant|syl_syntax::ast::Expr::CompileError|public
-syl_syntax|variant|syl_syntax::ast::Expr::Field|public
-syl_syntax|variant|syl_syntax::ast::Expr::GenericApp|public
-syl_syntax|variant|syl_syntax::ast::Expr::Group|public
-syl_syntax|variant|syl_syntax::ast::Expr::Ident|public
-syl_syntax|variant|syl_syntax::ast::Expr::Index|public
-syl_syntax|variant|syl_syntax::ast::Expr::Inst|public
-syl_syntax|variant|syl_syntax::ast::Expr::Int|public
-syl_syntax|variant|syl_syntax::ast::Expr::Match|public
-syl_syntax|variant|syl_syntax::ast::Expr::Range|public
-syl_syntax|variant|syl_syntax::ast::Expr::Select|public
-syl_syntax|variant|syl_syntax::ast::Expr::Str|public
-syl_syntax|variant|syl_syntax::ast::Expr::Unary|public
-syl_syntax|variant|syl_syntax::ast::Item::Bundle|public
-syl_syntax|variant|syl_syntax::ast::Item::Cell|public
-syl_syntax|variant|syl_syntax::ast::Item::Const|public
-syl_syntax|variant|syl_syntax::ast::Item::Enum|public
-syl_syntax|variant|syl_syntax::ast::Item::Error|public
-syl_syntax|variant|syl_syntax::ast::Item::ExternModule|public
-syl_syntax|variant|syl_syntax::ast::Item::Fn|public
-syl_syntax|variant|syl_syntax::ast::Item::Interface|public
-syl_syntax|variant|syl_syntax::ast::Item::Map|public
-syl_syntax|variant|syl_syntax::ast::Item::Module|public
-syl_syntax|variant|syl_syntax::ast::Item::Package|public
-syl_syntax|variant|syl_syntax::ast::Item::Use|public
-syl_syntax|variant|syl_syntax::ast::ParamDirection::In|public
-syl_syntax|variant|syl_syntax::ast::ParamDirection::Out|public
-syl_syntax|variant|syl_syntax::ast::Pattern::Bool|public
-syl_syntax|variant|syl_syntax::ast::Pattern::Ident|public
-syl_syntax|variant|syl_syntax::ast::Pattern::Int|public
-syl_syntax|variant|syl_syntax::ast::Pattern::Path|public
-syl_syntax|variant|syl_syntax::ast::Pattern::Wildcard|public
-syl_syntax|variant|syl_syntax::ast::SelectMode::Priority|public
-syl_syntax|variant|syl_syntax::ast::SelectMode::Unique|public
-syl_syntax|variant|syl_syntax::ast::Stmt::Alias|public
-syl_syntax|variant|syl_syntax::ast::Stmt::Const|public
-syl_syntax|variant|syl_syntax::ast::Stmt::ElabFor|public
-syl_syntax|variant|syl_syntax::ast::Stmt::ElabIf|public
-syl_syntax|variant|syl_syntax::ast::Stmt::Error|public
-syl_syntax|variant|syl_syntax::ast::Stmt::Expr|public
-syl_syntax|variant|syl_syntax::ast::Stmt::Inst|public
-syl_syntax|variant|syl_syntax::ast::Stmt::Let|public
-syl_syntax|variant|syl_syntax::ast::Stmt::Next|public
-syl_syntax|variant|syl_syntax::ast::Stmt::Reg|public
-syl_syntax|variant|syl_syntax::ast::Stmt::Return|public
-syl_syntax|variant|syl_syntax::ast::Stmt::Signal|public
-syl_syntax|variant|syl_syntax::ast::Stmt::Var|public
-syl_syntax|variant|syl_syntax::ast::Stmt::While|public
-syl_syntax|variant|syl_syntax::ast::TypeExpr::Array|public
-syl_syntax|variant|syl_syntax::ast::TypeExpr::Generic|public
-syl_syntax|variant|syl_syntax::ast::TypeExpr::Path|public
-syl_syntax|variant|syl_syntax::ast::TypeExpr::ViewSelect|public
-syl_syntax|variant|syl_syntax::ast::UnaryOp::Neg|public
-syl_syntax|variant|syl_syntax::ast::UnaryOp::NotWord|public
-syl_syntax|variant|syl_syntax::ast::UnaryOp::Not|public
-syl_syntax|variant|syl_syntax::ast::ViewDirection::In|public
-syl_syntax|variant|syl_syntax::ast::ViewDirection::Out|public
-syl_syntax|variant|syl_syntax::lexer::LosslessTokenKind::LineComment|public
-syl_syntax|variant|syl_syntax::lexer::LosslessTokenKind::Token|public
-syl_syntax|variant|syl_syntax::lexer::LosslessTokenKind::Unknown|public
-syl_syntax|variant|syl_syntax::lexer::LosslessTokenKind::Whitespace|public
-syl_syntax|variant|syl_syntax::lossless::LosslessItemKind::Bundle|public
-syl_syntax|variant|syl_syntax::lossless::LosslessItemKind::Cell|public
-syl_syntax|variant|syl_syntax::lossless::LosslessItemKind::Const|public
-syl_syntax|variant|syl_syntax::lossless::LosslessItemKind::Enum|public
-syl_syntax|variant|syl_syntax::lossless::LosslessItemKind::Error|public
-syl_syntax|variant|syl_syntax::lossless::LosslessItemKind::ExternModule|public
-syl_syntax|variant|syl_syntax::lossless::LosslessItemKind::Fn|public
-syl_syntax|variant|syl_syntax::lossless::LosslessItemKind::Interface|public
-syl_syntax|variant|syl_syntax::lossless::LosslessItemKind::Map|public
-syl_syntax|variant|syl_syntax::lossless::LosslessItemKind::Module|public
-syl_syntax|variant|syl_syntax::lossless::LosslessItemKind::Package|public
-syl_syntax|variant|syl_syntax::lossless::LosslessItemKind::Use|public
-syl_syntax|variant|syl_syntax::lossless::LosslessNodeKind::File|public
-syl_syntax|variant|syl_syntax::lossless::LosslessNodeKind::Item|public
-syl_syntax|variant|syl_syntax::lossless::LosslessNodeKind::Trivia|public
-syl_syntax|variant|syl_syntax::lossless::LosslessSyntaxElement::Node|public
-syl_syntax|variant|syl_syntax::lossless::LosslessSyntaxElement::Token|public
-syl_syntax|variant|syl_syntax::lossless::LosslessTokenKind::Bool|public
-syl_syntax|variant|syl_syntax::lossless::LosslessTokenKind::Ident|public
-syl_syntax|variant|syl_syntax::lossless::LosslessTokenKind::Int|public
-syl_syntax|variant|syl_syntax::lossless::LosslessTokenKind::Keyword|public
-syl_syntax|variant|syl_syntax::lossless::LosslessTokenKind::LineComment|public
-syl_syntax|variant|syl_syntax::lossless::LosslessTokenKind::Punctuation|public
-syl_syntax|variant|syl_syntax::lossless::LosslessTokenKind::Str|public
-syl_syntax|variant|syl_syntax::lossless::LosslessTokenKind::Unknown|public
-syl_syntax|variant|syl_syntax::lossless::LosslessTokenKind::Whitespace|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::AggregateExpr|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::AliasStmt|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::ArrayType|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::Attribute|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::BinaryExpr|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::BlockExpr|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::Block|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::BoolExpr|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::BoolPattern|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::BundleItem|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::CallExpr|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::CellItem|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::CompileErrorExpr|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::ConstItem|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::ConstStmt|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::ElabForStmt|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::ElabIfStmt|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::EnumItem|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::EnumVariant|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::ErrorItem|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::ErrorStmt|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::ExprStmt|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::ExternModuleItem|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::FieldDecl|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::FieldExpr|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::File|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::FnItem|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::GenericAppExpr|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::GenericParam|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::GenericType|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::GroupExpr|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::IdentExpr|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::IdentPattern|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::IndexExpr|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::InstArg|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::InstExpr|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::InstStmt|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::IntExpr|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::IntPattern|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::InterfaceItem|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::LetStmt|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::MapItem|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::MatchArm|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::MatchExpr|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::ModuleItem|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::NamedExpr|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::NextStmt|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::PackageItem|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::Param|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::PathPattern|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::PathType|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::PortDecl|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::RangeExpr|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::RegReset|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::RegStmt|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::ResultBinding|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::ReturnStmt|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::SelectArm|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::SelectExpr|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::SignalStmt|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::StrExpr|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::UnaryExpr|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::UseItem|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::VarStmt|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::ViewDecl|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::ViewField|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::ViewSelectType|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::WhileStmt|public
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::WildcardPattern|public
-syl_syntax|variant|syl_syntax::token::TokenKind::AndAnd|public
-syl_syntax|variant|syl_syntax::token::TokenKind::Arrow|public
-syl_syntax|variant|syl_syntax::token::TokenKind::At|public
-syl_syntax|variant|syl_syntax::token::TokenKind::BangEq|public
-syl_syntax|variant|syl_syntax::token::TokenKind::Bang|public
-syl_syntax|variant|syl_syntax::token::TokenKind::Bool|public
-syl_syntax|variant|syl_syntax::token::TokenKind::ColonEq|public
-syl_syntax|variant|syl_syntax::token::TokenKind::Colon|public
-syl_syntax|variant|syl_syntax::token::TokenKind::Comma|public
-syl_syntax|variant|syl_syntax::token::TokenKind::DotDot|public
-syl_syntax|variant|syl_syntax::token::TokenKind::Dot|public
-syl_syntax|variant|syl_syntax::token::TokenKind::EqEq|public
-syl_syntax|variant|syl_syntax::token::TokenKind::EqGt|public
-syl_syntax|variant|syl_syntax::token::TokenKind::Eq|public
-syl_syntax|variant|syl_syntax::token::TokenKind::GtEq|public
-syl_syntax|variant|syl_syntax::token::TokenKind::Gt|public
-syl_syntax|variant|syl_syntax::token::TokenKind::Ident|public
-syl_syntax|variant|syl_syntax::token::TokenKind::Int|public
-syl_syntax|variant|syl_syntax::token::TokenKind::KwAlias|public
-syl_syntax|variant|syl_syntax::token::TokenKind::KwAnd|public
-syl_syntax|variant|syl_syntax::token::TokenKind::KwBundle|public
-syl_syntax|variant|syl_syntax::token::TokenKind::KwCell|public
-syl_syntax|variant|syl_syntax::token::TokenKind::KwConst|public
-syl_syntax|variant|syl_syntax::token::TokenKind::KwElse|public
-syl_syntax|variant|syl_syntax::token::TokenKind::KwEnum|public
-syl_syntax|variant|syl_syntax::token::TokenKind::KwEqWord|public
-syl_syntax|variant|syl_syntax::token::TokenKind::KwExtern|public
-syl_syntax|variant|syl_syntax::token::TokenKind::KwFn|public
-syl_syntax|variant|syl_syntax::token::TokenKind::KwFor|public
-syl_syntax|variant|syl_syntax::token::TokenKind::KwIf|public
-syl_syntax|variant|syl_syntax::token::TokenKind::KwInst|public
-syl_syntax|variant|syl_syntax::token::TokenKind::KwInterface|public
-syl_syntax|variant|syl_syntax::token::TokenKind::KwIn|public
-syl_syntax|variant|syl_syntax::token::TokenKind::KwLet|public
-syl_syntax|variant|syl_syntax::token::TokenKind::KwMap|public
-syl_syntax|variant|syl_syntax::token::TokenKind::KwMatch|public
-syl_syntax|variant|syl_syntax::token::TokenKind::KwModule|public
-syl_syntax|variant|syl_syntax::token::TokenKind::KwNext|public
-syl_syntax|variant|syl_syntax::token::TokenKind::KwNot|public
-syl_syntax|variant|syl_syntax::token::TokenKind::KwOr|public
-syl_syntax|variant|syl_syntax::token::TokenKind::KwOut|public
-syl_syntax|variant|syl_syntax::token::TokenKind::KwPackage|public
-syl_syntax|variant|syl_syntax::token::TokenKind::KwPriority|public
-syl_syntax|variant|syl_syntax::token::TokenKind::KwReg|public
-syl_syntax|variant|syl_syntax::token::TokenKind::KwReturn|public
-syl_syntax|variant|syl_syntax::token::TokenKind::KwSelect|public
-syl_syntax|variant|syl_syntax::token::TokenKind::KwSignal|public
-syl_syntax|variant|syl_syntax::token::TokenKind::KwUnique|public
-syl_syntax|variant|syl_syntax::token::TokenKind::KwUse|public
-syl_syntax|variant|syl_syntax::token::TokenKind::KwVar|public
-syl_syntax|variant|syl_syntax::token::TokenKind::KwView|public
-syl_syntax|variant|syl_syntax::token::TokenKind::KwWhile|public
-syl_syntax|variant|syl_syntax::token::TokenKind::KwXor|public
-syl_syntax|variant|syl_syntax::token::TokenKind::LBrace|public
-syl_syntax|variant|syl_syntax::token::TokenKind::LBracket|public
-syl_syntax|variant|syl_syntax::token::TokenKind::LParen|public
-syl_syntax|variant|syl_syntax::token::TokenKind::LtEq|public
-syl_syntax|variant|syl_syntax::token::TokenKind::LtLt|public
-syl_syntax|variant|syl_syntax::token::TokenKind::Lt|public
-syl_syntax|variant|syl_syntax::token::TokenKind::Minus|public
-syl_syntax|variant|syl_syntax::token::TokenKind::OrOr|public
-syl_syntax|variant|syl_syntax::token::TokenKind::Percent|public
-syl_syntax|variant|syl_syntax::token::TokenKind::Plus|public
-syl_syntax|variant|syl_syntax::token::TokenKind::RBrace|public
-syl_syntax|variant|syl_syntax::token::TokenKind::RBracket|public
-syl_syntax|variant|syl_syntax::token::TokenKind::RParen|public
-syl_syntax|variant|syl_syntax::token::TokenKind::Semi|public
-syl_syntax|variant|syl_syntax::token::TokenKind::Slash|public
-syl_syntax|variant|syl_syntax::token::TokenKind::Star|public
-syl_syntax|variant|syl_syntax::token::TokenKind::Str|public
+syl_syntax|variant|syl_syntax::ast::BinaryOp::Add|unit
+syl_syntax|variant|syl_syntax::ast::BinaryOp::AndAnd|unit
+syl_syntax|variant|syl_syntax::ast::BinaryOp::AndWord|unit
+syl_syntax|variant|syl_syntax::ast::BinaryOp::Assign|unit
+syl_syntax|variant|syl_syntax::ast::BinaryOp::Div|unit
+syl_syntax|variant|syl_syntax::ast::BinaryOp::EqEq|unit
+syl_syntax|variant|syl_syntax::ast::BinaryOp::EqWord|unit
+syl_syntax|variant|syl_syntax::ast::BinaryOp::Field|unit
+syl_syntax|variant|syl_syntax::ast::BinaryOp::GtEq|unit
+syl_syntax|variant|syl_syntax::ast::BinaryOp::Gt|unit
+syl_syntax|variant|syl_syntax::ast::BinaryOp::LtEq|unit
+syl_syntax|variant|syl_syntax::ast::BinaryOp::Lt|unit
+syl_syntax|variant|syl_syntax::ast::BinaryOp::Mul|unit
+syl_syntax|variant|syl_syntax::ast::BinaryOp::NotEq|unit
+syl_syntax|variant|syl_syntax::ast::BinaryOp::OrOr|unit
+syl_syntax|variant|syl_syntax::ast::BinaryOp::OrWord|unit
+syl_syntax|variant|syl_syntax::ast::BinaryOp::Rem|unit
+syl_syntax|variant|syl_syntax::ast::BinaryOp::Shl|unit
+syl_syntax|variant|syl_syntax::ast::BinaryOp::Sub|unit
+syl_syntax|variant|syl_syntax::ast::BinaryOp::XorWord|unit
+syl_syntax|variant|syl_syntax::ast::DriveCapability::ReadOnly|unit
+syl_syntax|variant|syl_syntax::ast::DriveCapability::WriteOnly|unit
+syl_syntax|variant|syl_syntax::ast::Expr::Aggregate|{ ty: Box<TypeExpr>, fields: Vec<NamedExpr>, span: syl_span::Span }
+syl_syntax|variant|syl_syntax::ast::Expr::Binary|{ op: BinaryOp, left: Box<Expr>, right: Box<Expr>, span: syl_span::Span }
+syl_syntax|variant|syl_syntax::ast::Expr::Block|(Block)
+syl_syntax|variant|syl_syntax::ast::Expr::Bool|(bool, syl_span::Span)
+syl_syntax|variant|syl_syntax::ast::Expr::Call|{ callee: Box<Expr>, args: Vec<InstArg>, span: syl_span::Span }
+syl_syntax|variant|syl_syntax::ast::Expr::CompileError|{ message: Box<Expr>, span: syl_span::Span }
+syl_syntax|variant|syl_syntax::ast::Expr::Field|{ base: Box<Expr>, field: String, span: syl_span::Span }
+syl_syntax|variant|syl_syntax::ast::Expr::GenericApp|{ callee: Box<Expr>, args: Vec<TypeExpr>, span: syl_span::Span }
+syl_syntax|variant|syl_syntax::ast::Expr::Group|(Box<Expr>, syl_span::Span)
+syl_syntax|variant|syl_syntax::ast::Expr::Ident|(String, syl_span::Span)
+syl_syntax|variant|syl_syntax::ast::Expr::Index|{ base: Box<Expr>, index: Box<Expr>, span: syl_span::Span }
+syl_syntax|variant|syl_syntax::ast::Expr::Inst|{ callee: Box<Expr>, args: Vec<InstArg>, span: syl_span::Span }
+syl_syntax|variant|syl_syntax::ast::Expr::Int|(u64, syl_span::Span)
+syl_syntax|variant|syl_syntax::ast::Expr::Match|{ expr: Box<Expr>, arms: Vec<MatchArm>, span: syl_span::Span }
+syl_syntax|variant|syl_syntax::ast::Expr::Range|{ start: Box<Expr>, end: Box<Expr>, span: syl_span::Span }
+syl_syntax|variant|syl_syntax::ast::Expr::Select|{ mode: SelectMode, arms: Vec<SelectArm>, span: syl_span::Span }
+syl_syntax|variant|syl_syntax::ast::Expr::Str|(String, syl_span::Span)
+syl_syntax|variant|syl_syntax::ast::Expr::Unary|{ op: UnaryOp, expr: Box<Expr>, span: syl_span::Span }
+syl_syntax|variant|syl_syntax::ast::Item::Bundle|(BundleItem)
+syl_syntax|variant|syl_syntax::ast::Item::Cell|(CallableItem)
+syl_syntax|variant|syl_syntax::ast::Item::Const|(ConstItem)
+syl_syntax|variant|syl_syntax::ast::Item::Enum|(EnumItem)
+syl_syntax|variant|syl_syntax::ast::Item::Error|(ErrorItem)
+syl_syntax|variant|syl_syntax::ast::Item::ExternModule|(ExternModuleItem)
+syl_syntax|variant|syl_syntax::ast::Item::Fn|(FnItem)
+syl_syntax|variant|syl_syntax::ast::Item::Interface|(InterfaceItem)
+syl_syntax|variant|syl_syntax::ast::Item::Map|(MapItem)
+syl_syntax|variant|syl_syntax::ast::Item::Module|(CallableItem)
+syl_syntax|variant|syl_syntax::ast::Item::Package|(PackageItem)
+syl_syntax|variant|syl_syntax::ast::Item::Use|(UseItem)
+syl_syntax|variant|syl_syntax::ast::ParamDirection::In|unit
+syl_syntax|variant|syl_syntax::ast::ParamDirection::Out|unit
+syl_syntax|variant|syl_syntax::ast::Pattern::Bool|(bool, syl_span::Span)
+syl_syntax|variant|syl_syntax::ast::Pattern::Ident|(String, syl_span::Span)
+syl_syntax|variant|syl_syntax::ast::Pattern::Int|(u64, syl_span::Span)
+syl_syntax|variant|syl_syntax::ast::Pattern::Path|(Vec<String>, syl_span::Span)
+syl_syntax|variant|syl_syntax::ast::Pattern::Wildcard|(syl_span::Span)
+syl_syntax|variant|syl_syntax::ast::SelectMode::Priority|unit
+syl_syntax|variant|syl_syntax::ast::SelectMode::Unique|unit
+syl_syntax|variant|syl_syntax::ast::Stmt::Alias|{ name: String, value: Expr, span: syl_span::Span }
+syl_syntax|variant|syl_syntax::ast::Stmt::Const|{ name: String, ty: Option<TypeExpr>, value: Expr, span: syl_span::Span }
+syl_syntax|variant|syl_syntax::ast::Stmt::ElabFor|{ name: String, range: Expr, body: Block, span: syl_span::Span }
+syl_syntax|variant|syl_syntax::ast::Stmt::ElabIf|{ cond: Expr, then_block: Block, else_block: Option<Block>, span: syl_span::Span }
+syl_syntax|variant|syl_syntax::ast::Stmt::Error|{ span: syl_span::Span }
+syl_syntax|variant|syl_syntax::ast::Stmt::Expr|(Expr)
+syl_syntax|variant|syl_syntax::ast::Stmt::Inst|{ name: Expr, callee: Expr, span: syl_span::Span }
+syl_syntax|variant|syl_syntax::ast::Stmt::Let|{ name: String, ty: Option<TypeExpr>, value: Option<Expr>, span: syl_span::Span }
+syl_syntax|variant|syl_syntax::ast::Stmt::Next|{ name: String, value: Expr, span: syl_span::Span }
+syl_syntax|variant|syl_syntax::ast::Stmt::Reg|{ name: String, ty: Option<TypeExpr>, reset: Option<RegReset>, span: syl_span::Span }
+syl_syntax|variant|syl_syntax::ast::Stmt::Return|(Option<Expr>, syl_span::Span)
+syl_syntax|variant|syl_syntax::ast::Stmt::Signal|{ name: String, ty: Option<TypeExpr>, value: Option<Expr>, span: syl_span::Span }
+syl_syntax|variant|syl_syntax::ast::Stmt::Var|{ name: String, ty: Option<TypeExpr>, value: Option<Expr>, span: syl_span::Span }
+syl_syntax|variant|syl_syntax::ast::Stmt::While|{ cond: Expr, body: Block, span: syl_span::Span }
+syl_syntax|variant|syl_syntax::ast::TypeExpr::Array|{ len: Box<Expr>, elem: Box<TypeExpr>, span: syl_span::Span }
+syl_syntax|variant|syl_syntax::ast::TypeExpr::Generic|{ base: Box<TypeExpr>, args: Vec<TypeExpr>, span: syl_span::Span }
+syl_syntax|variant|syl_syntax::ast::TypeExpr::Path|(Vec<String>, syl_span::Span)
+syl_syntax|variant|syl_syntax::ast::TypeExpr::ViewSelect|{ base: Box<TypeExpr>, view: String, span: syl_span::Span }
+syl_syntax|variant|syl_syntax::ast::UnaryOp::Neg|unit
+syl_syntax|variant|syl_syntax::ast::UnaryOp::NotWord|unit
+syl_syntax|variant|syl_syntax::ast::UnaryOp::Not|unit
+syl_syntax|variant|syl_syntax::ast::ViewDirection::In|unit
+syl_syntax|variant|syl_syntax::ast::ViewDirection::Out|unit
+syl_syntax|variant|syl_syntax::lexer::LosslessTokenKind::LineComment|unit
+syl_syntax|variant|syl_syntax::lexer::LosslessTokenKind::Token|(TokenKind)
+syl_syntax|variant|syl_syntax::lexer::LosslessTokenKind::Unknown|unit
+syl_syntax|variant|syl_syntax::lexer::LosslessTokenKind::Whitespace|unit
+syl_syntax|variant|syl_syntax::lossless::LosslessItemKind::Bundle|unit
+syl_syntax|variant|syl_syntax::lossless::LosslessItemKind::Cell|unit
+syl_syntax|variant|syl_syntax::lossless::LosslessItemKind::Const|unit
+syl_syntax|variant|syl_syntax::lossless::LosslessItemKind::Enum|unit
+syl_syntax|variant|syl_syntax::lossless::LosslessItemKind::Error|unit
+syl_syntax|variant|syl_syntax::lossless::LosslessItemKind::ExternModule|unit
+syl_syntax|variant|syl_syntax::lossless::LosslessItemKind::Fn|unit
+syl_syntax|variant|syl_syntax::lossless::LosslessItemKind::Interface|unit
+syl_syntax|variant|syl_syntax::lossless::LosslessItemKind::Map|unit
+syl_syntax|variant|syl_syntax::lossless::LosslessItemKind::Module|unit
+syl_syntax|variant|syl_syntax::lossless::LosslessItemKind::Package|unit
+syl_syntax|variant|syl_syntax::lossless::LosslessItemKind::Use|unit
+syl_syntax|variant|syl_syntax::lossless::LosslessNodeKind::File|unit
+syl_syntax|variant|syl_syntax::lossless::LosslessNodeKind::Item|(LosslessItemKind)
+syl_syntax|variant|syl_syntax::lossless::LosslessNodeKind::Trivia|unit
+syl_syntax|variant|syl_syntax::lossless::LosslessSyntaxElement::Node|(LosslessSyntaxNode)
+syl_syntax|variant|syl_syntax::lossless::LosslessSyntaxElement::Token|(LosslessToken)
+syl_syntax|variant|syl_syntax::lossless::LosslessTokenKind::Bool|unit
+syl_syntax|variant|syl_syntax::lossless::LosslessTokenKind::Ident|unit
+syl_syntax|variant|syl_syntax::lossless::LosslessTokenKind::Int|unit
+syl_syntax|variant|syl_syntax::lossless::LosslessTokenKind::Keyword|unit
+syl_syntax|variant|syl_syntax::lossless::LosslessTokenKind::LineComment|unit
+syl_syntax|variant|syl_syntax::lossless::LosslessTokenKind::Punctuation|unit
+syl_syntax|variant|syl_syntax::lossless::LosslessTokenKind::Str|unit
+syl_syntax|variant|syl_syntax::lossless::LosslessTokenKind::Unknown|unit
+syl_syntax|variant|syl_syntax::lossless::LosslessTokenKind::Whitespace|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::AggregateExpr|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::AliasStmt|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::ArrayType|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::Attribute|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::BinaryExpr|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::BlockExpr|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::Block|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::BoolExpr|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::BoolPattern|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::BundleItem|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::CallExpr|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::CellItem|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::CompileErrorExpr|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::ConstItem|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::ConstStmt|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::ElabForStmt|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::ElabIfStmt|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::EnumItem|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::EnumVariant|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::ErrorItem|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::ErrorStmt|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::ExprStmt|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::ExternModuleItem|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::FieldDecl|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::FieldExpr|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::File|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::FnItem|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::GenericAppExpr|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::GenericParam|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::GenericType|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::GroupExpr|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::IdentExpr|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::IdentPattern|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::IndexExpr|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::InstArg|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::InstExpr|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::InstStmt|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::IntExpr|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::IntPattern|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::InterfaceItem|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::LetStmt|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::MapItem|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::MatchArm|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::MatchExpr|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::ModuleItem|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::NamedExpr|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::NextStmt|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::PackageItem|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::Param|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::PathPattern|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::PathType|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::PortDecl|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::RangeExpr|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::RegReset|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::RegStmt|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::ResultBinding|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::ReturnStmt|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::SelectArm|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::SelectExpr|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::SignalStmt|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::StrExpr|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::UnaryExpr|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::UseItem|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::VarStmt|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::ViewDecl|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::ViewField|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::ViewSelectType|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::WhileStmt|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::WildcardPattern|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::AndAnd|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::Arrow|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::At|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::BangEq|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::Bang|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::Bool|(bool)
+syl_syntax|variant|syl_syntax::token::TokenKind::ColonEq|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::Colon|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::Comma|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::DotDot|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::Dot|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::EqEq|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::EqGt|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::Eq|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::GtEq|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::Gt|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::Ident|(String)
+syl_syntax|variant|syl_syntax::token::TokenKind::Int|(u64)
+syl_syntax|variant|syl_syntax::token::TokenKind::KwAlias|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::KwAnd|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::KwBundle|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::KwCell|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::KwConst|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::KwElse|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::KwEnum|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::KwEqWord|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::KwExtern|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::KwFn|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::KwFor|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::KwIf|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::KwInst|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::KwInterface|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::KwIn|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::KwLet|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::KwMap|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::KwMatch|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::KwModule|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::KwNext|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::KwNot|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::KwOr|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::KwOut|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::KwPackage|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::KwPriority|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::KwReg|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::KwReturn|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::KwSelect|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::KwSignal|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::KwUnique|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::KwUse|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::KwVar|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::KwView|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::KwWhile|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::KwXor|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::LBrace|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::LBracket|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::LParen|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::LtEq|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::LtLt|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::Lt|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::Minus|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::OrOr|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::Percent|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::Plus|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::RBrace|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::RBracket|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::RParen|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::Semi|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::Slash|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::Star|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::Str|(String)
 syl|use|AnalysisFile|named|source=syl_session::AnalysisFile
 syl|use|AnalysisHost|named|source=syl_session::AnalysisHost
 syl|use|AnalysisQueries|named|source=syl_query::AnalysisQueries

@@ -13,6 +13,11 @@ SNAPSHOT = WORKSPACE / "api" / "public-surface.txt"
 CONSUMERS = WORKSPACE / "api" / "public-api-consumers.md"
 CONSUMER_START = "<!-- public-api-consumers:start -->"
 CONSUMER_END = "<!-- public-api-consumers:end -->"
+SIGNATURE_GUARDS = [
+    "syl_emit|variant|syl_emit::CompileError::InvalidHwir|{ report: syl_hw::HwValidationReport }",
+    "syl_syntax|variant|syl_syntax::ast::Item::Package|(PackageItem)",
+    "syl_hw|field|syl_hw::ids::ObjectId::0|usize",
+]
 
 
 def run(command, **kwargs):
@@ -153,6 +158,40 @@ def item_type(data, item_id):
     return type_name(item["inner"][inner_kind(item)])
 
 
+def field_type(data, field_id):
+    if field_id is None:
+        return "<stripped>"
+    return item_type(data, field_id)
+
+
+def struct_field_ids(struct_kind):
+    if not isinstance(struct_kind, dict):
+        return []
+    if "plain" in struct_kind:
+        return struct_kind["plain"].get("fields", [])
+    if "tuple" in struct_kind:
+        return struct_kind["tuple"]
+    return []
+
+
+def variant_signature(data, variant):
+    kind = variant["inner"]["variant"]["kind"]
+    if kind == "plain":
+        return "unit"
+    if not isinstance(kind, dict):
+        return json.dumps(kind, sort_keys=True)
+    if "tuple" in kind:
+        payload = ", ".join(field_type(data, field_id) for field_id in kind["tuple"])
+        return f"({payload})"
+    if "struct" in kind:
+        fields = []
+        for field_id in kind["struct"].get("fields", []):
+            field = data["index"][str(field_id)]
+            fields.append(f"{field['name']}: {item_type(data, field_id)}")
+        return "{ " + ", ".join(fields) + " }"
+    return json.dumps(kind, sort_keys=True)
+
+
 def owner_name(data, impl_for):
     if "resolved_path" in impl_for:
         item_id = impl_for["resolved_path"].get("id")
@@ -207,9 +246,9 @@ def child_records(data, package, path, item):
     inner = item["inner"][kind]
     records = []
     if kind == "struct":
-        struct_kind = inner["kind"]
-        fields = struct_kind.get("plain", {}).get("fields", []) if isinstance(struct_kind, dict) else []
-        for field_id in fields:
+        for field_id in struct_field_ids(inner["kind"]):
+            if field_id is None:
+                continue
             field = data["index"][str(field_id)]
             if field["visibility"] == "public":
                 records.append(
@@ -218,7 +257,10 @@ def child_records(data, package, path, item):
     elif kind == "enum":
         for variant_id in inner["variants"]:
             variant = data["index"][str(variant_id)]
-            records.append(f"{package}|variant|{path}::{variant['name']}|public")
+            records.append(
+                f"{package}|variant|{path}::{variant['name']}|"
+                f"{variant_signature(data, variant)}"
+            )
     elif kind == "trait":
         for child_id in inner["items"]:
             child = data["index"][str(child_id)]
@@ -281,6 +323,10 @@ def consumer_descriptions():
     current = None
     lines = []
     for line in text.splitlines():
+        if line.startswith("## Item-Level Surface Consumers"):
+            if current and lines:
+                descriptions[current] = " ".join(item.strip() for item in lines if item.strip())
+            return descriptions
         if line.startswith("## ") and not line.startswith("## Item-Level"):
             if current and lines:
                 descriptions[current] = " ".join(item.strip() for item in lines if item.strip())
@@ -302,6 +348,25 @@ def validate_consumers(records):
         sample = "\n".join(missing[:20])
         raise SystemExit(
             "missing item-level public API consumer notes for surface lines:\n" + sample
+        )
+
+
+def validate_signature_guards(records):
+    missing = [record for record in SIGNATURE_GUARDS if record not in records]
+    if missing:
+        raise SystemExit(
+            "public API signature guard failed; expected precise payload/field records:\n"
+            + "\n".join(missing)
+        )
+    if not SNAPSHOT.is_file():
+        return
+    snapshot = set(SNAPSHOT.read_text().splitlines())
+    missing_snapshot = [record for record in SIGNATURE_GUARDS if record not in snapshot]
+    if missing_snapshot:
+        raise SystemExit(
+            "public API snapshot signature guard failed; run "
+            "scripts/check_public_api.py --bless after fixing extractor output:\n"
+            + "\n".join(missing_snapshot)
         )
 
 
@@ -349,8 +414,10 @@ def main():
         SNAPSHOT.parent.mkdir(parents=True, exist_ok=True)
         SNAPSHOT.write_text("\n".join(records) + "\n")
         write_consumers(records)
+        validate_signature_guards(records)
     else:
         check_snapshot(records)
+        validate_signature_guards(records)
         validate_consumers(records)
 
 
