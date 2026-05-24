@@ -174,6 +174,7 @@
   - 2026-05-24 S2 - Review SubAgent 判定 Phase 3 未收敛：capability facts 仍用 `TirType` 结构相等 fallback 恢复 `TypeId`，`ConstFacts` 绕过带 step-limit/cache 的 `ConstEvaluator` 且只折叠顶层简单表达式，`ResolutionGraph` 缺少一等 module/import 节点与关系 API；另指出 layout opaque fallback、Debug 字符串 cache 断言和 sema 硬件集成测试边界问题。
   - 2026-05-24 S3 - 主 Agent 审核 Review 结论后派 Work SubAgent 整改：删除 capability TypeId 结构 fallback，改造 `ConstFacts` 复用真实 `ConstEvaluator` 与 step-limit/cache 语义，增强 `ResolutionGraph` 一等 package/module/import 节点和关系 API，并修正 layout facts、Debug cache 断言和 sema 硬件集成测试边界证据。
   - 2026-05-24 S4 - Work SubAgent 完成 Phase 3 整改：删除 capability 结构相等 TypeId fallback，`ConstFacts` 改为消费 `ConstMirBuilder + ConstEvaluator` 并记录 evaluator-produced expr facts，`ResolutionGraph` 增加 `PackageNodeId`/`ImportId` 与 package/module/import 关系 API，layout opaque fallback 收敛为显式 variants，snapshot cache 状态改为显式 API，architecture_phase3_sema 增加 canonical/facts/production-boundary guards；主 Agent 验证 architecture tests、sema tests、workspace check、文件规模和 `git diff --check` 均通过。
+  - 2026-05-24 S2 - 主 Agent 派出第二轮 Review SubAgent，复查 S4 sema facts 整改是否满足 Phase 3，只有 Review Agent 判 PASS 才允许标记完成。
 
   ———
 
