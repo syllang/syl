@@ -94,6 +94,7 @@
   - 2026-05-23 S1 - 主 Agent 派出 Work SubAgent，执行 Phase 1 IR 所有权收敛：审查并整改 AST/HIR/TIR/Const MIR/Map IR/EIR/HW IR/SV AST owner，优先收敛 Const MIR/Map IR/EIR/TIR 边界并补充可执行架构证据。
   - 2026-05-23 S1 - Work SubAgent 完成 Phase 1 初版交付：Const MIR/Map IR owner 收敛到 `syl_sema`，`syl_elab` 删除重复 Map IR 文件并复用 sema-owned IR，EIR 拆分数据与 assembler/validate/facts，补充 TIR/Const MIR/Map IR/EIR/HW IR/SV AST debug dump 与 architecture_phase1_ir 测试；主 Agent 验证 `cargo fmt --all`、`cargo test -p sylc architecture_ -- --nocapture`、`cargo check --workspace --all-targets`、`git diff --check` 均通过。
   - 2026-05-23 S2 - 主 Agent 派出 Review SubAgent，按 Phase 1 MUST FIX 和退出标准独立审查 IR owner 唯一性、EIR 数据/构建分离、TIR side-table 形态、HW IR 临时状态隔离和 debug dump 覆盖。
+  - 2026-05-23 S2 - Review SubAgent 判定 Phase 1 未收敛：HW IR 仍把 driver/read/create/cell summary facts 作为 IR 字段，AST/HIR 缺少 debug dump/golden 证据，architecture_phase1_ir 过度依赖 substring 且漏扫 `syl_hw::design`，EIR 数据文件仍混入 `Elaborator` orchestration。
 
   ———
 
