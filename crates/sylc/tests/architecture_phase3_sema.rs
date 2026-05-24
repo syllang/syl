@@ -129,6 +129,17 @@ fn architecture_phase3_fact_collectors_stay_canonical() {
     let capability = normalize_whitespace(&read_text(
         &workspace.join("crates/syl_sema/src/facts/capability.rs"),
     ));
+    for required in [
+        "enum DomainFact",
+        "BuiltinDomain",
+        "Clock { domain: DomainFact }",
+        "Reset { domain: DomainFact }",
+    ] {
+        assert!(
+            capability.contains(required),
+            "capability facts must keep canonical domain fact modeling explicit: missing {required:?}"
+        );
+    }
     for forbidden in ["known == target", "table.iter().find_map"] {
         assert!(
             !capability.contains(forbidden),

@@ -34,7 +34,7 @@ pub use error::{
 };
 pub use facts::{
     CapabilityFacts, CapabilityKind, CapabilityTable, ConstFactKey, ConstFacts, DefinitionKind,
-    DefinitionPath, HirFactId, ImportEdge, ImportId, Layout, LayoutConst, LayoutFacts,
+    DefinitionPath, DomainFact, HirFactId, ImportEdge, ImportId, Layout, LayoutConst, LayoutFacts,
     PackageNodeId, PackageSummary, ProtocolFacts, ProtocolFieldDirection, ProtocolSummary,
     ProtocolViewSummary, ResolutionGraph, ResolutionTable, SemanticFacts, SemanticResolution,
     TypeTable, ViewCapabilityFacts, ViewFieldSummary, WordEncoding,

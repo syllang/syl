@@ -7,7 +7,9 @@ mod types;
 
 use crate::tir::TirDesign;
 
-pub use capability::{CapabilityFacts, CapabilityKind, CapabilityTable, ViewCapabilityFacts};
+pub use capability::{
+    CapabilityFacts, CapabilityKind, CapabilityTable, DomainFact, ViewCapabilityFacts,
+};
 pub use consts::{ConstFactKey, ConstFacts};
 pub use layout::{Layout, LayoutConst, LayoutFacts, WordEncoding};
 pub use protocol::{

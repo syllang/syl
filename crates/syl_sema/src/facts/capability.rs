@@ -50,11 +50,19 @@ impl ViewCapabilityFacts {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
+pub enum DomainFact {
+    Named(TypeId),
+    BuiltinDomain,
+    Unknown,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum CapabilityKind {
     Value,
     Domain,
-    Clock { domain: Option<TypeId> },
-    Reset { domain: Option<TypeId> },
+    Clock { domain: DomainFact },
+    Reset { domain: DomainFact },
     View(ViewCapabilityFacts),
 }
 
@@ -124,12 +132,14 @@ fn capability_kind_for_id(
         TirType::Clock { domain } => Some(CapabilityKind::Clock {
             domain: domain
                 .as_deref()
-                .and_then(|value| domain_type_id(types, value)),
+                .map(|value| domain_fact_for_type(types, value))
+                .unwrap_or(DomainFact::Unknown),
         }),
         TirType::Reset { domain } => Some(CapabilityKind::Reset {
             domain: domain
                 .as_deref()
-                .and_then(|value| domain_type_id(types, value)),
+                .map(|value| domain_fact_for_type(types, value))
+                .unwrap_or(DomainFact::Unknown),
         }),
         TirType::View { base, view } => {
             let HirFactId::Local(local_id) = id else {
@@ -167,14 +177,16 @@ fn capability_kind_for_id(
     }
 }
 
-fn domain_type_id(types: &TypeTable, target: &TirType) -> Option<TypeId> {
-    if let TirType::Named {
-        generic: Some(local),
-        ..
-    } = target
-        && let Some(type_id) = types.get(HirFactId::Local(*local))
-    {
-        return Some(type_id);
+fn domain_fact_for_type(types: &TypeTable, target: &TirType) -> DomainFact {
+    match target {
+        TirType::Domain => DomainFact::BuiltinDomain,
+        TirType::Named {
+            generic: Some(local),
+            ..
+        } => types
+            .get(HirFactId::Local(*local))
+            .map(DomainFact::Named)
+            .unwrap_or(DomainFact::Unknown),
+        _ => DomainFact::Unknown,
     }
-    None
 }

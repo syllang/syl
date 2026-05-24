@@ -2,7 +2,7 @@ use syl_hir::{DefId, ExprId, HirDesign, LocalId};
 use syl_sema::const_eval::{ConstEvalEnv, ConstValue};
 use syl_sema::const_mir::ConstMirBuilder;
 use syl_sema::{
-    CapabilityKind, ConstEvalError, ConstFactKey, HirFactId, Layout, LoweringError,
+    CapabilityKind, ConstEvalError, ConstFactKey, DomainFact, HirFactId, Layout, LoweringError,
     ProtocolFieldDirection, SemanticCompiler, SemanticResolution, TirError, WordEncoding,
 };
 use syl_span::{SourceId, Span};
@@ -41,6 +41,12 @@ module Top<D: Domain>(
 ) {
     y := up.payload
 }
+
+module Direct(
+    clk: in Clock<Domain>,
+    rst: in Reset<Domain>,
+) {
+}
 "#;
     let files = parse_sources(&[shared, app]);
     let compiler = SemanticCompiler::new();
@@ -66,6 +72,9 @@ module Top<D: Domain>(
     let up_local = local_id(hir_design, top_def, "up");
     let y_local = local_id(hir_design, top_def, "y");
     let up_expr = expr_id_at(app, SourceId::new(1), "up.payload", 0, 2, hir_design);
+    let direct_def = def_id(hir_design, "Direct");
+    let direct_clk_local = local_id(hir_design, direct_def, "clk");
+    let direct_rst_local = local_id(hir_design, direct_def, "rst");
 
     let resolution = hir.resolution();
     let graph = resolution.graph();
@@ -75,8 +84,11 @@ module Top<D: Domain>(
         .find(|package| package.path().display() == "app")
         .expect("app package must appear in the resolution graph");
     let app_imports = graph.package_imports(app_package.id());
-    assert_eq!(graph.package_modules(app_package.id()), &[top_def]);
+    let app_modules = graph.package_modules(app_package.id());
+    assert!(app_modules.contains(&top_def));
+    assert!(app_modules.contains(&direct_def));
     assert!(graph.modules().contains(&top_def));
+    assert!(graph.modules().contains(&direct_def));
     assert_eq!(app_imports.len(), 2);
     assert!(
         app_imports
@@ -163,7 +175,7 @@ module Top<D: Domain>(
     assert!(matches!(
         clk_cap.kind(),
         CapabilityKind::Clock {
-            domain: Some(id)
+            domain: DomainFact::Named(id)
         } if *id == domain_ty
     ));
     let rst_cap = facts
@@ -173,8 +185,28 @@ module Top<D: Domain>(
     assert!(matches!(
         rst_cap.kind(),
         CapabilityKind::Reset {
-            domain: Some(id)
+            domain: DomainFact::Named(id)
         } if *id == domain_ty
+    ));
+    let direct_clk_cap = facts
+        .capabilities()
+        .get(HirFactId::Local(direct_clk_local))
+        .expect("direct builtin-domain clock param must have capability facts");
+    assert!(matches!(
+        direct_clk_cap.kind(),
+        CapabilityKind::Clock {
+            domain: DomainFact::BuiltinDomain
+        }
+    ));
+    let direct_rst_cap = facts
+        .capabilities()
+        .get(HirFactId::Local(direct_rst_local))
+        .expect("direct builtin-domain reset param must have capability facts");
+    assert!(matches!(
+        direct_rst_cap.kind(),
+        CapabilityKind::Reset {
+            domain: DomainFact::BuiltinDomain
+        }
     ));
     let up_cap = facts
         .capabilities()
