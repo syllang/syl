@@ -167,6 +167,9 @@
   - sema 的结果可以被 CLI、LSP、elab 共同消费。
   - LSP hover/go-to-definition/type info 不需要触发 elaboration。
 
+  Log
+  - 2026-05-24 S1 - 主 Agent 派出 Work SubAgent，执行 Phase 3 语义层硬化：审查并整改 `syl_sema` 的 name/type/capability/layout/const/error facts，建立可查询 facts facade，补充 architecture_phase3_sema 证据，避免进入 elaboration pipeline 拆分。
+
   ———
 
   ## [ ] Phase 4：Elaboration 拆成严格 pipeline
