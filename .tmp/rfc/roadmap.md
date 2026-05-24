@@ -330,6 +330,9 @@
   - hover/completion 不触发完整 emit。
   - LSP 能在 parse/sema/elab 不同失败阶段给部分结果。
 
+  Log
+  - 2026-05-24 S1 - 主 Agent 派出 Work SubAgent，执行 Phase 7 Query / Session / LSP 增量化：强化 session workspace/VFS/package graph/cache invalidation，保持 query 只暴露 compiler facts、LSP 只做协议适配，补充分阶段 diagnostics、取消支持和 hover/completion 不触发完整 emit 的可执行证据。
+
   ———
 
   ## [ ] Phase 8：标准库与组合 API
