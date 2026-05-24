@@ -102,7 +102,7 @@
 
   ———
 
-  ## [ ] Phase 2：前端工业化
+  ## [x] Phase 2：前端工业化
 
   目标：让 parser 和 syntax 层成为 LSP、formatter、diagnostic 的可靠地基。
 
@@ -135,6 +135,7 @@
   - 2026-05-23 S3 - 主 Agent 审核 Review 结论后派 Work SubAgent 整改：改进 `AstNodeId` 稳定锚定策略，补充前置同 kind/同文本 sibling 插入测试，增强 grammar golden 证据，并校准 README 对 node index 能力边界的表述。
   - 2026-05-23 S4 - Work SubAgent 完成 Phase 2 整改：`AstNodeId` 改为结构路径锚定并移除全局 occurrence，新增前置同文本 sibling 插入稳定性测试，扩展 grammar golden 覆盖 const/fn/bundle/interface/map/module，README 明确连续不可区分 sibling run 的 ordinal 限制；主 Agent 验证 syntax lib tests、architecture tests、workspace check、syntax dependency grep 和 `git diff --check` 均通过。
   - 2026-05-23 S2 - 主 Agent 派出第二轮 Review SubAgent，复查 S4 node-id 稳定性整改和 Phase 2 其他退出标准是否满足，只有 Review Agent 判 PASS 才允许标记完成。
+  - 2026-05-23 S2 - Review SubAgent 判定 PASS 且授权标记 Phase 2 完成：node-id 稳定性前一轮 Must Fix 已修复，README 能力边界准确，grammar golden 覆盖扩展，syntax 分层、recovery、span precision、examples parse、文件规模和 `#[non_exhaustive]` 要求均未回退；主 Agent 将 Phase 2 标记为完成。
 
   ———
 
