@@ -223,7 +223,7 @@
 
   ———
 
-  ## [ ] Phase 5：Opaque Boundary 与 Metadata
+  ## [x] Phase 5：Opaque Boundary 与 Metadata
 
   目标：解决工业库、外部 IP、预编译包的问题。这是从玩具语言走向工业语言的分水岭。
 
@@ -262,6 +262,7 @@
   - 2026-05-24 S3 - 主 Agent 审核 Review 结论后派 Work SubAgent 整改：将 trusted/precompiled opaque summary overlay 上移到 session/snapshot 可见的共享输入或 registry，使 session/query/LSP 与 elab/CLI 读取同一 merged summary surface，补充 snapshot/query merged overlay 结构化测试，并避免让 query 依赖 elab 或变成 DTO 垃圾桶。
   - 2026-05-24 S4 - Work SubAgent 完成整改：`AnalysisDatabase`/`AnalysisHost` 增加 workspace-level opaque summary overlay 注册入口，`SemanticCache` 产出 source-derived 与 overlay 合并后的 summary surface，`AnalysisSnapshot`/`AnalysisQueries` 读取同一 merged summaries，session-triggered elab 使用同一 overlay 输入；architecture_phase5_opaque 增加 host-registered overlay 经 snapshot/query 可见并参与 DRC 的结构化测试；主 Agent 验证 architecture tests、syl_elab tests、driver_overlap、workspace check、文件规模和 `git diff --check` 均通过。
   - 2026-05-24 S2 - 主 Agent 派出第二轮 Review SubAgent，复查 S4 session/shared overlay 整改是否满足 Phase 5，只有 Review Agent 判 PASS 才允许标记完成。
+  - 2026-05-24 S2 - Review SubAgent 判定 PASS 且授权标记 Phase 5 完成：opaque summary surface 已从 elab-only 合并改为 session-owned 共享输入，snapshot/query/elab 读取同一 merged summaries，extern/precompiled summary、metadata persistence、trust boundary 和无源码 multi-driver 检查均满足 Phase 5 退出标准；主 Agent 将 Phase 5 标记为完成。
 
   ———
 
