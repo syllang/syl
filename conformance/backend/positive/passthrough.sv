@@ -15,4 +15,3 @@ module Top (
   Child child_inst (.x(x), .y(tmp));
   assign y = tmp;
 endmodule
-

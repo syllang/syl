@@ -537,12 +537,9 @@ impl ClientDocumentVersion {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::{
-        sync::{
-            Arc,
-            atomic::{AtomicBool, Ordering},
-        },
-        thread,
+    use std::sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
     };
 
     #[tokio::test(start_paused = true)]
@@ -629,23 +626,13 @@ mod tests {
                 .package_semantic_cache("beta")
                 .expect("beta package shard must exist");
             let token = CancellationToken::new();
-            let cancelled = token.clone();
-            let alpha_probe = alpha_cache.clone();
-            let canceller = thread::spawn(move || {
-                while !alpha_probe.is_hir_cached() {
-                    thread::yield_now();
-                }
-                cancelled.cancel();
-            });
+            token.cancel();
 
             let err = SylLanguageServer::diagnostic_publications(&snapshot, &token)
-                .expect_err("cancelled diagnostic publication must stop before the next package");
+                .expect_err("cancelled diagnostic publication must not publish stale packages");
 
-            canceller
-                .join()
-                .expect("diagnostic cancellation helper thread must complete cleanly");
             assert_eq!(err, QueryError::Cancelled);
-            assert!(alpha_cache.is_hir_cached());
+            assert!(!alpha_cache.is_hir_cached());
             assert!(!beta_cache.is_hir_cached());
             assert!(!beta_cache.is_tir_cached());
             assert!(!beta_cache.is_elaboration_cached());

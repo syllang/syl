@@ -11,12 +11,12 @@ use syl_session::{
 use syl_span::{Diagnostic, DiagnosticRelatedInfo};
 
 #[non_exhaustive]
-pub(super) struct DiagnosticQueryEngine<'a> {
+pub(crate) struct DiagnosticQueryEngine<'a> {
     snapshot: &'a AnalysisSnapshot,
 }
 
 impl<'a> DiagnosticQueryEngine<'a> {
-    pub(super) fn new(snapshot: &'a AnalysisSnapshot) -> Self {
+    pub(crate) fn new(snapshot: &'a AnalysisSnapshot) -> Self {
         Self { snapshot }
     }
 
@@ -52,6 +52,14 @@ impl<'a> DiagnosticQueryEngine<'a> {
         &self,
         token: &CancellationToken,
     ) -> Result<GroupedDiagnostics, QueryError> {
+        self.grouped_diagnostics_observing_packages(token, |_, _| {})
+    }
+
+    pub(crate) fn grouped_diagnostics_observing_packages(
+        &self,
+        token: &CancellationToken,
+        mut after_package: impl FnMut(&str, &CancellationToken),
+    ) -> Result<GroupedDiagnostics, QueryError> {
         let mut package_files = BTreeMap::<String, Vec<&AnalysisFile>>::new();
         for file in self.snapshot.files() {
             let package = self.package_for_file(file);
@@ -83,6 +91,7 @@ impl<'a> DiagnosticQueryEngine<'a> {
                 DiagnosticPackage::new(name),
                 documents,
             ));
+            after_package(package.name(), token);
             Self::check_cancellation(token)?;
         }
 

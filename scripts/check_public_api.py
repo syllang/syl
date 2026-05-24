@@ -1,135 +1,264 @@
 #!/usr/bin/env python3
 import argparse
 import difflib
+import json
+import os
 import pathlib
-import re
+import subprocess
 import sys
 
 
 WORKSPACE = pathlib.Path(__file__).resolve().parents[1]
 SNAPSHOT = WORKSPACE / "api" / "public-surface.txt"
 CONSUMERS = WORKSPACE / "api" / "public-api-consumers.md"
-
-ITEM_RE = re.compile(
-    r"^\s*pub\s+(?!(?:crate|super|self|in)\b)"
-    r"(?P<kind>struct|enum|trait|type|fn|const|static|mod)\s+"
-    r"(?P<name>[A-Za-z_][A-Za-z0-9_]*)"
-)
-USE_RE = re.compile(r"^\s*pub\s+use\s+(?P<target>[^;]+);")
-IMPL_RE = re.compile(r"^\s*impl(?:<[^>]+>)?\s+(?P<target>[A-Za-z_][A-Za-z0-9_:<>', ]*)\s*\{")
-METHOD_RE = re.compile(r"^\s*pub\s+(?!(?:crate|super|self|in)\b)fn\s+(?P<name>[A-Za-z_][A-Za-z0-9_]*)")
+CONSUMER_START = "<!-- public-api-consumers:start -->"
+CONSUMER_END = "<!-- public-api-consumers:end -->"
 
 
-def strip_line_comment(line):
-    return line.split("//", 1)[0]
+def run(command, **kwargs):
+    try:
+        return subprocess.run(command, check=True, text=True, **kwargs)
+    except subprocess.CalledProcessError as error:
+        raise SystemExit(error.returncode) from error
 
 
-def module_path(crate_src, path):
-    rel = path.relative_to(crate_src)
-    if rel.name == "lib.rs":
-        return "lib"
-    without_suffix = rel.with_suffix("")
-    return "::".join(without_suffix.parts)
+def workspace_packages():
+    output = run(
+        ["cargo", "metadata", "--no-deps", "--format-version", "1"],
+        cwd=WORKSPACE,
+        stdout=subprocess.PIPE,
+    ).stdout
+    metadata = json.loads(output)
+    packages = []
+    for package in metadata["packages"]:
+        if any("lib" in target["kind"] for target in package["targets"]):
+            packages.append(package["name"])
+    return sorted(packages)
 
 
-def public_items_for_file(crate_name, crate_src, path):
+def rustdoc_json(package):
+    env = os.environ.copy()
+    env.setdefault("RUSTC_BOOTSTRAP", "1")
+    command = [
+        "cargo",
+        "rustdoc",
+        "-p",
+        package,
+        "--lib",
+        "--all-features",
+        "--quiet",
+        "--",
+        "-Z",
+        "unstable-options",
+        "--output-format",
+        "json",
+    ]
+    try:
+        subprocess.run(command, cwd=WORKSPACE, env=env, check=True)
+    except subprocess.CalledProcessError as error:
+        raise SystemExit(
+            "failed to build rustdoc JSON public surface for "
+            f"{package}; install a nightly toolchain or allow RUSTC_BOOTSTRAP=1"
+        ) from error
+    return json.loads((WORKSPACE / "target" / "doc" / f"{package}.json").read_text())
+
+
+def inner_kind(item):
+    return next(iter(item["inner"]))
+
+
+def type_name(value):
+    if "primitive" in value:
+        return value["primitive"]
+    if "generic" in value:
+        return value["generic"]
+    if "resolved_path" in value:
+        path = value["resolved_path"]["path"]
+        args = generic_args(value["resolved_path"].get("args"))
+        return f"{path}{args}"
+    if "borrowed_ref" in value:
+        ref = value["borrowed_ref"]
+        mutability = "mut " if ref.get("is_mutable") else ""
+        return f"&{mutability}{type_name(ref['type'])}"
+    if "raw_pointer" in value:
+        ptr = value["raw_pointer"]
+        mutability = "mut" if ptr.get("is_mutable") else "const"
+        return f"*{mutability} {type_name(ptr['type'])}"
+    if "tuple" in value:
+        return "(" + ", ".join(type_name(item) for item in value["tuple"]) + ")"
+    if "slice" in value:
+        return f"[{type_name(value['slice'])}]"
+    if "array" in value:
+        array = value["array"]
+        return "[{}; {}]".format(type_name(array["type"]), array["len"])
+    if "impl_trait" in value:
+        return "impl " + " + ".join(bound_name(bound) for bound in value["impl_trait"])
+    if "dyn_trait" in value:
+        traits = value["dyn_trait"]["traits"]
+        return "dyn " + " + ".join(trait_bound_name(item["trait"]) for item in traits)
+    if "qualified_path" in value:
+        qualified = value["qualified_path"]
+        return qualified["name"]
+    return json.dumps(value, sort_keys=True)
+
+
+def generic_args(args):
+    if not args:
+        return ""
+    angle = args.get("angle_bracketed")
+    if not angle:
+        return ""
+    rendered = []
+    for arg in angle["args"]:
+        if "type" in arg:
+            rendered.append(type_name(arg["type"]))
+        elif "const" in arg:
+            rendered.append(str(arg["const"]))
+        elif "lifetime" in arg:
+            rendered.append(arg["lifetime"])
+    return "<" + ", ".join(rendered) + ">" if rendered else ""
+
+
+def bound_name(bound):
+    if "trait_bound" in bound:
+        return trait_bound_name(bound["trait_bound"]["trait"])
+    if "lifetime" in bound:
+        return bound["lifetime"]
+    return json.dumps(bound, sort_keys=True)
+
+
+def trait_bound_name(bound):
+    return bound["path"] + generic_args(bound.get("args"))
+
+
+def function_signature(function):
+    sig = function["sig"]
+    inputs = ", ".join(f"{name}: {type_name(value)}" for name, value in sig["inputs"])
+    output = sig.get("output")
+    rendered = f"fn({inputs})"
+    if output is not None:
+        rendered = f"{rendered} -> {type_name(output)}"
+    return rendered
+
+
+def item_path(data, item_id, fallback):
+    path = data["paths"].get(str(item_id))
+    if path:
+        return "::".join(path["path"])
+    return fallback
+
+
+def item_type(data, item_id):
+    item = data["index"][str(item_id)]
+    return type_name(item["inner"][inner_kind(item)])
+
+
+def owner_name(data, impl_for):
+    if "resolved_path" in impl_for:
+        item_id = impl_for["resolved_path"].get("id")
+        path = data["paths"].get(str(item_id)) if item_id is not None else None
+        if path:
+            return "::".join(path["path"])
+        return type_name({"resolved_path": impl_for["resolved_path"]})
+    return type_name(impl_for)
+
+
+def records_for_package(package):
+    data = rustdoc_json(package)
     records = []
-    depth = 0
-    impl_target = None
-    impl_depth = None
-    pending_use = None
-    pending_use_line = None
-    for number, raw in enumerate(path.read_text().splitlines(), start=1):
-        line = strip_line_comment(raw)
-        before_depth = depth
-
-        if pending_use is not None:
-            pending_use = f"{pending_use} {' '.join(line.strip().split())}"
-            if ";" in line:
-                if "*" in pending_use:
-                    records.append(
-                        f"{crate_name}|forbidden_glob_use|{module_path(crate_src, path)}|"
-                        f"{pending_use_line}|{pending_use.strip()}"
-                    )
-                if match := USE_RE.match(pending_use):
-                    target = " ".join(match.group("target").split())
-                    records.append(
-                        f"{crate_name}|use|{target}|"
-                        f"{module_path(crate_src, path)}:{pending_use_line}"
-                    )
-                pending_use = None
-                pending_use_line = None
-            depth += line.count("{") - line.count("}")
+    for raw_id, item in data["index"].items():
+        item_id = int(raw_id)
+        kind = inner_kind(item)
+        if kind == "impl" and item.get("crate_id") == 0:
+            records.extend(impl_records(data, package, item))
             continue
-
-        if before_depth == 0 and line.lstrip().startswith("pub use") and ";" not in line:
-            pending_use = " ".join(line.strip().split())
-            pending_use_line = number
-            depth += line.count("{") - line.count("}")
+        if item["visibility"] != "public" or item.get("crate_id") != 0:
             continue
-
-        if before_depth == 0 and "pub use" in line and "*" in line:
+        if kind == "use":
+            use = item["inner"]["use"]
+            glob = "glob" if use["is_glob"] else "named"
             records.append(
-                f"{crate_name}|forbidden_glob_use|{module_path(crate_src, path)}|"
-                f"{number}|{line.strip()}"
+                f"{package}|use|{use['name']}|{glob}|source={use['source']}"
             )
+        elif kind in {"struct", "enum", "trait", "function", "type_alias", "constant", "static"}:
+            if str(item_id) not in data["paths"]:
+                continue
+            path = item_path(data, item_id, f"{package}::{item['name']}")
+            records.append(f"{package}|{kind}|{path}|{item_signature(item)}")
+            records.extend(child_records(data, package, path, item))
+    return records
 
-        if before_depth == 0:
-            if match := USE_RE.match(line):
-                target = " ".join(match.group("target").split())
-                records.append(f"{crate_name}|use|{target}|{module_path(crate_src, path)}:{number}")
-            elif match := ITEM_RE.match(line):
-                records.append(
-                    f"{crate_name}|{match.group('kind')}|{match.group('name')}|"
-                    f"{module_path(crate_src, path)}:{number}"
-                )
-            if match := IMPL_RE.match(line):
-                impl_target = " ".join(match.group("target").split())
-                impl_depth = before_depth + line.count("{") - line.count("}")
-        elif impl_target is not None and before_depth == impl_depth:
-            if match := METHOD_RE.match(line):
-                records.append(
-                    f"{crate_name}|method|{impl_target}::{match.group('name')}|"
-                    f"{module_path(crate_src, path)}:{number}"
-                )
 
-        depth += line.count("{") - line.count("}")
-        if impl_target is not None and depth < impl_depth:
-            impl_target = None
-            impl_depth = None
+def item_signature(item):
+    kind = inner_kind(item)
+    inner = item["inner"][kind]
+    if kind == "function":
+        return function_signature(inner)
+    if kind == "type_alias":
+        target = inner.get("type")
+        return type_name(target) if target is not None else "extern"
+    if kind in {"constant", "static"}:
+        return type_name(inner["type"])
+    return "public"
+
+
+def child_records(data, package, path, item):
+    kind = inner_kind(item)
+    inner = item["inner"][kind]
+    records = []
+    if kind == "struct":
+        struct_kind = inner["kind"]
+        fields = struct_kind.get("plain", {}).get("fields", []) if isinstance(struct_kind, dict) else []
+        for field_id in fields:
+            field = data["index"][str(field_id)]
+            if field["visibility"] == "public":
+                records.append(
+                    f"{package}|field|{path}::{field['name']}|{item_type(data, field_id)}"
+                )
+    elif kind == "enum":
+        for variant_id in inner["variants"]:
+            variant = data["index"][str(variant_id)]
+            records.append(f"{package}|variant|{path}::{variant['name']}|public")
+    elif kind == "trait":
+        for child_id in inner["items"]:
+            child = data["index"][str(child_id)]
+            child_kind = inner_kind(child)
+            if child_kind == "function":
+                records.append(
+                    f"{package}|trait_method|{path}::{child['name']}|"
+                    f"{function_signature(child['inner']['function'])}"
+                )
+            elif child_kind in {"assoc_type", "assoc_const"}:
+                records.append(f"{package}|{child_kind}|{path}::{child['name']}|public")
+    return records
+
+
+def impl_records(data, package, item):
+    impl = item["inner"]["impl"]
+    if impl["trait"] is not None or impl["is_synthetic"] or impl["blanket_impl"] is not None:
+        return []
+    owner = owner_name(data, impl["for"])
+    records = []
+    for child_id in impl["items"]:
+        child = data["index"][str(child_id)]
+        if child["visibility"] != "public":
+            continue
+        child_kind = inner_kind(child)
+        if child_kind == "function":
+            records.append(
+                f"{package}|method|{owner}::{child['name']}|"
+                f"{function_signature(child['inner']['function'])}"
+            )
+        elif child_kind == "assoc_const":
+            records.append(f"{package}|assoc_const|{owner}::{child['name']}|public")
     return records
 
 
 def current_surface():
     records = []
-    for manifest in sorted((WORKSPACE / "crates").glob("*/Cargo.toml")):
-        crate_name = manifest.parent.name
-        crate_src = manifest.parent / "src"
-        if not crate_src.is_dir():
-            continue
-        for path in sorted(crate_src.rglob("*.rs")):
-            records.extend(public_items_for_file(crate_name, crate_src, path))
-    return sorted(records)
-
-
-def consumer_sections():
-    if not CONSUMERS.is_file():
-        return set()
-    return {
-        line[3:].strip()
-        for line in CONSUMERS.read_text().splitlines()
-        if line.startswith("## ")
-    }
-
-
-def validate_consumers(records):
-    crates = {record.split("|", 1)[0] for record in records}
-    sections = consumer_sections()
-    missing = sorted(crate for crate in crates if crate not in sections)
-    if missing:
-        raise SystemExit(
-            "missing public API consumer sections for crates: " + ", ".join(missing)
-        )
+    for package in workspace_packages():
+        records.extend(records_for_package(package))
+    return sorted(set(records))
 
 
 def check_snapshot(records):
@@ -140,9 +269,72 @@ def check_snapshot(records):
         difflib.unified_diff(expected, records, fromfile=str(SNAPSHOT), tofile="current")
     )
     raise SystemExit(
-        "public API surface changed; update api/public-surface.txt and document consumers\n"
+        "public API surface changed; run scripts/check_public_api.py --bless "
+        "and document consumers\n"
         + diff
     )
+
+
+def consumer_descriptions():
+    text = CONSUMERS.read_text() if CONSUMERS.is_file() else ""
+    descriptions = {}
+    current = None
+    lines = []
+    for line in text.splitlines():
+        if line.startswith("## ") and not line.startswith("## Item-Level"):
+            if current and lines:
+                descriptions[current] = " ".join(item.strip() for item in lines if item.strip())
+            current = line[3:].strip()
+            lines = []
+        elif current and not line.startswith("<!--") and not line.startswith("- `"):
+            lines.append(line)
+    if current and lines:
+        descriptions[current] = " ".join(item.strip() for item in lines if item.strip())
+    return descriptions
+
+
+def validate_consumers(records):
+    if not CONSUMERS.is_file():
+        raise SystemExit(f"missing public API consumer policy: {CONSUMERS}")
+    text = CONSUMERS.read_text()
+    missing = [record for record in records if f"`{record}`" not in text]
+    if missing:
+        sample = "\n".join(missing[:20])
+        raise SystemExit(
+            "missing item-level public API consumer notes for surface lines:\n" + sample
+        )
+
+
+def write_consumers(records):
+    descriptions = consumer_descriptions()
+    lines = [
+        "## Item-Level Surface Consumers",
+        "",
+        "Every line below mirrors one `api/public-surface.txt` line from rustdoc JSON. The",
+        "right-hand text identifies the consumers that justify keeping that exact public item",
+        "exported; adding or changing a surface line requires updating this section.",
+        "",
+        CONSUMER_START,
+    ]
+    for record in records:
+        crate = record.split("|", 1)[0]
+        description = descriptions.get(crate, "Repository-local public surface consumers.")
+        lines.append(f"- `{record}` - {description}")
+    lines.append(CONSUMER_END)
+    lines.append("")
+
+    existing = CONSUMERS.read_text() if CONSUMERS.is_file() else "# Public API Consumers\n\n"
+    if CONSUMER_START in existing and CONSUMER_END in existing:
+        prefix = existing.split("## Item-Level Surface Consumers", 1)[0].rstrip()
+        CONSUMERS.write_text(prefix + "\n\n" + "\n".join(lines))
+    else:
+        CONSUMERS.write_text(existing.rstrip() + "\n\n" + "\n".join(lines))
+
+
+def validate_no_glob_reexports(records):
+    glob_records = [record for record in records if "|use|" in record and "|glob|" in record]
+    if glob_records:
+        raise SystemExit("public glob re-exports are forbidden:\n" + "\n".join(glob_records))
 
 
 def main():
@@ -152,12 +344,14 @@ def main():
     args = parser.parse_args()
 
     records = current_surface()
-    validate_consumers(records)
+    validate_no_glob_reexports(records)
     if args.bless:
         SNAPSHOT.parent.mkdir(parents=True, exist_ok=True)
         SNAPSHOT.write_text("\n".join(records) + "\n")
+        write_consumers(records)
     else:
         check_snapshot(records)
+        validate_consumers(records)
 
 
 if __name__ == "__main__":

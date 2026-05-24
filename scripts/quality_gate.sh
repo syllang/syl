@@ -19,6 +19,18 @@ run scripts/check_public_api.py --check
 run cargo doc --workspace --no-deps
 run git diff --check
 
+baseline_ref="${QUALITY_GATE_BASELINE:-origin/feat/initial-syl-baseline}"
+if git rev-parse --verify --quiet "$baseline_ref" >/dev/null; then
+    run git diff --check "$baseline_ref"...HEAD
+elif git rev-parse --verify --quiet HEAD^ >/dev/null; then
+    printf '==> baseline %s not found; falling back to HEAD^..HEAD whitespace check\n' "$baseline_ref"
+    run git diff --check HEAD^..HEAD
+else
+    printf 'error: no baseline ref %s and no HEAD^ fallback for committed whitespace check\n' \
+        "$baseline_ref" >&2
+    exit 1
+fi
+
 debt_regex="$(printf '%s%s|%s%s|%s%s|%s%s|%s%s|%s%s' MUST _FIX SHOULD _FIX FIX ME TO DO HA CK X XX)"
 debt_out="$(mktemp)"
 if rg -n "$debt_regex" . --glob '!target/**' --glob '!.git/**' --glob '!.tmp/**' \

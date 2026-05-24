@@ -16,8 +16,10 @@ cargo run --quiet -p sylc -- --std-root examples --out "$sv_tmp/std_user.sv" \
     examples/std_user
 
 if ! command -v verilator >/dev/null; then
-    printf '{"check":"verilator_smoke","status":"skip","reason":"verilator_not_found"}\n'
-    exit 0
+    printf 'error: verilator is required for Phase 9 example smoke checks.\n' >&2
+    printf 'Install Verilator and ensure the `verilator` binary is on PATH.\n' >&2
+    printf 'Examples: apt install verilator, dnf install verilator, or brew install verilator.\n' >&2
+    exit 1
 fi
 
 verilator --lint-only --sv "$sv_tmp/minimal_features.sv"

@@ -1,5 +1,4 @@
-use crate::{AnalysisQueries, DiagnosticStage, QueryError};
-use std::thread;
+use crate::{AnalysisQueries, DiagnosticStage, QueryError, snapshot::DiagnosticQueryEngine};
 use syl_sema::{
     OpaqueItemKind, OpaqueItemSummary, SummaryCapability, SummaryDirection, SummaryEndpoint,
     SummaryLatencyClass, SummaryLayout, SummaryPath, TrustBoundary,
@@ -196,22 +195,14 @@ fn cancelled_grouped_diagnostics_stop_before_later_package_semantics() {
             .package_semantic_cache("beta")
             .expect("beta package shard must exist");
         let token = CancellationToken::new();
-        let cancelled = token.clone();
-        let alpha_probe = alpha_cache.clone();
-        let canceller = thread::spawn(move || {
-            while !alpha_probe.is_hir_cached() {
-                thread::yield_now();
-            }
-            cancelled.cancel();
-        });
-
-        let err = snapshot
-            .grouped_diagnostics_with_token(&token)
+        let err = DiagnosticQueryEngine::new(&snapshot)
+            .grouped_diagnostics_observing_packages(&token, |package, token| {
+                if package == "alpha" {
+                    token.cancel();
+                }
+            })
             .expect_err("cancellation should stop grouped diagnostics before the next package");
 
-        canceller
-            .join()
-            .expect("cancellation helper thread must complete cleanly");
         assert_eq!(err, QueryError::Cancelled);
         assert!(alpha_cache.is_hir_cached());
         assert!(!beta_cache.is_hir_cached());

@@ -114,10 +114,11 @@ fn architecture_phase6_golden_sv_output_stays_stable() {
     let actual = SystemVerilogBackend::new()
         .emit(&hwir)
         .expect("golden fixture must emit SystemVerilog");
-    let expected = format!("{}\n", include_str!("golden/phase6_child_top.sv"));
+    let expected = include_str!("golden/phase6_child_top.sv");
 
     assert_eq!(
-        actual, expected,
+        actual.as_str(),
+        expected,
         "golden SV drifted; update the fixture only for intentional backend formatting changes"
     );
 }
