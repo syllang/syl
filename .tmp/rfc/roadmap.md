@@ -171,6 +171,7 @@
   - 2026-05-24 S1 - 主 Agent 派出 Work SubAgent，执行 Phase 3 语义层硬化：审查并整改 `syl_sema` 的 name/type/capability/layout/const/error facts，建立可查询 facts facade，补充 architecture_phase3_sema 证据，避免进入 elaboration pipeline 拆分。
   - 2026-05-24 S1 - Work SubAgent 完成 Phase 3 初版交付：新增 sema-owned `SemanticFacts` facade 和 Resolution/Type/Capability/Const/Layout/Protocol tables，移除 `TirType::Named` 字符串身份回退，补充 const eval step-limit/cache、结构化错误 kind、semantic_facts 与 architecture_phase3_sema 测试；主 Agent 验证 `cargo fmt --all`、`cargo test -p sylc architecture_ -- --nocapture`、`cargo test -p syl_sema -- --nocapture`、`cargo check --workspace --all-targets`、`git diff --check` 均通过。
   - 2026-05-24 S2 - 主 Agent 派出 Review SubAgent，按 Phase 3 MUST FIX 和退出标准独立审查 facts 真实性、canonical type identity、capability/layout/const/error 结构化、sema 非硬件生成边界和 architecture_phase3_sema 证据强度。
+  - 2026-05-24 S2 - Review SubAgent 判定 Phase 3 未收敛：capability facts 仍用 `TirType` 结构相等 fallback 恢复 `TypeId`，`ConstFacts` 绕过带 step-limit/cache 的 `ConstEvaluator` 且只折叠顶层简单表达式，`ResolutionGraph` 缺少一等 module/import 节点与关系 API；另指出 layout opaque fallback、Debug 字符串 cache 断言和 sema 硬件集成测试边界问题。
 
   ———
 
