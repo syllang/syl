@@ -65,6 +65,23 @@ fn parses_source_from_lexer() {
 }
 
 #[test]
+fn path_segments_accept_contextual_keywords() {
+    let file = SourceParser::new("package std.bundle\nuse std.bundle.ReadyValidWord\n")
+        .parse_file()
+        .unwrap();
+
+    assert_eq!(file.items.len(), 2);
+    match &file.items[0] {
+        Item::Package(item) => assert_eq!(item.path, ["std", "bundle"]),
+        other => panic!("unexpected first item: {other:?}"),
+    }
+    match &file.items[1] {
+        Item::Use(item) => assert_eq!(item.path, ["std", "bundle", "ReadyValidWord"]),
+        other => panic!("unexpected second item: {other:?}"),
+    }
+}
+
+#[test]
 fn parses_typed_ast_with_comments_and_trivia() {
     let source = "const X = 1; // retained trivia\nconst Y = X;";
     let file = SourceParser::new(source).parse_file().unwrap();

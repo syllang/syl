@@ -30,10 +30,20 @@ impl Parser {
     }
 
     pub(super) fn parse_path(&mut self) -> Result<Vec<String>, Vec<Diagnostic>> {
-        let mut path = vec![self.expect_ident()?];
+        let mut path = vec![self.expect_path_segment()?];
         while self.consume(&crate::lexer::TokenKind::Dot).is_some() {
-            path.push(self.expect_ident()?);
+            path.push(self.expect_path_segment()?);
         }
         Ok(path)
+    }
+
+    fn expect_path_segment(&mut self) -> Result<String, Vec<Diagnostic>> {
+        match self.peek_kind() {
+            Some(crate::lexer::TokenKind::KwBundle) => {
+                self.bump();
+                Ok("bundle".to_string())
+            }
+            _ => self.expect_ident(),
+        }
     }
 }

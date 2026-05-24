@@ -172,50 +172,52 @@ fn cancelled_grouped_diagnostics_do_not_start_semantic_stages() {
 
 #[test]
 fn cancelled_grouped_diagnostics_stop_before_later_package_semantics() {
-    let alpha_uri = DocumentUri::new("untitled:syl/query-alpha");
-    let beta_uri = DocumentUri::new("untitled:syl/query-beta");
-    let mut host = AnalysisHost::new();
-    host.open_document(
-        alpha_uri,
-        "package alpha;\nmodule Alpha(y: out Bit) { y := 1 }\n".to_string(),
-        DocumentVersion::new(1),
-    );
-    host.open_document(
-        beta_uri,
-        "package beta;\nmodule Beta(y: out Bit) { y := 1 }\n".to_string(),
-        DocumentVersion::new(1),
-    );
-    let snapshot = host
-        .snapshot()
-        .expect("multi-package cancellation fixture must snapshot cleanly");
-    let alpha_cache = snapshot
-        .package_semantic_cache("alpha")
-        .expect("alpha package shard must exist");
-    let beta_cache = snapshot
-        .package_semantic_cache("beta")
-        .expect("beta package shard must exist");
-    let token = CancellationToken::new();
-    let cancelled = token.clone();
-    let alpha_probe = alpha_cache.clone();
-    let canceller = thread::spawn(move || {
-        while !alpha_probe.is_hir_cached() {
-            thread::yield_now();
-        }
-        cancelled.cancel();
-    });
+    for attempt in 0..20 {
+        let alpha_uri = DocumentUri::new(format!("untitled:syl/query-alpha-{attempt}"));
+        let beta_uri = DocumentUri::new(format!("untitled:syl/query-beta-{attempt}"));
+        let mut host = AnalysisHost::new();
+        host.open_document(
+            alpha_uri,
+            "package alpha;\nmodule Alpha(y: out Bit) { y := 1 }\n".to_string(),
+            DocumentVersion::new(1),
+        );
+        host.open_document(
+            beta_uri,
+            "package beta;\nmodule Beta(y: out Bit) { y := 1 }\n".to_string(),
+            DocumentVersion::new(1),
+        );
+        let snapshot = host
+            .snapshot()
+            .expect("multi-package cancellation fixture must snapshot cleanly");
+        let alpha_cache = snapshot
+            .package_semantic_cache("alpha")
+            .expect("alpha package shard must exist");
+        let beta_cache = snapshot
+            .package_semantic_cache("beta")
+            .expect("beta package shard must exist");
+        let token = CancellationToken::new();
+        let cancelled = token.clone();
+        let alpha_probe = alpha_cache.clone();
+        let canceller = thread::spawn(move || {
+            while !alpha_probe.is_hir_cached() {
+                thread::yield_now();
+            }
+            cancelled.cancel();
+        });
 
-    let err = snapshot
-        .grouped_diagnostics_with_token(&token)
-        .expect_err("cancellation should stop grouped diagnostics before the next package");
+        let err = snapshot
+            .grouped_diagnostics_with_token(&token)
+            .expect_err("cancellation should stop grouped diagnostics before the next package");
 
-    canceller
-        .join()
-        .expect("cancellation helper thread must complete cleanly");
-    assert_eq!(err, QueryError::Cancelled);
-    assert!(alpha_cache.is_hir_cached());
-    assert!(!beta_cache.is_hir_cached());
-    assert!(!beta_cache.is_tir_cached());
-    assert!(!beta_cache.is_elaboration_cached());
+        canceller
+            .join()
+            .expect("cancellation helper thread must complete cleanly");
+        assert_eq!(err, QueryError::Cancelled);
+        assert!(alpha_cache.is_hir_cached());
+        assert!(!beta_cache.is_hir_cached());
+        assert!(!beta_cache.is_tir_cached());
+        assert!(!beta_cache.is_elaboration_cached());
+    }
 }
 
 #[test]

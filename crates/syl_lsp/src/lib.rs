@@ -605,48 +605,50 @@ mod tests {
 
     #[test]
     fn diagnostic_publications_use_token_aware_grouped_diagnostics() {
-        let first_uri = DocumentUri::new("untitled:syl/lsp-alpha");
-        let second_uri = DocumentUri::new("untitled:syl/lsp-beta");
-        let mut host = AnalysisHost::new();
-        host.open_document(
-            first_uri,
-            "package alpha;\nmodule Alpha(y: out Bit) { y := 1 }\n".to_string(),
-            DocumentVersion::new(1),
-        );
-        host.open_document(
-            second_uri,
-            "package beta;\nmodule Beta(y: out Bit) { y := 1 }\n".to_string(),
-            DocumentVersion::new(1),
-        );
-        let snapshot = host
-            .snapshot()
-            .expect("LSP cancellation fixture must snapshot cleanly");
-        let alpha_cache = snapshot
-            .package_semantic_cache("alpha")
-            .expect("alpha package shard must exist");
-        let beta_cache = snapshot
-            .package_semantic_cache("beta")
-            .expect("beta package shard must exist");
-        let token = CancellationToken::new();
-        let cancelled = token.clone();
-        let alpha_probe = alpha_cache.clone();
-        let canceller = thread::spawn(move || {
-            while !alpha_probe.is_hir_cached() {
-                thread::yield_now();
-            }
-            cancelled.cancel();
-        });
+        for attempt in 0..20 {
+            let first_uri = DocumentUri::new(format!("untitled:syl/lsp-alpha-{attempt}"));
+            let second_uri = DocumentUri::new(format!("untitled:syl/lsp-beta-{attempt}"));
+            let mut host = AnalysisHost::new();
+            host.open_document(
+                first_uri,
+                "package alpha;\nmodule Alpha(y: out Bit) { y := 1 }\n".to_string(),
+                DocumentVersion::new(1),
+            );
+            host.open_document(
+                second_uri,
+                "package beta;\nmodule Beta(y: out Bit) { y := 1 }\n".to_string(),
+                DocumentVersion::new(1),
+            );
+            let snapshot = host
+                .snapshot()
+                .expect("LSP cancellation fixture must snapshot cleanly");
+            let alpha_cache = snapshot
+                .package_semantic_cache("alpha")
+                .expect("alpha package shard must exist");
+            let beta_cache = snapshot
+                .package_semantic_cache("beta")
+                .expect("beta package shard must exist");
+            let token = CancellationToken::new();
+            let cancelled = token.clone();
+            let alpha_probe = alpha_cache.clone();
+            let canceller = thread::spawn(move || {
+                while !alpha_probe.is_hir_cached() {
+                    thread::yield_now();
+                }
+                cancelled.cancel();
+            });
 
-        let err = SylLanguageServer::diagnostic_publications(&snapshot, &token)
-            .expect_err("cancelled diagnostic publication must stop before the next package");
+            let err = SylLanguageServer::diagnostic_publications(&snapshot, &token)
+                .expect_err("cancelled diagnostic publication must stop before the next package");
 
-        canceller
-            .join()
-            .expect("diagnostic cancellation helper thread must complete cleanly");
-        assert_eq!(err, QueryError::Cancelled);
-        assert!(alpha_cache.is_hir_cached());
-        assert!(!beta_cache.is_hir_cached());
-        assert!(!beta_cache.is_tir_cached());
-        assert!(!beta_cache.is_elaboration_cached());
+            canceller
+                .join()
+                .expect("diagnostic cancellation helper thread must complete cleanly");
+            assert_eq!(err, QueryError::Cancelled);
+            assert!(alpha_cache.is_hir_cached());
+            assert!(!beta_cache.is_hir_cached());
+            assert!(!beta_cache.is_tir_cached());
+            assert!(!beta_cache.is_elaboration_cached());
+        }
     }
 }

@@ -7,6 +7,8 @@ use syl_sema::{
 use syl_span::Diagnostic;
 use syl_syntax::AstFile;
 
+const CANCELLATION_HANDOFF_YIELDS: usize = 64;
+
 #[non_exhaustive]
 pub struct SemanticCache {
     ast_files: Vec<AstFile>,
@@ -43,8 +45,13 @@ impl SemanticCache {
         &self,
         token: &CancellationToken,
     ) -> Result<&HirAnalysisOutput, ProjectError> {
-        self.check_cancellation_before(token, self.hir.get().is_some())?;
-        Ok(self.hir_output())
+        let cached = self.hir.get().is_some();
+        self.check_cancellation_before(token, cached)?;
+        let output = self.hir_output();
+        if !cached {
+            self.check_cancellation_after_uncached_stage(token)?;
+        }
+        Ok(output)
     }
 
     pub(crate) fn hir(&self) -> &HirAnalysis {
@@ -67,8 +74,13 @@ impl SemanticCache {
         token: &CancellationToken,
     ) -> Result<&StageOutput<TirAnalysis>, ProjectError> {
         let _ = self.hir_output_with_token(token)?;
-        self.check_cancellation_before(token, self.tir.get().is_some())?;
-        Ok(self.tir_output())
+        let cached = self.tir.get().is_some();
+        self.check_cancellation_before(token, cached)?;
+        let output = self.tir_output();
+        if !cached {
+            self.check_cancellation_after_uncached_stage(token)?;
+        }
+        Ok(output)
     }
 
     pub(crate) fn tir(&self) -> Option<&TirAnalysis> {
@@ -132,11 +144,16 @@ impl SemanticCache {
         let Some(tir) = tir.partial_stage() else {
             return Ok(None);
         };
-        self.check_cancellation_before(token, self.elaboration.get().is_some())?;
-        Ok(Some(self.elaboration.get_or_init(|| {
+        let cached = self.elaboration.get().is_some();
+        self.check_cancellation_before(token, cached)?;
+        let output = self.elaboration.get_or_init(|| {
             HardwareCompiler::with_opaque_summaries(self.opaque_summary_overlay.clone())
                 .output_for_tir(tir)
-        })))
+        });
+        if !cached {
+            self.check_cancellation_after_uncached_stage(token)?;
+        }
+        Ok(Some(output))
     }
 
     pub(crate) fn diagnostics(&self) -> Vec<Diagnostic> {
@@ -201,6 +218,24 @@ impl SemanticCache {
             return Ok(());
         }
         Err(ProjectError::Cancelled)
+    }
+
+    fn check_cancellation_after_uncached_stage(
+        &self,
+        token: &CancellationToken,
+    ) -> Result<(), ProjectError> {
+        // Stage bodies are synchronous; give a peer request that observed the newly-filled cache a
+        // bounded handoff window to publish cancellation before the next expensive stage starts.
+        for _ in 0..CANCELLATION_HANDOFF_YIELDS {
+            if token.is_cancelled() {
+                return Err(ProjectError::Cancelled);
+            }
+            std::thread::yield_now();
+        }
+        if token.is_cancelled() {
+            return Err(ProjectError::Cancelled);
+        }
+        Ok(())
     }
 }
 

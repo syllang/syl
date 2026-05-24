@@ -3,7 +3,7 @@
 // There is no formal/property syntax yet. These source-only cells model the
 // public API shape while remaining subject to normal read-capability checks.
 
-package std.assertions
+package std.assert
 
 use std.stream.Stream
 use std.vendor.VendorAssertBit

@@ -249,18 +249,22 @@ impl AnalysisSnapshot {
             .filter(|diagnostic| source_ids.contains(&diagnostic.span.source))
             .cloned()
             .collect::<Vec<_>>();
+        Self::check_cancellation(token)?;
         let hir = package
             .semantic()
             .hir_diagnostics_with_token(token)?
             .to_vec();
+        Self::check_cancellation(token)?;
         let tir = package
             .semantic()
             .tir_diagnostics_with_token(token)?
             .to_vec();
+        Self::check_cancellation(token)?;
         let elaboration = package
             .semantic()
             .elaboration_diagnostics_with_token(token)?
             .to_vec();
+        Self::check_cancellation(token)?;
         Ok(Some(PackageStageDiagnostics::new(
             parse,
             hir,

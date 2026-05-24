@@ -6,9 +6,10 @@ use support::MiddleCompiler;
 use syl_query::AnalysisQueries;
 use syl_sema::{
     BackendConstraint, OpaqueItemKind, OpaqueItemSummary, SummaryCapability, SummaryDirection,
-    SummaryEndpoint, SummaryLatencyClass, SummaryLayout, SummaryPath, TrustBoundary,
+    SummaryDomainBehavior, SummaryEndpoint, SummaryLatencyClass, SummaryLayout, SummaryPath,
+    SummaryProtocolPreservation, TrustBoundary,
 };
-use syl_session::{AnalysisHost, ProjectConfig};
+use syl_session::{AnalysisHost, DocumentOrigin, ProjectConfig};
 
 #[test]
 fn architecture_phase8_std_sources_enter_ordinary_session_pipeline() {
@@ -40,8 +41,8 @@ fn architecture_phase8_std_sources_enter_ordinary_session_pipeline() {
         .map(|package| package.name())
         .collect::<Vec<_>>();
     for expected in [
-        "std.assertions",
-        "std.bundles",
+        "std.assert",
+        "std.bundle",
         "std.logic",
         "std.pipeline",
         "std.stage",
@@ -53,6 +54,44 @@ fn architecture_phase8_std_sources_enter_ordinary_session_pipeline() {
             "missing std package {expected}; loaded packages: {packages:?}"
         );
     }
+}
+
+#[test]
+fn architecture_phase8_std_imports_are_ordinary_source_documents() {
+    let workspace = workspace_root();
+    let input = workspace.join("examples/std_user/custom_stage.syl");
+    let mut host = AnalysisHost::with_config(
+        ProjectConfig::new()
+            .with_workspace_root(workspace.clone())
+            .with_std_root(workspace.join("examples")),
+    );
+    let snapshot = host
+        .load(std::slice::from_ref(&input))
+        .expect("std imports must resolve through the configured source roots");
+
+    assert_eq!(snapshot.workspace().roots(), &[input]);
+    let documents = snapshot.workspace().source_database().documents();
+    for relative in ["examples/std/stream.syl", "examples/std/stage.syl"] {
+        let path = workspace.join(relative);
+        let document = documents
+            .iter()
+            .find(|document| document.path() == Some(path.as_path()))
+            .unwrap_or_else(|| panic!("missing ordinary std source document {relative}"));
+        assert_eq!(document.origin(), &DocumentOrigin::Disk);
+    }
+    let stage_package = snapshot
+        .workspace()
+        .package_graph()
+        .packages()
+        .iter()
+        .find(|package| package.name() == "std.stage")
+        .expect("std.stage must be a normal package graph node");
+    assert!(
+        stage_package
+            .imports()
+            .iter()
+            .any(|import| import.path() == ["std", "stream", "Stream"])
+    );
 }
 
 #[test]
@@ -135,6 +174,58 @@ cell BadUserCell<T>(
 
 #[test]
 fn architecture_phase8_stage_link_summaries_are_source_derived() {
+    let workspace = workspace_root();
+    let mut host = AnalysisHost::with_config(
+        ProjectConfig::new()
+            .with_workspace_root(workspace.clone())
+            .with_std_root(workspace.join("examples")),
+    );
+    let snapshot = host
+        .load(&[workspace.join("examples/std_user/custom_stage.syl")])
+        .expect("std user composition must load through std_roots");
+    let public_summaries = AnalysisQueries::opaque_summaries(&snapshot)
+        .expect("source cells must enter the public summary table");
+    let public_stage_link = public_summaries
+        .get("stage_link")
+        .expect("stage_link source summary must be public");
+    assert_eq!(public_stage_link.kind(), OpaqueItemKind::SourceCell);
+    assert_eq!(
+        public_stage_link.trust_boundary(),
+        &TrustBoundary::SourceDerived
+    );
+    assert_eq!(
+        public_stage_link.latency_class(),
+        SummaryLatencyClass::Sequential
+    );
+    assert_eq!(
+        public_stage_link.protocol_preservation(),
+        SummaryProtocolPreservation::Preserved
+    );
+    assert!(matches!(
+        public_stage_link.domain_behavior(),
+        SummaryDomainBehavior::Explicit { clock_inputs, reset_inputs }
+            if clock_inputs.len() == 1
+                && clock_inputs[0] == "clk"
+                && reset_inputs.len() == 1
+                && reset_inputs[0] == "rst"
+    ));
+    assert_stage_endpoint(public_stage_link, "up", "sink");
+    assert_stage_endpoint(public_stage_link, "down", "source");
+    assert!(
+        public_stage_link
+            .driven_fields()
+            .iter()
+            .map(SummaryPath::display)
+            .any(|path| path == "down.valid")
+    );
+    assert!(
+        public_stage_link
+            .consumed_fields()
+            .iter()
+            .map(SummaryPath::display)
+            .any(|path| path == "up.payload")
+    );
+
     let output = MiddleCompiler::new()
         .output_sources(&[
             include_str!("../../../examples/std/stream.syl"),
@@ -175,11 +266,33 @@ fn architecture_phase8_stage_link_summaries_are_source_derived() {
             .iter()
             .any(|name| name.contains("valid_reg"))
     );
+    let metadata_stage_link = metadata
+        .opaque_summaries()
+        .get("stage_link")
+        .expect("elaboration metadata must consume source-derived public summaries");
+    assert_eq!(metadata_stage_link.kind(), OpaqueItemKind::SourceCell);
+    assert_eq!(
+        metadata_stage_link.latency_class(),
+        SummaryLatencyClass::Sequential
+    );
 }
 
 #[test]
 fn architecture_phase8_std_files_are_not_hardcoded_in_compiler_layers() {
     let workspace = workspace_root();
+    let resolver = read_text(&workspace.join("crates/syl_session/src/import_resolver.rs"));
+    assert!(
+        resolver.contains("fn import_bases(&self) -> impl Iterator<Item = &Path>")
+            && resolver.contains(".workspace_roots()")
+            && resolver.contains(".std_roots()")
+            && resolver.contains(".package_roots()"),
+        "std_roots must stay one ordinary import base among other source roots"
+    );
+    assert!(
+        resolver.contains("for base in self.import_bases()")
+            && resolver.contains("self.vfs.exists(&path) || overlay_exists(&path)"),
+        "std imports must use the same VFS/overlay existence path as ordinary imports"
+    );
     for relative in [
         "crates/syl_sema/src",
         "crates/syl_elab/src",
@@ -194,6 +307,11 @@ fn architecture_phase8_std_files_are_not_hardcoded_in_compiler_layers() {
                     && !text.contains("std.stage")
                     && !text.contains("VendorReadyValidSlice"),
                 "{} must not special-case std library names",
+                path.strip_prefix(&workspace).unwrap_or(&path).display()
+            );
+            assert!(
+                !text.contains("std_roots"),
+                "{} must not read std root configuration outside session/cli orchestration",
                 path.strip_prefix(&workspace).unwrap_or(&path).display()
             );
         }
@@ -215,6 +333,23 @@ fn trusted_vendor_slice_summary() -> OpaqueItemSummary {
             artifact: "VendorReadyValidSlice.sv".to_string(),
         })
         .build()
+}
+
+fn assert_stage_endpoint(summary: &OpaqueItemSummary, endpoint_name: &str, view_name: &str) {
+    let endpoint = summary
+        .endpoints()
+        .iter()
+        .find(|endpoint| endpoint.name() == endpoint_name)
+        .unwrap_or_else(|| panic!("missing {endpoint_name} endpoint in source summary"));
+    assert!(
+        endpoint
+            .protocol()
+            .is_some_and(|protocol| protocol.name() == "Stage")
+    );
+    assert!(matches!(
+        endpoint.capability(),
+        SummaryCapability::View { view, .. } if view == view_name
+    ));
 }
 
 fn workspace_root() -> PathBuf {

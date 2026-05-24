@@ -1,4 +1,7 @@
-use super::{OpaqueItemSummary, collect::collect_extern_summary};
+use super::{
+    OpaqueItemSummary,
+    collect::{collect_extern_summary, collect_source_cell_summary},
+};
 use crate::{
     facts::{CapabilityTable, ProtocolFacts, TypeTable},
     tir::TirDesign,
@@ -65,16 +68,28 @@ impl OpaqueSummaryTable {
     ) -> Self {
         let mut table = Self::new();
         for callable in tir.hir().callables.values() {
-            let crate::hir::HirCallable::Extern(item) = callable else {
-                continue;
-            };
-            table.register(collect_extern_summary(
-                tir,
-                types,
-                capabilities,
-                protocols,
-                item,
-            ));
+            match callable {
+                crate::hir::HirCallable::Cell(item) => {
+                    table.register(collect_source_cell_summary(
+                        tir,
+                        types,
+                        capabilities,
+                        protocols,
+                        item,
+                    ));
+                }
+                crate::hir::HirCallable::Extern(item) => {
+                    table.register(collect_extern_summary(
+                        tir,
+                        types,
+                        capabilities,
+                        protocols,
+                        item,
+                    ));
+                }
+                crate::hir::HirCallable::Module(_) => {}
+                _ => {}
+            }
         }
         table
     }

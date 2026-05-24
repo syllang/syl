@@ -5,9 +5,41 @@ use super::{
 };
 use crate::{
     facts::{CapabilityTable, HirFactId, ProtocolFacts, TypeTable},
-    hir::{HirDefKind, HirSignatureResultBinding},
+    hir::{HirBlock, HirCallableItem, HirDefKind, HirSignatureResultBinding, HirStmt},
     tir::{TirDesign, TirType},
 };
+
+pub(super) fn collect_source_cell_summary(
+    tir: &TirDesign,
+    types: &TypeTable,
+    capabilities: &CapabilityTable,
+    protocols: &ProtocolFacts,
+    item: &HirCallableItem,
+) -> OpaqueItemSummary {
+    let (endpoints, driven_fields, consumed_fields, domain_behavior) = signature_facts(
+        tir,
+        types,
+        capabilities,
+        protocols,
+        &item.params,
+        item.result.as_ref(),
+    );
+    let latency_class = if block_contains_storage(&item.body) {
+        SummaryLatencyClass::Sequential
+    } else {
+        SummaryLatencyClass::Transparent
+    };
+
+    OpaqueItemSummary::builder(OpaqueItemKind::SourceCell, &item.name)
+        .endpoints(endpoints.clone())
+        .driven_fields(driven_fields)
+        .consumed_fields(consumed_fields)
+        .domain_behavior(domain_behavior)
+        .latency_class(latency_class)
+        .protocol_preservation(protocol_preservation(&endpoints))
+        .trust_boundary(super::TrustBoundary::SourceDerived)
+        .build()
+}
 
 pub(super) fn collect_extern_summary(
     tir: &TirDesign,
@@ -16,13 +48,52 @@ pub(super) fn collect_extern_summary(
     protocols: &ProtocolFacts,
     item: &crate::hir::HirExternModuleItem,
 ) -> OpaqueItemSummary {
+    let (endpoints, driven_fields, consumed_fields, domain_behavior) = signature_facts(
+        tir,
+        types,
+        capabilities,
+        protocols,
+        &item.params,
+        item.result.as_ref(),
+    );
+    let latency_class = match domain_behavior {
+        SummaryDomainBehavior::Explicit { .. } => SummaryLatencyClass::Sequential,
+        SummaryDomainBehavior::Clockless | SummaryDomainBehavior::Unknown => {
+            SummaryLatencyClass::Unknown
+        }
+    };
+
+    OpaqueItemSummary::builder(OpaqueItemKind::ExternModule, &item.name)
+        .endpoints(endpoints)
+        .driven_fields(driven_fields)
+        .consumed_fields(consumed_fields)
+        .domain_behavior(domain_behavior)
+        .latency_class(latency_class)
+        .protocol_preservation(SummaryProtocolPreservation::Unknown)
+        .trust_boundary(super::TrustBoundary::SourceDerived)
+        .build()
+}
+
+fn signature_facts(
+    tir: &TirDesign,
+    types: &TypeTable,
+    capabilities: &CapabilityTable,
+    protocols: &ProtocolFacts,
+    params: &[crate::hir::HirSignatureParam],
+    result: Option<&HirSignatureResultBinding>,
+) -> (
+    Vec<SummaryEndpoint>,
+    Vec<SummaryPath>,
+    Vec<SummaryPath>,
+    SummaryDomainBehavior,
+) {
     let mut endpoints = Vec::new();
     let mut driven_fields = Vec::new();
     let mut consumed_fields = Vec::new();
     let mut clock_inputs = Vec::new();
     let mut reset_inputs = Vec::new();
 
-    for param in &item.params {
+    for param in params {
         let endpoint = endpoint_for_local(
             tir,
             types,
@@ -41,7 +112,7 @@ pub(super) fn collect_extern_summary(
         );
         endpoints.push(endpoint);
     }
-    if let Some(result) = &item.result {
+    if let Some(result) = result {
         let endpoint = endpoint_for_result(tir, types, capabilities, protocols, result);
         record_endpoint_effects(
             &endpoint,
@@ -61,22 +132,37 @@ pub(super) fn collect_extern_summary(
             reset_inputs,
         }
     };
-    let latency_class = match domain_behavior {
-        SummaryDomainBehavior::Explicit { .. } => SummaryLatencyClass::Sequential,
-        SummaryDomainBehavior::Clockless | SummaryDomainBehavior::Unknown => {
-            SummaryLatencyClass::Unknown
-        }
-    };
+    (endpoints, driven_fields, consumed_fields, domain_behavior)
+}
 
-    OpaqueItemSummary::builder(OpaqueItemKind::ExternModule, &item.name)
-        .endpoints(endpoints)
-        .driven_fields(driven_fields)
-        .consumed_fields(consumed_fields)
-        .domain_behavior(domain_behavior)
-        .latency_class(latency_class)
-        .protocol_preservation(SummaryProtocolPreservation::Unknown)
-        .trust_boundary(super::TrustBoundary::SourceDerived)
-        .build()
+fn protocol_preservation(endpoints: &[SummaryEndpoint]) -> SummaryProtocolPreservation {
+    let protocols = endpoints
+        .iter()
+        .filter_map(SummaryEndpoint::protocol)
+        .map(SummaryProtocol::name)
+        .collect::<Vec<_>>();
+    match protocols.split_first() {
+        Some((first, rest)) if !rest.is_empty() && rest.iter().all(|name| name == first) => {
+            SummaryProtocolPreservation::Preserved
+        }
+        _ => SummaryProtocolPreservation::Unknown,
+    }
+}
+
+fn block_contains_storage(block: &HirBlock) -> bool {
+    block.stmts.iter().any(|stmt| match stmt {
+        HirStmt::Reg { .. } => true,
+        HirStmt::While { body, .. } | HirStmt::ElabFor { body, .. } => block_contains_storage(body),
+        HirStmt::ElabIf {
+            then_block,
+            else_block,
+            ..
+        } => {
+            block_contains_storage(then_block)
+                || else_block.as_ref().is_some_and(block_contains_storage)
+        }
+        _ => false,
+    })
 }
 
 fn endpoint_for_result(

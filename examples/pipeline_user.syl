@@ -66,13 +66,19 @@ map execute_cmd<W: Nat>(cmd: Decoded<W>) -> UInt<W> =
         default => cmd.a xor cmd.b,
     }
 
+map execute_rsp<W: Nat>(cmd: Decoded<W>) -> AluRsp<W> =
+    AluRsp<W> {
+        data: execute_cmd<W>(cmd),
+        last: cmd.last,
+    }
+
 module PipelinedAlu<W: Nat = DATA_W, D: Domain>(
     clk: in Clock<D>,
     rst: in Reset<D>,
     stall_decode: in Bit,
     flush_response: in Bit,
     cmd_in: in Stream<AluCmd<W>>.sink,
-    cmd_out: out Stream<AluCmd<W>>.source,
+    rsp_out: out Stream<AluRsp<W>>.source,
 ) {
     alias in_stage = stage_from_stream<AluCmd<W>>(
         stream: cmd_in,
@@ -98,7 +104,7 @@ module PipelinedAlu<W: Nat = DATA_W, D: Domain>(
         stage: filtered_response,
     )
 
-    cmd_out.valid := out_stream.valid
-    cmd_out.payload := out_stream.payload
-    out_stream.ready := cmd_out.ready
+    rsp_out.valid := out_stream.valid
+    rsp_out.payload := execute_rsp<W>(decode_cmd<W>(out_stream.payload))
+    out_stream.ready := rsp_out.ready
 }

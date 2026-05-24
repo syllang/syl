@@ -52,6 +52,6 @@ module BufferedWordPipe<W: Nat = 32, D: Domain>(
     )
 
     down.valid := out_stream.valid
-    down.payload := out_stream.payload
+    down.payload := set_last_if_zero<W>(out_stream.payload)
     out_stream.ready := down.ready
 }

@@ -72,15 +72,18 @@ impl<'a> DiagnosticQueryEngine<'a> {
                     .unwrap_or_default(),
                 None => PackageStageDiagnostics::default(),
             };
+            Self::check_cancellation(token)?;
             let package = DiagnosticPackage::new(name.clone());
             let documents = files
                 .into_iter()
                 .map(|file| self.document_diagnostics_for_file(file, package.clone(), &stage_set))
                 .collect();
+            Self::check_cancellation(token)?;
             packages.push(PackageDiagnostics::new(
                 DiagnosticPackage::new(name),
                 documents,
             ));
+            Self::check_cancellation(token)?;
         }
 
         Ok(GroupedDiagnostics::new(packages))
