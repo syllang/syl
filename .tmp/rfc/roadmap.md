@@ -183,7 +183,7 @@
 
   ———
 
-  ## [ ] Phase 4：Elaboration 拆成严格 pipeline
+  ## [x] Phase 4：Elaboration 拆成严格 pipeline
 
   目标：syl_elab 可以继续是一个 crate，但内部必须从“巨型阶段”变成多个明确 pass。
 
@@ -219,6 +219,7 @@
   - 2026-05-24 S3 - 主 Agent 审核 Review 结论后派 Work SubAgent 做窄整改：拆开 raw EIR build、EIR validation、EIR facts collection 三个真实 pass，禁止 `EirBuildPass` 经由隐式 assembler 聚合验证和 facts，并补强 architecture_phase4_elab 的结构化边界守卫。
   - 2026-05-24 S4 - Work SubAgent 完成窄整改：`EirBuildPass` 改为只产出 raw EIR，新增独立 `EirValidationPass`、`EirFactsPass` 与 `EirComposePass`，`EirDesignAssembler` 收敛为不运行验证/事实收集的 composer，architecture_phase4_elab 增加 raw/facts 结构化断言与 pass 边界 guard；主 Agent 验证 architecture tests、syl_elab tests、driver_overlap、workspace check、文件规模和 `git diff --check` 均通过。
   - 2026-05-24 S2 - 主 Agent 派出第二轮 Review SubAgent，复查 S4 EIR build/validation/facts pass 边界整改是否满足 Phase 4，只有 Review Agent 判 PASS 才允许标记完成。
+  - 2026-05-24 S2 - Review SubAgent 判定 PASS 且授权标记 Phase 4 完成：EIR build/validation/facts 已真实拆成独立 pass，`EirBuildPass` 只构造 raw EIR，DriverFacts/DRC、multi-driver facts basis、EIR dump、call stack diagnostics 和 cell/module boundary 均满足 Phase 4 退出标准；主 Agent 将 Phase 4 标记为完成。
 
   ———
 
