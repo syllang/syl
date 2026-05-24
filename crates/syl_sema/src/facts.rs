@@ -14,8 +14,8 @@ pub use protocol::{
     ProtocolFacts, ProtocolFieldDirection, ProtocolSummary, ProtocolViewSummary, ViewFieldSummary,
 };
 pub use resolution::{
-    DefinitionKind, DefinitionPath, HirFactId, ImportEdge, PackageSummary, ResolutionGraph,
-    ResolutionTable, SemanticResolution,
+    DefinitionKind, DefinitionPath, HirFactId, ImportEdge, ImportId, PackageNodeId, PackageSummary,
+    ResolutionGraph, ResolutionTable, SemanticResolution,
 };
 pub use types::TypeTable;
 
@@ -47,7 +47,7 @@ impl SemanticFacts {
         let types = TypeTable::collect(tir);
         let protocols = ProtocolFacts::collect(tir.hir());
         let capabilities = CapabilityTable::collect(tir, &types, &protocols);
-        let consts = ConstFacts::collect(tir.hir());
+        let consts = ConstFacts::collect(tir);
         let layouts = LayoutFacts::collect(tir, &protocols);
         Self {
             resolution,

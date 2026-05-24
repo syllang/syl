@@ -1,17 +1,18 @@
 use crate::{
     CompileError,
     const_eval::{ConstEvaluator, ConstKind},
-    hir::{HirBlock, HirBodyExpr, HirExprNode, HirFnItem, HirStmt},
-    hir_resolve::HirResolution,
-    hir_view::HirDesignViewExt,
-    mir::{MirBinaryOp, MirTypeRef, MirUnaryOp},
+    hir::{HirBlock, HirBodyExpr, HirFnItem, HirStmt},
+    mir::{MirBinaryOp, MirUnaryOp},
     tir::TirDesign,
 };
 use std::collections::BTreeMap;
-use syl_hir::{DefId, LocalId};
+use syl_hir::{DefId, ExprId, LocalId};
 use syl_span::Span;
 
+mod lower;
 mod metrics;
+
+use lower::ExprLowerer;
 
 #[non_exhaustive]
 pub struct ConstMirProgram {
@@ -200,11 +201,16 @@ pub enum Terminator {
 pub struct ConstExpr {
     kind: ConstExprKind,
     span: Span,
+    origin: Option<ExprId>,
 }
 
 impl ConstExpr {
     fn new(kind: ConstExprKind, span: Span) -> Self {
-        Self { kind, span }
+        Self {
+            kind,
+            span,
+            origin: None,
+        }
     }
 
     pub fn local(local: ConstLocalRef, span: Span) -> Self {
@@ -263,6 +269,15 @@ impl ConstExpr {
     pub fn span(&self) -> Span {
         self.span
     }
+
+    pub fn origin(&self) -> Option<ExprId> {
+        self.origin
+    }
+
+    pub fn with_origin(mut self, origin: ExprId) -> Self {
+        self.origin = Some(origin);
+        self
+    }
 }
 
 #[non_exhaustive]
@@ -314,34 +329,34 @@ impl<'a> ConstMirBuilder<'a> {
     fn lower_fn(&self, owner: DefId, item: &HirFnItem) -> ConstFunction {
         FunctionLowerer::new(self, owner, item).lower()
     }
+
+    pub fn lower_const_expr(&self, owner: DefId, expr: &HirBodyExpr) -> ConstExpr {
+        ExprLowerer::new(self.tir, owner).lower_expr(expr)
+    }
 }
 
 #[non_exhaustive]
 struct FunctionLowerer<'a, 'b> {
-    owner: &'a ConstMirBuilder<'b>,
     def: DefId,
     item: &'a HirFnItem,
     locals: Vec<ConstLocal>,
     blocks: Vec<BasicBlock>,
-    unsupported: bool,
-    unsupported_span: Option<Span>,
+    exprs: ExprLowerer<'b>,
 }
 
 impl<'a, 'b> FunctionLowerer<'a, 'b> {
-    fn new(owner: &'a ConstMirBuilder<'b>, def: DefId, item: &'a HirFnItem) -> Self {
+    fn new(builder: &'a ConstMirBuilder<'b>, def: DefId, item: &'a HirFnItem) -> Self {
         let locals = item
             .params
             .iter()
             .map(|param| ConstLocal::new(param.id, param.name.clone()))
             .collect();
         Self {
-            owner,
             def,
             item,
             locals,
             blocks: Vec::new(),
-            unsupported: false,
-            unsupported_span: None,
+            exprs: ExprLowerer::new(builder.tir, def),
         }
     }
 
@@ -357,7 +372,7 @@ impl<'a, 'b> FunctionLowerer<'a, 'b> {
             .body
             .tail
             .as_ref()
-            .map(|expr| self.lower_expr(expr));
+            .map(|expr| self.exprs.lower_expr(expr));
         let exit = self.push_block(Vec::new(), Terminator::Return(tail));
         let entry = self.lower_stmt_suffix(&self.item.body.stmts, 0, exit);
         ConstFunction::new(ConstFunctionParts {
@@ -368,13 +383,13 @@ impl<'a, 'b> FunctionLowerer<'a, 'b> {
                 .item
                 .ret_ty
                 .as_ref()
-                .and_then(|ty| self.const_kind_for_type(&ty.ty)),
+                .and_then(|ty| self.exprs.const_kind_for_type(&ty.ty)),
             locals: self.locals,
             blocks: self.blocks,
             entry,
             span: self.item.span,
-            unsupported: self.unsupported,
-            unsupported_span: self.unsupported_span,
+            unsupported: self.exprs.is_unsupported(),
+            unsupported_span: self.exprs.unsupported_span(),
         })
     }
 
@@ -404,10 +419,10 @@ impl<'a, 'b> FunctionLowerer<'a, 'b> {
                 span: _span,
                 ..
             } => {
-                let local = self.local_ref_for_decl(*id, name);
+                let local = self.exprs.local_ref_for_decl(*id, name);
                 self.locals.push(ConstLocal::new(local.id(), name.clone()));
                 let rest = self.lower_stmt_suffix(stmts, index + 1, next);
-                let value = self.lower_expr(value);
+                let value = self.exprs.lower_expr(value);
                 self.push_block(
                     vec![ConstStmt::Assign { local, value }],
                     Terminator::Goto(rest),
@@ -429,17 +444,17 @@ impl<'a, 'b> FunctionLowerer<'a, 'b> {
                 span,
                 ..
             } => {
-                let local = self.local_ref_for_decl(*id, name);
+                let local = self.exprs.local_ref_for_decl(*id, name);
                 self.locals.push(ConstLocal::new(local.id(), name.clone()));
                 let rest = self.lower_stmt_suffix(stmts, index + 1, next);
                 let value = ty
                     .as_ref()
-                    .and_then(|ty| self.const_kind_for_type(ty))
+                    .and_then(|ty| self.exprs.const_kind_for_type(ty))
                     .map(|kind| {
                         ConstExpr::unknown(kind, ty.as_ref().map(|ty| ty.span()).unwrap_or(*span))
                     })
                     .unwrap_or_else(|| {
-                        self.unsupported = true;
+                        self.exprs.mark_unsupported(*span);
                         ConstExpr::unsupported(*span)
                     });
                 self.push_block(
@@ -449,13 +464,13 @@ impl<'a, 'b> FunctionLowerer<'a, 'b> {
             }
             HirStmt::Expr(expr) => {
                 let rest = self.lower_stmt_suffix(stmts, index + 1, next);
-                if let Some((local, value)) = self.lower_assignment(expr) {
+                if let Some((local, value)) = self.exprs.lower_assignment(expr) {
                     self.push_block(
                         vec![ConstStmt::Assign { local, value }],
                         Terminator::Goto(rest),
                     )
                 } else {
-                    self.unsupported = true;
+                    self.exprs.mark_unsupported(expr.span());
                     rest
                 }
             }
@@ -471,7 +486,7 @@ impl<'a, 'b> FunctionLowerer<'a, 'b> {
                     .as_ref()
                     .map(|block| self.lower_block_to(block, rest))
                     .unwrap_or(rest);
-                let cond = self.lower_expr(cond);
+                let cond = self.exprs.lower_expr(cond);
                 self.push_block(
                     Vec::new(),
                     Terminator::Branch {
@@ -485,7 +500,7 @@ impl<'a, 'b> FunctionLowerer<'a, 'b> {
                 let rest = self.lower_stmt_suffix(stmts, index + 1, next);
                 let header = self.push_block(Vec::new(), Terminator::Goto(rest));
                 let body_entry = self.lower_block_to(body, header);
-                let cond = self.lower_expr(cond);
+                let cond = self.exprs.lower_expr(cond);
                 self.set_terminator(
                     header,
                     Terminator::Branch {
@@ -497,11 +512,11 @@ impl<'a, 'b> FunctionLowerer<'a, 'b> {
                 header
             }
             HirStmt::Return(value, _) => {
-                let value = value.as_ref().map(|expr| self.lower_expr(expr));
+                let value = value.as_ref().map(|expr| self.exprs.lower_expr(expr));
                 self.push_block(Vec::new(), Terminator::Return(value))
             }
             _ => {
-                self.unsupported = true;
+                self.exprs.mark_unsupported(stmt.span());
                 self.lower_stmt_suffix(stmts, index + 1, next)
             }
         }
@@ -509,13 +524,13 @@ impl<'a, 'b> FunctionLowerer<'a, 'b> {
 
     fn lower_block_to(&mut self, block: &HirBlock, next: BlockId) -> BlockId {
         let next = if let Some(tail) = &block.tail {
-            if let Some((local, value)) = self.lower_assignment(tail) {
+            if let Some((local, value)) = self.exprs.lower_assignment(tail) {
                 self.push_block(
                     vec![ConstStmt::Assign { local, value }],
                     Terminator::Goto(next),
                 )
             } else {
-                self.unsupported = true;
+                self.exprs.mark_unsupported(tail.span());
                 next
             }
         } else {
@@ -533,160 +548,6 @@ impl<'a, 'b> FunctionLowerer<'a, 'b> {
     fn set_terminator(&mut self, id: BlockId, term: Terminator) {
         if let Some(block) = self.blocks.get_mut(id.index) {
             block.term = term;
-        }
-    }
-
-    fn lower_assignment(&mut self, expr: &HirBodyExpr) -> Option<(ConstLocalRef, ConstExpr)> {
-        let HirExprNode::Binary { op, left, right } = &expr.node else {
-            return None;
-        };
-        if !matches!(MirBinaryOp::from(*op), MirBinaryOp::Assign) {
-            return None;
-        }
-        let HirExprNode::Ident(name) = &left.node else {
-            return None;
-        };
-        Some((self.local_ref_for_expr(left, name), self.lower_expr(right)))
-    }
-
-    fn lower_expr(&mut self, expr: &HirBodyExpr) -> ConstExpr {
-        match &expr.node {
-            HirExprNode::Ident(name) => {
-                let const_value = self
-                    .owner
-                    .tir
-                    .hir()
-                    .expr_resolution(self.def, expr)
-                    .ok()
-                    .flatten()
-                    .and_then(|resolution| match resolution {
-                        HirResolution::Def(def) => self.owner.tir.hir().const_by_def(def),
-                        HirResolution::Local(_) => None,
-                        _ => None,
-                    });
-                const_value
-                    .map(|item| self.lower_expr(&item.value))
-                    .unwrap_or_else(|| {
-                        ConstExpr::local(self.local_ref_for_expr(expr, name), expr.span())
-                    })
-            }
-            HirExprNode::Int(value) => ConstExpr::nat(*value, expr.span()),
-            HirExprNode::Bool(value) => ConstExpr::bool_value(*value, expr.span()),
-            HirExprNode::Group(inner) => self.lower_expr(inner),
-            HirExprNode::Unary {
-                op, expr: inner, ..
-            } => {
-                let op = MirUnaryOp::from(*op);
-                if matches!(op, MirUnaryOp::Unsupported) {
-                    return self.unsupported_expr(expr.span());
-                }
-                ConstExpr::unary(op, self.lower_expr(inner), expr.span())
-            }
-            HirExprNode::Binary {
-                op, left, right, ..
-            } => {
-                let op = MirBinaryOp::from(*op);
-                if matches!(
-                    op,
-                    MirBinaryOp::Assign | MirBinaryOp::Field | MirBinaryOp::Unsupported
-                ) {
-                    return self.unsupported_expr(expr.span());
-                }
-                ConstExpr::binary(
-                    op,
-                    self.lower_expr(left),
-                    self.lower_expr(right),
-                    expr.span(),
-                )
-            }
-            HirExprNode::Call { callee, args } => {
-                let Some(root) = self.callee_root(callee) else {
-                    return self.unsupported_expr(expr.span());
-                };
-                let Ok(Some(HirResolution::Def(def))) =
-                    self.owner.tir.hir().expr_resolution(self.def, root)
-                else {
-                    return self.unsupported_expr(expr.span());
-                };
-                if !self.owner.tir.hir().fns.contains_key(&def) {
-                    return self.unsupported_expr(expr.span());
-                }
-                ConstExpr::call(
-                    def,
-                    args.iter().map(|arg| self.lower_expr(&arg.value)).collect(),
-                    expr.span(),
-                )
-            }
-            HirExprNode::GenericApp { callee, .. } => self.lower_expr(callee),
-            HirExprNode::Unsupported => self.unsupported_expr(expr.span()),
-            _ => self.unsupported_expr(expr.span()),
-        }
-    }
-
-    fn unsupported_expr(&mut self, span: Span) -> ConstExpr {
-        self.unsupported = true;
-        if self.unsupported_span.is_none() {
-            self.unsupported_span = Some(span);
-        }
-        ConstExpr::unsupported(span)
-    }
-
-    fn callee_root<'c>(&self, expr: &'c HirBodyExpr) -> Option<&'c HirBodyExpr> {
-        let mut current = expr;
-        loop {
-            match &current.node {
-                HirExprNode::Ident(_) => return Some(current),
-                HirExprNode::GenericApp { callee, .. } | HirExprNode::Group(callee) => {
-                    current = callee;
-                }
-                _ => return None,
-            }
-        }
-    }
-
-    fn local_ref_for_decl(&self, id: Option<LocalId>, name: &str) -> ConstLocalRef {
-        ConstLocalRef::new(id, name.to_string())
-    }
-
-    fn local_ref_for_expr(&self, expr: &HirBodyExpr, name: &str) -> ConstLocalRef {
-        let id = self
-            .owner
-            .tir
-            .hir()
-            .expr_resolution(self.def, expr)
-            .ok()
-            .flatten()
-            .and_then(|resolution| match resolution {
-                HirResolution::Local(id) => Some(id),
-                HirResolution::Def(_) => None,
-                _ => None,
-            });
-        ConstLocalRef::new(id, name.to_string())
-    }
-
-    fn const_kind_for_type(&self, ty: &MirTypeRef) -> Option<ConstKind> {
-        let mut current = ty;
-        loop {
-            if let Some(name) = current.path_name() {
-                return match name {
-                    "Nat" => Some(ConstKind::Nat),
-                    "Bool" => Some(ConstKind::Bool),
-                    _ => None,
-                };
-            }
-            if let Some(base) = current.generic_base() {
-                current = base;
-                continue;
-            }
-            if let Some((base, _)) = current.view_select() {
-                current = base;
-                continue;
-            }
-            if let Some((_, elem)) = current.array() {
-                current = elem;
-                continue;
-            }
-            return None;
         }
     }
 }

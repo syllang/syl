@@ -54,6 +54,9 @@ module Top(x: in Bit, y: out Bit) {
     let snapshot = host
         .snapshot()
         .expect("phase3 query fixture must snapshot cleanly");
+    assert!(!snapshot.is_hir_cached());
+    assert!(!snapshot.is_tir_cached());
+    assert!(!snapshot.is_elaboration_cached());
     let file = snapshot
         .files()
         .first()
@@ -68,13 +71,12 @@ module Top(x: in Bit, y: out Bit) {
         .tir_analysis()
         .and_then(|tir| tir.hover_at(span))
         .expect("hover lookup must come from sema TIR facts");
-    let debug = format!("{snapshot:?}");
 
     assert_eq!(definition.name(), "x");
     assert!(hover.text().contains("Bit"));
-    assert!(debug.contains("hir_cached: true"));
-    assert!(debug.contains("tir_cached: true"));
-    assert!(debug.contains("elaboration_cached: false"));
+    assert!(snapshot.is_hir_cached());
+    assert!(snapshot.is_tir_cached());
+    assert!(!snapshot.is_elaboration_cached());
 }
 
 #[test]
@@ -121,6 +123,104 @@ module Bad(x: in Missing) {
     }
 }
 
+#[test]
+fn architecture_phase3_fact_collectors_stay_canonical() {
+    let workspace = workspace_root();
+    let capability = normalize_whitespace(&read_text(
+        &workspace.join("crates/syl_sema/src/facts/capability.rs"),
+    ));
+    for forbidden in ["known == target", "table.iter().find_map"] {
+        assert!(
+            !capability.contains(forbidden),
+            "capability facts must not recover type identity by structural fallback: {forbidden:?}"
+        );
+    }
+
+    let consts = normalize_whitespace(&read_text(
+        &workspace.join("crates/syl_sema/src/facts/consts.rs"),
+    ));
+    for forbidden in [
+        "ConstFactBuilder",
+        "HirExprNode::",
+        "BinaryOp::",
+        "UnaryOp::",
+        "const_binary_result",
+    ] {
+        assert!(
+            !consts.contains(forbidden),
+            "const facts must stay on the shared evaluator path, found legacy evaluator marker {forbidden:?}"
+        );
+    }
+}
+
+#[test]
+fn architecture_phase3_sema_production_code_stays_off_hardware_layers() {
+    let workspace = workspace_root();
+    let source_root = workspace.join("crates/syl_sema/src");
+    let mut violations = Vec::new();
+
+    for path in rs_files_under(&source_root) {
+        let text = read_text(&path);
+        for forbidden in [
+            "use syl_elab",
+            "syl_elab::",
+            "use syl_hw",
+            "syl_hw::",
+            "use syl_emit",
+            "syl_emit::",
+        ] {
+            if text.contains(forbidden) {
+                violations.push(format!(
+                    "{} imports forbidden hardware-layer dependency {forbidden:?}",
+                    relative_to_workspace(&workspace, &path)
+                ));
+            }
+        }
+    }
+
+    assert!(
+        violations.is_empty(),
+        "syl_sema production code must stay independent from elab/hw/emit.\n{}",
+        violations.join("\n")
+    );
+}
+
+#[test]
+fn architecture_phase3_legacy_hardware_integration_tests_stay_inventoried() {
+    let workspace = workspace_root();
+    let mut actual: Vec<_> = rs_files_under(&workspace.join("crates/syl_sema/tests"))
+        .into_iter()
+        .filter(|path| {
+            let text = read_text(path);
+            [
+                "use syl_elab",
+                "syl_elab::",
+                "use syl_hw",
+                "syl_hw::",
+                "use syl_emit",
+                "syl_emit::",
+            ]
+            .iter()
+            .any(|forbidden| text.contains(forbidden))
+        })
+        .map(|path| relative_to_workspace(&workspace, &path))
+        .collect();
+    actual.sort();
+
+    assert_eq!(
+        actual,
+        vec![
+            "crates/syl_sema/tests/alias_resolution.rs".to_string(),
+            "crates/syl_sema/tests/bundle_resolution.rs".to_string(),
+            "crates/syl_sema/tests/cell_summary.rs".to_string(),
+            "crates/syl_sema/tests/const_resolution.rs".to_string(),
+            "crates/syl_sema/tests/support/mod.rs".to_string(),
+            "crates/syl_sema/tests/tir_semantics.rs".to_string(),
+        ],
+        "legacy sema integration tests that still touch hardware layers must stay explicitly inventoried"
+    );
+}
+
 fn workspace_root() -> PathBuf {
     let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     manifest
@@ -133,4 +233,39 @@ fn workspace_root() -> PathBuf {
 fn read_text(path: &Path) -> String {
     fs::read_to_string(path)
         .unwrap_or_else(|error| panic!("failed to read {}: {error}", path.display()))
+}
+
+fn normalize_whitespace(text: &str) -> String {
+    text.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+fn rs_files_under(root: &Path) -> Vec<PathBuf> {
+    let mut files = Vec::new();
+    collect_rs_files(root, &mut files);
+    files.sort();
+    files
+}
+
+fn collect_rs_files(root: &Path, files: &mut Vec<PathBuf>) {
+    let Ok(entries) = fs::read_dir(root) else {
+        return;
+    };
+
+    for entry in entries.filter_map(Result::ok) {
+        let path = entry.path();
+        if path.is_dir() {
+            collect_rs_files(&path, files);
+            continue;
+        }
+        if path.extension().and_then(|ext| ext.to_str()) == Some("rs") {
+            files.push(path);
+        }
+    }
+}
+
+fn relative_to_workspace(workspace: &Path, path: &Path) -> String {
+    path.strip_prefix(workspace)
+        .unwrap_or(path)
+        .display()
+        .to_string()
 }

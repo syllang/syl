@@ -74,6 +74,18 @@ impl SemanticCache {
             })
             .clone()
     }
+
+    pub(crate) fn is_hir_cached(&self) -> bool {
+        self.hir.get().is_some()
+    }
+
+    pub(crate) fn is_tir_cached(&self) -> bool {
+        self.tir.get().is_some()
+    }
+
+    pub(crate) fn is_elaboration_cached(&self) -> bool {
+        self.elaboration.get().is_some()
+    }
 }
 
 impl fmt::Debug for SemanticCache {
@@ -81,9 +93,9 @@ impl fmt::Debug for SemanticCache {
         formatter
             .debug_struct("SemanticCache")
             .field("ast_file_count", &self.ast_files.len())
-            .field("hir_cached", &self.hir.get().is_some())
-            .field("tir_cached", &self.tir.get().is_some())
-            .field("elaboration_cached", &self.elaboration.get().is_some())
+            .field("hir_cached", &self.is_hir_cached())
+            .field("tir_cached", &self.is_tir_cached())
+            .field("elaboration_cached", &self.is_elaboration_cached())
             .field("diagnostics_cached", &self.diagnostics.get().is_some())
             .finish()
     }

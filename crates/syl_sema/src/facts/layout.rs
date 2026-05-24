@@ -25,8 +25,14 @@ pub enum WordEncoding {
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum Layout {
+    Unknown,
+    Nat,
     Bit,
     Bool,
+    Domain,
+    Clock,
+    Reset,
+    Str,
     Word {
         encoding: WordEncoding,
         width: LayoutConst,
@@ -82,17 +88,14 @@ impl LayoutFacts {
 
 fn layout_for_type(tir: &TirDesign, protocols: &ProtocolFacts, ty: &TirType) -> Layout {
     match ty {
-        TirType::Unknown => Layout::Opaque {
-            label: "<unknown>".to_string(),
-        },
-        TirType::Nat => Layout::Opaque {
-            label: "Nat".to_string(),
-        },
+        TirType::Unknown => Layout::Unknown,
+        TirType::Nat => Layout::Nat,
         TirType::Bool => Layout::Bool,
         TirType::Bit => Layout::Bit,
-        TirType::Clock { .. } | TirType::Reset { .. } | TirType::Domain | TirType::Str => {
-            Layout::Opaque { label: ty.label() }
-        }
+        TirType::Clock { .. } => Layout::Clock,
+        TirType::Reset { .. } => Layout::Reset,
+        TirType::Domain => Layout::Domain,
+        TirType::Str => Layout::Str,
         TirType::UInt { width } => Layout::Word {
             encoding: WordEncoding::UInt,
             width: layout_const(width),

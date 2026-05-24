@@ -4,7 +4,7 @@ use crate::{
     mir::{MirBinaryOp, MirTypeRef, MirUnaryOp},
 };
 use std::collections::BTreeMap;
-use syl_hir::DefId;
+use syl_hir::{DefId, ExprId};
 use syl_span::Span;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -63,6 +63,7 @@ pub struct ConstEvaluator<'program> {
     step_limit: usize,
     remaining_steps: usize,
     call_cache: BTreeMap<ConstCallKey, ConstValue>,
+    expr_values: BTreeMap<ExprId, ConstValue>,
 }
 
 impl<'program> ConstEvaluator<'program> {
@@ -74,6 +75,7 @@ impl<'program> ConstEvaluator<'program> {
             step_limit,
             remaining_steps: step_limit,
             call_cache: BTreeMap::new(),
+            expr_values: BTreeMap::new(),
         }
     }
 
@@ -92,7 +94,12 @@ impl<'program> ConstEvaluator<'program> {
     ) -> Result<ConstValue, CompileError> {
         self.call_stack.clear();
         self.remaining_steps = self.step_limit;
+        self.expr_values.clear();
         self.mir_expr_value(expr, env)
+    }
+
+    pub fn recorded_expr_values(&self) -> &BTreeMap<ExprId, ConstValue> {
+        &self.expr_values
     }
 
     fn binary_result(
@@ -296,7 +303,7 @@ impl<'program> ConstEvaluator<'program> {
         env: &mut ConstEvalEnv,
     ) -> Result<ConstValue, CompileError> {
         self.consume_step(expr.span())?;
-        match expr.kind() {
+        let value = match expr.kind() {
             ConstExprKind::Local(local) => env.value(local.name()).ok_or_else(|| {
                 CompileError::lowering_at(
                     ConstEvalError::UnknownElaborationIdentifier {
@@ -345,29 +352,37 @@ impl<'program> ConstEvaluator<'program> {
                     .values()
                     .any(|value| matches!(value, ConstValue::Unknown(_)))
                 {
-                    return function.ret_kind().map(ConstValue::Unknown).ok_or_else(|| {
+                    function.ret_kind().map(ConstValue::Unknown).ok_or_else(|| {
                         CompileError::lowering_at(
                             ConstEvalError::InvalidElaborationExpression,
                             expr.span(),
                         )
-                    });
+                    })
+                } else {
+                    let cache_key = ConstCallKey {
+                        callee: *callee,
+                        args: arg_values,
+                    };
+                    if let Some(value) = self.call_cache.get(&cache_key).copied() {
+                        Ok(value)
+                    } else {
+                        let value = self.eval_function(function, values)?;
+                        self.call_cache.insert(cache_key, value);
+                        Ok(value)
+                    }
                 }
-                let cache_key = ConstCallKey {
-                    callee: *callee,
-                    args: arg_values,
-                };
-                if let Some(value) = self.call_cache.get(&cache_key).copied() {
-                    return Ok(value);
-                }
-                let value = self.eval_function(function, values)?;
-                self.call_cache.insert(cache_key, value);
-                Ok(value)
             }
-            ConstExprKind::Unsupported => Err(CompileError::lowering_at(
-                ConstEvalError::InvalidElaborationExpression,
-                expr.span(),
-            )),
+            ConstExprKind::Unsupported => {
+                return Err(CompileError::lowering_at(
+                    ConstEvalError::InvalidElaborationExpression,
+                    expr.span(),
+                ));
+            }
+        }?;
+        if let Some(origin) = expr.origin() {
+            self.expr_values.insert(origin, value);
         }
+        Ok(value)
     }
 
     fn consume_step(&mut self, span: Span) -> Result<(), CompileError> {

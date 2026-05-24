@@ -192,6 +192,18 @@ impl AnalysisSnapshot {
         self.semantic.tir()
     }
 
+    pub fn is_hir_cached(&self) -> bool {
+        self.semantic.is_hir_cached()
+    }
+
+    pub fn is_tir_cached(&self) -> bool {
+        self.semantic.is_tir_cached()
+    }
+
+    pub fn is_elaboration_cached(&self) -> bool {
+        self.semantic.is_elaboration_cached()
+    }
+
     pub fn shares_semantic_cache_with(&self, other: &Self) -> bool {
         Arc::ptr_eq(&self.semantic, &other.semantic)
     }

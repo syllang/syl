@@ -1,8 +1,9 @@
 use syl_hir::{DefId, ExprId, HirDesign, LocalId};
-use syl_sema::const_eval::ConstValue;
+use syl_sema::const_eval::{ConstEvalEnv, ConstValue};
+use syl_sema::const_mir::ConstMirBuilder;
 use syl_sema::{
-    CapabilityKind, ConstFactKey, HirFactId, Layout, LoweringError, ProtocolFieldDirection,
-    SemanticCompiler, SemanticResolution, TirError, WordEncoding,
+    CapabilityKind, ConstEvalError, ConstFactKey, HirFactId, Layout, LoweringError,
+    ProtocolFieldDirection, SemanticCompiler, SemanticResolution, TirError, WordEncoding,
 };
 use syl_span::{SourceId, Span};
 use syl_syntax::{AstFile, SourceParser};
@@ -67,24 +68,41 @@ module Top<D: Domain>(
     let up_expr = expr_id_at(app, SourceId::new(1), "up.payload", 0, 2, hir_design);
 
     let resolution = hir.resolution();
-    let app_package = resolution
-        .graph()
+    let graph = resolution.graph();
+    let app_package = graph
         .packages()
         .iter()
         .find(|package| package.path().display() == "app")
         .expect("app package must appear in the resolution graph");
-    assert_eq!(app_package.imports().len(), 2);
+    let app_imports = graph.package_imports(app_package.id());
+    assert_eq!(graph.package_modules(app_package.id()), &[top_def]);
+    assert!(graph.modules().contains(&top_def));
+    assert_eq!(app_imports.len(), 2);
     assert!(
-        app_package
-            .imports()
+        app_imports
             .iter()
-            .any(|edge| edge.target() == Some(stream_def))
+            .filter_map(|import| graph.import(*import))
+            .any(|edge| {
+                edge.path().display() == "shared.Stream"
+                    && graph.import_target(edge.id()) == Some(stream_def)
+            })
     );
     assert!(
-        app_package
-            .imports()
+        app_imports
             .iter()
-            .any(|edge| edge.target() == Some(width_def))
+            .filter_map(|import| graph.import(*import))
+            .any(|edge| {
+                edge.path().display() == "shared.WIDTH"
+                    && graph.import_target(edge.id()) == Some(width_def)
+            })
+    );
+    assert_eq!(
+        graph
+            .definition_path(top_def)
+            .expect("module definition path must exist")
+            .canonical_path()
+            .display(),
+        "app.Top"
     );
     assert_eq!(
         resolution.get(HirFactId::Expr(up_expr)),
@@ -119,6 +137,17 @@ module Top<D: Domain>(
     );
     assert_eq!(
         facts.consts().cache_value(ConstFactKey::Def(width_def)),
+        Some(ConstValue::Nat(5))
+    );
+    assert_eq!(
+        facts.consts().value(HirFactId::Expr(expr_id_at(
+            shared,
+            SourceId::new(0),
+            "4 + 1",
+            0,
+            "4 + 1".len(),
+            hir_design,
+        ))),
         Some(ConstValue::Nat(5))
     );
 
@@ -166,6 +195,21 @@ module Top<D: Domain>(
         .layouts()
         .get(up_ty)
         .expect("view type must have layout facts");
+    let domain_layout = facts
+        .layouts()
+        .get(domain_ty)
+        .expect("domain type must have layout facts");
+    assert!(matches!(domain_layout, Layout::Domain));
+    let clk_layout = facts
+        .layouts()
+        .get(clk_ty)
+        .expect("clock type must have layout facts");
+    assert!(matches!(clk_layout, Layout::Clock));
+    let rst_layout = facts
+        .layouts()
+        .get(rst_ty)
+        .expect("reset type must have layout facts");
+    assert!(matches!(rst_layout, Layout::Reset));
     assert!(matches!(
         up_layout,
         Layout::View {
@@ -235,28 +279,124 @@ module Bad(x: in Missing) {
 
 #[test]
 fn const_facts_are_deterministic_across_repeated_runs() {
-    let file = SourceParser::new(
-        r#"
-const WIDTH: Nat = 2 + 3
+    let source = r#"
+fn add_one(x: Nat) -> Nat {
+    return x + 1
+}
+
+const WIDTH: Nat = add_one(4)
+const HEIGHT: Nat = add_one(4)
 
 module Top(y: out UInt<WIDTH>) {
 }
-"#,
-    )
-    .parse_file()
-    .expect("const determinism fixture must parse");
+"#;
+    let file = SourceParser::new_in(source, SourceId::new(0))
+        .parse_file()
+        .expect("const determinism fixture must parse");
     let files = [file];
     let compiler = SemanticCompiler::new();
 
     let first = compiler.session(&files).check();
     let second = compiler.session(&files).check();
+    let first_facts = first.facts().expect("first run must expose facts");
+    let second_facts = second.facts().expect("second run must expose facts");
+    let first_hir = first
+        .tir()
+        .expect("first run must produce TIR")
+        .design()
+        .hir();
+    let width_def = def_id(first_hir, "WIDTH");
+    let height_def = def_id(first_hir, "HEIGHT");
+    let width_call = expr_id_at(
+        source,
+        SourceId::new(0),
+        "add_one(4)",
+        0,
+        "add_one(4)".len(),
+        first_hir,
+    );
+    let add_one_body = expr_id_at(
+        source,
+        SourceId::new(0),
+        "x + 1",
+        0,
+        "x + 1".len(),
+        first_hir,
+    );
 
+    assert_eq!(first_facts.consts(), second_facts.consts());
     assert_eq!(
-        first.facts().expect("first run must expose facts").consts(),
-        second
+        first_facts.consts().value(HirFactId::Def(width_def)),
+        Some(ConstValue::Nat(5))
+    );
+    assert_eq!(
+        first_facts.consts().value(HirFactId::Def(height_def)),
+        Some(ConstValue::Nat(5))
+    );
+    assert_eq!(
+        first_facts.consts().value(HirFactId::Expr(width_call)),
+        Some(ConstValue::Nat(5))
+    );
+    assert_eq!(
+        first_facts.consts().value(HirFactId::Expr(add_one_body)),
+        Some(ConstValue::Nat(5))
+    );
+}
+
+#[test]
+fn const_evaluator_reports_structured_step_limit_for_long_running_const_fn() {
+    let source = r#"
+fn burn_steps(limit: Nat) -> Nat {
+    var i: Nat = 0
+
+    while i < limit {
+        i = i + 1
+    }
+
+    return i
+}
+
+const WIDTH: Nat = burn_steps(20000)
+
+module Top(y: out UInt<1>) {
+}
+"#;
+    let file = SourceParser::new_in(source, SourceId::new(0))
+        .parse_file()
+        .expect("step-limit fixture must parse");
+    let files = [file];
+    let output = SemanticCompiler::new().session(&files).check();
+    let tir = output
+        .tir()
+        .expect("step-limit fixture must still type-check into TIR");
+    let hir = tir.design().hir();
+    let width_def = def_id(hir, "WIDTH");
+    let width_item = hir
+        .consts
+        .get(&width_def)
+        .expect("WIDTH const item must exist");
+    let program = ConstMirBuilder::new(tir.design())
+        .build()
+        .expect("const MIR program lowering must succeed");
+    let expr = ConstMirBuilder::new(tir.design()).lower_const_expr(width_def, &width_item.value);
+    let mut evaluator = program.evaluator();
+    let err = evaluator
+        .expr_value(&expr, &mut ConstEvalEnv::with_owner(Some(width_def)))
+        .expect_err("long-running const fn must hit the evaluator step limit");
+
+    match err.kind() {
+        LoweringError::Const(ConstEvalError::StepLimitExceeded { limit }) => {
+            assert_eq!(*limit, 10_000)
+        }
+        other => panic!("expected structured step-limit error, got {other:?}"),
+    }
+    assert_eq!(
+        output
             .facts()
-            .expect("second run must expose facts")
+            .expect("step-limit fixture must still expose facts")
             .consts()
+            .value(HirFactId::Def(width_def)),
+        None
     );
 }
 

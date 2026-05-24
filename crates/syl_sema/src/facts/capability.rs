@@ -124,12 +124,12 @@ fn capability_kind_for_id(
         TirType::Clock { domain } => Some(CapabilityKind::Clock {
             domain: domain
                 .as_deref()
-                .and_then(|value| domain_type_id(types, table, value)),
+                .and_then(|value| domain_type_id(types, value)),
         }),
         TirType::Reset { domain } => Some(CapabilityKind::Reset {
             domain: domain
                 .as_deref()
-                .and_then(|value| domain_type_id(types, table, value)),
+                .and_then(|value| domain_type_id(types, value)),
         }),
         TirType::View { base, view } => {
             let HirFactId::Local(local_id) = id else {
@@ -167,7 +167,7 @@ fn capability_kind_for_id(
     }
 }
 
-fn domain_type_id(types: &TypeTable, table: &TirTypeTable, target: &TirType) -> Option<TypeId> {
+fn domain_type_id(types: &TypeTable, target: &TirType) -> Option<TypeId> {
     if let TirType::Named {
         generic: Some(local),
         ..
@@ -176,7 +176,5 @@ fn domain_type_id(types: &TypeTable, table: &TirTypeTable, target: &TirType) -> 
     {
         return Some(type_id);
     }
-    table
-        .iter()
-        .find_map(|(id, known)| (known == target).then_some(id))
+    None
 }
