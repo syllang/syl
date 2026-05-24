@@ -333,6 +333,7 @@
   Log
   - 2026-05-24 S1 - 主 Agent 派出 Work SubAgent，执行 Phase 7 Query / Session / LSP 增量化：强化 session workspace/VFS/package graph/cache invalidation，保持 query 只暴露 compiler facts、LSP 只做协议适配，补充分阶段 diagnostics、取消支持和 hover/completion 不触发完整 emit 的可执行证据。
   - 2026-05-24 S1 - Work SubAgent 完成 Phase 7 初版交付：`syl_session` 增加 cancellation、workspace/source/package snapshot 与 package-aware invalidation 基础，`syl_query` 增加 cancellable query entrypoints 与 grouped diagnostics，`syl_lsp` 增加 protocol-only adapter 并从 grouped diagnostics 发布 LSP diagnostics，architecture_phase7_query_lsp 覆盖 package cache reuse、query boundary、stage-grouped diagnostics、hover/completion no emit、cancellation 和 LSP adapter；主 Agent 验证 architecture tests、syl_session/query/lsp tests、workspace check、文件规模和 `git diff --check` 均通过。
+  - 2026-05-24 S2 - 主 Agent 派出 Review SubAgent，按 Phase 7 MUST FIX 和退出标准独立审查 session workspace/cache ownership、query compiler-facts-only 边界、LSP protocol adapter 边界、stage/file/package diagnostics、cancellation、partial result 和 hover/completion no-emit 证据。
 
   ———
 
