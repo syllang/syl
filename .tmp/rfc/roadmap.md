@@ -375,6 +375,7 @@
   Log
   - 2026-05-24 S1 - 主 Agent 派出 Work SubAgent，执行 Phase 8 标准库与组合 API：以普通 Syl 库形式建立 examples/std 分层骨架，优先覆盖 Stream/Stage/Link 组合 API、用户自定义 cell 与官方库同等组合能力、std 不绕过 driver/capability checker、public summaries 可进入 opaque library 测试；本阶段不得把 std 语义硬编码进编译器核心。
   - 2026-05-24 S1 - Work SubAgent 完成 Phase 8 初版交付：将 examples/std 收敛为通过 `std_roots` 解析的普通 `std.*` Syl 包，新增 logic/bundles/stream/stage/vendor/assertions 分层骨架与 std_user 自定义组合示例；`syl_session` package semantic shard 改为包含 import 依赖闭包，CLI 增加显式 `--std-root`；architecture_phase8_std 覆盖 std 普通 session pipeline、source-derived Stage/Link cell summaries、vendor opaque summary overlay、用户 cell capability 检查和禁止 compiler hardcode；验证指定测试矩阵、workspace all-targets、`git diff --check` 和 Rust 文件行数检查均通过。
+  - 2026-05-24 S2 - Review SubAgent 判定 Phase 8 未收敛：`examples/std/logic.syl` 未通过 `git diff --check`；`syl_lsp` cancellation diagnostics 测试出现一次失败后重跑通过，说明 request cancellation 仍可能 flaky；source-derived `std.stage.stage_link` summary 尚未证明能表达 endpoint capability/protocol/latency，现有 latency 证据只来自手写 vendor opaque summary；std 改写后的 examples 弱化了原有 transform 行为；`std.bundle`/`std.assert` 因关键字改为 `std.bundles`/`std.assertions` 未记录为命名债务；hardcode guard 仍偏字符串搜索，证据不足。
 
   ———
 
