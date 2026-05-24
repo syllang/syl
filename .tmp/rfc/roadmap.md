@@ -258,6 +258,7 @@
   - 2026-05-24 S1 - 主 Agent 派出 Work SubAgent，执行 Phase 5 Opaque Boundary 与 Metadata：建立 machine-readable extern/precompiled summary，确保 driver/capability/domain/layout/latency/protocol facts 可进入编译产物，定义 blackbox/vendor IP trust boundary，并补充无源码库参与 multi-driver 检查的可执行证据。
   - 2026-05-24 S1 - Work SubAgent 完成 Phase 5 初版交付：在 `syl_sema` 建立 machine-readable `OpaqueSummaryTable`/`OpaqueItemSummary`，extern 签名自动推导 source-derived summary，`syl_elab` 可注入 trusted/precompiled summary 并把 summary facts 保存到 hardware metadata，session/query 暴露只读 summary API，architecture_phase5_opaque 覆盖 extern out 自动 drive、无源码 summary 参与 DRC、trust boundary 和 query/session 边界；主 Agent 验证 architecture tests、syl_elab tests、driver_overlap、workspace check、文件规模和 `git diff --check` 均通过。
   - 2026-05-24 S2 - 主 Agent 派出 Review SubAgent，按 Phase 5 MUST FIX 和退出标准独立审查 opaque/precompiled summary 模型、extern drive 推导、编译产物 metadata、trust boundary、query/session/elab 共享边界和无源码库 multi-driver 检查证据。
+  - 2026-05-24 S2 - Review SubAgent 判定 Phase 5 未收敛：extern drive 自动推导、trusted summary 进入 DRC 与结构化 trust boundary 已成立，但 injected trusted/precompiled summaries 只在 `syl_elab` 合并，`syl_session`/`syl_query`/LSP 仍只读取 source-derived sema summaries，未满足公共 summary API 被 LSP、CLI、elab 共同读取的退出标准；现有测试也未覆盖 merged overlay 经 snapshot/query 可见。
 
   ———
 
