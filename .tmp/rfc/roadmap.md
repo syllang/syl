@@ -216,6 +216,7 @@
   - 2026-05-24 S1 - Work SubAgent 完成 Phase 4 初版交付：`syl_elab` pipeline 拆为 ConstMir/MapIr/EirBuild/DriverFacts/DRC/HardwareMetadata/HwLowering passes，driver facts 收集与 DRC 检查拆分，EIR/driver dump 增强，multi-driver 诊断补充 expansion call stack，architecture_phase4_elab 覆盖 stage access、dump、driver conflict、cell/module boundary；主 Agent 验证 architecture tests、syl_elab tests、driver_overlap、workspace check、文件规模和 `git diff --check` 均通过。
   - 2026-05-24 S2 - 主 Agent 派出 Review SubAgent，按 Phase 4 MUST FIX 和退出标准独立审查 pass 边界真实性、DriverFacts/DRC 分离、EIR builder 边界、multi-driver facts basis、EIR dump、call stack diagnostics 和 cell/module boundary。
   - 2026-05-24 S2 - Review SubAgent 判定 Phase 4 未收敛：DriverFacts/DRC、call stack diagnostics、dump 与 cell/module boundary 已实质改善，但 `EirBuildPass` 仍经 `EirDesignAssembler::assemble` 内联执行 `EirValidator` 与 `EirFactCollector`，build/validation/diagnostic 责任未真实拆开；architecture_phase4_elab 未能拦住该边界泄漏。
+  - 2026-05-24 S3 - 主 Agent 审核 Review 结论后派 Work SubAgent 做窄整改：拆开 raw EIR build、EIR validation、EIR facts collection 三个真实 pass，禁止 `EirBuildPass` 经由隐式 assembler 聚合验证和 facts，并补强 architecture_phase4_elab 的结构化边界守卫。
 
   ———
 
