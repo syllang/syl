@@ -62,7 +62,7 @@
 
   ———
 
-  ## [ ] Phase 1：IR 所有权收敛
+  ## [x] Phase 1：IR 所有权收敛
 
   目标：解决“多个阶段各自偷偷定义类似 IR”的问题。长期工业级编译器最怕 IR 边界模糊，因为后续 pass、LSP、增量编译都会被拖垮。
 
@@ -98,6 +98,7 @@
   - 2026-05-23 S3 - 主 Agent 审核 Review 结论后派 Work SubAgent 整改：将 driver/read/create/cell summary facts 移出 HW IR 核心模型，补齐 AST/HIR dump 证据，增强 architecture_phase1_ir 扫描范围，并把 EIR `Elaborator` 从数据文件迁出。
   - 2026-05-23 S4 - Work SubAgent 完成 Phase 1 整改：删除 HW IR 中 driver/read/create/cell summary 临时字段并迁入 elab-owned `HardwareMetadata` sidecar，新增 AST/HIR debug dump，增强 architecture_phase1_ir 全目录 guard，将 EIR `Elaborator` 迁出数据文件；主 Agent 验证 architecture tests、workspace check、相关 driver/cell tests、targeted grep 和 `git diff --check` 均通过。
   - 2026-05-23 S2 - 主 Agent 派出第二轮 Review SubAgent，复查 S4 整改是否满足 Phase 1，只有 Review Agent 判 PASS 才允许标记完成。
+  - 2026-05-23 S2 - Review SubAgent 判定 PASS 且授权标记 Phase 1 完成：上一轮 Must Fix 已收敛，HW IR 不再携带 driver metadata，AST/HIR/TIR/Const MIR/Map IR/EIR/HW IR/SV AST dump 经真实 pipeline 覆盖，EIR 数据文件与 orchestration 分离；主 Agent 将 Phase 1 标记为完成。
 
   ———
 
