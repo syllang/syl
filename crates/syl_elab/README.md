@@ -59,4 +59,7 @@ that other crates must consume, such as `HardwareCompiler` and
 `ParametricHwDesign`. HIR/TIR analysis stages, hover/definition helpers, and
 session-style orchestration must stay out of this crate's public API. Opaque
 summary injection is limited to `HardwareCompiler` and metadata read-back so the
-shared summary model still remains sema-owned.
+shared summary model still remains sema-owned; session-owned orchestration
+registers the same workspace-level overlays through `AnalysisHost` before
+elaboration so CLI/direct-compiler convenience does not diverge from
+query/LSP-visible summary surfaces.

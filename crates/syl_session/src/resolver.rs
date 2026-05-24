@@ -6,6 +6,7 @@ use crate::{
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use syl_sema::OpaqueSummaryTable;
 use syl_span::{Diagnostic, SourceMap};
 use syl_syntax::parser::SourceParser;
 use syl_syntax::{AstFile, Item};
@@ -70,7 +71,10 @@ where
 
     pub fn load_paths(&self, paths: Vec<PathBuf>) -> Result<Project, ProjectError> {
         let resolved = self.snapshot(paths, &BTreeMap::new())?;
-        let semantic = Arc::new(SemanticCache::new(resolved.ast_files()));
+        let semantic = Arc::new(SemanticCache::new(
+            resolved.ast_files(),
+            OpaqueSummaryTable::new(),
+        ));
         Ok(Project::new(AnalysisSnapshot::new(resolved, semantic)))
     }
 

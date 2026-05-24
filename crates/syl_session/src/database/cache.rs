@@ -3,6 +3,7 @@ use crate::{
     snapshot::ResolvedSnapshot, snapshot::SemanticCache,
 };
 use std::{collections::BTreeMap, path::PathBuf, sync::Arc};
+use syl_sema::OpaqueSummaryTable;
 use syl_syntax::AstFile;
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -190,12 +191,13 @@ impl SemanticCacheStore {
         &mut self,
         key: SemanticSnapshotKey,
         ast_files: Vec<AstFile>,
+        opaque_summary_overlay: OpaqueSummaryTable,
     ) -> Arc<SemanticCache> {
         self.cached
             .entry(key.clone())
             .or_insert_with(|| CachedSemanticCache {
                 key,
-                cache: Arc::new(SemanticCache::new(ast_files)),
+                cache: Arc::new(SemanticCache::new(ast_files, opaque_summary_overlay)),
             })
             .cache
             .clone()

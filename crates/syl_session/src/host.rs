@@ -3,6 +3,7 @@ use crate::{
     ProjectResolver, SourceDocument,
 };
 use std::path::PathBuf;
+use syl_sema::{OpaqueItemSummary, OpaqueSummaryTable};
 
 #[derive(Debug)]
 #[non_exhaustive]
@@ -69,6 +70,18 @@ impl AnalysisHost {
 
     pub fn overlay(&self, uri: &DocumentUri) -> Option<&SourceDocument> {
         self.database.overlay(uri)
+    }
+
+    pub fn opaque_summaries(&self) -> &OpaqueSummaryTable {
+        self.database.opaque_summaries()
+    }
+
+    pub fn set_opaque_summaries(&mut self, opaque_summaries: OpaqueSummaryTable) {
+        self.database.set_opaque_summaries(opaque_summaries);
+    }
+
+    pub fn register_opaque_summary(&mut self, summary: OpaqueItemSummary) {
+        self.database.register_opaque_summary(summary);
     }
 
     pub fn database(&self) -> &AnalysisDatabase {

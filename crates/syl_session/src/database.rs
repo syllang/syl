@@ -12,6 +12,7 @@ use cache::{
 };
 use documents::{DocumentInputs, DocumentStore};
 use std::path::PathBuf;
+use syl_sema::{OpaqueItemSummary, OpaqueSummaryTable};
 
 pub use revision::DatabaseRevision;
 
@@ -20,6 +21,7 @@ pub use revision::DatabaseRevision;
 pub struct AnalysisDatabase {
     resolver: ProjectResolver,
     documents: DocumentStore,
+    opaque_summaries: OpaqueSummaryTable,
     snapshot_cache: SnapshotCache,
     semantic_cache_store: SemanticCacheStore,
     revision: DatabaseRevision,
@@ -40,6 +42,7 @@ impl<'a> SnapshotQuery<'a> {
     fn execute(
         self,
         resolver: &ProjectResolver,
+        opaque_summaries: &OpaqueSummaryTable,
         snapshot_cache: &mut SnapshotCache,
         semantic_cache_store: &mut SemanticCacheStore,
     ) -> Result<AnalysisSnapshot, ProjectError> {
@@ -50,8 +53,11 @@ impl<'a> SnapshotQuery<'a> {
         let (roots, overlays) = self.inputs.into_resolver_inputs();
         let resolved = resolver.snapshot(roots, overlays)?;
         let semantic_key = SemanticSnapshotKey::from_snapshot(&resolved);
-        let semantic =
-            semantic_cache_store.semantic_for_snapshot(semantic_key, resolved.ast_files());
+        let semantic = semantic_cache_store.semantic_for_snapshot(
+            semantic_key,
+            resolved.ast_files(),
+            opaque_summaries.clone(),
+        );
         let snapshot = AnalysisSnapshot::new(resolved, semantic);
         let cached = CachedSnapshot::new(self.key.clone(), snapshot);
         Ok(snapshot_cache.store(cached))
@@ -71,6 +77,7 @@ impl AnalysisDatabase {
         Self {
             resolver,
             documents: DocumentStore::default(),
+            opaque_summaries: OpaqueSummaryTable::new(),
             snapshot_cache: SnapshotCache::default(),
             semantic_cache_store: SemanticCacheStore::new(),
             revision: DatabaseRevision::initial(),
@@ -153,6 +160,25 @@ impl AnalysisDatabase {
         self.documents.overlay(uri)
     }
 
+    pub fn opaque_summaries(&self) -> &OpaqueSummaryTable {
+        &self.opaque_summaries
+    }
+
+    pub fn set_opaque_summaries(&mut self, opaque_summaries: OpaqueSummaryTable) {
+        if self.opaque_summaries == opaque_summaries {
+            return;
+        }
+        self.opaque_summaries = opaque_summaries;
+        self.advance_revision();
+        self.invalidate(InvalidationPlan::project_graph_changed());
+    }
+
+    pub fn register_opaque_summary(&mut self, summary: OpaqueItemSummary) {
+        let mut opaque_summaries = self.opaque_summaries.clone();
+        opaque_summaries.register(summary);
+        self.set_opaque_summaries(opaque_summaries);
+    }
+
     pub fn revision(&self) -> DatabaseRevision {
         self.revision
     }
@@ -160,9 +186,15 @@ impl AnalysisDatabase {
     pub fn snapshot(&mut self) -> Result<AnalysisSnapshot, ProjectError> {
         let query = SnapshotQuery::new(self.documents.snapshot_inputs());
         let resolver = &self.resolver;
+        let opaque_summaries = &self.opaque_summaries;
         let snapshot_cache = &mut self.snapshot_cache;
         let semantic_cache_store = &mut self.semantic_cache_store;
-        query.execute(resolver, snapshot_cache, semantic_cache_store)
+        query.execute(
+            resolver,
+            opaque_summaries,
+            snapshot_cache,
+            semantic_cache_store,
+        )
     }
 
     fn advance_revision(&mut self) {

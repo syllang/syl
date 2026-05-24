@@ -193,12 +193,7 @@ impl AnalysisSnapshot {
     }
 
     pub fn opaque_summaries(&self) -> Option<&OpaqueSummaryTable> {
-        if let Some(tir) = self.tir_analysis() {
-            return Some(tir.opaque_summaries());
-        }
-        self.semantic
-            .elaboration_output()
-            .and_then(|output| output.opaque_summaries())
+        self.semantic.opaque_summaries()
     }
 
     pub fn is_hir_cached(&self) -> bool {

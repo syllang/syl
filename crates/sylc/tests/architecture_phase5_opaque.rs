@@ -35,6 +35,8 @@ fn architecture_phase5_public_summary_surface_stays_explicit() {
     for required in [
         "AnalysisSnapshot::opaque_summaries()",
         "Project::opaque_summaries()",
+        "AnalysisHost::set_opaque_summaries()",
+        "AnalysisHost::register_opaque_summary()",
     ] {
         assert!(
             session_readme.contains(required),
@@ -57,6 +59,7 @@ fn architecture_phase5_public_summary_surface_stays_explicit() {
     let sema_analysis = read_text(&workspace.join("crates/syl_sema/src/analysis.rs"));
     let sema_facts = read_text(&workspace.join("crates/syl_sema/src/facts.rs"));
     let session_model = read_text(&workspace.join("crates/syl_session/src/snapshot/model.rs"));
+    let session_host = read_text(&workspace.join("crates/syl_session/src/host.rs"));
     let query_api = read_text(&workspace.join("crates/syl_query/src/snapshot/api.rs"));
     let pipeline = read_text(&workspace.join("crates/syl_elab/src/pipeline.rs"));
 
@@ -76,6 +79,15 @@ fn architecture_phase5_public_summary_surface_stays_explicit() {
         assert!(
             session_model.contains(required) || query_api.contains(required),
             "session/query public API must expose borrowed opaque summaries: missing {required:?}"
+        );
+    }
+    for required in [
+        "pub fn set_opaque_summaries(&mut self, opaque_summaries: OpaqueSummaryTable)",
+        "pub fn register_opaque_summary(&mut self, summary: OpaqueItemSummary)",
+    ] {
+        assert!(
+            session_host.contains(required),
+            "session host must expose workspace-level opaque summary overlay registration: missing {required:?}"
         );
     }
     assert!(
@@ -139,6 +151,112 @@ extern module DriveBit(y: out Bit)
     assert!(matches!(endpoint.layout(), SummaryLayout::Bit));
     assert!(matches!(endpoint.capability(), SummaryCapability::Value));
     assert!(!snapshot.is_elaboration_cached());
+}
+
+#[test]
+fn architecture_phase5_host_registered_overlay_is_visible_to_query_and_elab() {
+    let source = r#"
+extern module VendorBox(y: in Bit)
+
+module Top(y: out Bit) {
+    signal tmp: Bit := 0
+    inst vendor = VendorBox(y: tmp)
+    y := tmp
+}
+    "#;
+    let uri = DocumentUri::new("untitled:syl/phase5-overlay");
+    let mut host = AnalysisHost::new();
+    host.open_document(uri.clone(), source.to_string(), DocumentVersion::new(1));
+    let baseline = host
+        .snapshot()
+        .expect("baseline fixture must snapshot cleanly");
+    let baseline_summary = baseline
+        .opaque_summaries()
+        .and_then(|summaries| summaries.get("VendorBox"))
+        .expect("extern summary must exist before overlay registration");
+    assert!(matches!(
+        baseline_summary.kind(),
+        OpaqueItemKind::ExternModule
+    ));
+    assert!(matches!(
+        baseline_summary.trust_boundary(),
+        TrustBoundary::SourceDerived
+    ));
+
+    host.register_opaque_summary(
+        OpaqueItemSummary::builder(OpaqueItemKind::PrecompiledCell, "VendorBox")
+            .endpoint(SummaryEndpoint::new(
+                "y",
+                SummaryDirection::In,
+                SummaryLayout::Bit,
+                SummaryCapability::Value,
+            ))
+            .driven_field(SummaryPath::new("y"))
+            .latency_class(SummaryLatencyClass::Sequential)
+            .trust_boundary(TrustBoundary::VendorBlackBox {
+                vendor: "acme".to_string(),
+            })
+            .backend_constraint(BackendConstraint::RequiresBackend {
+                backend: "systemverilog".to_string(),
+            })
+            .build(),
+    );
+    let snapshot = host
+        .snapshot()
+        .expect("overlay fixture must snapshot cleanly");
+
+    assert!(
+        !baseline.shares_semantic_cache_with(&snapshot),
+        "registering a workspace overlay must invalidate the previous semantic cache"
+    );
+    assert!(!snapshot.is_elaboration_cached());
+    let from_session = snapshot
+        .opaque_summaries()
+        .expect("snapshot must expose merged opaque summaries");
+    let from_query = AnalysisQueries::opaque_summaries(&snapshot)
+        .expect("query trait must borrow the same merged summary surface");
+    let summary = from_session
+        .get("VendorBox")
+        .expect("host-registered overlay must merge into snapshot summaries");
+
+    assert_eq!(
+        summary,
+        from_query
+            .get("VendorBox")
+            .expect("query surface must match")
+    );
+    assert!(matches!(summary.kind(), OpaqueItemKind::PrecompiledCell));
+    assert!(matches!(
+        summary.trust_boundary(),
+        TrustBoundary::VendorBlackBox { vendor } if vendor == "acme"
+    ));
+    assert_eq!(
+        summary
+            .driven_fields()
+            .iter()
+            .map(SummaryPath::display)
+            .collect::<Vec<_>>(),
+        vec!["y".to_string()]
+    );
+    assert!(matches!(
+        summary.backend_constraints(),
+        [BackendConstraint::RequiresBackend { backend }] if backend == "systemverilog"
+    ));
+    assert!(!snapshot.is_elaboration_cached());
+
+    let duplicate = snapshot
+        .semantic_diagnostics()
+        .into_iter()
+        .find(|diagnostic| diagnostic.code.as_deref() == Some("E_MIDDLE_DUPLICATE_HARDWARE_DRIVER"))
+        .expect("the same overlay visible to query must also feed elaboration DRC");
+
+    assert!(
+        duplicate
+            .message
+            .contains("duplicate hardware driver for tmp"),
+        "overlay-driven DRC must stay structured across the session/elab boundary"
+    );
+    assert!(snapshot.is_elaboration_cached());
 }
 
 #[test]

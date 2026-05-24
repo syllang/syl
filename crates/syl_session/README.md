@@ -58,5 +58,8 @@ that CLI, queries, LSP, and embedders must share. Database internals, cache
 plumbing, elaboration internals, and orchestration helpers remain private so
 `syl_session` exposes state boundaries and sema-owned analysis access, not
 implementation details. Opaque summary access stays read-only through
-`AnalysisSnapshot::opaque_summaries()` and `Project::opaque_summaries()` rather
-than turning session into a metadata owner.
+`AnalysisSnapshot::opaque_summaries()` and `Project::opaque_summaries()`, while
+workspace-level trusted overlays are registered through
+`AnalysisHost::set_opaque_summaries()` or `AnalysisHost::register_opaque_summary()`.
+That keeps the merged summary surface shared between session/query/LSP readers
+and elaboration consumers instead of turning session into a metadata owner.

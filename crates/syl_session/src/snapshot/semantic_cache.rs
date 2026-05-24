@@ -1,24 +1,30 @@
 use std::{fmt, sync::OnceLock};
 use syl_elab::{ElaborationOutput, HardwareCompiler};
-use syl_sema::{HirAnalysis, HirAnalysisOutput, SemanticCompiler, StageOutput, TirAnalysis};
+use syl_sema::{
+    HirAnalysis, HirAnalysisOutput, OpaqueSummaryTable, SemanticCompiler, StageOutput, TirAnalysis,
+};
 use syl_span::Diagnostic;
 use syl_syntax::AstFile;
 
 #[non_exhaustive]
 pub struct SemanticCache {
     ast_files: Vec<AstFile>,
+    opaque_summary_overlay: OpaqueSummaryTable,
     hir: OnceLock<HirAnalysisOutput>,
     tir: OnceLock<StageOutput<TirAnalysis>>,
+    opaque_summaries: OnceLock<OpaqueSummaryTable>,
     elaboration: OnceLock<ElaborationOutput>,
     diagnostics: OnceLock<Vec<Diagnostic>>,
 }
 
 impl SemanticCache {
-    pub fn new(ast_files: Vec<AstFile>) -> Self {
+    pub fn new(ast_files: Vec<AstFile>, opaque_summary_overlay: OpaqueSummaryTable) -> Self {
         Self {
             ast_files,
+            opaque_summary_overlay,
             hir: OnceLock::new(),
             tir: OnceLock::new(),
+            opaque_summaries: OnceLock::new(),
             elaboration: OnceLock::new(),
             diagnostics: OnceLock::new(),
         }
@@ -44,6 +50,16 @@ impl SemanticCache {
         self.tir_output().partial_stage()
     }
 
+    pub(crate) fn opaque_summaries(&self) -> Option<&OpaqueSummaryTable> {
+        if let Some(tir) = self.tir() {
+            return Some(
+                self.opaque_summaries
+                    .get_or_init(|| tir.opaque_summaries().merged(&self.opaque_summary_overlay)),
+            );
+        }
+        (!self.opaque_summary_overlay.is_empty()).then_some(&self.opaque_summary_overlay)
+    }
+
     pub(crate) fn elaboration_output(&self) -> Option<&ElaborationOutput> {
         if !self.hir_output().diagnostics().is_empty() {
             return None;
@@ -52,10 +68,10 @@ impl SemanticCache {
             return None;
         }
         let tir = self.tir()?;
-        Some(
-            self.elaboration
-                .get_or_init(|| HardwareCompiler::new().output_for_tir(tir)),
-        )
+        Some(self.elaboration.get_or_init(|| {
+            HardwareCompiler::with_opaque_summaries(self.opaque_summary_overlay.clone())
+                .output_for_tir(tir)
+        }))
     }
 
     pub(crate) fn diagnostics(&self) -> Vec<Diagnostic> {
@@ -93,8 +109,16 @@ impl fmt::Debug for SemanticCache {
         formatter
             .debug_struct("SemanticCache")
             .field("ast_file_count", &self.ast_files.len())
+            .field(
+                "opaque_summary_overlay_count",
+                &self.opaque_summary_overlay.len(),
+            )
             .field("hir_cached", &self.is_hir_cached())
             .field("tir_cached", &self.is_tir_cached())
+            .field(
+                "opaque_summaries_cached",
+                &self.opaque_summaries.get().is_some(),
+            )
             .field("elaboration_cached", &self.is_elaboration_cached())
             .field("diagnostics_cached", &self.diagnostics.get().is_some())
             .finish()
