@@ -20,6 +20,8 @@ Map IR for pure combinational map semantics, and structured semantic diagnostics
 - typed HIR and TIR analysis objects consumed by `syl_elab`, `syl_session`, and
   `syl_query`
 - semantic hover/definition/completion support over HIR and TIR
+- machine-readable opaque/public boundary summaries for extern and precompiled
+  integration points
 - structured semantic errors and diagnostics
 - explicit Phase 3 fact owners:
   `HirAnalysis::resolution() -> ResolutionTable`,
@@ -27,7 +29,7 @@ Map IR for pure combinational map semantics, and structured semantic diagnostics
   `SemanticOutput::facts() -> Option<&SemanticFacts>`
 - sema-owned fact tables inside `SemanticFacts`:
   `ResolutionTable`, `TypeTable`, `CapabilityTable`, `ConstFacts`,
-  `LayoutFacts`, and `ProtocolFacts`
+  `LayoutFacts`, `ProtocolFacts`, and `OpaqueSummaryTable`
 
 ## Allowed Dependencies
 
@@ -65,4 +67,7 @@ Internal walkers, caches, and checking helpers should remain private so
 `syl_sema` exports facts and semantic lookups, not its implementation details.
 Phase 3 facts are exposed as a read-only facts facade: HIR owns resolution
 graph queries, TIR owns typed/capability/const/layout/protocol facts, and
-neither API requires elaboration or HW IR construction.
+neither API requires elaboration or HW IR construction. Opaque/public boundary
+summaries follow the same rule: `TirAnalysis::opaque_summaries()` and
+`SemanticFacts::opaque_summaries()` expose machine-readable metadata, while the
+collection logic remains internal.

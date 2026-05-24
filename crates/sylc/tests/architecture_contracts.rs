@@ -367,7 +367,7 @@ fn crate_contracts() -> &'static [CrateContract] {
             name: "sylc",
             rank: 9,
             dependencies: &["syl_emit", "syl_session", "syl_span", "syl_syntax"],
-            dev_dependencies: &["syl_elab", "syl_hw", "syl_sema"],
+            dev_dependencies: &["syl_elab", "syl_hw", "syl_query", "syl_sema"],
             readme_mentions: &[
                 "syl_session",
                 "syl_emit",

@@ -16,7 +16,8 @@ snapshot.
 
 - `AnalysisHost`, `ProjectResolver`, and configuration types
 - `ResolvedSnapshot`, `AnalysisSnapshot`, and `Project`
-- source files, session diagnostics, access to semantic analysis, and final HWIR
+- source files, session diagnostics, access to semantic analysis, machine-readable
+  opaque summaries, and final HWIR
 
 ## Allowed Dependencies
 
@@ -56,4 +57,6 @@ Public items are restricted to workspace/session handles and snapshot access
 that CLI, queries, LSP, and embedders must share. Database internals, cache
 plumbing, elaboration internals, and orchestration helpers remain private so
 `syl_session` exposes state boundaries and sema-owned analysis access, not
-implementation details.
+implementation details. Opaque summary access stays read-only through
+`AnalysisSnapshot::opaque_summaries()` and `Project::opaque_summaries()` rather
+than turning session into a metadata owner.

@@ -21,4 +21,5 @@ syl_syntax.workspace = true
 [dev-dependencies]
 syl_elab.workspace = true
 syl_hw.workspace = true
+syl_query.workspace = true
 syl_sema.workspace = true

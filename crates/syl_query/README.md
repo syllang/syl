@@ -16,6 +16,8 @@ analysis snapshot.
 
 - protocol-neutral diagnostics grouped by document
 - hover, definition, completion, and document-symbol results
+- read-only access to machine-readable opaque/public summaries already owned by
+  the snapshot
 - query traits consumed by LSP, tests, and future non-LSP tools
 
 ## Allowed Dependencies
@@ -53,3 +55,5 @@ analysis snapshot.
 Public items are limited to query traits and result DTOs that another crate must
 consume. Query engines, collectors, and heuristics stay private so callers see a
 stable question-and-answer surface instead of internal traversal machinery.
+Opaque summary access is intentionally a borrowed snapshot view
+(`AnalysisQueries::opaque_summaries()`) rather than a new query-owned DTO.

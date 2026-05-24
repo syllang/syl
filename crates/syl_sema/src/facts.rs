@@ -5,6 +5,7 @@ mod protocol;
 mod resolution;
 mod types;
 
+use crate::opaque_summary::OpaqueSummaryTable;
 use crate::tir::TirDesign;
 
 pub use capability::{
@@ -30,6 +31,7 @@ pub struct SemanticFacts {
     consts: ConstFacts,
     layouts: LayoutFacts,
     protocols: ProtocolFacts,
+    opaque_summaries: OpaqueSummaryTable,
 }
 
 impl SemanticFacts {
@@ -41,6 +43,7 @@ impl SemanticFacts {
             consts: ConstFacts::empty(),
             layouts: LayoutFacts::empty(),
             protocols: ProtocolFacts::empty(),
+            opaque_summaries: OpaqueSummaryTable::empty(),
         }
     }
 
@@ -51,6 +54,7 @@ impl SemanticFacts {
         let capabilities = CapabilityTable::collect(tir, &types, &protocols);
         let consts = ConstFacts::collect(tir);
         let layouts = LayoutFacts::collect(tir, &protocols);
+        let opaque_summaries = OpaqueSummaryTable::collect(tir, &types, &capabilities, &protocols);
         Self {
             resolution,
             types,
@@ -58,6 +62,7 @@ impl SemanticFacts {
             consts,
             layouts,
             protocols,
+            opaque_summaries,
         }
     }
 
@@ -83,5 +88,9 @@ impl SemanticFacts {
 
     pub fn protocols(&self) -> &ProtocolFacts {
         &self.protocols
+    }
+
+    pub fn opaque_summaries(&self) -> &OpaqueSummaryTable {
+        &self.opaque_summaries
     }
 }

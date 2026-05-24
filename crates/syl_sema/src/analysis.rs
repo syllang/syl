@@ -3,6 +3,7 @@ use crate::{
     completion::{CompletionItem, CompletionKind},
     facts::{ResolutionTable, SemanticFacts},
     hir::{HirDef, HirDesign, HirExpr},
+    opaque_summary::OpaqueSummaryTable,
     tir::{TirDesign, TypePhaseChecker},
 };
 use std::{fmt, sync::Arc};
@@ -92,6 +93,10 @@ impl SemanticOutput {
 
     pub fn facts(&self) -> Option<&SemanticFacts> {
         self.tir().map(TirAnalysis::facts)
+    }
+
+    pub fn opaque_summaries(&self) -> Option<&OpaqueSummaryTable> {
+        self.tir().map(TirAnalysis::opaque_summaries)
     }
 
     pub fn diagnostics(&self) -> &[Diagnostic] {
@@ -366,6 +371,10 @@ impl TirAnalysis {
 
     pub fn facts(&self) -> &SemanticFacts {
         self.design.facts()
+    }
+
+    pub fn opaque_summaries(&self) -> &OpaqueSummaryTable {
+        self.facts().opaque_summaries()
     }
 
     pub fn debug_dump(&self) -> String {

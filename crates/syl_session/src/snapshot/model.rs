@@ -4,7 +4,7 @@ use std::{
     sync::Arc,
 };
 use syl_hw::ParametricHwDesign;
-use syl_sema::{HirAnalysis, TirAnalysis};
+use syl_sema::{HirAnalysis, OpaqueSummaryTable, TirAnalysis};
 use syl_span::{Diagnostic, SourceId, SourceMap};
 use syl_syntax::{AstFile, AstNodeIndex};
 
@@ -192,6 +192,15 @@ impl AnalysisSnapshot {
         self.semantic.tir()
     }
 
+    pub fn opaque_summaries(&self) -> Option<&OpaqueSummaryTable> {
+        if let Some(tir) = self.tir_analysis() {
+            return Some(tir.opaque_summaries());
+        }
+        self.semantic
+            .elaboration_output()
+            .and_then(|output| output.opaque_summaries())
+    }
+
     pub fn is_hir_cached(&self) -> bool {
         self.semantic.is_hir_cached()
     }
@@ -242,5 +251,9 @@ impl Project {
 
     pub fn ast_files(&self) -> Vec<AstFile> {
         self.snapshot().ast_files()
+    }
+
+    pub fn opaque_summaries(&self) -> Option<&OpaqueSummaryTable> {
+        self.snapshot().opaque_summaries()
     }
 }

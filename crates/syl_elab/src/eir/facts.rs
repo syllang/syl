@@ -10,20 +10,25 @@ use crate::{
     eir_place::EirPlace,
 };
 use std::collections::{BTreeMap, BTreeSet};
+use syl_sema::OpaqueSummaryTable;
 
 #[non_exhaustive]
 pub(crate) struct EirFactCollector {
     pub(crate) objects: Vec<EirObject>,
     pub(crate) drives: Vec<EirDrive>,
     pub(crate) reads: Vec<EirRead>,
+    opaque_summaries: OpaqueSummaryTable,
     module_ports: BTreeMap<String, Vec<(String, EirDirection)>>,
     guard_stack: Vec<EirGuardFrame>,
     module: String,
 }
 
 impl EirFactCollector {
-    pub(crate) fn collect(modules: &[EirModule]) -> Result<EirDesignFacts, CompileError> {
-        let mut collector = Self::new();
+    pub(crate) fn collect(
+        modules: &[EirModule],
+        opaque_summaries: &OpaqueSummaryTable,
+    ) -> Result<EirDesignFacts, CompileError> {
+        let mut collector = Self::new(opaque_summaries);
         collector.collect_modules(modules)?;
         Ok(EirDesignFacts::new(
             collector.objects,
@@ -32,11 +37,12 @@ impl EirFactCollector {
         ))
     }
 
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new(opaque_summaries: &OpaqueSummaryTable) -> Self {
         Self {
             objects: Vec::new(),
             drives: Vec::new(),
             reads: Vec::new(),
+            opaque_summaries: opaque_summaries.clone(),
             module_ports: BTreeMap::new(),
             guard_stack: Vec::new(),
             module: String::new(),
@@ -193,6 +199,16 @@ impl EirFactCollector {
     }
 
     fn record_instance_facts(&mut self, instance: &EirInstance) -> Result<(), CompileError> {
+        if let Some(summary) = self.opaque_summaries.get(instance.module()).cloned() {
+            return self.record_summary_instance_facts(instance, &summary);
+        }
+        self.record_signature_instance_facts(instance)
+    }
+
+    fn record_signature_instance_facts(
+        &mut self,
+        instance: &EirInstance,
+    ) -> Result<(), CompileError> {
         let guard = self.guard();
         let ports = self
             .module_ports
@@ -252,6 +268,64 @@ impl EirFactCollector {
             }
         }
         Ok(())
+    }
+
+    fn record_summary_instance_facts(
+        &mut self,
+        instance: &EirInstance,
+        summary: &syl_sema::OpaqueItemSummary,
+    ) -> Result<(), CompileError> {
+        let guard = self.guard();
+        let hardware_roots = self.hardware_read_roots();
+        for path in summary.driven_fields() {
+            let actual = self.instance_connection(instance, &path.flattened())?;
+            let place = EirPlace::try_from(actual).map_err(|_| {
+                CompileError::lowering_at(
+                    EirError::UnsupportedHardwareValueExpression,
+                    instance.origin().span(),
+                )
+            })?;
+            self.drives.push(EirDrive::new(
+                &self.module,
+                place,
+                EirDriveKind::Continuous,
+                guard.clone(),
+                instance.origin().clone(),
+            ));
+        }
+        for path in summary.consumed_fields() {
+            let actual = self.instance_connection(instance, &path.flattened())?;
+            for place in EirReadPlaceCollector::new(&hardware_roots).collect(actual) {
+                self.reads.push(EirRead::new(
+                    &self.module,
+                    place,
+                    guard.clone(),
+                    instance.origin().clone(),
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    fn instance_connection<'a>(
+        &self,
+        instance: &'a EirInstance,
+        formal: &str,
+    ) -> Result<&'a EirExpr, CompileError> {
+        instance
+            .connections()
+            .iter()
+            .find(|connection| connection.formal() == formal)
+            .map(|connection| connection.actual())
+            .ok_or_else(|| {
+                CompileError::lowering_at(
+                    DriverError::UnknownParameter {
+                        name: formal.to_string(),
+                        callable: instance.module().to_string(),
+                    },
+                    instance.origin().span(),
+                )
+            })
     }
 
     fn hardware_read_roots(&self) -> BTreeSet<String> {

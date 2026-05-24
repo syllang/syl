@@ -2,6 +2,7 @@ use crate::{
     CompletionItem, CompletionItemKind, CompletionResult, DefinitionResult, DocumentSymbolResult,
     HoverResult,
 };
+use syl_sema::OpaqueSummaryTable;
 use syl_sema::completion::CompletionKind;
 use syl_session::{AnalysisSnapshot, DocumentUri, Project};
 use syl_span::{SourcePosition, Span};
@@ -20,6 +21,8 @@ use super::{
 /// This is a trait rather than inherent snapshot methods so `syl_session` owns
 /// persisted state while `syl_query` owns editor-facing semantic operations.
 pub trait AnalysisQueries {
+    fn opaque_summaries(&self) -> Option<&OpaqueSummaryTable>;
+
     fn definition(&self, uri: &DocumentUri, position: SourcePosition) -> Option<DefinitionResult>;
 
     fn definition_at(
@@ -49,6 +52,10 @@ pub trait AnalysisQueries {
 }
 
 impl AnalysisQueries for AnalysisSnapshot {
+    fn opaque_summaries(&self) -> Option<&OpaqueSummaryTable> {
+        self.opaque_summaries()
+    }
+
     fn definition(&self, uri: &DocumentUri, position: SourcePosition) -> Option<DefinitionResult> {
         self.definition_at(uri, position)
     }

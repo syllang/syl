@@ -13,25 +13,37 @@ use crate::{
     map_ir::MapIrBuilder,
 };
 use syl_hw::ParametricHwDesign;
-use syl_sema::TirAnalysis;
+use syl_sema::{OpaqueSummaryTable, TirAnalysis};
 use syl_span::Diagnostic;
 
 #[non_exhaustive]
 pub(super) struct TirStageRunner<'tir_stage> {
     tir: &'tir_stage TirAnalysis,
+    opaque_summaries: &'tir_stage OpaqueSummaryTable,
 }
 
 impl<'tir_stage> TirStageRunner<'tir_stage> {
-    pub(super) fn new(tir: &'tir_stage TirAnalysis) -> Self {
-        Self { tir }
+    pub(super) fn new(
+        tir: &'tir_stage TirAnalysis,
+        opaque_summaries: &'tir_stage OpaqueSummaryTable,
+    ) -> Self {
+        Self {
+            tir,
+            opaque_summaries,
+        }
     }
 
     pub(super) fn compile_hwir(&self) -> Result<ParametricHwDesign, CompileError> {
+        let opaque_summaries = self
+            .tir
+            .facts()
+            .opaque_summaries()
+            .merged(self.opaque_summaries);
         let const_mir = ConstMirPass::run(self.tir)?;
         let map_ir = MapIrPass::run(self.tir)?;
         let eir_build = EirBuildPass::run(self.tir, &const_mir, &map_ir)?;
         let _validation = EirValidationPass::run(&eir_build)?;
-        let eir_facts = EirFactsPass::run(&eir_build)?;
+        let eir_facts = EirFactsPass::run(&eir_build, &opaque_summaries)?;
         let eir = EirComposePass::run(&eir_build, &eir_facts);
         let driver_facts = DriverFactsPass::run(&eir).map_err(first_error)?;
         let _drc = DrcPass::run(&eir, &driver_facts).map_err(first_error)?;
@@ -43,6 +55,11 @@ impl<'tir_stage> TirStageRunner<'tir_stage> {
     }
 
     pub(super) fn stage_output(&self) -> ElaborationOutput {
+        let opaque_summaries = self
+            .tir
+            .facts()
+            .opaque_summaries()
+            .merged(self.opaque_summaries);
         let finish = |const_mir: Option<ConstMirStage>,
                       map_ir: Option<MapIrStage>,
                       eir_build: Option<EirBuildStage>,
@@ -160,6 +177,7 @@ impl<'tir_stage> TirStageRunner<'tir_stage> {
             eir_build
                 .as_ref()
                 .expect("EIR build stage must exist before facts collection"),
+            &opaque_summaries,
         ) {
             Ok(stage) => Some(stage),
             Err(error) => {
@@ -230,6 +248,7 @@ impl<'tir_stage> TirStageRunner<'tir_stage> {
             driver_facts
                 .as_ref()
                 .expect("driver facts stage must exist before metadata lowering"),
+            &opaque_summaries,
         ) {
             Ok(metadata) => Some(metadata),
             Err(error) => {
@@ -308,8 +327,12 @@ impl EirValidationPass {
 struct EirFactsPass;
 
 impl EirFactsPass {
-    fn run(eir_build: &EirBuildStage) -> Result<EirFactsStage, CompileError> {
-        EirFactCollector::collect(eir_build.design.modules()).map(EirFactsStage::new)
+    fn run(
+        eir_build: &EirBuildStage,
+        opaque_summaries: &OpaqueSummaryTable,
+    ) -> Result<EirFactsStage, CompileError> {
+        EirFactCollector::collect(eir_build.design.modules(), opaque_summaries)
+            .map(EirFactsStage::new)
     }
 }
 
@@ -351,8 +374,11 @@ impl DrcPass {
 struct HardwareMetadataPass;
 
 impl HardwareMetadataPass {
-    fn run(driver_facts: &DriverFactsStage) -> Result<HardwareMetadata, CompileError> {
-        HardwareMetadataLowerer::new(&driver_facts.facts).lower()
+    fn run(
+        driver_facts: &DriverFactsStage,
+        opaque_summaries: &OpaqueSummaryTable,
+    ) -> Result<HardwareMetadata, CompileError> {
+        HardwareMetadataLowerer::new(&driver_facts.facts).lower(opaque_summaries)
     }
 }
 

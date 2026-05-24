@@ -11,6 +11,7 @@ use crate::{
     },
 };
 use syl_hw::{HwExpansion, HwGuard, HwGuardFrame, HwOrigin, HwPlace, HwPlaceExpr};
+use syl_sema::OpaqueSummaryTable;
 
 #[non_exhaustive]
 pub(crate) struct HardwareMetadataLowerer<'a> {
@@ -22,12 +23,16 @@ impl<'a> HardwareMetadataLowerer<'a> {
         Self { facts }
     }
 
-    pub(crate) fn lower(&self) -> Result<HardwareMetadata, CompileError> {
+    pub(crate) fn lower(
+        &self,
+        opaque_summaries: &OpaqueSummaryTable,
+    ) -> Result<HardwareMetadata, CompileError> {
         Ok(HardwareMetadata::new(
             self.lower_driver_facts()?,
             self.lower_read_facts()?,
             self.lower_create_facts()?,
             self.lower_cell_summaries()?,
+            opaque_summaries.clone(),
         ))
     }
 

@@ -209,13 +209,19 @@ mod tests {
         eir_place::EirPlace,
     };
     use std::sync::Arc;
-    use syl_sema::cell_summary::{CellSummaryDeclaration, CellSummaryRegistry, HwOrigin, HwPlace};
+    use syl_sema::{
+        OpaqueSummaryTable,
+        cell_summary::{CellSummaryDeclaration, CellSummaryRegistry, HwOrigin, HwPlace},
+    };
     use syl_span::{SourceId, Span};
 
     fn validated_design(modules: Vec<EirModule>) -> Result<EirDesign, CompileError> {
         let raw = Arc::new(EirRawDesign::new(modules));
         EirValidator::new(raw.modules()).validate()?;
-        let facts = Arc::new(EirFactCollector::collect(raw.modules())?);
+        let facts = Arc::new(EirFactCollector::collect(
+            raw.modules(),
+            &OpaqueSummaryTable::new(),
+        )?);
         Ok(EirDesignComposer::compose(raw, facts))
     }
 

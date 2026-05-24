@@ -1,4 +1,5 @@
 use syl_hw::{HwGuard, HwOrigin, HwPlace, ObjectId};
+use syl_sema::OpaqueSummaryTable;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
@@ -7,6 +8,7 @@ pub struct HardwareMetadata {
     read_facts: Vec<HardwareReadFact>,
     create_facts: Vec<HardwareCreateFact>,
     cell_summaries: Vec<HardwareCellSummary>,
+    opaque_summaries: OpaqueSummaryTable,
 }
 
 impl HardwareMetadata {
@@ -15,22 +17,25 @@ impl HardwareMetadata {
         read_facts: Vec<HardwareReadFact>,
         create_facts: Vec<HardwareCreateFact>,
         cell_summaries: Vec<HardwareCellSummary>,
+        opaque_summaries: OpaqueSummaryTable,
     ) -> Self {
         Self {
             driver_facts,
             read_facts,
             create_facts,
             cell_summaries,
+            opaque_summaries,
         }
     }
 
     pub fn debug_dump(&self) -> String {
         format!(
-            "hw_metadata driver_facts={} read_facts={} create_facts={} cell_summaries={}",
+            "hw_metadata driver_facts={} read_facts={} create_facts={} cell_summaries={} opaque_summaries={}",
             self.driver_facts.len(),
             self.read_facts.len(),
             self.create_facts.len(),
             self.cell_summaries.len(),
+            self.opaque_summaries.len(),
         )
     }
 
@@ -48,6 +53,10 @@ impl HardwareMetadata {
 
     pub fn cell_summaries(&self) -> &[HardwareCellSummary] {
         &self.cell_summaries
+    }
+
+    pub fn opaque_summaries(&self) -> &OpaqueSummaryTable {
+        &self.opaque_summaries
     }
 }
 

@@ -18,7 +18,8 @@ produces validated hardware graph output.
 
 - `HardwareCompiler` and elaboration-stage outputs rooted in TIR input
 - validated EIR plus driver-analysis results as internal elaboration boundaries
-- elaboration diagnostics and elab-owned hardware metadata sidecars
+- elaboration diagnostics, trusted opaque-summary inputs, and elab-owned
+  hardware metadata sidecars
 - `syl_hw::ParametricHwDesign` for backend consumption
 
 ## Allowed Dependencies
@@ -56,4 +57,6 @@ produces validated hardware graph output.
 Public items should expose elaboration-stage boundaries or final HWIR outputs
 that other crates must consume, such as `HardwareCompiler` and
 `ParametricHwDesign`. HIR/TIR analysis stages, hover/definition helpers, and
-session-style orchestration must stay out of this crate's public API.
+session-style orchestration must stay out of this crate's public API. Opaque
+summary injection is limited to `HardwareCompiler` and metadata read-back so the
+shared summary model still remains sema-owned.

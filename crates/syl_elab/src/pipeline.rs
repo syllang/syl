@@ -8,7 +8,7 @@ use crate::{
 };
 use std::{fmt, sync::Arc};
 use syl_hw::ParametricHwDesign;
-use syl_sema::TirAnalysis;
+use syl_sema::{OpaqueItemSummary, OpaqueSummaryTable, TirAnalysis};
 use syl_span::Diagnostic;
 
 mod debug;
@@ -20,23 +20,39 @@ use stage_runner::TirStageRunner;
 
 #[derive(Debug, Default)]
 #[non_exhaustive]
-pub struct HardwareCompiler;
+pub struct HardwareCompiler {
+    opaque_summaries: OpaqueSummaryTable,
+}
 
 impl HardwareCompiler {
     pub fn new() -> Self {
-        Self
+        Self {
+            opaque_summaries: OpaqueSummaryTable::new(),
+        }
+    }
+
+    pub fn with_opaque_summaries(opaque_summaries: OpaqueSummaryTable) -> Self {
+        Self { opaque_summaries }
+    }
+
+    pub fn register_opaque_summary(&mut self, summary: OpaqueItemSummary) {
+        self.opaque_summaries.register(summary);
+    }
+
+    pub fn opaque_summaries(&self) -> &OpaqueSummaryTable {
+        &self.opaque_summaries
     }
 
     pub fn compile_tir(&self, tir: &TirAnalysis) -> Result<ParametricHwDesign, CompileError> {
-        TirStageRunner::new(tir).compile_hwir()
+        TirStageRunner::new(tir, &self.opaque_summaries).compile_hwir()
     }
 
     pub fn output_for_tir(&self, tir: &TirAnalysis) -> ElaborationOutput {
-        TirStageRunner::new(tir).stage_output()
+        TirStageRunner::new(tir, &self.opaque_summaries).stage_output()
     }
 
     pub fn diagnostics(&self, tir: &TirAnalysis) -> Vec<Diagnostic> {
-        TirStageRunner::new(tir).diagnostics()
+        TirStageRunner::new(tir, &self.opaque_summaries).diagnostics()
     }
 }
 
@@ -90,6 +106,12 @@ impl ElaborationOutput {
 
     pub fn metadata(&self) -> Option<&HardwareMetadata> {
         self.metadata.as_ref()
+    }
+
+    pub fn opaque_summaries(&self) -> Option<&OpaqueSummaryTable> {
+        self.metadata
+            .as_ref()
+            .map(HardwareMetadata::opaque_summaries)
     }
 
     pub fn hwir(&self) -> Option<&ParametricHwDesign> {

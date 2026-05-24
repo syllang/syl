@@ -1,6 +1,6 @@
 use syl_elab::{CompileError, ElaborationOutput, HardwareCompiler};
 use syl_hw::ParametricHwDesign;
-use syl_sema::{SemanticCompiler, SemanticSession};
+use syl_sema::{OpaqueSummaryTable, SemanticCompiler, SemanticSession};
 use syl_syntax::AstFile;
 
 #[derive(Debug, Default)]
@@ -14,6 +14,14 @@ impl MiddleCompiler {
         Self {
             semantic: SemanticCompiler::new(),
             hardware: HardwareCompiler::new(),
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn with_opaque_summaries(opaque_summaries: OpaqueSummaryTable) -> Self {
+        Self {
+            semantic: SemanticCompiler::new(),
+            hardware: HardwareCompiler::with_opaque_summaries(opaque_summaries),
         }
     }
 

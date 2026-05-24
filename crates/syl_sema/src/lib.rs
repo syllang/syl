@@ -19,6 +19,7 @@ mod hir_view;
 pub mod map_ir;
 pub mod mir;
 mod mir_type_resolve;
+pub mod opaque_summary;
 mod stage_output;
 pub mod tir;
 mod tir_const;
@@ -40,4 +41,11 @@ pub use facts::{
     TypeTable, ViewCapabilityFacts, ViewFieldSummary, WordEncoding,
 };
 pub use hir_lower::HirResolver;
+pub use opaque_summary::{
+    BackendConstraint, OpaqueItemKind, OpaqueItemSummary, OpaqueItemSummaryBuilder,
+    OpaqueSummaryTable, SummaryCapability, SummaryDirection, SummaryDomain, SummaryDomainBehavior,
+    SummaryEndpoint, SummaryFieldDirection, SummaryLatencyClass, SummaryLayout, SummaryLayoutConst,
+    SummaryPath, SummaryProtocol, SummaryProtocolPreservation, SummaryView, SummaryViewField,
+    SummaryWordEncoding, TrustBoundary,
+};
 pub use stage_output::StageOutput;

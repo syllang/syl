@@ -256,6 +256,7 @@
 
   Log
   - 2026-05-24 S1 - 主 Agent 派出 Work SubAgent，执行 Phase 5 Opaque Boundary 与 Metadata：建立 machine-readable extern/precompiled summary，确保 driver/capability/domain/layout/latency/protocol facts 可进入编译产物，定义 blackbox/vendor IP trust boundary，并补充无源码库参与 multi-driver 检查的可执行证据。
+  - 2026-05-24 S1 - Work SubAgent 完成 Phase 5 初版交付：在 `syl_sema` 建立 machine-readable `OpaqueSummaryTable`/`OpaqueItemSummary`，extern 签名自动推导 source-derived summary，`syl_elab` 可注入 trusted/precompiled summary 并把 summary facts 保存到 hardware metadata，session/query 暴露只读 summary API，architecture_phase5_opaque 覆盖 extern out 自动 drive、无源码 summary 参与 DRC、trust boundary 和 query/session 边界；主 Agent 验证 architecture tests、syl_elab tests、driver_overlap、workspace check、文件规模和 `git diff --check` 均通过。
 
   ———
 

@@ -3,6 +3,11 @@ mod support;
 use support::MiddleCompiler;
 use syl_elab::ElaborationOutput;
 use syl_hw::HwPlace;
+use syl_sema::{
+    BackendConstraint, OpaqueItemKind, OpaqueItemSummary, OpaqueSummaryTable, SummaryCapability,
+    SummaryDirection, SummaryEndpoint, SummaryLatencyClass, SummaryLayout, SummaryPath,
+    TrustBoundary,
+};
 use syl_span::{SourceId, Span};
 use syl_syntax::SourceParser;
 
@@ -14,6 +19,12 @@ impl StaticFactHarness {
     fn new() -> Self {
         Self {
             middle: MiddleCompiler::new(),
+        }
+    }
+
+    fn with_opaque_summaries(opaque_summaries: OpaqueSummaryTable) -> Self {
+        Self {
+            middle: MiddleCompiler::with_opaque_summaries(opaque_summaries),
         }
     }
 
@@ -88,6 +99,74 @@ module Top(y: out Bit) {
             && (matches!(fact.target_place(), HwPlace::Object { name, .. } if name == "y")
                 || matches!(fact.target_place(), HwPlace::Ident(name) if name == "y"))
     }));
+
+    let summary = metadata
+        .opaque_summaries()
+        .get("DriveBit")
+        .expect("extern module summary must be exported into compilation metadata");
+    assert!(matches!(summary.kind(), OpaqueItemKind::ExternModule));
+    assert!(matches!(
+        summary.trust_boundary(),
+        TrustBoundary::SourceDerived
+    ));
+    assert_eq!(
+        summary
+            .driven_fields()
+            .iter()
+            .map(SummaryPath::display)
+            .collect::<Vec<_>>(),
+        vec!["y".to_string()]
+    );
+}
+
+#[test]
+fn trusted_precompiled_summary_overrides_boundary_metadata() {
+    let summary = OpaqueItemSummary::builder(OpaqueItemKind::PrecompiledCell, "VendorDrive")
+        .endpoint(SummaryEndpoint::new(
+            "y",
+            SummaryDirection::Out,
+            SummaryLayout::Bit,
+            SummaryCapability::Value,
+        ))
+        .driven_field(SummaryPath::new("y"))
+        .latency_class(SummaryLatencyClass::Sequential)
+        .trust_boundary(TrustBoundary::VendorBlackBox {
+            vendor: "acme".to_string(),
+        })
+        .backend_constraint(BackendConstraint::RequiresBackend {
+            backend: "systemverilog".to_string(),
+        })
+        .build();
+    let table = OpaqueSummaryTable::from_iter([summary]);
+    let output = StaticFactHarness::with_opaque_summaries(table)
+        .compile_output(
+            r#"
+extern module VendorDrive(y: out Bit)
+
+module Top(y: out Bit) {
+    inst vendor = VendorDrive(y: y)
+}
+"#,
+        )
+        .expect("trusted precompiled summary must compile via extern stub boundary");
+    let metadata = output
+        .metadata()
+        .expect("successful elaboration must expose hardware metadata");
+    let summary = metadata
+        .opaque_summaries()
+        .get("VendorDrive")
+        .expect("merged opaque summary must be preserved in metadata");
+
+    assert!(matches!(summary.kind(), OpaqueItemKind::PrecompiledCell));
+    assert!(matches!(
+        summary.trust_boundary(),
+        TrustBoundary::VendorBlackBox { vendor } if vendor == "acme"
+    ));
+    assert_eq!(summary.latency_class(), SummaryLatencyClass::Sequential);
+    assert!(matches!(
+        summary.backend_constraints(),
+        [BackendConstraint::RequiresBackend { backend }] if backend == "systemverilog"
+    ));
 }
 
 #[test]
