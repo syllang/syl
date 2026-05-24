@@ -335,6 +335,7 @@
   - 2026-05-24 S1 - Work SubAgent 完成 Phase 7 初版交付：`syl_session` 增加 cancellation、workspace/source/package snapshot 与 package-aware invalidation 基础，`syl_query` 增加 cancellable query entrypoints 与 grouped diagnostics，`syl_lsp` 增加 protocol-only adapter 并从 grouped diagnostics 发布 LSP diagnostics，architecture_phase7_query_lsp 覆盖 package cache reuse、query boundary、stage-grouped diagnostics、hover/completion no emit、cancellation 和 LSP adapter；主 Agent 验证 architecture tests、syl_session/query/lsp tests、workspace check、文件规模和 `git diff --check` 均通过。
   - 2026-05-24 S2 - 主 Agent 派出 Review SubAgent，按 Phase 7 MUST FIX 和退出标准独立审查 session workspace/cache ownership、query compiler-facts-only 边界、LSP protocol adapter 边界、stage/file/package diagnostics、cancellation、partial result 和 hover/completion no-emit 证据。
   - 2026-05-24 S2 - Review SubAgent 判定 Phase 7 未收敛：session/query/LSP 边界、结构化 grouped diagnostics 和 hover/completion no-emit 基本成立，但 semantic cache 仍按 whole-workspace snapshot 建一个 `SemanticCache`，`A+B -> A+B'` 会重算 A，未满足改一个文件只 invalidate 相关 package；取消也只在阶段边界检查，LSP request/diagnostics 没有接入可取消 token，in-flight long-running query 不能停止。
+  - 2026-05-24 S3 - 主 Agent 审核 Review 结论后派 Work SubAgent 整改：实现 package-granular semantic cache 或等价分片，使 `A+B -> A+B'` 复用 A 的 package semantic cache；将 cancellation token 接入 LSP request/diagnostics 与 query/session 长查询路径，补充 in-flight 或主动取消不会继续触发后续昂贵阶段的结构化测试。
 
   ———
 
