@@ -14,7 +14,7 @@
 ## Outputs
 
 - LSP hover, definition, completion, and document-symbol responses
-- published diagnostics with UTF-16 ranges
+- published diagnostics with UTF-16 ranges derived from grouped query results
 - the `syl_lsp` stdio server runner
 
 ## Allowed Dependencies
@@ -38,6 +38,7 @@
 ## Allowed Responsibilities
 
 - LSP protocol adaptation
+- protocol-only `LspAdapter` mapping over session/query boundaries
 - UTF-16 coordinate mapping
 - diagnostic publishing, debounce, and stale-generation cancellation
 - launching and serving the stdio language server

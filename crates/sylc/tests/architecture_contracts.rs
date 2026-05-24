@@ -189,7 +189,7 @@ fn architecture_session_and_query_use_sema_accessors_not_elab_stage_api() {
             "syl_query must not depend on elab frontend stage API: {forbidden}"
         );
     }
-    for required in ["hir_analysis()", "tir_analysis()"] {
+    for required in ["hir_analysis_with_token(", "tir_analysis_with_token("] {
         assert!(
             query_api.contains(required),
             "syl_query should read sema analysis through session accessors: {required}"
@@ -338,7 +338,13 @@ fn crate_contracts() -> &'static [CrateContract] {
         CrateContract {
             name: "syl_query",
             rank: 7,
-            dependencies: &["syl_sema", "syl_session", "syl_span", "syl_syntax"],
+            dependencies: &[
+                "syl_sema",
+                "syl_session",
+                "syl_span",
+                "syl_syntax",
+                "thiserror",
+            ],
             dev_dependencies: &[],
             readme_mentions: &[
                 "syl_session",

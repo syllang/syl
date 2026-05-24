@@ -10,12 +10,14 @@ analysis snapshot.
 - `syl_session::AnalysisSnapshot` and `syl_session::Project`
 - semantic facts and HIR/TIR analysis from `syl_sema` reachable through the
   snapshot
-- syntax trees and source coordinates used for navigation and completions
+- syntax trees and source coordinates used for navigation, grouped diagnostics,
+  and completions
 
 ## Outputs
 
-- protocol-neutral diagnostics grouped by document
+- protocol-neutral diagnostics grouped by package, document, and stage
 - hover, definition, completion, and document-symbol results
+- cancellation-aware query entrypoints over session-owned compiler facts
 - read-only access to machine-readable opaque/public summaries already owned by
   the snapshot
 - query traits consumed by LSP, tests, and future non-LSP tools
@@ -26,6 +28,7 @@ analysis snapshot.
 - `syl_sema`
 - `syl_syntax`
 - `syl_span`
+- `thiserror`
 
 ## Forbidden Dependencies
 
@@ -42,6 +45,7 @@ analysis snapshot.
 - compute editor-facing answers from an existing snapshot
 - keep query result DTOs protocol-neutral
 - bridge syntax and sema-owned facts into navigation and diagnostics answers
+- gate long-running semantic queries with lightweight cancellation tokens
 
 ## Forbidden Responsibilities
 

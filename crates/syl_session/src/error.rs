@@ -4,6 +4,8 @@ use thiserror::Error;
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum ProjectError {
+    #[error("analysis was cancelled")]
+    Cancelled,
     #[error("failed to read {path}: {source}")]
     Read {
         path: PathBuf,

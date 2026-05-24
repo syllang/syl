@@ -1,10 +1,10 @@
 use crate::{
     CompletionItem, CompletionItemKind, CompletionResult, DefinitionResult, DocumentSymbolResult,
-    HoverResult,
+    GroupedDiagnostics, HoverResult, QueryError,
 };
 use syl_sema::OpaqueSummaryTable;
 use syl_sema::completion::CompletionKind;
-use syl_session::{AnalysisSnapshot, DocumentUri, Project};
+use syl_session::{AnalysisSnapshot, CancellationToken, DocumentUri, Project, ProjectError};
 use syl_span::{SourcePosition, Span};
 use syl_syntax::{AstFile, Item};
 
@@ -23,7 +23,19 @@ use super::{
 pub trait AnalysisQueries {
     fn opaque_summaries(&self) -> Option<&OpaqueSummaryTable>;
 
+    fn opaque_summaries_with_token(
+        &self,
+        token: &CancellationToken,
+    ) -> Result<Option<&OpaqueSummaryTable>, QueryError>;
+
     fn definition(&self, uri: &DocumentUri, position: SourcePosition) -> Option<DefinitionResult>;
+
+    fn definition_with_token(
+        &self,
+        uri: &DocumentUri,
+        position: SourcePosition,
+        token: &CancellationToken,
+    ) -> Result<Option<DefinitionResult>, QueryError>;
 
     fn definition_at(
         &self,
@@ -31,14 +43,49 @@ pub trait AnalysisQueries {
         utf16_position: SourcePosition,
     ) -> Option<DefinitionResult>;
 
+    fn definition_at_with_token(
+        &self,
+        uri: &DocumentUri,
+        utf16_position: SourcePosition,
+        token: &CancellationToken,
+    ) -> Result<Option<DefinitionResult>, QueryError>;
+
     fn hover(&self, uri: &DocumentUri, position: SourcePosition) -> Option<HoverResult>;
+
+    fn hover_with_token(
+        &self,
+        uri: &DocumentUri,
+        position: SourcePosition,
+        token: &CancellationToken,
+    ) -> Result<Option<HoverResult>, QueryError>;
 
     fn hover_at(&self, uri: &DocumentUri, utf16_position: SourcePosition) -> Option<HoverResult>;
 
+    fn hover_at_with_token(
+        &self,
+        uri: &DocumentUri,
+        utf16_position: SourcePosition,
+        token: &CancellationToken,
+    ) -> Result<Option<HoverResult>, QueryError>;
+
     fn completion(&self, uri: &DocumentUri, position: SourcePosition) -> CompletionResult;
+
+    fn completion_with_token(
+        &self,
+        uri: &DocumentUri,
+        position: SourcePosition,
+        token: &CancellationToken,
+    ) -> Result<CompletionResult, QueryError>;
 
     fn completions_at(&self, uri: &DocumentUri, utf16_position: SourcePosition)
     -> CompletionResult;
+
+    fn completions_at_with_token(
+        &self,
+        uri: &DocumentUri,
+        utf16_position: SourcePosition,
+        token: &CancellationToken,
+    ) -> Result<CompletionResult, QueryError>;
 
     fn document_symbols(&self, uri: &DocumentUri) -> Vec<DocumentSymbolResult>;
 
@@ -46,9 +93,28 @@ pub trait AnalysisQueries {
 
     fn all_document_diagnostics(&self) -> Vec<crate::DocumentDiagnostics>;
 
+    fn grouped_diagnostics(&self) -> GroupedDiagnostics;
+
+    fn grouped_diagnostics_with_token(
+        &self,
+        token: &CancellationToken,
+    ) -> Result<GroupedDiagnostics, QueryError>;
+
     fn document_diagnostics(&self, uri: &DocumentUri) -> Option<crate::DocumentDiagnostics>;
 
+    fn document_diagnostics_with_token(
+        &self,
+        uri: &DocumentUri,
+        token: &CancellationToken,
+    ) -> Result<Option<crate::DocumentDiagnostics>, QueryError>;
+
     fn diagnostics_for(&self, uri: &DocumentUri) -> Vec<crate::DiagnosticResult>;
+
+    fn diagnostics_for_with_token(
+        &self,
+        uri: &DocumentUri,
+        token: &CancellationToken,
+    ) -> Result<Vec<crate::DiagnosticResult>, QueryError>;
 }
 
 impl AnalysisQueries for AnalysisSnapshot {
@@ -56,8 +122,25 @@ impl AnalysisQueries for AnalysisSnapshot {
         self.opaque_summaries()
     }
 
+    fn opaque_summaries_with_token(
+        &self,
+        token: &CancellationToken,
+    ) -> Result<Option<&OpaqueSummaryTable>, QueryError> {
+        self.opaque_summaries_with_token(token)
+            .map_err(map_project_error)
+    }
+
     fn definition(&self, uri: &DocumentUri, position: SourcePosition) -> Option<DefinitionResult> {
         self.definition_at(uri, position)
+    }
+
+    fn definition_with_token(
+        &self,
+        uri: &DocumentUri,
+        position: SourcePosition,
+        token: &CancellationToken,
+    ) -> Result<Option<DefinitionResult>, QueryError> {
+        self.definition_at_with_token(uri, position, token)
     }
 
     fn definition_at(
@@ -65,19 +148,57 @@ impl AnalysisQueries for AnalysisSnapshot {
         uri: &DocumentUri,
         utf16_position: SourcePosition,
     ) -> Option<DefinitionResult> {
-        SnapshotQueryEngine::new(self).definition_at(uri, utf16_position)
+        self.definition_at_with_token(uri, utf16_position, &CancellationToken::new())
+            .unwrap_or(None)
+    }
+
+    fn definition_at_with_token(
+        &self,
+        uri: &DocumentUri,
+        utf16_position: SourcePosition,
+        token: &CancellationToken,
+    ) -> Result<Option<DefinitionResult>, QueryError> {
+        SnapshotQueryEngine::new(self).definition_at(uri, utf16_position, token)
     }
 
     fn hover(&self, uri: &DocumentUri, position: SourcePosition) -> Option<HoverResult> {
         self.hover_at(uri, position)
     }
 
+    fn hover_with_token(
+        &self,
+        uri: &DocumentUri,
+        position: SourcePosition,
+        token: &CancellationToken,
+    ) -> Result<Option<HoverResult>, QueryError> {
+        self.hover_at_with_token(uri, position, token)
+    }
+
     fn hover_at(&self, uri: &DocumentUri, utf16_position: SourcePosition) -> Option<HoverResult> {
-        SnapshotQueryEngine::new(self).hover_at(uri, utf16_position)
+        self.hover_at_with_token(uri, utf16_position, &CancellationToken::new())
+            .unwrap_or(None)
+    }
+
+    fn hover_at_with_token(
+        &self,
+        uri: &DocumentUri,
+        utf16_position: SourcePosition,
+        token: &CancellationToken,
+    ) -> Result<Option<HoverResult>, QueryError> {
+        SnapshotQueryEngine::new(self).hover_at(uri, utf16_position, token)
     }
 
     fn completion(&self, uri: &DocumentUri, position: SourcePosition) -> CompletionResult {
         self.completions_at(uri, position)
+    }
+
+    fn completion_with_token(
+        &self,
+        uri: &DocumentUri,
+        position: SourcePosition,
+        token: &CancellationToken,
+    ) -> Result<CompletionResult, QueryError> {
+        self.completions_at_with_token(uri, position, token)
     }
 
     fn completions_at(
@@ -85,7 +206,17 @@ impl AnalysisQueries for AnalysisSnapshot {
         uri: &DocumentUri,
         utf16_position: SourcePosition,
     ) -> CompletionResult {
-        SnapshotQueryEngine::new(self).completions_at(uri, utf16_position)
+        self.completions_at_with_token(uri, utf16_position, &CancellationToken::new())
+            .unwrap_or_else(|_| CompletionResult::default())
+    }
+
+    fn completions_at_with_token(
+        &self,
+        uri: &DocumentUri,
+        utf16_position: SourcePosition,
+        token: &CancellationToken,
+    ) -> Result<CompletionResult, QueryError> {
+        SnapshotQueryEngine::new(self).completions_at(uri, utf16_position, token)
     }
 
     fn document_symbols(&self, uri: &DocumentUri) -> Vec<DocumentSymbolResult> {
@@ -103,12 +234,51 @@ impl AnalysisQueries for AnalysisSnapshot {
         DiagnosticQueryEngine::new(self).all_document_diagnostics()
     }
 
+    fn grouped_diagnostics(&self) -> GroupedDiagnostics {
+        DiagnosticQueryEngine::new(self).grouped_diagnostics()
+    }
+
+    fn grouped_diagnostics_with_token(
+        &self,
+        token: &CancellationToken,
+    ) -> Result<GroupedDiagnostics, QueryError> {
+        DiagnosticQueryEngine::new(self).grouped_diagnostics_with_token(token)
+    }
+
     fn document_diagnostics(&self, uri: &DocumentUri) -> Option<crate::DocumentDiagnostics> {
         DiagnosticQueryEngine::new(self).document_diagnostics(uri)
     }
 
+    fn document_diagnostics_with_token(
+        &self,
+        uri: &DocumentUri,
+        token: &CancellationToken,
+    ) -> Result<Option<crate::DocumentDiagnostics>, QueryError> {
+        self.grouped_diagnostics_with_token(token).map(|grouped| {
+            grouped
+                .packages()
+                .iter()
+                .flat_map(|package| package.documents().iter())
+                .find(|document| document.uri() == uri)
+                .cloned()
+        })
+    }
+
     fn diagnostics_for(&self, uri: &DocumentUri) -> Vec<crate::DiagnosticResult> {
         DiagnosticQueryEngine::new(self).diagnostics_for(uri)
+    }
+
+    fn diagnostics_for_with_token(
+        &self,
+        uri: &DocumentUri,
+        token: &CancellationToken,
+    ) -> Result<Vec<crate::DiagnosticResult>, QueryError> {
+        self.document_diagnostics_with_token(uri, token)
+            .map(|document| {
+                document
+                    .map(|document| document.diagnostics().to_vec())
+                    .unwrap_or_default()
+            })
     }
 }
 
@@ -126,46 +296,72 @@ impl<'a> SnapshotQueryEngine<'a> {
         &self,
         uri: &DocumentUri,
         utf16_position: SourcePosition,
-    ) -> Option<DefinitionResult> {
-        let span = self.span_at(uri, utf16_position)?;
-        let hir = self.snapshot.hir_analysis();
+        token: &CancellationToken,
+    ) -> Result<Option<DefinitionResult>, QueryError> {
+        let Some(span) = self.span_at(uri, utf16_position) else {
+            return Ok(None);
+        };
+        let hir = self
+            .snapshot
+            .hir_analysis_with_token(token)
+            .map_err(map_project_error)?;
         if let Some(definition) = hir.definition_at(span) {
-            let file = self.snapshot.source_map().file(definition.span().source)?;
-            let range = self.snapshot.source_map().utf16_range(definition.span())?;
-            return Some(DefinitionResult {
+            let Some(file) = self.snapshot.source_map().file(definition.span().source) else {
+                return Ok(None);
+            };
+            let Some(range) = self.snapshot.source_map().utf16_range(definition.span()) else {
+                return Ok(None);
+            };
+            return Ok(Some(DefinitionResult {
                 uri: DocumentUri::new(file.uri()),
                 range,
-            });
+            }));
         }
-        self.generic_definition(uri, span)
+        Ok(self.generic_definition(uri, span))
     }
 
-    fn hover_at(&self, uri: &DocumentUri, utf16_position: SourcePosition) -> Option<HoverResult> {
-        let span = self.span_at(uri, utf16_position)?;
-        let hir = self.snapshot.hir_analysis();
-        if let Some(tir) = self.snapshot.tir_analysis()
+    fn hover_at(
+        &self,
+        uri: &DocumentUri,
+        utf16_position: SourcePosition,
+        token: &CancellationToken,
+    ) -> Result<Option<HoverResult>, QueryError> {
+        let Some(span) = self.span_at(uri, utf16_position) else {
+            return Ok(None);
+        };
+        let hir = self
+            .snapshot
+            .hir_analysis_with_token(token)
+            .map_err(map_project_error)?;
+        if let Some(tir) = self
+            .snapshot
+            .tir_analysis_with_token(token)
+            .map_err(map_project_error)?
             && let Some(hover) = tir.hover_at(span)
         {
-            return Some(HoverResult {
+            return Ok(Some(HoverResult {
                 contents: hover.text().to_string(),
                 range: self.snapshot.source_map().utf16_range(hover.span()),
-            });
+            }));
         }
         if let Some(hover) = self.generic_hover(uri, span) {
-            return Some(hover);
+            return Ok(Some(hover));
         }
-        let hover = hir.hover_at(span)?;
-        Some(HoverResult {
+        let Some(hover) = hir.hover_at(span) else {
+            return Ok(None);
+        };
+        Ok(Some(HoverResult {
             contents: hover.text().to_string(),
             range: self.snapshot.source_map().utf16_range(hover.span()),
-        })
+        }))
     }
 
     fn completions_at(
         &self,
         uri: &DocumentUri,
         utf16_position: SourcePosition,
-    ) -> CompletionResult {
+        token: &CancellationToken,
+    ) -> Result<CompletionResult, QueryError> {
         let span = self.span_at(uri, utf16_position);
         let context = self.snapshot.file_by_uri(uri).and_then(|file| {
             let span = span?;
@@ -173,13 +369,16 @@ impl<'a> SnapshotQueryEngine<'a> {
             CompletionAnalyzer::new(file.ast(), span, source.text()).analyze()
         });
         if let Some(span) = span {
-            let hir = self.snapshot.hir_analysis();
+            let hir = self
+                .snapshot
+                .hir_analysis_with_token(token)
+                .map_err(map_project_error)?;
             let collector = CompletionCollector::new(context.as_ref());
             if matches!(context, Some(CompletionContext::ImportPath)) {
-                return ImportPathCompletion::new(self.snapshot, uri, span).complete();
+                return Ok(ImportPathCompletion::new(self.snapshot, uri, span).complete());
             }
             if matches!(context, Some(CompletionContext::FieldAccess)) {
-                return CompletionResult {
+                return Ok(CompletionResult {
                     items: hir
                         .member_completion_items_at(span)
                         .into_iter()
@@ -188,9 +387,9 @@ impl<'a> SnapshotQueryEngine<'a> {
                             kind: collector.kind_for(item.kind()),
                         })
                         .collect(),
-                };
+                });
             }
-            return CompletionResult {
+            return Ok(CompletionResult {
                 items: hir
                     .completion_items_at(span)
                     .into_iter()
@@ -204,13 +403,13 @@ impl<'a> SnapshotQueryEngine<'a> {
                         kind: collector.kind_for(item.kind()),
                     })
                     .collect(),
-            };
+            });
         }
         let mut items = Vec::new();
         if let Some(file) = self.snapshot.file_by_uri(uri) {
             items.extend(CompletionCollector::new(context.as_ref()).ast_items(file.ast()));
         }
-        CompletionResult { items }
+        Ok(CompletionResult { items })
     }
 
     fn span_at(&self, uri: &DocumentUri, position: SourcePosition) -> Option<Span> {
@@ -240,9 +439,18 @@ impl<'a> SnapshotQueryEngine<'a> {
     }
 }
 
+fn map_project_error(error: ProjectError) -> QueryError {
+    match error {
+        ProjectError::Cancelled => QueryError::Cancelled,
+        other => unreachable!("query snapshots only surface cancellation, got {other}"),
+    }
+}
+
 /// Protocol-neutral diagnostic queries for a session-owned project snapshot.
 pub trait ProjectQueries {
     fn all_document_diagnostics(&self) -> Vec<crate::DocumentDiagnostics>;
+
+    fn grouped_diagnostics(&self) -> GroupedDiagnostics;
 
     fn document_diagnostics(&self, uri: &DocumentUri) -> Option<crate::DocumentDiagnostics>;
 
@@ -252,6 +460,10 @@ pub trait ProjectQueries {
 impl ProjectQueries for Project {
     fn all_document_diagnostics(&self) -> Vec<crate::DocumentDiagnostics> {
         self.snapshot().all_document_diagnostics()
+    }
+
+    fn grouped_diagnostics(&self) -> GroupedDiagnostics {
+        self.snapshot().grouped_diagnostics()
     }
 
     fn document_diagnostics(&self, uri: &DocumentUri) -> Option<crate::DocumentDiagnostics> {

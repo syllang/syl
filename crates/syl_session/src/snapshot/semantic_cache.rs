@@ -1,3 +1,4 @@
+use crate::{CancellationToken, ProjectError};
 use std::{fmt, sync::OnceLock};
 use syl_elab::{ElaborationOutput, HardwareCompiler};
 use syl_sema::{
@@ -38,16 +39,47 @@ impl SemanticCache {
         })
     }
 
+    pub(crate) fn hir_output_with_token(
+        &self,
+        token: &CancellationToken,
+    ) -> Result<&HirAnalysisOutput, ProjectError> {
+        self.check_cancellation_before(token, self.hir.get().is_some())?;
+        Ok(self.hir_output())
+    }
+
     pub(crate) fn hir(&self) -> &HirAnalysis {
         self.hir_output().stage()
+    }
+
+    pub(crate) fn hir_with_token(
+        &self,
+        token: &CancellationToken,
+    ) -> Result<&HirAnalysis, ProjectError> {
+        Ok(self.hir_output_with_token(token)?.stage())
     }
 
     fn tir_output(&self) -> &StageOutput<TirAnalysis> {
         self.tir.get_or_init(|| self.hir().check_tir_partial())
     }
 
+    fn tir_output_with_token(
+        &self,
+        token: &CancellationToken,
+    ) -> Result<&StageOutput<TirAnalysis>, ProjectError> {
+        let _ = self.hir_output_with_token(token)?;
+        self.check_cancellation_before(token, self.tir.get().is_some())?;
+        Ok(self.tir_output())
+    }
+
     pub(crate) fn tir(&self) -> Option<&TirAnalysis> {
         self.tir_output().partial_stage()
+    }
+
+    pub(crate) fn tir_with_token(
+        &self,
+        token: &CancellationToken,
+    ) -> Result<Option<&TirAnalysis>, ProjectError> {
+        Ok(self.tir_output_with_token(token)?.partial_stage())
     }
 
     pub(crate) fn opaque_summaries(&self) -> Option<&OpaqueSummaryTable> {
@@ -58,6 +90,18 @@ impl SemanticCache {
             );
         }
         (!self.opaque_summary_overlay.is_empty()).then_some(&self.opaque_summary_overlay)
+    }
+
+    pub(crate) fn opaque_summaries_with_token(
+        &self,
+        token: &CancellationToken,
+    ) -> Result<Option<&OpaqueSummaryTable>, ProjectError> {
+        if let Some(tir) = self.tir_with_token(token)? {
+            return Ok(Some(self.opaque_summaries.get_or_init(|| {
+                tir.opaque_summaries().merged(&self.opaque_summary_overlay)
+            })));
+        }
+        Ok((!self.opaque_summary_overlay.is_empty()).then_some(&self.opaque_summary_overlay))
     }
 
     pub(crate) fn elaboration_output(&self) -> Option<&ElaborationOutput> {
@@ -72,6 +116,27 @@ impl SemanticCache {
             HardwareCompiler::with_opaque_summaries(self.opaque_summary_overlay.clone())
                 .output_for_tir(tir)
         }))
+    }
+
+    pub(crate) fn elaboration_output_with_token(
+        &self,
+        token: &CancellationToken,
+    ) -> Result<Option<&ElaborationOutput>, ProjectError> {
+        if !self.hir_output_with_token(token)?.diagnostics().is_empty() {
+            return Ok(None);
+        }
+        let tir = self.tir_output_with_token(token)?;
+        if !tir.diagnostics().is_empty() {
+            return Ok(None);
+        }
+        let Some(tir) = tir.partial_stage() else {
+            return Ok(None);
+        };
+        self.check_cancellation_before(token, self.elaboration.get().is_some())?;
+        Ok(Some(self.elaboration.get_or_init(|| {
+            HardwareCompiler::with_opaque_summaries(self.opaque_summary_overlay.clone())
+                .output_for_tir(tir)
+        })))
     }
 
     pub(crate) fn diagnostics(&self) -> Vec<Diagnostic> {
@@ -91,6 +156,30 @@ impl SemanticCache {
             .clone()
     }
 
+    pub(crate) fn hir_diagnostics_with_token(
+        &self,
+        token: &CancellationToken,
+    ) -> Result<&[Diagnostic], ProjectError> {
+        Ok(self.hir_output_with_token(token)?.diagnostics())
+    }
+
+    pub(crate) fn tir_diagnostics_with_token(
+        &self,
+        token: &CancellationToken,
+    ) -> Result<&[Diagnostic], ProjectError> {
+        Ok(self.tir_output_with_token(token)?.diagnostics())
+    }
+
+    pub(crate) fn elaboration_diagnostics_with_token(
+        &self,
+        token: &CancellationToken,
+    ) -> Result<&[Diagnostic], ProjectError> {
+        Ok(match self.elaboration_output_with_token(token)? {
+            Some(output) => output.diagnostics(),
+            None => &[],
+        })
+    }
+
     pub(crate) fn is_hir_cached(&self) -> bool {
         self.hir.get().is_some()
     }
@@ -101,6 +190,17 @@ impl SemanticCache {
 
     pub(crate) fn is_elaboration_cached(&self) -> bool {
         self.elaboration.get().is_some()
+    }
+
+    fn check_cancellation_before(
+        &self,
+        token: &CancellationToken,
+        cached: bool,
+    ) -> Result<(), ProjectError> {
+        if cached || !token.is_cancelled() {
+            return Ok(());
+        }
+        Err(ProjectError::Cancelled)
     }
 }
 

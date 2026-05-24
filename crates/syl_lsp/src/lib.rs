@@ -1,8 +1,9 @@
+mod adapter;
 mod diagnostics;
 mod mapping;
 
-use diagnostics::{LspDiagnosticPublication, LspDiagnosticState, LspDiagnostics};
-use mapping::LspMapper;
+use adapter::LspAdapter;
+use diagnostics::{LspDiagnosticPublication, LspDiagnosticState};
 use std::{
     future::Future,
     path::PathBuf,
@@ -13,7 +14,9 @@ use std::{
     time::Duration,
 };
 use syl_query::AnalysisQueries;
-use syl_session::{AnalysisHost, AnalysisSnapshot, DocumentUri, DocumentVersion, ProjectError};
+use syl_session::{
+    AnalysisHost, AnalysisSnapshot, CancellationToken, DocumentUri, DocumentVersion, ProjectError,
+};
 use tokio::sync::Mutex;
 use tokio::time::sleep;
 use tower_lsp::{
@@ -37,7 +40,7 @@ pub struct SylLanguageServer {
     workspace_diagnostic_uri: Arc<Mutex<Option<Url>>>,
     initialization_error: Arc<Mutex<Option<ProjectError>>>,
     diagnostic_scheduler: Arc<DiagnosticsScheduler>,
-    mapper: LspMapper,
+    adapter: LspAdapter,
 }
 
 struct DiagnosticPublishRequest {
@@ -58,7 +61,7 @@ impl SylLanguageServer {
             workspace_diagnostic_uri: Arc::new(Mutex::new(None)),
             initialization_error: Arc::new(Mutex::new(None)),
             diagnostic_scheduler: Arc::new(DiagnosticsScheduler::new()),
-            mapper: LspMapper::new(),
+            adapter: LspAdapter::new(),
         }
     }
 
@@ -141,7 +144,10 @@ impl SylLanguageServer {
             return;
         }
         let publications = match snapshot {
-            Ok(snapshot) => LspDiagnostics::new(&snapshot).publications(),
+            Ok(snapshot) => {
+                let grouped = snapshot.grouped_diagnostics();
+                LspAdapter::new().diagnostic_publications(&grouped)
+            }
             Err(error) => fallback_uri
                 .map(|uri| LspDiagnosticPublication::project_error(uri, error))
                 .into_iter()
@@ -258,16 +264,20 @@ impl LanguageServer for SylLanguageServer {
         let uri = params.text_document_position_params.text_document.uri;
         let document_uri = DocumentUri::new(uri.to_string());
         let position = self
-            .mapper
+            .adapter
             .source_position(params.text_document_position_params.position);
         let snapshot = self
             .analysis_snapshot()
             .await
-            .map_err(|error| self.mapper.project_error(error))?;
-        let Some(hover) = snapshot.hover_at(&document_uri, position) else {
+            .map_err(|error| self.adapter.project_error(error))?;
+        let token = CancellationToken::new();
+        let Some(hover) = snapshot
+            .hover_at_with_token(&document_uri, position, &token)
+            .map_err(|error| self.adapter.query_error(error))?
+        else {
             return Ok(None);
         };
-        Ok(Some(self.mapper.hover(hover)))
+        Ok(Some(self.adapter.hover(hover)))
     }
 
     async fn goto_definition(
@@ -277,41 +287,36 @@ impl LanguageServer for SylLanguageServer {
         let uri = params.text_document_position_params.text_document.uri;
         let document_uri = DocumentUri::new(uri.to_string());
         let position = self
-            .mapper
+            .adapter
             .source_position(params.text_document_position_params.position);
         let snapshot = self
             .analysis_snapshot()
             .await
-            .map_err(|error| self.mapper.project_error(error))?;
-        let Some(definition) = snapshot.definition_at(&document_uri, position) else {
+            .map_err(|error| self.adapter.project_error(error))?;
+        let token = CancellationToken::new();
+        let Some(definition) = snapshot
+            .definition_at_with_token(&document_uri, position, &token)
+            .map_err(|error| self.adapter.query_error(error))?
+        else {
             return Ok(None);
         };
-        Ok(self
-            .mapper
-            .definition_location(definition)
-            .map(GotoDefinitionResponse::Scalar))
+        Ok(self.adapter.definition(definition))
     }
 
     async fn completion(&self, params: CompletionParams) -> LspResult<Option<CompletionResponse>> {
         let uri = params.text_document_position.text_document.uri;
         let position = params.text_document_position.position;
         let document_uri = DocumentUri::new(uri.to_string());
-        let position = self.mapper.source_position(position);
+        let position = self.adapter.source_position(position);
         let snapshot = self
             .analysis_snapshot()
             .await
-            .map_err(|error| self.mapper.project_error(error))?;
-        let completions = snapshot.completions_at(&document_uri, position);
-        let items = completions
-            .items
-            .into_iter()
-            .map(|item| tower_lsp::lsp_types::CompletionItem {
-                kind: self.mapper.completion_kind(item.kind),
-                label: item.label,
-                ..tower_lsp::lsp_types::CompletionItem::default()
-            })
-            .collect();
-        Ok(Some(CompletionResponse::Array(items)))
+            .map_err(|error| self.adapter.project_error(error))?;
+        let token = CancellationToken::new();
+        let completions = snapshot
+            .completions_at_with_token(&document_uri, position, &token)
+            .map_err(|error| self.adapter.query_error(error))?;
+        Ok(Some(self.adapter.completion(completions)))
     }
 
     async fn document_symbol(
@@ -323,13 +328,9 @@ impl LanguageServer for SylLanguageServer {
         let snapshot = self
             .analysis_snapshot()
             .await
-            .map_err(|error| self.mapper.project_error(error))?;
+            .map_err(|error| self.adapter.project_error(error))?;
         let symbols = snapshot.symbols(&document_uri);
-        let symbols = symbols
-            .into_iter()
-            .map(|symbol| self.mapper.document_symbol(symbol))
-            .collect::<Vec<_>>();
-        Ok(Some(DocumentSymbolResponse::Nested(symbols)))
+        Ok(Some(self.adapter.document_symbols(symbols)))
     }
 }
 

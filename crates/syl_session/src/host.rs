@@ -1,6 +1,6 @@
 use crate::{
-    AnalysisDatabase, AnalysisSnapshot, DocumentUri, DocumentVersion, ProjectConfig, ProjectError,
-    ProjectResolver, SourceDocument,
+    AnalysisDatabase, AnalysisSnapshot, CancellationToken, DocumentUri, DocumentVersion,
+    ProjectConfig, ProjectError, ProjectResolver, SourceDocument,
 };
 use std::path::PathBuf;
 use syl_sema::{OpaqueItemSummary, OpaqueSummaryTable};
@@ -28,6 +28,14 @@ impl AnalysisHost {
 
     pub fn load(&mut self, inputs: &[PathBuf]) -> Result<AnalysisSnapshot, ProjectError> {
         self.database.load(inputs)
+    }
+
+    pub fn load_with_token(
+        &mut self,
+        inputs: &[PathBuf],
+        token: &CancellationToken,
+    ) -> Result<AnalysisSnapshot, ProjectError> {
+        self.database.load_with_token(inputs, token)
     }
 
     pub fn set_roots(&mut self, roots: Vec<PathBuf>) {
@@ -94,6 +102,13 @@ impl AnalysisHost {
 
     pub fn snapshot(&mut self) -> Result<AnalysisSnapshot, ProjectError> {
         self.database.snapshot()
+    }
+
+    pub fn snapshot_with_token(
+        &mut self,
+        token: &CancellationToken,
+    ) -> Result<AnalysisSnapshot, ProjectError> {
+        self.database.snapshot_with_token(token)
     }
 }
 

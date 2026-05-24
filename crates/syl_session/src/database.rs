@@ -3,12 +3,12 @@ mod documents;
 mod revision;
 
 use crate::{
-    AnalysisSnapshot, DocumentUri, DocumentVersion, ProjectConfig, ProjectError, ProjectResolver,
-    SourceDocument, collector::SylFileCollector,
+    AnalysisSnapshot, CancellationToken, DocumentUri, DocumentVersion, ProjectConfig, ProjectError,
+    ProjectResolver, SourceDocument, WorkspaceSnapshot, collector::SylFileCollector,
 };
 use cache::{
-    CachedSnapshot, DocumentKey, InvalidationPlan, SemanticCacheStore, SemanticSnapshotKey,
-    SnapshotCache, SnapshotKey,
+    CachedSnapshot, DocumentInvalidation, DocumentKey, InvalidationPlan, SemanticCacheStore,
+    SemanticSnapshotKey, SnapshotCache, SnapshotKey,
 };
 use documents::{DocumentInputs, DocumentStore};
 use std::path::PathBuf;
@@ -25,6 +25,7 @@ pub struct AnalysisDatabase {
     snapshot_cache: SnapshotCache,
     semantic_cache_store: SemanticCacheStore,
     revision: DatabaseRevision,
+    last_workspace: Option<WorkspaceSnapshot>,
 }
 
 #[derive(Debug)]
@@ -45,13 +46,14 @@ impl<'a> SnapshotQuery<'a> {
         opaque_summaries: &OpaqueSummaryTable,
         snapshot_cache: &mut SnapshotCache,
         semantic_cache_store: &mut SemanticCacheStore,
+        token: &CancellationToken,
     ) -> Result<AnalysisSnapshot, ProjectError> {
         if let Some(snapshot) = snapshot_cache.lookup(&self.key) {
             return Ok(snapshot);
         }
 
         let (roots, overlays) = self.inputs.into_resolver_inputs();
-        let resolved = resolver.snapshot(roots, overlays)?;
+        let resolved = resolver.snapshot(roots, overlays, token)?;
         let semantic_key = SemanticSnapshotKey::from_snapshot(&resolved);
         let semantic = semantic_cache_store.semantic_for_snapshot(
             semantic_key,
@@ -81,10 +83,19 @@ impl AnalysisDatabase {
             snapshot_cache: SnapshotCache::default(),
             semantic_cache_store: SemanticCacheStore::new(),
             revision: DatabaseRevision::initial(),
+            last_workspace: None,
         }
     }
 
     pub fn load(&mut self, inputs: &[PathBuf]) -> Result<AnalysisSnapshot, ProjectError> {
+        self.load_with_token(inputs, &CancellationToken::new())
+    }
+
+    pub fn load_with_token(
+        &mut self,
+        inputs: &[PathBuf],
+        token: &CancellationToken,
+    ) -> Result<AnalysisSnapshot, ProjectError> {
         let mut roots = Vec::new();
         {
             let mut collector = SylFileCollector::new(&mut roots);
@@ -93,12 +104,13 @@ impl AnalysisDatabase {
             }
         }
         self.set_roots(roots);
-        self.snapshot()
+        self.snapshot_with_token(token)
     }
 
     pub fn set_roots(&mut self, roots: Vec<PathBuf>) {
         self.documents.set_roots(roots);
         self.advance_revision();
+        self.last_workspace = None;
         self.invalidate(InvalidationPlan::project_graph_changed());
     }
 
@@ -114,7 +126,8 @@ impl AnalysisDatabase {
     ) -> DocumentVersion {
         if let Some(previous) = self.documents.open_document(uri, text, version) {
             self.advance_revision();
-            self.invalidate(InvalidationPlan::document_changed(previous));
+            let plan = self.document_invalidation(previous);
+            self.invalidate(InvalidationPlan::document_changed(plan));
         } else {
             self.advance_revision();
         }
@@ -138,7 +151,8 @@ impl AnalysisDatabase {
     ) -> Result<DocumentVersion, ProjectError> {
         if let Some(previous) = self.documents.update_document(uri, text, version)? {
             self.advance_revision();
-            self.invalidate(InvalidationPlan::document_changed(previous));
+            let plan = self.document_invalidation(previous);
+            self.invalidate(InvalidationPlan::document_changed(plan));
         } else {
             self.advance_revision();
         }
@@ -149,9 +163,8 @@ impl AnalysisDatabase {
         let removed = self.documents.close_document(uri);
         if let Some(document) = removed.as_ref() {
             self.advance_revision();
-            self.invalidate(InvalidationPlan::document_changed(
-                DocumentKey::from_document(document),
-            ));
+            let plan = self.document_invalidation(DocumentKey::from_document(document));
+            self.invalidate(InvalidationPlan::document_changed(plan));
         }
         removed
     }
@@ -184,17 +197,27 @@ impl AnalysisDatabase {
     }
 
     pub fn snapshot(&mut self) -> Result<AnalysisSnapshot, ProjectError> {
+        self.snapshot_with_token(&CancellationToken::new())
+    }
+
+    pub fn snapshot_with_token(
+        &mut self,
+        token: &CancellationToken,
+    ) -> Result<AnalysisSnapshot, ProjectError> {
         let query = SnapshotQuery::new(self.documents.snapshot_inputs());
         let resolver = &self.resolver;
         let opaque_summaries = &self.opaque_summaries;
         let snapshot_cache = &mut self.snapshot_cache;
         let semantic_cache_store = &mut self.semantic_cache_store;
-        query.execute(
+        let snapshot = query.execute(
             resolver,
             opaque_summaries,
             snapshot_cache,
             semantic_cache_store,
-        )
+            token,
+        )?;
+        self.last_workspace = Some(snapshot.workspace().clone());
+        Ok(snapshot)
     }
 
     fn advance_revision(&mut self) {
@@ -204,6 +227,22 @@ impl AnalysisDatabase {
     fn invalidate(&mut self, plan: InvalidationPlan) {
         self.snapshot_cache.invalidate(plan.clone());
         self.semantic_cache_store.invalidate(plan);
+    }
+
+    fn document_invalidation(&self, key: DocumentKey) -> DocumentInvalidation {
+        let package_documents = self
+            .last_workspace
+            .as_ref()
+            .map(|workspace| {
+                workspace
+                    .package_graph()
+                    .packages_for_uri(key.uri())
+                    .into_iter()
+                    .map(|package| package.documents().to_vec())
+                    .collect()
+            })
+            .unwrap_or_default();
+        DocumentInvalidation::new(key, package_documents)
     }
 }
 
@@ -216,7 +255,7 @@ impl Default for AnalysisDatabase {
 #[cfg(test)]
 mod tests {
     use super::AnalysisDatabase;
-    use crate::{DocumentUri, DocumentVersion};
+    use crate::{CancellationToken, DocumentUri, DocumentVersion, ProjectError};
 
     #[test]
     fn snapshot_reuses_semantic_cache_for_identical_state() {
@@ -304,5 +343,55 @@ module Overlay(y: out Bit) {
             .expect("closing an overlay should leave the base snapshot reusable");
         assert!(base.shares_semantic_cache_with(&restored));
         assert!(restored.hwir().is_some());
+    }
+
+    #[test]
+    fn workspace_snapshot_tracks_source_database_and_package_graph() {
+        let first_uri = DocumentUri::new("untitled:syl/workspace-first");
+        let second_uri = DocumentUri::new("untitled:syl/workspace-second");
+        let mut database = AnalysisDatabase::new();
+        database.open_document(
+            first_uri.clone(),
+            "package first;\nmodule First(y: out Bit) { y := 1 }\n".to_string(),
+            DocumentVersion::new(1),
+        );
+        database.open_document(
+            second_uri.clone(),
+            "package second;\nmodule Second(y: out Bit) { y := 1 }\n".to_string(),
+            DocumentVersion::new(1),
+        );
+
+        let snapshot = database
+            .snapshot()
+            .expect("workspace snapshot fixture must build");
+        let workspace = snapshot.workspace();
+
+        assert_eq!(workspace.source_database().documents().len(), 2);
+        assert_eq!(workspace.package_graph().packages().len(), 2);
+        assert!(workspace.package_graph().packages().iter().any(|package| {
+            package.name() == "first" && package.documents().contains(&first_uri)
+        }));
+        assert!(workspace.package_graph().packages().iter().any(|package| {
+            package.name() == "second" && package.documents().contains(&second_uri)
+        }));
+    }
+
+    #[test]
+    fn cancelled_snapshot_stops_before_resolution() {
+        let uri = DocumentUri::new("untitled:syl/session-cancelled");
+        let mut database = AnalysisDatabase::new();
+        database.open_document(
+            uri,
+            "package app;\nmodule Top(y: out Bit) { y := 1 }\n".to_string(),
+            DocumentVersion::new(1),
+        );
+        let token = CancellationToken::new();
+        token.cancel();
+
+        let err = database
+            .snapshot_with_token(&token)
+            .expect_err("cancelled snapshot should stop before rebuilding");
+
+        assert!(matches!(err, ProjectError::Cancelled));
     }
 }

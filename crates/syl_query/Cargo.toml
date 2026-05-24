@@ -13,3 +13,4 @@ syl_sema.workspace = true
 syl_session.workspace = true
 syl_span.workspace = true
 syl_syntax.workspace = true
+thiserror.workspace = true

@@ -1,7 +1,8 @@
 use crate::{
-    AnalysisSnapshot, DocumentUri, Project, ProjectConfig, ProjectError, SourceDocument,
-    collector::SylFileCollector, import_resolver::ImportResolver, snapshot::AnalysisFile,
-    snapshot::AnalysisFileInput, snapshot::ResolvedSnapshot, snapshot::SemanticCache, vfs::FsVfs,
+    AnalysisSnapshot, CancellationToken, DocumentUri, Project, ProjectConfig, ProjectError,
+    SourceDocument, collector::SylFileCollector, import_resolver::ImportResolver,
+    snapshot::AnalysisFile, snapshot::AnalysisFileInput, snapshot::ResolvedSnapshot,
+    snapshot::SemanticCache, snapshot::WorkspaceSnapshot, vfs::FsVfs,
 };
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::path::{Path, PathBuf};
@@ -59,6 +60,14 @@ where
     }
 
     pub fn load(&self, inputs: &[PathBuf]) -> Result<Project, ProjectError> {
+        self.load_with_token(inputs, &CancellationToken::new())
+    }
+
+    pub fn load_with_token(
+        &self,
+        inputs: &[PathBuf],
+        token: &CancellationToken,
+    ) -> Result<Project, ProjectError> {
         let mut input_paths = Vec::new();
         {
             let mut collector = SylFileCollector::new(&mut input_paths);
@@ -66,11 +75,19 @@ where
                 collector.collect(input)?;
             }
         }
-        self.load_paths(input_paths)
+        self.load_paths_with_token(input_paths, token)
     }
 
     pub fn load_paths(&self, paths: Vec<PathBuf>) -> Result<Project, ProjectError> {
-        let resolved = self.snapshot(paths, &BTreeMap::new())?;
+        self.load_paths_with_token(paths, &CancellationToken::new())
+    }
+
+    pub fn load_paths_with_token(
+        &self,
+        paths: Vec<PathBuf>,
+        token: &CancellationToken,
+    ) -> Result<Project, ProjectError> {
+        let resolved = self.snapshot(paths, &BTreeMap::new(), token)?;
         let semantic = Arc::new(SemanticCache::new(
             resolved.ast_files(),
             OpaqueSummaryTable::new(),
@@ -82,7 +99,12 @@ where
         &self,
         paths: Vec<PathBuf>,
         overlays: &BTreeMap<DocumentUri, SourceDocument>,
+        token: &CancellationToken,
     ) -> Result<ResolvedSnapshot, ProjectError> {
+        if token.is_cancelled() {
+            return Err(ProjectError::Cancelled);
+        }
+        let roots = paths.clone();
         let mut queued: VecDeque<PathBuf> = paths.into();
         let mut overlay_queued: VecDeque<DocumentUri> = overlays.keys().cloned().collect();
         let overlay_imports = OverlayImportIndex::new(overlays);
@@ -91,6 +113,9 @@ where
         let mut files = Vec::new();
         let mut diagnostics = Vec::new();
         while !queued.is_empty() || !overlay_queued.is_empty() {
+            if token.is_cancelled() {
+                return Err(ProjectError::Cancelled);
+            }
             if let Some(path) = queued.pop_front() {
                 let path = self.normalize_path(path)?;
                 let uri = DocumentUri::from_file_path(&path);
@@ -126,7 +151,13 @@ where
                 self.add_document(document.clone(), &mut context);
             }
         }
-        Ok(ResolvedSnapshot::new(source_map, files, diagnostics))
+        let workspace = WorkspaceSnapshot::collect(roots, &files);
+        Ok(ResolvedSnapshot::new(
+            source_map,
+            files,
+            diagnostics,
+            workspace,
+        ))
     }
 
     fn add_document(&self, document: SourceDocument, context: &mut SnapshotBuildContext<'_>) {

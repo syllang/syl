@@ -547,6 +547,7 @@ dependencies = [
  "syl_session",
  "syl_span",
  "syl_syntax",
+ "thiserror",
 ]
 
 [[package]]

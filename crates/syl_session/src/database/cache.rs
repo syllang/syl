@@ -26,6 +26,10 @@ impl DocumentKey {
     pub(crate) fn from_file(file: &AnalysisFile) -> Self {
         Self::new(file.uri().clone(), file.version())
     }
+
+    pub(crate) fn uri(&self) -> &DocumentUri {
+        &self.uri
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -107,7 +111,7 @@ impl SemanticSnapshotKey {
 #[non_exhaustive]
 pub(crate) enum InvalidationPlan {
     ProjectGraphChanged,
-    DocumentChanged(DocumentKey),
+    DocumentChanged(DocumentInvalidation),
 }
 
 impl InvalidationPlan {
@@ -115,8 +119,32 @@ impl InvalidationPlan {
         Self::ProjectGraphChanged
     }
 
-    pub(crate) fn document_changed(key: DocumentKey) -> Self {
-        Self::DocumentChanged(key)
+    pub(crate) fn document_changed(change: DocumentInvalidation) -> Self {
+        Self::DocumentChanged(change)
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[non_exhaustive]
+pub(crate) struct DocumentInvalidation {
+    key: DocumentKey,
+    package_documents: Vec<Vec<DocumentUri>>,
+}
+
+impl DocumentInvalidation {
+    pub(crate) fn new(key: DocumentKey, package_documents: Vec<Vec<DocumentUri>>) -> Self {
+        Self {
+            key,
+            package_documents,
+        }
+    }
+
+    fn key(&self) -> &DocumentKey {
+        &self.key
+    }
+
+    fn package_documents(&self) -> &[Vec<DocumentUri>] {
+        &self.package_documents
     }
 }
 
@@ -134,6 +162,19 @@ impl CachedSnapshot {
 
     pub(crate) fn matches_document(&self, key: &DocumentKey) -> bool {
         self.key.document_keys().any(|cached| cached == key)
+    }
+
+    pub(crate) fn matches_package_documents(&self, package_documents: &[DocumentUri]) -> bool {
+        self.snapshot()
+            .workspace()
+            .package_graph()
+            .packages()
+            .iter()
+            .any(|package| {
+                package_documents
+                    .iter()
+                    .all(|document| package.documents().contains(document))
+            })
     }
 
     pub(crate) fn snapshot(&self) -> &AnalysisSnapshot {
@@ -161,9 +202,13 @@ impl SnapshotCache {
     pub(crate) fn invalidate(&mut self, plan: InvalidationPlan) {
         match plan {
             InvalidationPlan::ProjectGraphChanged => self.cached.clear(),
-            InvalidationPlan::DocumentChanged(key) => {
-                self.cached
-                    .retain(|_, cached| !cached.matches_document(&key));
+            InvalidationPlan::DocumentChanged(change) => {
+                self.cached.retain(|_, cached| {
+                    !cached.matches_document(change.key())
+                        && !change.package_documents().iter().any(|package_documents| {
+                            cached.matches_package_documents(package_documents)
+                        })
+                });
             }
         }
     }
@@ -206,15 +251,27 @@ impl SemanticCacheStore {
     pub(crate) fn invalidate(&mut self, plan: InvalidationPlan) {
         match plan {
             InvalidationPlan::ProjectGraphChanged => self.cached.clear(),
-            InvalidationPlan::DocumentChanged(key) => {
+            InvalidationPlan::DocumentChanged(change) => {
                 self.cached.retain(|_, cached| {
-                    !cached
-                        .key
-                        .document_keys()
-                        .any(|cached_key| cached_key == &key)
+                    !cached.key.matches_document(change.key())
+                        && !change.package_documents().iter().any(|package_documents| {
+                            cached.key.matches_package_documents(package_documents)
+                        })
                 });
             }
         }
+    }
+}
+
+impl SemanticSnapshotKey {
+    fn matches_document(&self, key: &DocumentKey) -> bool {
+        self.document_keys().any(|cached| cached == key)
+    }
+
+    fn matches_package_documents(&self, package_documents: &[DocumentUri]) -> bool {
+        package_documents
+            .iter()
+            .all(|document| self.document_keys().any(|cached| cached.uri == *document))
     }
 }
 

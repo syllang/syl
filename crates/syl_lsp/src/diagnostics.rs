@@ -1,15 +1,17 @@
 use crate::mapping::LspMapper;
 use std::collections::{BTreeMap, BTreeSet};
-use syl_query::{AnalysisQueries, DiagnosticRelatedResult, DiagnosticResult};
+use syl_query::{
+    DiagnosticRelatedResult, DiagnosticResult, DocumentDiagnostics, GroupedDiagnostics,
+};
+use syl_session::DocumentVersion;
 use syl_session::ProjectError;
-use syl_session::{AnalysisSnapshot, DocumentVersion};
 use syl_span::DiagnosticSeverity;
 use tower_lsp::lsp_types::{
     Diagnostic as LspDiagnostic, DiagnosticRelatedInformation, DiagnosticSeverity as LspSeverity,
     Location, NumberOrString, Position, Range, Url,
 };
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 #[non_exhaustive]
 pub(crate) struct LspDiagnosticPublication {
     uri: Url,
@@ -138,34 +140,40 @@ impl LspDiagnosticState {
 #[derive(Debug)]
 #[non_exhaustive]
 pub(crate) struct LspDiagnostics<'a> {
-    snapshot: &'a AnalysisSnapshot,
+    grouped: &'a GroupedDiagnostics,
     mapper: LspMapper,
     severity: LspSeverityMapper,
 }
 
 impl<'a> LspDiagnostics<'a> {
-    pub(crate) fn new(snapshot: &'a AnalysisSnapshot) -> Self {
+    pub(crate) fn new(grouped: &'a GroupedDiagnostics) -> Self {
         Self {
-            snapshot,
+            grouped,
             mapper: LspMapper::new(),
             severity: LspSeverityMapper::new(),
         }
     }
 
     pub(crate) fn publications(&self) -> Vec<LspDiagnosticPublication> {
-        self.snapshot
-            .all_document_diagnostics()
+        self.grouped
+            .packages()
             .into_iter()
-            .filter_map(|document| {
-                let uri = Url::parse(document.uri().as_str()).ok()?;
-                let diagnostics = self.lsp_diagnostics(document.diagnostics());
-                Some(LspDiagnosticPublication::new(
-                    uri,
-                    PublishVersion::new(document.version()).into_lsp(),
-                    diagnostics,
-                ))
-            })
+            .flat_map(|package| package.documents().iter())
+            .filter_map(|document| self.document_publication(document))
             .collect()
+    }
+
+    fn document_publication(
+        &self,
+        document: &DocumentDiagnostics,
+    ) -> Option<LspDiagnosticPublication> {
+        let uri = Url::parse(document.uri().as_str()).ok()?;
+        let diagnostics = self.lsp_diagnostics(document.diagnostics());
+        Some(LspDiagnosticPublication::new(
+            uri,
+            PublishVersion::new(document.version()).into_lsp(),
+            diagnostics,
+        ))
     }
 
     fn lsp_diagnostics(&self, diagnostics: &[DiagnosticResult]) -> Vec<LspDiagnostic> {
@@ -262,6 +270,7 @@ mod tests {
         env, fs,
         time::{SystemTime, UNIX_EPOCH},
     };
+    use syl_query::AnalysisQueries;
     use syl_session::{AnalysisHost, ProjectResolver};
     use syl_session::{DocumentUri, DocumentVersion};
 
@@ -278,7 +287,7 @@ mod tests {
             .snapshot()
             .expect("overlay-only snapshot should be available");
 
-        let publication = LspDiagnostics::new(&snapshot)
+        let publication = LspDiagnostics::new(&snapshot.grouped_diagnostics())
             .publications()
             .into_iter()
             .find(|publication| publication.uri().as_str() == uri.as_str())
@@ -296,7 +305,7 @@ mod tests {
         let snapshot = host
             .snapshot()
             .expect("UTF-16 diagnostic fixture should snapshot through parser recovery");
-        let publication = LspDiagnostics::new(&snapshot)
+        let publication = LspDiagnostics::new(&snapshot.grouped_diagnostics())
             .publications()
             .into_iter()
             .find(|publication| publication.uri().as_str() == uri.as_str())
@@ -356,7 +365,7 @@ mod tests {
             .snapshot()
             .clone();
 
-        let publication = LspDiagnostics::new(&snapshot)
+        let publication = LspDiagnostics::new(&snapshot.grouped_diagnostics())
             .publications()
             .into_iter()
             .find(|publication| publication.uri().as_str().ends_with("broken.syl"))
@@ -377,7 +386,7 @@ mod tests {
         let snapshot = host
             .snapshot()
             .expect("related diagnostic snapshot should build");
-        let publication = LspDiagnostics::new(&snapshot)
+        let publication = LspDiagnostics::new(&snapshot.grouped_diagnostics())
             .publications()
             .into_iter()
             .find(|publication| publication.uri().as_str() == uri.as_str())
@@ -419,6 +428,37 @@ mod tests {
         );
     }
 
+    #[test]
+    fn publications_cover_parse_tir_and_query_stage_failures() {
+        let parse_uri = DocumentUri::new("file:///tmp/syl_lsp_parse.syl");
+        let tir_uri = DocumentUri::new("file:///tmp/syl_lsp_tir.syl");
+        let driver_uri = DocumentUri::new("file:///tmp/syl_lsp_driver.syl");
+        let mut host = AnalysisHost::new();
+        host.open_document(
+            parse_uri.clone(),
+            "package parse;\nmodule Broken(".to_string(),
+            DocumentVersion::new(1),
+        );
+        host.open_document(
+            tir_uri.clone(),
+            "package sema;\nmodule Bad(x: in Missing) {}\n".to_string(),
+            DocumentVersion::new(1),
+        );
+        host.open_document(
+            driver_uri.clone(),
+            "package driver;\n\nmodule Bad(y: out Bit) {\n    y := 0\n    y := 1\n}\n".to_string(),
+            DocumentVersion::new(1),
+        );
+        let snapshot = host
+            .snapshot()
+            .expect("partial diagnostic fixture must snapshot");
+        let publications = LspDiagnostics::new(&snapshot.grouped_diagnostics()).publications();
+
+        assert_publication_has_diagnostics(&publications, parse_uri.as_str());
+        assert_publication_has_diagnostics(&publications, tir_uri.as_str());
+        assert_publication_has_diagnostics(&publications, driver_uri.as_str());
+    }
+
     #[non_exhaustive]
     struct LspDiagnosticWorkspace {
         root: std::path::PathBuf,
@@ -441,5 +481,17 @@ mod tests {
             fs::write(&path, text).expect("diagnostic fixture must be writable");
             path
         }
+    }
+
+    fn assert_publication_has_diagnostics(publications: &[LspDiagnosticPublication], uri: &str) {
+        let publication = publications
+            .iter()
+            .find(|publication| publication.uri().as_str() == uri)
+            .unwrap_or_else(|| panic!("missing LSP publication for {uri}"));
+        let (_, diagnostics, _) = publication.clone().into_parts();
+        assert!(
+            !diagnostics.is_empty(),
+            "expected partial diagnostics for {uri}"
+        );
     }
 }

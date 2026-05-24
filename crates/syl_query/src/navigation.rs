@@ -3,6 +3,22 @@ use syl_span::{DiagnosticSeverity, SourceRange};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
+pub struct DiagnosticPackage {
+    name: String,
+}
+
+impl DiagnosticPackage {
+    pub(crate) fn new(name: String) -> Self {
+        Self { name }
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[non_exhaustive]
 pub struct DiagnosticRelatedResult {
     uri: DocumentUri,
     range: SourceRange,
@@ -29,6 +45,16 @@ impl DiagnosticRelatedResult {
     pub fn message(&self) -> &str {
         &self.message
     }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum DiagnosticStage {
+    Parse,
+    Hir,
+    Tir,
+    Elaboration,
+    Backend,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -101,22 +127,35 @@ impl DiagnosticResult {
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct DocumentDiagnostics {
+    package: DiagnosticPackage,
     uri: DocumentUri,
     version: Option<DocumentVersion>,
     diagnostics: Vec<DiagnosticResult>,
+    stages: Vec<StageDiagnostics>,
 }
 
 impl DocumentDiagnostics {
     pub(crate) fn new(
+        package: DiagnosticPackage,
         uri: DocumentUri,
         version: Option<DocumentVersion>,
-        diagnostics: Vec<DiagnosticResult>,
+        stages: Vec<StageDiagnostics>,
     ) -> Self {
+        let diagnostics = stages
+            .iter()
+            .flat_map(|stage| stage.diagnostics().iter().cloned())
+            .collect();
         Self {
+            package,
             uri,
             version,
             diagnostics,
+            stages,
         }
+    }
+
+    pub fn package(&self) -> &DiagnosticPackage {
+        &self.package
     }
 
     pub fn uri(&self) -> &DocumentUri {
@@ -129,6 +168,68 @@ impl DocumentDiagnostics {
 
     pub fn diagnostics(&self) -> &[DiagnosticResult] {
         &self.diagnostics
+    }
+
+    pub fn stages(&self) -> &[StageDiagnostics] {
+        &self.stages
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct StageDiagnostics {
+    stage: DiagnosticStage,
+    diagnostics: Vec<DiagnosticResult>,
+}
+
+impl StageDiagnostics {
+    pub(crate) fn new(stage: DiagnosticStage, diagnostics: Vec<DiagnosticResult>) -> Self {
+        Self { stage, diagnostics }
+    }
+
+    pub fn stage(&self) -> DiagnosticStage {
+        self.stage
+    }
+
+    pub fn diagnostics(&self) -> &[DiagnosticResult] {
+        &self.diagnostics
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct PackageDiagnostics {
+    package: DiagnosticPackage,
+    documents: Vec<DocumentDiagnostics>,
+}
+
+impl PackageDiagnostics {
+    pub(crate) fn new(package: DiagnosticPackage, documents: Vec<DocumentDiagnostics>) -> Self {
+        Self { package, documents }
+    }
+
+    pub fn package(&self) -> &DiagnosticPackage {
+        &self.package
+    }
+
+    pub fn documents(&self) -> &[DocumentDiagnostics] {
+        &self.documents
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct GroupedDiagnostics {
+    packages: Vec<PackageDiagnostics>,
+}
+
+impl GroupedDiagnostics {
+    pub(crate) fn new(packages: Vec<PackageDiagnostics>) -> Self {
+        Self { packages }
+    }
+
+    pub fn packages(&self) -> &[PackageDiagnostics] {
+        &self.packages
     }
 }
 

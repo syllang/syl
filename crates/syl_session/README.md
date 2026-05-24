@@ -3,8 +3,8 @@
 ## Responsibilities
 
 `syl_session` owns workspace loading, document lifecycle, import resolution,
-incremental analysis cache state, and orchestration of compiler stages into a
-snapshot.
+workspace/package graph snapshots, incremental analysis cache state, and
+orchestration of compiler stages into a snapshot.
 
 ## Inputs
 
@@ -15,9 +15,9 @@ snapshot.
 ## Outputs
 
 - `AnalysisHost`, `ProjectResolver`, and configuration types
-- `ResolvedSnapshot`, `AnalysisSnapshot`, and `Project`
+- `ResolvedSnapshot`, `AnalysisSnapshot`, `WorkspaceSnapshot`, and `Project`
 - source files, session diagnostics, access to semantic analysis, machine-readable
-  opaque summaries, and final HWIR
+  opaque summaries, cancellation-aware stage access, and final HWIR
 
 ## Allowed Dependencies
 
@@ -40,6 +40,7 @@ snapshot.
 ## Allowed Responsibilities
 
 - own workspace/document metadata and VFS boundaries
+- own workspace snapshots, source databases, and package graphs
 - cache and reuse semantic and elaboration results
 - assemble analysis snapshots that downstream tooling can query
 - coordinate stage execution without redefining stage semantics

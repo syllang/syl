@@ -84,8 +84,8 @@ fn architecture_phase3_query_layer_stays_on_snapshot_sema_accessors() {
     let query_api = read_text(&workspace_root().join("crates/syl_query/src/snapshot/api.rs"));
 
     for required in [
-        "self.snapshot.hir_analysis()",
-        "self.snapshot.tir_analysis()",
+        "hir_analysis_with_token(token)",
+        "tir_analysis_with_token(token)",
     ] {
         assert!(
             query_api.contains(required),
