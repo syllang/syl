@@ -132,6 +132,7 @@
   - 2026-05-23 S1 - Work SubAgent 完成 Phase 2 初版交付：`syl_syntax` 入口降为模块 wiring，AST/token/node-index 拆出独立模块，parser recovery 和 span 精度补强，`ParseOutput` 与 session snapshot 携带 `AstNodeIndex`，新增 syntax lib tests 与 architecture_phase2_frontend 覆盖 examples parse、invalid recovery、span precision、node id/range 和 AST dump；主 Agent 验证 `cargo fmt --all`、`cargo test -p syl_syntax --lib -- --nocapture`、`cargo test -p sylc architecture_ -- --nocapture`、`cargo check --workspace --all-targets`、`git diff --check` 均通过。
   - 2026-05-23 S2 - 主 Agent 派出 Review SubAgent，按 Phase 2 MUST FIX 和退出标准独立审查 syntax 分层、error recovery、trivia/span 策略、AstNodeIndex 稳定性、测试覆盖和文件规模。
   - 2026-05-23 S2 - Review SubAgent 判定 Phase 2 未收敛：`AstNodeId` 基于 `kind + covered text + occurrence`，在前方插入同 kind/同文本 sibling 时未改动节点 ID 漂移；README 对 LSP bookkeeping 过度承诺；node-id 稳定性测试仅覆盖 leading comment，grammar golden 证据偏弱。
+  - 2026-05-23 S3 - 主 Agent 审核 Review 结论后派 Work SubAgent 整改：改进 `AstNodeId` 稳定锚定策略，补充前置同 kind/同文本 sibling 插入测试，增强 grammar golden 证据，并校准 README 对 node index 能力边界的表述。
 
   ———
 
