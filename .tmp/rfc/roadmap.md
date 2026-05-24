@@ -293,6 +293,9 @@
   - emitter 不需要知道 HIR/TIR。
   - Verilator 可以覆盖 examples 和 integration cases。
 
+  Log
+  - 2026-05-24 S1 - 主 Agent 派出 Work SubAgent，执行 Phase 6 Backend 与验证层分离：拆清 HW IR normalization/checks 与 SystemVerilog emission，确保 emitter 不承担前端语义修复，补充 HW IR debug dump、SV golden output 和 Verilator smoke test 证据。
+
   ———
 
   ## [ ] Phase 7：Query / Session / LSP 增量化
