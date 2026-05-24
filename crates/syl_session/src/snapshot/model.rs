@@ -6,7 +6,7 @@ use std::{
 use syl_hw::ParametricHwDesign;
 use syl_sema::{HirAnalysis, TirAnalysis};
 use syl_span::{Diagnostic, SourceId, SourceMap};
-use syl_syntax::AstFile;
+use syl_syntax::{AstFile, AstNodeIndex};
 
 use super::semantic_cache::SemanticCache;
 
@@ -57,6 +57,7 @@ pub struct AnalysisFile {
     version: DocumentVersion,
     origin: DocumentOrigin,
     ast: AstFile,
+    ast_node_index: AstNodeIndex,
 }
 
 #[derive(Debug)]
@@ -68,6 +69,7 @@ pub(crate) struct AnalysisFileInput {
     pub(crate) version: DocumentVersion,
     pub(crate) origin: DocumentOrigin,
     pub(crate) ast: AstFile,
+    pub(crate) ast_node_index: AstNodeIndex,
 }
 
 impl AnalysisFile {
@@ -79,6 +81,7 @@ impl AnalysisFile {
             version,
             origin,
             ast,
+            ast_node_index,
         } = input;
         Self {
             source_id,
@@ -87,6 +90,7 @@ impl AnalysisFile {
             version,
             origin,
             ast,
+            ast_node_index,
         }
     }
 
@@ -116,6 +120,10 @@ impl AnalysisFile {
 
     pub fn ast(&self) -> &AstFile {
         &self.ast
+    }
+
+    pub fn ast_node_index(&self) -> &AstNodeIndex {
+        &self.ast_node_index
     }
 }
 

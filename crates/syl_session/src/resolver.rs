@@ -130,15 +130,19 @@ where
             .source_map
             .add_file(document.uri().as_str(), document.text());
         let parsed = SourceParser::new_in(document.text(), source_id).parse_file_partial();
-        context.diagnostics.extend(parsed.diagnostics);
-        self.queue_imports(document.uri(), &parsed.file, context);
+        let ast_node_index = parsed.node_index().clone();
+        let parsed_diagnostics = parsed.diagnostics;
+        let ast = parsed.file;
+        context.diagnostics.extend(parsed_diagnostics);
+        self.queue_imports(document.uri(), &ast, context);
         context.files.push(AnalysisFile::new(AnalysisFileInput {
             source_id,
             path: document.path().map(Path::to_path_buf),
             uri: document.uri().clone(),
             version: document.version(),
             origin: document.origin().clone(),
-            ast: parsed.file,
+            ast_node_index,
+            ast,
         }));
     }
 

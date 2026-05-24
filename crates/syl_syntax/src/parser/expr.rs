@@ -28,7 +28,7 @@ impl Parser {
             if !self.check(&TokenKind::Gt) {
                 loop {
                     let name = self.expect_ident()?;
-                    let span = self.prev_span();
+                    let start = self.prev_span();
                     let kind = if self.consume(&TokenKind::Colon).is_some() {
                         Some(self.parse_type_expr()?)
                     } else {
@@ -39,7 +39,12 @@ impl Parser {
                     } else {
                         None
                     };
-                    params.push(GenericParam::new(name, kind, default, span));
+                    let end = default
+                        .as_ref()
+                        .map(Expr::span)
+                        .or_else(|| kind.as_ref().map(TypeExpr::span))
+                        .unwrap_or(start);
+                    params.push(GenericParam::new(name, kind, default, start.join(end)));
                     if self.consume(&TokenKind::Comma).is_none() {
                         break;
                     }
@@ -59,6 +64,7 @@ impl Parser {
         if !self.check(&TokenKind::RParen) {
             loop {
                 let name = self.expect_ident()?;
+                let start = self.prev_span();
                 self.expect(TokenKind::Colon)?;
                 let dir = if self.consume(&TokenKind::KwIn).is_some() {
                     Some(ParamDirection::In)
@@ -68,7 +74,7 @@ impl Parser {
                     None
                 };
                 let ty = self.parse_type_expr()?;
-                let span = ty.span();
+                let span = start.join(ty.span());
                 params.push(Param::new(name, dir, ty, span));
                 if self.consume(&TokenKind::Comma).is_none() {
                     break;
@@ -84,9 +90,10 @@ impl Parser {
 
     pub(super) fn parse_result_binding(&mut self) -> Result<ResultBinding, Vec<Diagnostic>> {
         let name = self.expect_ident()?;
+        let start = self.prev_span();
         self.expect(TokenKind::Colon)?;
         let ty = self.parse_type_expr()?;
-        let span = ty.span();
+        let span = start.join(ty.span());
         Ok(ResultBinding::new(
             name,
             ty,
@@ -95,19 +102,20 @@ impl Parser {
         ))
     }
 
-    pub(super) fn parse_field_block(&mut self) -> Result<Vec<FieldDecl>, Vec<Diagnostic>> {
-        self.expect(TokenKind::LBrace)?;
+    pub(super) fn parse_field_block(&mut self) -> Result<(Vec<FieldDecl>, Span), Vec<Diagnostic>> {
+        let start = self.expect(TokenKind::LBrace)?.span;
         let mut fields = Vec::new();
         while !self.check(&TokenKind::RBrace) && !self.is_eof() {
             let name = self.expect_ident()?;
+            let field_start = self.prev_span();
             self.expect(TokenKind::Colon)?;
             let ty = self.parse_type_expr()?;
-            let span = ty.span();
+            let span = field_start.join(ty.span());
             fields.push(FieldDecl::new(name, ty, span));
             self.consume(&TokenKind::Comma);
         }
-        self.expect(TokenKind::RBrace)?;
-        Ok(fields)
+        let end = self.expect(TokenKind::RBrace)?.span;
+        Ok((fields, start.join(end)))
     }
 
     pub(super) fn parse_interface_body(
@@ -122,9 +130,10 @@ impl Parser {
                 continue;
             }
             let name = self.expect_ident()?;
+            let field_start = self.prev_span();
             self.expect(TokenKind::Colon)?;
             let ty = self.parse_type_expr()?;
-            let span = ty.span();
+            let span = field_start.join(ty.span());
             fields.push(FieldDecl::new(name, ty, span));
             self.consume(&TokenKind::Comma);
         }
@@ -138,15 +147,17 @@ impl Parser {
         self.expect(TokenKind::LBrace)?;
         let mut fields = Vec::new();
         while !self.check(&TokenKind::RBrace) && !self.is_eof() {
-            let dir = match self.bump() {
+            let (dir, dir_span) = match self.bump() {
                 Some(Token {
                     kind: TokenKind::KwIn,
+                    span,
                     ..
-                }) => ViewDirection::In,
+                }) => (ViewDirection::In, span),
                 Some(Token {
                     kind: TokenKind::KwOut,
+                    span,
                     ..
-                }) => ViewDirection::Out,
+                }) => (ViewDirection::Out, span),
                 Some(tok) => {
                     self.error(tok.span, "expected in or out");
                     return Err(std::mem::take(&mut self.diagnostics));
@@ -157,8 +168,9 @@ impl Parser {
                 }
             };
             let field = self.expect_ident()?;
-            let span = self.prev_span();
-            fields.push(ViewField::new(dir, field, span));
+            let end = self.prev_span();
+            fields.push(ViewField::new(dir, field, dir_span.join(end)));
+            self.consume(&TokenKind::Comma);
         }
         let end = self.expect(TokenKind::RBrace)?.span;
         Ok(ViewDecl::new(name, fields, start.join(end)))
@@ -579,12 +591,11 @@ impl Parser {
             }
             Some(Token {
                 kind: TokenKind::LParen,
-                ..
+                span,
             }) => {
                 let expr = self.parse_expr(0)?;
                 let end = self.expect(TokenKind::RParen)?.span;
-                let span = expr.span().join(end);
-                Ok(Expr::Group(Box::new(expr), span))
+                Ok(Expr::Group(Box::new(expr), span.join(end)))
             }
             Some(Token {
                 kind: TokenKind::LBrace,

@@ -14,17 +14,25 @@ impl AstFile {
 
 fn debug_item(item: &Item) -> String {
     match item {
-        Item::Error(_) => "error".to_string(),
-        Item::Package(item) => format!("package {}", item.path.join("::")),
-        Item::Use(item) => format!("use {}", item.path.join("::")),
-        Item::Const(item) => format!("const {}", item.name),
-        Item::Fn(item) => format!("fn {}", item.name),
-        Item::Enum(item) => format!("enum {}", item.name),
-        Item::Bundle(item) => format!("bundle {}", item.name),
-        Item::Interface(item) => format!("interface {}", item.name),
-        Item::Map(item) => format!("map {}", item.name),
-        Item::Cell(item) => format!("cell {}", item.name),
-        Item::Module(item) => format!("module {}", item.name),
-        Item::ExternModule(item) => format!("extern module {}", item.name),
+        Item::Error(item) => format!("error@{}", debug_span(item.span)),
+        Item::Package(item) => {
+            format!("package {}@{}", item.path.join("::"), debug_span(item.span))
+        }
+        Item::Use(item) => format!("use {}@{}", item.path.join("::"), debug_span(item.span)),
+        Item::Const(item) => format!("const {}@{}", item.name, debug_span(item.span)),
+        Item::Fn(item) => format!("fn {}@{}", item.name, debug_span(item.span)),
+        Item::Enum(item) => format!("enum {}@{}", item.name, debug_span(item.span)),
+        Item::Bundle(item) => format!("bundle {}@{}", item.name, debug_span(item.span)),
+        Item::Interface(item) => format!("interface {}@{}", item.name, debug_span(item.span)),
+        Item::Map(item) => format!("map {}@{}", item.name, debug_span(item.span)),
+        Item::Cell(item) => format!("cell {}@{}", item.name, debug_span(item.span)),
+        Item::Module(item) => format!("module {}@{}", item.name, debug_span(item.span)),
+        Item::ExternModule(item) => {
+            format!("extern module {}@{}", item.name, debug_span(item.span))
+        }
     }
+}
+
+fn debug_span(span: syl_span::Span) -> String {
+    format!("{}..{}", span.start, span.end)
 }

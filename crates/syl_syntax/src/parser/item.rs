@@ -9,6 +9,7 @@ impl Parser {
         while self.check(&crate::lexer::TokenKind::At) {
             let at = self.expect(crate::lexer::TokenKind::At)?.span;
             let name = self.expect_ident()?;
+            let name_span = self.prev_span();
             let mut args = Vec::new();
             if self.consume(&crate::lexer::TokenKind::LParen).is_some() {
                 if !self.check(&crate::lexer::TokenKind::RParen) {
@@ -22,7 +23,7 @@ impl Parser {
                 let end = self.expect(crate::lexer::TokenKind::RParen)?.span;
                 attrs.push(Attribute::new(name, args, at.join(end)));
             } else {
-                attrs.push(Attribute::new(name, args, at));
+                attrs.push(Attribute::new(name, args, at.join(name_span)));
             }
         }
         Ok(attrs)

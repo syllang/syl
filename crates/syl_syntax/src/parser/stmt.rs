@@ -22,7 +22,13 @@ impl Parser {
         let end = self
             .consume(&TokenKind::Semi)
             .map(|tok| tok.span)
-            .unwrap_or_else(|| value.as_ref().map(|expr| expr.span()).unwrap_or(start));
+            .unwrap_or_else(|| {
+                value
+                    .as_ref()
+                    .map(Expr::span)
+                    .or_else(|| ty.as_ref().map(TypeExpr::span))
+                    .unwrap_or(start)
+            });
         Ok(Stmt::Let {
             name,
             ty,
@@ -63,11 +69,11 @@ impl Parser {
     }
 
     pub(super) fn parse_type_prefix(&mut self) -> Result<TypeExpr, Vec<Diagnostic>> {
-        if self.consume(&TokenKind::LBracket).is_some() {
+        if let Some(start) = self.consume(&TokenKind::LBracket).map(|token| token.span) {
             let len = self.parse_expr(0)?;
-            self.expect(TokenKind::RBracket)?;
+            let end = self.expect(TokenKind::RBracket)?.span;
             let elem = self.parse_type_expr()?;
-            let span = len.span().join(elem.span());
+            let span = start.join(end).join(elem.span());
             return Ok(TypeExpr::Array {
                 len: Box::new(len),
                 elem: Box::new(elem),
@@ -96,7 +102,8 @@ impl Parser {
         while self.consume(&TokenKind::Dot).is_some() {
             parts.push(self.expect_ident()?);
         }
-        let mut ty = TypeExpr::Path(parts, start);
+        let path_end = self.prev_span();
+        let mut ty = TypeExpr::Path(parts, start.join(path_end));
         if self.consume(&TokenKind::Lt).is_some() {
             let mut args = Vec::new();
             if !self.check(&TokenKind::Gt) {
@@ -136,7 +143,13 @@ impl Parser {
         let end = self
             .consume(&TokenKind::Semi)
             .map(|tok| tok.span)
-            .unwrap_or_else(|| value.as_ref().map(|expr| expr.span()).unwrap_or(start));
+            .unwrap_or_else(|| {
+                value
+                    .as_ref()
+                    .map(Expr::span)
+                    .or_else(|| ty.as_ref().map(TypeExpr::span))
+                    .unwrap_or(start)
+            });
         Ok(Stmt::Var {
             name,
             ty,
@@ -163,7 +176,13 @@ impl Parser {
         let end = self
             .consume(&TokenKind::Semi)
             .map(|tok| tok.span)
-            .unwrap_or_else(|| value.as_ref().map(|expr| expr.span()).unwrap_or(start));
+            .unwrap_or_else(|| {
+                value
+                    .as_ref()
+                    .map(Expr::span)
+                    .or_else(|| ty.as_ref().map(TypeExpr::span))
+                    .unwrap_or(start)
+            });
         Ok(Stmt::Signal {
             name,
             ty,
@@ -188,7 +207,13 @@ impl Parser {
         let end = self
             .consume(&TokenKind::Semi)
             .map(|tok| tok.span)
-            .unwrap_or_else(|| start);
+            .unwrap_or_else(|| {
+                reset
+                    .as_ref()
+                    .map(|reset| reset.span)
+                    .or_else(|| ty.as_ref().map(TypeExpr::span))
+                    .unwrap_or(start)
+            });
         Ok(Stmt::Reg {
             name,
             ty,
@@ -306,9 +331,10 @@ impl Parser {
         let mut fields = Vec::new();
         while !self.check(&TokenKind::RBrace) && !self.is_eof() {
             let name = self.expect_ident()?;
+            let start = self.prev_span();
             self.expect(TokenKind::Colon)?;
             let value = self.parse_expr(0)?;
-            let span = value.span();
+            let span = start.join(value.span());
             fields.push(NamedExpr::new(name, value, span));
             self.consume(&TokenKind::Comma);
         }

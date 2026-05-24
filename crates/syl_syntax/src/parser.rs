@@ -41,6 +41,7 @@ impl<'a> SourceParser<'a> {
         let mut parsed = Parser::new_at_end(output.tokens, self.source_id, self.source.len())
             .parse_file_partial();
         parsed.diagnostics.extend(output.diagnostics);
+        parsed.attach_node_index(self.source);
         parsed
     }
 
@@ -137,6 +138,7 @@ impl<'a> SourceParser<'a> {
         let mut parsed = Parser::new_at_end(parse_tokens, self.source_id, self.source.len())
             .parse_file_partial();
         parsed.diagnostics.extend(output.diagnostics);
+        parsed.attach_node_index(self.source);
         let syntax = lossless_tree::build_lossless_syntax_file(
             self.source_id,
             self.source.len(),
@@ -157,11 +159,16 @@ impl<'a> SourceParser<'a> {
 pub struct ParseOutput {
     pub file: AstFile,
     pub diagnostics: Vec<Diagnostic>,
+    node_index: crate::AstNodeIndex,
 }
 
 impl ParseOutput {
     pub fn new(file: AstFile, diagnostics: Vec<Diagnostic>) -> Self {
-        Self { file, diagnostics }
+        Self {
+            file,
+            diagnostics,
+            node_index: crate::AstNodeIndex::default(),
+        }
     }
 
     pub fn into_result(self) -> Result<AstFile, Vec<Diagnostic>> {
@@ -170,6 +177,14 @@ impl ParseOutput {
         } else {
             Err(self.diagnostics)
         }
+    }
+
+    pub fn node_index(&self) -> &crate::AstNodeIndex {
+        &self.node_index
+    }
+
+    pub(crate) fn attach_node_index(&mut self, source: &str) {
+        self.node_index = self.file.build_node_index(source);
     }
 }
 
@@ -314,8 +329,7 @@ impl Parser {
         let start = self.expect(TokenKind::KwBundle)?.span;
         let name = self.expect_ident()?;
         let generics = self.parse_generic_params()?;
-        let fields = self.parse_field_block()?;
-        let end = fields.last().map(|f| f.span).unwrap_or(start);
+        let (fields, end) = self.parse_field_block()?;
         Ok(BundleItem::builder(name)
             .generics(generics)
             .fields(fields)
@@ -391,7 +405,10 @@ impl Parser {
         } else {
             None
         };
-        let end = result.as_ref().map(|r| r.span).unwrap_or(start);
+        let end = result
+            .as_ref()
+            .map(|result| result.span)
+            .unwrap_or_else(|| self.prev_span());
         Ok(ExternModuleItem::builder(name)
             .generics(generics)
             .params(params)
@@ -432,28 +449,7 @@ impl Parser {
     fn parse_fn_item(&mut self) -> Result<FnItem, Vec<Diagnostic>> {
         let start = self.expect(TokenKind::KwFn)?.span;
         let name = self.expect_ident()?;
-        self.expect(TokenKind::LParen)?;
-        let mut params = Vec::new();
-        if !self.check(&TokenKind::RParen) {
-            loop {
-                let pname = self.expect_ident()?;
-                self.expect(TokenKind::Colon)?;
-                let dir = if self.consume(&TokenKind::KwIn).is_some() {
-                    Some(ParamDirection::In)
-                } else if self.consume(&TokenKind::KwOut).is_some() {
-                    Some(ParamDirection::Out)
-                } else {
-                    None
-                };
-                let pty = self.parse_type_expr()?;
-                let span = pty.span();
-                params.push(Param::new(pname, dir, pty, span));
-                if self.consume(&TokenKind::Comma).is_none() {
-                    break;
-                }
-            }
-        }
-        self.expect(TokenKind::RParen)?;
+        let params = self.parse_param_list()?;
         let ret_ty = if self.consume(&TokenKind::Arrow).is_some() {
             Some(self.parse_type_expr()?)
         } else {
@@ -538,8 +534,11 @@ impl Parser {
             } else {
                 Some(self.parse_expr(0)?)
             };
-            self.consume(&TokenKind::Semi);
-            return Ok(BlockEntry::Stmt(Stmt::Return(expr, span)));
+            let end = self
+                .consume(&TokenKind::Semi)
+                .map(|token| token.span)
+                .unwrap_or_else(|| expr.as_ref().map(|expr| expr.span()).unwrap_or(span));
+            return Ok(BlockEntry::Stmt(Stmt::Return(expr, span.join(end))));
         }
         let expr = self.parse_expr(0)?;
         if self.consume(&TokenKind::Semi).is_some() || !self.check(&TokenKind::RBrace) {

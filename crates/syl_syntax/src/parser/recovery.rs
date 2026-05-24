@@ -48,7 +48,7 @@ impl Parser {
                 .tokens
                 .get(self.pos.saturating_sub(1))
                 .is_some_and(|token| {
-                    token.kind == TokenKind::RBrace || self.is_stmt_start(&token.kind)
+                    token.kind == TokenKind::RBrace || self.is_block_entry_start(&token.kind)
                 })
         {
             self.pos = self.pos.saturating_sub(1);
@@ -83,7 +83,7 @@ impl Parser {
                 if self.pos > start_pos
                     && self
                         .peek_kind()
-                        .is_some_and(|kind| self.is_stmt_start(kind))
+                        .is_some_and(|kind| self.is_block_entry_start(kind))
                 {
                     return start.join(end);
                 }
@@ -111,6 +111,10 @@ impl Parser {
         }
 
         start.join(end)
+    }
+
+    fn is_block_entry_start(&self, kind: &TokenKind) -> bool {
+        self.is_stmt_start(kind) || self.is_expr_start(kind)
     }
 
     fn is_item_start(&self, kind: &TokenKind) -> bool {
@@ -145,6 +149,24 @@ impl Parser {
                 | TokenKind::KwFor
                 | TokenKind::KwIf
                 | TokenKind::KwReturn
+        )
+    }
+
+    fn is_expr_start(&self, kind: &TokenKind) -> bool {
+        matches!(
+            kind,
+            TokenKind::Ident(_)
+                | TokenKind::Int(_)
+                | TokenKind::Str(_)
+                | TokenKind::Bool(_)
+                | TokenKind::Minus
+                | TokenKind::Bang
+                | TokenKind::KwNot
+                | TokenKind::LParen
+                | TokenKind::LBrace
+                | TokenKind::KwMatch
+                | TokenKind::KwSelect
+                | TokenKind::KwInst
         )
     }
 }
