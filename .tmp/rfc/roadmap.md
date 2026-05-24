@@ -301,7 +301,7 @@
 
   ———
 
-  ## [ ] Phase 7：Query / Session / LSP 增量化
+  ## [x] Phase 7：Query / Session / LSP 增量化
 
   目标：让 IDE 不是“每次全量编译”，而是基于稳定 query key 的编译服务。
 
@@ -341,6 +341,7 @@
   - 2026-05-24 S2 - Review SubAgent 判定 Phase 7 仍未收敛：package shards 已真实服务 grouped diagnostics，cancellation 已接入 diagnostics/request 并能停止后续 package；但 hover/definition/completion 等 navigation queries 仍经 `workspace_semantic` 的 whole-workspace HIR/TIR 路径，`A+B -> A+B'` 后查询 A 仍会重算 whole workspace，未满足 package-local reuse 的端到端退出标准。
   - 2026-05-24 S3 - 主 Agent 审核第二轮 Review 结论后派 Work SubAgent 做窄整改：将 hover/definition/completion/navigation queries 改为优先使用目标文件所属 package semantic shard，而不是 whole-workspace semantic cache，并新增 `A+B -> A+B'` 后对 A 执行 hover/completion 不启动 workspace semantic 且复用 A shard 的结构化测试。
   - 2026-05-24 S4 - Work SubAgent 完成窄整改：`syl_session` 增加 URI 到 package-local HIR/TIR facts accessor，`syl_query` 的 hover/definition/completion 改为按目标 URI 读取 package semantic shard 并保留 whole-workspace facade 仅供显式 API 使用；新增 `A+B -> A+B'` 后对 A 执行 hover/completion/definition 的测试，证明 A shard 复用、B shard 重建且 navigation 未触发 whole-workspace semantic cache。
+  - 2026-05-24 S2 - Review SubAgent 授权 Phase 7 完成：复核确认 navigation queries 经 URI package shard 而非 whole-workspace semantic，`A+B -> A+B'` 后 A hover/completion/definition 复用 A shard 且不启动 whole-workspace HIR/TIR/elab cache；`syl_query` 未引入 workspace/LSP/elab ownership，cancellation、grouped diagnostics、no-elab/no-emit 和 architecture guard 均保持有效。
 
   ———
 
