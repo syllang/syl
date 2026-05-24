@@ -211,6 +211,9 @@
   - EIR dump 能解释“谁创建了什么、谁驱动了什么”。
   - driver conflict 能定位到调用栈和源代码位置。
 
+  Log
+  - 2026-05-24 S1 - 主 Agent 派出 Work SubAgent，执行 Phase 4 Elaboration 严格 pipeline：审查并整改 `syl_elab` pass 边界，拆清 EIR build、driver facts/DRC、metadata、HW lowering，固定 inline cell vs module hierarchy 语义，并补充 architecture_phase4_elab 证据。
+
   ———
 
   ## [ ] Phase 5：Opaque Boundary 与 Metadata
