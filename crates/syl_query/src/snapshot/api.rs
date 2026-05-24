@@ -301,10 +301,13 @@ impl<'a> SnapshotQueryEngine<'a> {
         let Some(span) = self.span_at(uri, utf16_position) else {
             return Ok(None);
         };
-        let hir = self
+        let Some(hir) = self
             .snapshot
-            .hir_analysis_with_token(token)
-            .map_err(map_project_error)?;
+            .hir_analysis_for_uri_with_token(uri, token)
+            .map_err(map_project_error)?
+        else {
+            return Ok(self.generic_definition(uri, span));
+        };
         if let Some(definition) = hir.definition_at(span) {
             let Some(file) = self.snapshot.source_map().file(definition.span().source) else {
                 return Ok(None);
@@ -331,11 +334,11 @@ impl<'a> SnapshotQueryEngine<'a> {
         };
         let hir = self
             .snapshot
-            .hir_analysis_with_token(token)
+            .hir_analysis_for_uri_with_token(uri, token)
             .map_err(map_project_error)?;
         if let Some(tir) = self
             .snapshot
-            .tir_analysis_with_token(token)
+            .tir_analysis_for_uri_with_token(uri, token)
             .map_err(map_project_error)?
             && let Some(hover) = tir.hover_at(span)
         {
@@ -347,6 +350,9 @@ impl<'a> SnapshotQueryEngine<'a> {
         if let Some(hover) = self.generic_hover(uri, span) {
             return Ok(Some(hover));
         }
+        let Some(hir) = hir else {
+            return Ok(None);
+        };
         let Some(hover) = hir.hover_at(span) else {
             return Ok(None);
         };
@@ -369,14 +375,23 @@ impl<'a> SnapshotQueryEngine<'a> {
             CompletionAnalyzer::new(file.ast(), span, source.text()).analyze()
         });
         if let Some(span) = span {
-            let hir = self
-                .snapshot
-                .hir_analysis_with_token(token)
-                .map_err(map_project_error)?;
             let collector = CompletionCollector::new(context.as_ref());
             if matches!(context, Some(CompletionContext::ImportPath)) {
                 return Ok(ImportPathCompletion::new(self.snapshot, uri, span).complete());
             }
+            let Some(hir) = self
+                .snapshot
+                .hir_analysis_for_uri_with_token(uri, token)
+                .map_err(map_project_error)?
+            else {
+                return Ok(CompletionResult {
+                    items: self
+                        .snapshot
+                        .file_by_uri(uri)
+                        .map(|file| collector.ast_items(file.ast()))
+                        .unwrap_or_default(),
+                });
+            };
             if matches!(context, Some(CompletionContext::FieldAccess)) {
                 return Ok(CompletionResult {
                     items: hir

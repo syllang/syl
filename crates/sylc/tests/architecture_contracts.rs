@@ -189,7 +189,10 @@ fn architecture_session_and_query_use_sema_accessors_not_elab_stage_api() {
             "syl_query must not depend on elab frontend stage API: {forbidden}"
         );
     }
-    for required in ["hir_analysis_with_token(", "tir_analysis_with_token("] {
+    for required in [
+        "hir_analysis_for_uri_with_token(",
+        "tir_analysis_for_uri_with_token(",
+    ] {
         assert!(
             query_api.contains(required),
             "syl_query should read sema analysis through session accessors: {required}"

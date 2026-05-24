@@ -340,6 +340,7 @@
   - 2026-05-24 S2 - 主 Agent 派出第二轮 Review SubAgent，复查 S4 package semantic shard 与 end-to-end cancellation 整改是否满足 Phase 7，只有 Review Agent 判 PASS 才允许标记完成。
   - 2026-05-24 S2 - Review SubAgent 判定 Phase 7 仍未收敛：package shards 已真实服务 grouped diagnostics，cancellation 已接入 diagnostics/request 并能停止后续 package；但 hover/definition/completion 等 navigation queries 仍经 `workspace_semantic` 的 whole-workspace HIR/TIR 路径，`A+B -> A+B'` 后查询 A 仍会重算 whole workspace，未满足 package-local reuse 的端到端退出标准。
   - 2026-05-24 S3 - 主 Agent 审核第二轮 Review 结论后派 Work SubAgent 做窄整改：将 hover/definition/completion/navigation queries 改为优先使用目标文件所属 package semantic shard，而不是 whole-workspace semantic cache，并新增 `A+B -> A+B'` 后对 A 执行 hover/completion 不启动 workspace semantic 且复用 A shard 的结构化测试。
+  - 2026-05-24 S4 - Work SubAgent 完成窄整改：`syl_session` 增加 URI 到 package-local HIR/TIR facts accessor，`syl_query` 的 hover/definition/completion 改为按目标 URI 读取 package semantic shard 并保留 whole-workspace facade 仅供显式 API 使用；新增 `A+B -> A+B'` 后对 A 执行 hover/completion/definition 的测试，证明 A shard 复用、B shard 重建且 navigation 未触发 whole-workspace semantic cache。
 
   ———
 

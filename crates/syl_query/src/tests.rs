@@ -50,6 +50,9 @@ fn hover_and_completion_do_not_trigger_elaboration() {
     let snapshot = host
         .snapshot()
         .expect("hover fixture must snapshot cleanly");
+    let app_cache = snapshot
+        .package_semantic_cache("app")
+        .expect("app package shard must exist");
 
     let token = CancellationToken::new();
     let hover_position = source_position(source, "x\n}");
@@ -63,9 +66,83 @@ fn hover_and_completion_do_not_trigger_elaboration() {
 
     assert!(hover.is_some());
     assert!(!completions.items.is_empty());
-    assert!(snapshot.is_hir_cached());
-    assert!(snapshot.is_tir_cached());
+    assert!(app_cache.is_hir_cached());
+    assert!(app_cache.is_tir_cached());
+    assert!(!snapshot.is_hir_cached());
+    assert!(!snapshot.is_tir_cached());
     assert!(!snapshot.is_elaboration_cached());
+}
+
+#[test]
+fn navigation_queries_use_target_package_semantic_shard() {
+    let alpha_source = "package alpha;\nmodule Alpha(x: in Bit, y: out Bit) {\n    y := x\n}\n";
+    let beta_source = "package beta;\nmodule Beta(y: out Bit) {\n    y := 0\n}\n";
+    let beta_updated_source = "package beta;\nmodule Beta(y: out Bit) {\n    y := 1\n}\n";
+    let alpha_uri = DocumentUri::new("untitled:syl/query-nav-alpha");
+    let beta_uri = DocumentUri::new("untitled:syl/query-nav-beta");
+    let mut host = AnalysisHost::new();
+    host.open_document(
+        alpha_uri.clone(),
+        alpha_source.to_string(),
+        DocumentVersion::new(1),
+    );
+    host.open_document(
+        beta_uri.clone(),
+        beta_source.to_string(),
+        DocumentVersion::new(1),
+    );
+    let baseline = host
+        .snapshot()
+        .expect("baseline navigation fixture must snapshot cleanly");
+    let baseline_alpha = baseline
+        .package_semantic_cache("alpha")
+        .expect("alpha baseline shard must exist");
+    let baseline_beta = baseline
+        .package_semantic_cache("beta")
+        .expect("beta baseline shard must exist");
+
+    host.update_document_at_version(
+        &beta_uri,
+        beta_updated_source.to_string(),
+        DocumentVersion::new(2),
+    )
+    .expect("beta update must succeed");
+    let updated = host
+        .snapshot()
+        .expect("updated navigation fixture must snapshot cleanly");
+    let updated_alpha = updated
+        .package_semantic_cache("alpha")
+        .expect("alpha updated shard must exist");
+    let updated_beta = updated
+        .package_semantic_cache("beta")
+        .expect("beta updated shard must exist");
+
+    assert!(baseline_alpha.shares_with(&updated_alpha));
+    assert!(!baseline_beta.shares_with(&updated_beta));
+
+    let token = CancellationToken::new();
+    let hover = updated
+        .hover_at_with_token(&alpha_uri, source_position(alpha_source, "x\n}"), &token)
+        .expect("alpha hover should use package shard");
+    let completions = updated
+        .completions_at_with_token(&alpha_uri, source_position(alpha_source, "y := "), &token)
+        .expect("alpha completion should use package shard");
+    let definition = updated
+        .definition_at_with_token(&alpha_uri, source_position(alpha_source, "x\n}"), &token)
+        .expect("alpha definition should use package shard");
+
+    assert!(hover.is_some());
+    assert!(completions.items.iter().any(|item| item.label == "x"));
+    assert!(definition.is_some());
+    assert!(updated_alpha.is_hir_cached());
+    assert!(updated_alpha.is_tir_cached());
+    assert!(!updated_alpha.is_elaboration_cached());
+    assert!(!updated_beta.is_hir_cached());
+    assert!(!updated_beta.is_tir_cached());
+    assert!(!updated_beta.is_elaboration_cached());
+    assert!(!updated.is_hir_cached());
+    assert!(!updated.is_tir_cached());
+    assert!(!updated.is_elaboration_cached());
 }
 
 #[test]
@@ -151,8 +228,15 @@ fn cancelled_hover_after_hir_cache_does_not_start_tir() {
         .snapshot()
         .expect("hover cancellation fixture must snapshot cleanly");
 
-    let _ = snapshot.hir_analysis();
-    assert!(snapshot.is_hir_cached());
+    let app_cache = snapshot
+        .package_semantic_cache("app")
+        .expect("app package shard must exist");
+    let _ = snapshot
+        .hir_analysis_for_uri_with_token(&uri, &CancellationToken::new())
+        .expect("package HIR should build before cancellation");
+    assert!(app_cache.is_hir_cached());
+    assert!(!app_cache.is_tir_cached());
+    assert!(!snapshot.is_hir_cached());
     assert!(!snapshot.is_tir_cached());
     let token = CancellationToken::new();
     token.cancel();
@@ -162,6 +246,7 @@ fn cancelled_hover_after_hir_cache_does_not_start_tir() {
         .expect_err("cancelled hover must not continue into TIR");
 
     assert_eq!(err, QueryError::Cancelled);
+    assert!(!app_cache.is_tir_cached());
     assert!(!snapshot.is_tir_cached());
     assert!(!snapshot.is_elaboration_cached());
 }

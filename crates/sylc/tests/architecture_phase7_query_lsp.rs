@@ -71,6 +71,76 @@ fn architecture_phase7_session_owns_workspace_and_package_scoped_cache_invalidat
 }
 
 #[test]
+fn architecture_phase7_navigation_uses_target_package_semantic_shard() {
+    let alpha_source = "package alpha;\nmodule Alpha(x: in Bit, y: out Bit) {\n    y := x\n}\n";
+    let beta_source = "package beta;\nmodule Beta(y: out Bit) {\n    y := 0\n}\n";
+    let beta_updated_source = "package beta;\nmodule Beta(y: out Bit) {\n    y := 1\n}\n";
+    let alpha_uri = DocumentUri::new("untitled:syl/phase7-nav-alpha");
+    let beta_uri = DocumentUri::new("untitled:syl/phase7-nav-beta");
+    let mut host = AnalysisHost::new();
+    host.open_document(
+        alpha_uri.clone(),
+        alpha_source.to_string(),
+        DocumentVersion::new(1),
+    );
+    host.open_document(
+        beta_uri.clone(),
+        beta_source.to_string(),
+        DocumentVersion::new(1),
+    );
+    let baseline = host
+        .snapshot()
+        .expect("phase7 navigation baseline must snapshot");
+    let baseline_alpha = baseline
+        .package_semantic_cache("alpha")
+        .expect("alpha baseline shard must exist");
+    let baseline_beta = baseline
+        .package_semantic_cache("beta")
+        .expect("beta baseline shard must exist");
+
+    host.update_document_at_version(
+        &beta_uri,
+        beta_updated_source.to_string(),
+        DocumentVersion::new(2),
+    )
+    .expect("phase7 beta update must succeed");
+    let updated = host
+        .snapshot()
+        .expect("phase7 navigation update must snapshot");
+    let updated_alpha = updated
+        .package_semantic_cache("alpha")
+        .expect("alpha updated shard must exist");
+    let updated_beta = updated
+        .package_semantic_cache("beta")
+        .expect("beta updated shard must exist");
+
+    assert!(baseline_alpha.shares_with(&updated_alpha));
+    assert!(!baseline_beta.shares_with(&updated_beta));
+
+    let token = CancellationToken::new();
+    let hover = updated
+        .hover_at_with_token(&alpha_uri, source_position(alpha_source, "x\n}"), &token)
+        .expect("phase7 hover should stay package-local");
+    let completions = updated
+        .completions_at_with_token(&alpha_uri, source_position(alpha_source, "y := "), &token)
+        .expect("phase7 completion should stay package-local");
+    let definition = updated
+        .definition_at_with_token(&alpha_uri, source_position(alpha_source, "x\n}"), &token)
+        .expect("phase7 definition should stay package-local");
+
+    assert!(hover.is_some());
+    assert!(completions.items.iter().any(|item| item.label == "x"));
+    assert!(definition.is_some());
+    assert!(updated_alpha.is_hir_cached());
+    assert!(updated_alpha.is_tir_cached());
+    assert!(!updated_beta.is_hir_cached());
+    assert!(!updated_beta.is_tir_cached());
+    assert!(!updated.is_hir_cached());
+    assert!(!updated.is_tir_cached());
+    assert!(!updated.is_elaboration_cached());
+}
+
+#[test]
 fn architecture_phase7_query_surface_stays_on_compiler_facts() {
     let workspace = workspace_root();
     let query_root = workspace.join("crates/syl_query/src");
@@ -109,6 +179,19 @@ fn architecture_phase7_query_surface_stays_on_compiler_facts() {
         "query production sources must stay on compiler facts only.\n{}",
         violations.join("\n")
     );
+
+    let api = read_text(query_root.join("snapshot/api.rs"));
+    let navigation_impl = api
+        .split("impl<'a> SnapshotQueryEngine<'a>")
+        .nth(1)
+        .and_then(|tail| tail.split("fn map_project_error").next())
+        .expect("SnapshotQueryEngine implementation should exist");
+    for forbidden in ["hir_analysis_with_token", "tir_analysis_with_token"] {
+        assert!(
+            !navigation_impl.contains(forbidden),
+            "navigation queries must use URI package-local semantic accessors, not {forbidden}"
+        );
+    }
 }
 
 #[test]
@@ -154,6 +237,9 @@ fn architecture_phase7_hover_and_completion_do_not_emit_and_respect_cancellation
     let snapshot = query_host
         .snapshot()
         .expect("phase7 hover fixture must snapshot cleanly");
+    let app_cache = snapshot
+        .package_semantic_cache("app")
+        .expect("phase7 app package shard must exist");
 
     let token = CancellationToken::new();
     let hover = snapshot
@@ -165,6 +251,10 @@ fn architecture_phase7_hover_and_completion_do_not_emit_and_respect_cancellation
 
     assert!(hover.is_some());
     assert!(!completions.items.is_empty());
+    assert!(app_cache.is_hir_cached());
+    assert!(app_cache.is_tir_cached());
+    assert!(!snapshot.is_hir_cached());
+    assert!(!snapshot.is_tir_cached());
     assert!(!snapshot.is_elaboration_cached());
 
     let cancel_uri = DocumentUri::new("untitled:syl/phase7-query-cancel");
@@ -177,7 +267,12 @@ fn architecture_phase7_hover_and_completion_do_not_emit_and_respect_cancellation
     let cancelled_snapshot = cancel_host
         .snapshot()
         .expect("phase7 cancellation fixture must snapshot cleanly");
-    let _ = cancelled_snapshot.hir_analysis();
+    let cancel_cache = cancelled_snapshot
+        .package_semantic_cache("app")
+        .expect("phase7 cancellation app shard must exist");
+    let _ = cancelled_snapshot
+        .hir_analysis_for_uri_with_token(&cancel_uri, &CancellationToken::new())
+        .expect("phase7 package HIR should build before cancellation");
     let cancelled = CancellationToken::new();
     cancelled.cancel();
     let err = cancelled_snapshot
@@ -185,6 +280,9 @@ fn architecture_phase7_hover_and_completion_do_not_emit_and_respect_cancellation
         .expect_err("cancelled hover must stop before TIR/elaboration");
 
     assert_eq!(err, QueryError::Cancelled);
+    assert!(cancel_cache.is_hir_cached());
+    assert!(!cancel_cache.is_tir_cached());
+    assert!(!cancelled_snapshot.is_hir_cached());
     assert!(!cancelled_snapshot.is_tir_cached());
     assert!(!cancelled_snapshot.is_elaboration_cached());
 }

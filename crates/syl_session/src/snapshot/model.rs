@@ -325,6 +325,17 @@ impl AnalysisSnapshot {
         self.workspace_semantic.hir_with_token(token)
     }
 
+    pub fn hir_analysis_for_uri_with_token(
+        &self,
+        uri: &DocumentUri,
+        token: &CancellationToken,
+    ) -> Result<Option<&HirAnalysis>, ProjectError> {
+        let Some(package) = self.package_semantics.entry_for_uri(uri) else {
+            return Ok(None);
+        };
+        package.semantic().hir_with_token(token).map(Some)
+    }
+
     pub fn tir_analysis(&self) -> Option<&TirAnalysis> {
         self.workspace_semantic.tir()
     }
@@ -334,6 +345,17 @@ impl AnalysisSnapshot {
         token: &CancellationToken,
     ) -> Result<Option<&TirAnalysis>, ProjectError> {
         self.workspace_semantic.tir_with_token(token)
+    }
+
+    pub fn tir_analysis_for_uri_with_token(
+        &self,
+        uri: &DocumentUri,
+        token: &CancellationToken,
+    ) -> Result<Option<&TirAnalysis>, ProjectError> {
+        let Some(package) = self.package_semantics.entry_for_uri(uri) else {
+            return Ok(None);
+        };
+        package.semantic().tir_with_token(token)
     }
 
     pub fn opaque_summaries(&self) -> Option<&OpaqueSummaryTable> {
