@@ -1,11 +1,9 @@
 use crate::{
     CompileError,
     const_mir::ConstMirProgram,
-    driver::{DriverAnalyzer, DriverFacts},
+    driver::{DriverDrcReport, DriverFacts},
     eir::EirDesign,
     hardware_metadata::HardwareMetadata,
-    hardware_metadata_lower::HardwareMetadataLowerer,
-    hw_lower::HwLowerer,
     map_ir::MapIrProgram,
 };
 use std::fmt;
@@ -13,6 +11,7 @@ use syl_hw::ParametricHwDesign;
 use syl_sema::TirAnalysis;
 use syl_span::Diagnostic;
 
+mod debug;
 mod stage;
 mod stage_runner;
 
@@ -46,7 +45,8 @@ pub struct ElaborationOutput {
     const_mir: Option<ConstMirStage>,
     map_ir: Option<MapIrStage>,
     eir: Option<EirStage>,
-    drivers: Option<DriverStage>,
+    driver_facts: Option<DriverFactsStage>,
+    drc: Option<DrcStage>,
     metadata: Option<HardwareMetadata>,
     hwir: Option<ParametricHwDesign>,
     diagnostics: Vec<Diagnostic>,
@@ -65,8 +65,12 @@ impl ElaborationOutput {
         self.eir.as_ref()
     }
 
-    pub fn drivers(&self) -> Option<&DriverStage> {
-        self.drivers.as_ref()
+    pub fn driver_facts(&self) -> Option<&DriverFactsStage> {
+        self.driver_facts.as_ref()
+    }
+
+    pub fn drc(&self) -> Option<&DrcStage> {
+        self.drc.as_ref()
     }
 
     pub fn metadata(&self) -> Option<&HardwareMetadata> {
@@ -159,21 +163,7 @@ impl EirStage {
     }
 
     pub fn debug_dump(&self) -> String {
-        let modules = self
-            .design
-            .modules()
-            .iter()
-            .map(|module| module.name().to_string())
-            .collect::<Vec<_>>()
-            .join(", ");
-        format!(
-            "eir modules={} objects={} drives={} reads={} [{}]",
-            self.design.modules().len(),
-            self.design.objects().len(),
-            self.design.drives().len(),
-            self.design.reads().len(),
-            modules,
-        )
+        debug::eir_stage_dump(self)
     }
 
     pub fn module_count(&self) -> usize {
@@ -183,32 +173,20 @@ impl EirStage {
     pub fn drive_count(&self) -> usize {
         self.design.drives().len()
     }
-
-    pub fn analyze_drivers(&self) -> Result<DriverStage, CompileError> {
-        DriverAnalyzer::new(&self.design)
-            .analyze()
-            .map(DriverStage::new)
-    }
-
-    pub fn analyze_drivers_collect(&self) -> Result<DriverStage, Vec<CompileError>> {
-        DriverAnalyzer::new(&self.design)
-            .analyze_collect()
-            .map(DriverStage::new)
-    }
-
-    pub fn lower_hwir(&self) -> Result<ParametricHwDesign, CompileError> {
-        HwLowerer::new(&self.design).lower()
-    }
 }
 
 #[non_exhaustive]
-pub struct DriverStage {
+pub struct DriverFactsStage {
     facts: DriverFacts,
 }
 
-impl DriverStage {
+impl DriverFactsStage {
     fn new(facts: DriverFacts) -> Self {
         Self { facts }
+    }
+
+    pub fn debug_dump(&self) -> String {
+        debug::driver_facts_stage_dump(self)
     }
 
     pub fn drive_count(&self) -> usize {
@@ -222,9 +200,36 @@ impl DriverStage {
     pub fn create_count(&self) -> usize {
         self.facts.creates().len()
     }
+}
 
-    pub fn metadata(&self) -> Result<HardwareMetadata, CompileError> {
-        HardwareMetadataLowerer::new(&self.facts).lower()
+#[non_exhaustive]
+pub struct DrcStage {
+    report: DriverDrcReport,
+}
+
+impl DrcStage {
+    fn new(report: DriverDrcReport) -> Self {
+        Self { report }
+    }
+
+    pub fn debug_dump(&self) -> String {
+        debug::drc_stage_dump(self)
+    }
+
+    pub fn module_count(&self) -> usize {
+        self.report.module_count()
+    }
+
+    pub fn drive_count(&self) -> usize {
+        self.report.drive_count()
+    }
+
+    pub fn read_count(&self) -> usize {
+        self.report.read_count()
+    }
+
+    pub fn create_count(&self) -> usize {
+        self.report.create_count()
     }
 }
 
@@ -235,7 +240,8 @@ impl fmt::Debug for ElaborationOutput {
             .field("has_const_mir", &self.const_mir.is_some())
             .field("has_map_ir", &self.map_ir.is_some())
             .field("has_eir", &self.eir.is_some())
-            .field("has_drivers", &self.drivers.is_some())
+            .field("has_driver_facts", &self.driver_facts.is_some())
+            .field("has_drc", &self.drc.is_some())
             .field("has_metadata", &self.metadata.is_some())
             .field("has_hwir", &self.hwir.is_some())
             .field("diagnostic_count", &self.diagnostics.len())
@@ -277,10 +283,22 @@ impl fmt::Debug for EirStage {
     }
 }
 
-impl fmt::Debug for DriverStage {
+impl fmt::Debug for DriverFactsStage {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
-            .debug_struct("DriverStage")
+            .debug_struct("DriverFactsStage")
+            .field("drive_count", &self.drive_count())
+            .field("read_count", &self.read_count())
+            .field("create_count", &self.create_count())
+            .finish()
+    }
+}
+
+impl fmt::Debug for DrcStage {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("DrcStage")
+            .field("module_count", &self.module_count())
             .field("drive_count", &self.drive_count())
             .field("read_count", &self.read_count())
             .field("create_count", &self.create_count())

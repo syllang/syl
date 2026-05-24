@@ -319,6 +319,7 @@ fn repeated_crate_domain_paths(workspace: &Path) -> Vec<String> {
 fn phase2_white_box_inventory() -> Vec<String> {
     [
         "crates/sylc/tests/architecture_phase3_sema.rs",
+        "crates/sylc/tests/architecture_phase4_elab.rs",
         "crates/sylc/tests/driver_overlap.rs",
         "crates/sylc/tests/interface_regression.rs",
         "crates/sylc/tests/regression.rs",

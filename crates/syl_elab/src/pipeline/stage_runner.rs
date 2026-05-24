@@ -1,6 +1,13 @@
-use super::{ConstMirStage, DriverStage, EirStage, ElabStage, ElaborationOutput, MapIrStage};
+use super::{
+    ConstMirStage, DrcStage, DriverFactsStage, EirStage, ElabStage, ElaborationOutput, MapIrStage,
+};
 use crate::{
-    CompileError, const_mir::ConstMirBuilder, hardware_metadata::HardwareMetadata,
+    CompileError,
+    const_mir::ConstMirBuilder,
+    driver::{DriverDrcChecker, DriverFactsCollector},
+    hardware_metadata::HardwareMetadata,
+    hardware_metadata_lower::HardwareMetadataLowerer,
+    hw_lower::HwLowerer,
     map_ir::MapIrBuilder,
 };
 use syl_hw::ParametricHwDesign;
@@ -18,9 +25,12 @@ impl<'tir_stage> TirStageRunner<'tir_stage> {
     }
 
     pub(super) fn compile_hwir(&self) -> Result<ParametricHwDesign, CompileError> {
-        let eir = self.elaborate_eir()?;
-        eir.analyze_drivers()?;
-        eir.lower_hwir()
+        let const_mir = ConstMirPass::run(self.tir)?;
+        let map_ir = MapIrPass::run(self.tir)?;
+        let eir = EirBuildPass::run(self.tir, &const_mir, &map_ir)?;
+        let driver_facts = DriverFactsPass::run(&eir).map_err(first_error)?;
+        let _drc = DrcPass::run(&eir, &driver_facts).map_err(first_error)?;
+        HwLoweringPass::run(&eir)
     }
 
     pub(super) fn diagnostics(&self) -> Vec<Diagnostic> {
@@ -28,149 +38,189 @@ impl<'tir_stage> TirStageRunner<'tir_stage> {
     }
 
     pub(super) fn stage_output(&self) -> ElaborationOutput {
-        ElaborationOutputBuilder::new(self.tir).run()
-    }
+        let finish = |const_mir: Option<ConstMirStage>,
+                      map_ir: Option<MapIrStage>,
+                      eir: Option<EirStage>,
+                      driver_facts: Option<DriverFactsStage>,
+                      drc: Option<DrcStage>,
+                      metadata: Option<HardwareMetadata>,
+                      hwir: Option<ParametricHwDesign>,
+                      diagnostics: Vec<Diagnostic>| ElaborationOutput {
+            const_mir,
+            map_ir,
+            eir,
+            driver_facts,
+            drc,
+            metadata,
+            hwir,
+            diagnostics,
+        };
+        let mut diagnostics = Vec::new();
 
-    fn elaborate_eir(&self) -> Result<EirStage, CompileError> {
-        let const_mir = ConstMirBuilder::new(self.tir.design())
-            .build()
-            .map(ConstMirStage::new)?;
-        let map_ir = MapIrBuilder::new(self.tir.design())
-            .build()
-            .map(MapIrStage::new)?;
-        ElabStage::from_tir(self.tir.design()).elaborate(&const_mir, &map_ir)
+        let const_mir = match ConstMirPass::run(self.tir) {
+            Ok(stage) => Some(stage),
+            Err(error) => {
+                diagnostics.push(Diagnostic::from(error));
+                return finish(None, None, None, None, None, None, None, diagnostics);
+            }
+        };
+        let map_ir = match MapIrPass::run(self.tir) {
+            Ok(stage) => Some(stage),
+            Err(error) => {
+                diagnostics.push(Diagnostic::from(error));
+                return finish(const_mir, None, None, None, None, None, None, diagnostics);
+            }
+        };
+        let eir = match EirBuildPass::run(
+            self.tir,
+            const_mir
+                .as_ref()
+                .expect("const mir pass succeeded before EIR build"),
+            map_ir
+                .as_ref()
+                .expect("map ir pass succeeded before EIR build"),
+        ) {
+            Ok(stage) => Some(stage),
+            Err(error) => {
+                diagnostics.push(Diagnostic::from(error));
+                return finish(const_mir, map_ir, None, None, None, None, None, diagnostics);
+            }
+        };
+        let driver_facts = match DriverFactsPass::run(
+            eir.as_ref()
+                .expect("EIR pass succeeded before driver facts collection"),
+        ) {
+            Ok(stage) => Some(stage),
+            Err(errors) => {
+                diagnostics.extend(errors.into_iter().map(Diagnostic::from));
+                return finish(const_mir, map_ir, eir, None, None, None, None, diagnostics);
+            }
+        };
+        let drc = match DrcPass::run(
+            eir.as_ref().expect("EIR stage must exist"),
+            driver_facts
+                .as_ref()
+                .expect("driver facts stage must exist"),
+        ) {
+            Ok(stage) => Some(stage),
+            Err(errors) => {
+                diagnostics.extend(errors.into_iter().map(Diagnostic::from));
+                return finish(
+                    const_mir,
+                    map_ir,
+                    eir,
+                    driver_facts,
+                    None,
+                    None,
+                    None,
+                    diagnostics,
+                );
+            }
+        };
+        let metadata = match HardwareMetadataPass::run(
+            driver_facts
+                .as_ref()
+                .expect("driver facts stage must exist before metadata lowering"),
+        ) {
+            Ok(metadata) => Some(metadata),
+            Err(error) => {
+                diagnostics.push(Diagnostic::from(error));
+                None
+            }
+        };
+        let hwir = match HwLoweringPass::run(eir.as_ref().expect("EIR stage must exist")) {
+            Ok(hwir) => Some(hwir),
+            Err(error) => {
+                diagnostics.push(Diagnostic::from(error));
+                None
+            }
+        };
+        finish(
+            const_mir,
+            map_ir,
+            eir,
+            driver_facts,
+            drc,
+            metadata,
+            hwir,
+            diagnostics,
+        )
     }
 }
 
 #[non_exhaustive]
-struct ElaborationOutputBuilder<'tir_stage> {
-    tir: &'tir_stage TirAnalysis,
-    const_mir: Option<ConstMirStage>,
-    map_ir: Option<MapIrStage>,
-    eir: Option<EirStage>,
-    drivers: Option<DriverStage>,
-    metadata: Option<HardwareMetadata>,
-    hwir: Option<ParametricHwDesign>,
-    diagnostics: Vec<Diagnostic>,
+struct ConstMirPass;
+
+impl ConstMirPass {
+    fn run(tir: &TirAnalysis) -> Result<ConstMirStage, CompileError> {
+        ConstMirBuilder::new(tir.design())
+            .build()
+            .map(ConstMirStage::new)
+    }
 }
 
-impl<'tir_stage> ElaborationOutputBuilder<'tir_stage> {
-    fn new(tir: &'tir_stage TirAnalysis) -> Self {
-        Self {
-            tir,
-            const_mir: None,
-            map_ir: None,
-            eir: None,
-            drivers: None,
-            metadata: None,
-            hwir: None,
-            diagnostics: Vec::new(),
-        }
-    }
+#[non_exhaustive]
+struct MapIrPass;
 
-    fn run(mut self) -> ElaborationOutput {
-        self.build_const_mir();
-        self.build_map_ir();
-        if self.const_mir.is_none() || self.map_ir.is_none() {
-            return self.finish();
-        }
-        self.elaborate_eir();
-        if self.eir.is_none() {
-            return self.finish();
-        }
-        self.analyze_drivers();
-        if self.drivers.is_none() {
-            return self.finish();
-        }
-        self.lower_metadata();
-        self.lower_hwir();
-        self.finish()
+impl MapIrPass {
+    fn run(tir: &TirAnalysis) -> Result<MapIrStage, CompileError> {
+        MapIrBuilder::new(tir.design()).build().map(MapIrStage::new)
     }
+}
 
-    fn build_const_mir(&mut self) {
-        match ConstMirBuilder::new(self.tir.design()).build() {
-            Ok(const_mir) => {
-                self.const_mir = Some(ConstMirStage::new(const_mir));
-            }
-            Err(error) => {
-                self.diagnostics.push(Diagnostic::from(error));
-            }
-        }
-    }
+#[non_exhaustive]
+struct EirBuildPass;
 
-    fn build_map_ir(&mut self) {
-        match MapIrBuilder::new(self.tir.design()).build() {
-            Ok(map_ir) => {
-                self.map_ir = Some(MapIrStage::new(map_ir));
-            }
-            Err(error) => {
-                self.diagnostics.push(Diagnostic::from(error));
-            }
-        }
+impl EirBuildPass {
+    fn run(
+        tir: &TirAnalysis,
+        const_mir: &ConstMirStage,
+        map_ir: &MapIrStage,
+    ) -> Result<EirStage, CompileError> {
+        ElabStage::from_tir(tir.design()).elaborate(const_mir, map_ir)
     }
+}
 
-    fn elaborate_eir(&mut self) {
-        let (Some(const_mir), Some(map_ir)) = (&self.const_mir, &self.map_ir) else {
-            return;
-        };
-        let eir = match ElabStage::from_tir(self.tir.design()).elaborate(const_mir, map_ir) {
-            Ok(eir) => eir,
-            Err(error) => {
-                self.diagnostics.push(Diagnostic::from(error));
-                return;
-            }
-        };
-        self.eir = Some(eir);
-    }
+#[non_exhaustive]
+struct DriverFactsPass;
 
-    fn analyze_drivers(&mut self) {
-        let Some(eir) = &self.eir else {
-            return;
-        };
-        let drivers = match eir.analyze_drivers_collect() {
-            Ok(facts) => facts,
-            Err(errors) => {
-                self.diagnostics
-                    .extend(errors.into_iter().map(Diagnostic::from));
-                return;
-            }
-        };
-        self.drivers = Some(drivers);
+impl DriverFactsPass {
+    fn run(eir: &EirStage) -> Result<DriverFactsStage, Vec<CompileError>> {
+        DriverFactsCollector::new(&eir.design)
+            .collect()
+            .map(DriverFactsStage::new)
     }
+}
 
-    fn lower_hwir(&mut self) {
-        let Some(eir) = &self.eir else {
-            return;
-        };
-        match eir.lower_hwir() {
-            Ok(hwir) => {
-                self.hwir = Some(hwir);
-            }
-            Err(error) => self.diagnostics.push(Diagnostic::from(error)),
-        }
-    }
+#[non_exhaustive]
+struct DrcPass;
 
-    fn lower_metadata(&mut self) {
-        let Some(drivers) = &self.drivers else {
-            return;
-        };
-        match drivers.metadata() {
-            Ok(metadata) => {
-                self.metadata = Some(metadata);
-            }
-            Err(error) => self.diagnostics.push(Diagnostic::from(error)),
-        }
+impl DrcPass {
+    fn run(eir: &EirStage, driver_facts: &DriverFactsStage) -> Result<DrcStage, Vec<CompileError>> {
+        DriverDrcChecker::new(&eir.design, &driver_facts.facts)
+            .check_collect()
+            .map(DrcStage::new)
     }
+}
 
-    fn finish(self) -> ElaborationOutput {
-        ElaborationOutput {
-            const_mir: self.const_mir,
-            map_ir: self.map_ir,
-            eir: self.eir,
-            drivers: self.drivers,
-            metadata: self.metadata,
-            hwir: self.hwir,
-            diagnostics: self.diagnostics,
-        }
+#[non_exhaustive]
+struct HardwareMetadataPass;
+
+impl HardwareMetadataPass {
+    fn run(driver_facts: &DriverFactsStage) -> Result<HardwareMetadata, CompileError> {
+        HardwareMetadataLowerer::new(&driver_facts.facts).lower()
     }
+}
+
+#[non_exhaustive]
+struct HwLoweringPass;
+
+impl HwLoweringPass {
+    fn run(eir: &EirStage) -> Result<ParametricHwDesign, CompileError> {
+        HwLowerer::new(&eir.design).lower()
+    }
+}
+
+fn first_error(mut errors: Vec<CompileError>) -> CompileError {
+    errors.remove(0)
 }
