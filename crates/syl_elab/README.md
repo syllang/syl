@@ -2,19 +2,22 @@
 
 ## Responsibilities
 
-`syl_elab` owns the elaboration pipeline that consumes typed semantic analysis
-and produces validated hardware graph output.
+`syl_elab` owns the elaboration pipeline that consumes typed semantic analysis,
+reads sema-owned Const MIR and Map IR, assembles and validates EIR, and
+produces validated hardware graph output.
 
 ## Inputs
 
 - `syl_sema::TirAnalysis`
-- semantic facts and HIR-owned identities reachable through `syl_sema`
+- semantic facts, sema-owned Const MIR / Map IR, and HIR-owned identities
+  reachable through `syl_sema`
 - source spans from `syl_span`
 - hardware IR data model from `syl_hw` as the output carrier
 
 ## Outputs
 
 - `HardwareCompiler` and elaboration-stage outputs rooted in TIR input
+- validated EIR plus driver-analysis results as internal elaboration boundaries
 - elaboration diagnostics and driver facts
 - `syl_hw::ParametricHwDesign` for backend consumption
 
@@ -37,6 +40,7 @@ and produces validated hardware graph output.
 
 - consume `TirAnalysis` and semantic facts
 - elaborate cells, modules, maps, and drivers
+- keep EIR data structures separate from builder, validator, and driver passes
 - validate elaborated structure before backend emission
 - lower elaborated results into the backend-neutral HW IR
 

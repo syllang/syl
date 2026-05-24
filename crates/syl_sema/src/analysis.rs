@@ -348,6 +348,10 @@ impl TirAnalysis {
         &self.design
     }
 
+    pub fn debug_dump(&self) -> String {
+        self.design.debug_dump()
+    }
+
     pub fn expr_count(&self) -> usize {
         self.design.expr_phases().len()
     }

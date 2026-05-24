@@ -35,6 +35,18 @@ impl TirDesign {
         &self.hir
     }
 
+    pub fn debug_dump(&self) -> String {
+        format!(
+            "tir hir_defs={} hir_locals={} expr_phases={} expr_types={} bindings={} binding_types={}",
+            self.hir.defs.len(),
+            self.hir.locals.len(),
+            self.expr_phases.len(),
+            self.expr_types.len(),
+            self.binding_kinds.len(),
+            self.binding_types.len(),
+        )
+    }
+
     pub fn expr_phases(&self) -> &BTreeMap<ExprId, Phase> {
         &self.expr_phases
     }

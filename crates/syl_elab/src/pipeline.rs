@@ -89,6 +89,10 @@ impl ConstMirStage {
         Self { program }
     }
 
+    pub fn debug_dump(&self) -> String {
+        self.program.debug_dump()
+    }
+
     pub fn node_count(&self) -> usize {
         self.program.node_count()
     }
@@ -110,6 +114,10 @@ pub struct MapIrStage {
 impl MapIrStage {
     fn new(program: MapIrProgram) -> Self {
         Self { program }
+    }
+
+    pub fn debug_dump(&self) -> String {
+        self.program.debug_dump()
     }
 
     pub fn map_count(&self) -> usize {
@@ -141,6 +149,24 @@ pub struct EirStage {
 impl EirStage {
     fn new(design: EirDesign) -> Self {
         Self { design }
+    }
+
+    pub fn debug_dump(&self) -> String {
+        let modules = self
+            .design
+            .modules()
+            .iter()
+            .map(|module| module.name().to_string())
+            .collect::<Vec<_>>()
+            .join(", ");
+        format!(
+            "eir modules={} objects={} drives={} reads={} [{}]",
+            self.design.modules().len(),
+            self.design.objects().len(),
+            self.design.drives().len(),
+            self.design.reads().len(),
+            modules,
+        )
     }
 
     pub fn module_count(&self) -> usize {

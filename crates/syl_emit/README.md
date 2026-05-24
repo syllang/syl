@@ -2,7 +2,8 @@
 
 ## Responsibilities
 
-`syl_emit` owns backend emission from checked HW IR to SystemVerilog text.
+`syl_emit` owns backend emission from checked HW IR to SystemVerilog text and
+the backend-local SV AST used for emission/debug dumps.
 
 ## Inputs
 
@@ -11,6 +12,7 @@
 ## Outputs
 
 - emitted SystemVerilog source text
+- backend-local SV AST / debug dump views
 - backend-local structured errors for unsupported or invalid HW IR
 
 ## Allowed Dependencies

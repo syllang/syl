@@ -1,7 +1,7 @@
 use crate::{
     CompileError,
     const_mir::ConstMirProgram,
-    eir::{EirDesign, EirModule, EirParam},
+    eir::{EirDesign, EirDesignAssembler, EirModule, EirParam},
     eir_connect::PortSpec,
     eir_expr::{EirBinaryOp, EirExpr, EirUnaryOp},
     eir_origin::{EirExpansion, EirOrigin},
@@ -188,7 +188,7 @@ impl<'a> EirBuilder<'a> {
                 ElabCallable::Cell(_) => {}
             }
         }
-        EirDesign::new(modules)
+        EirDesignAssembler::assemble(modules)
     }
 
     fn build_callable(

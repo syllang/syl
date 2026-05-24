@@ -79,6 +79,11 @@ impl SystemVerilogBackend {
         Self
     }
 
+    pub fn debug_dump(&self, hwir: &ParametricHwDesign) -> Result<String, CompileError> {
+        let design = lower::SvEmitter::new(hwir).lower()?;
+        Ok(design.debug_dump())
+    }
+
     pub fn emit(&self, hwir: &ParametricHwDesign) -> Result<String, CompileError> {
         let design = lower::SvEmitter::new(hwir).lower()?;
         let text = design.emit_text();

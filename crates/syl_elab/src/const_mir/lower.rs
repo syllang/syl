@@ -1,4 +1,4 @@
-use super::{ConstExpr, ConstFunction, ConstMirProgram};
+use super::{ConstExpr, ConstFunction, ConstMirElabExt, ConstMirProgram};
 use crate::{
     CompileError, ConstEvalError, EirError, TirError,
     const_eval::{ConstEvalEnv, ConstKind, ConstValue},
@@ -7,8 +7,8 @@ use crate::{
 use std::collections::BTreeMap;
 use syl_hir::DefId;
 
-impl ConstMirProgram {
-    pub(crate) fn elab_value(
+impl ConstMirElabExt for ConstMirProgram {
+    fn elab_value(
         &self,
         program: &ElabProgram,
         expr: &ElabExpr,
@@ -18,7 +18,7 @@ impl ConstMirProgram {
         self.evaluator().expr_value(&lowered, env)
     }
 
-    pub(crate) fn elab_bool(
+    fn elab_bool(
         &self,
         program: &ElabProgram,
         expr: &ElabExpr,
@@ -40,7 +40,7 @@ impl ConstMirProgram {
         }
     }
 
-    pub(crate) fn require_elab_nat(
+    fn require_elab_nat(
         &self,
         program: &ElabProgram,
         expr: &ElabExpr,

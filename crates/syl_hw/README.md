@@ -3,7 +3,8 @@
 ## Responsibilities
 
 `syl_hw` owns the backend-neutral hardware IR data model produced by elaboration
-and consumed by emitters.
+and consumed by emitters. It is a data contract only: no EIR builder state,
+driver-analysis scratch state, or semantic temporaries should leak into it.
 
 ## Inputs
 
@@ -41,6 +42,7 @@ and consumed by emitters.
 
 - parser or semantic analysis
 - elaboration algorithms or driver conflict analysis
+- carrying elaboration-time temporary state from `syl_elab`
 - target-language validation or printing
 - workspace orchestration or protocol adaptation
 

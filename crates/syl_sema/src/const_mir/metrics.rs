@@ -5,6 +5,23 @@ use super::{
 use syl_hir::LocalId;
 
 impl ConstMirProgram {
+    pub fn debug_dump(&self) -> String {
+        let functions = self
+            .functions
+            .iter()
+            .map(ConstFunction::debug_summary)
+            .collect::<Vec<_>>()
+            .join(", ");
+        format!(
+            "const_mir functions={} nodes={} local_refs={} resolved_local_refs={} [{}]",
+            self.functions.len(),
+            self.node_count(),
+            self.local_ref_count(),
+            self.resolved_local_ref_count(),
+            functions,
+        )
+    }
+
     pub fn node_count(&self) -> usize {
         self.functions.iter().map(ConstFunction::node_count).sum()
     }
@@ -25,6 +42,17 @@ impl ConstMirProgram {
 }
 
 impl ConstFunction {
+    fn debug_summary(&self) -> String {
+        format!(
+            "{}(params={}, locals={}, blocks={}, unsupported={})",
+            self.name,
+            self.params.len(),
+            self.locals.len(),
+            self.blocks.len(),
+            self.unsupported,
+        )
+    }
+
     fn node_count(&self) -> usize {
         self.name.len()
             + self.params.iter().map(String::len).sum::<usize>()

@@ -1,6 +1,6 @@
 use super::{
-    EirDirection, EirDrive, EirDriveKind, EirExpr, EirInstance, EirItem, EirModule, EirObject,
-    EirObjectKind, EirRead,
+    EirDirection, EirDrive, EirDriveKind, EirExpr, EirFacts, EirInstance, EirItem, EirModule,
+    EirObject, EirObjectKind, EirRead,
 };
 use crate::{
     CompileError, DriverError, EirError,
@@ -22,6 +22,16 @@ pub(super) struct EirFactCollector {
 }
 
 impl EirFactCollector {
+    pub(super) fn collect(modules: &[EirModule]) -> Result<EirFacts, CompileError> {
+        let mut collector = Self::new();
+        collector.collect_modules(modules)?;
+        Ok(EirFacts {
+            objects: collector.objects,
+            drives: collector.drives,
+            reads: collector.reads,
+        })
+    }
+
     pub(super) fn new() -> Self {
         Self {
             objects: Vec::new(),

@@ -4,6 +4,24 @@ use super::{
 };
 
 impl MapIrProgram {
+    pub fn debug_dump(&self) -> String {
+        let maps = self
+            .maps
+            .values()
+            .map(MapFunction::debug_summary)
+            .collect::<Vec<_>>()
+            .join(", ");
+        format!(
+            "map_ir maps={} params={} resolved_params={} local_refs={} resolved_local_refs={} [{}]",
+            self.len(),
+            self.param_count(),
+            self.resolved_param_count(),
+            self.local_ref_count(),
+            self.resolved_local_ref_count(),
+            maps,
+        )
+    }
+
     pub fn param_count(&self) -> usize {
         self.maps.values().map(MapFunction::param_count).sum()
     }
@@ -28,6 +46,16 @@ impl MapIrProgram {
 }
 
 impl MapFunction {
+    fn debug_summary(&self) -> String {
+        format!(
+            "map(generics={}, params={}, resolved_params={}, local_refs={})",
+            self.generics.len(),
+            self.param_count(),
+            self.resolved_param_count(),
+            self.local_ref_count(),
+        )
+    }
+
     fn param_count(&self) -> usize {
         self.params.len()
     }

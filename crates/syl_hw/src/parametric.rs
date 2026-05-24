@@ -26,6 +26,24 @@ impl ParametricHwDesign {
         }
     }
 
+    pub fn debug_dump(&self) -> String {
+        let modules = self
+            .modules
+            .iter()
+            .map(|module| module.name().to_string())
+            .collect::<Vec<_>>()
+            .join(", ");
+        format!(
+            "hwir modules={} driver_facts={} read_facts={} create_facts={} cell_summaries={} [{}]",
+            self.modules.len(),
+            self.driver_facts.len(),
+            self.read_facts.len(),
+            self.create_facts.len(),
+            self.cell_summaries.len(),
+            modules,
+        )
+    }
+
     pub fn modules(&self) -> &[ParametricHwModule] {
         &self.modules
     }

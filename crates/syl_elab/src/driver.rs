@@ -636,7 +636,7 @@ mod tests {
     use super::*;
     use crate::{
         LoweringError,
-        eir::{EirDesign, EirItem, EirModule},
+        eir::{EirDesignAssembler, EirItem, EirModule},
         eir_expr::EirExpr,
         eir_origin::EirOrigin,
         eir_place::EirPlace,
@@ -658,7 +658,7 @@ mod tests {
                 origin,
             }],
         );
-        let design = match EirDesign::new(vec![module]) {
+        let design = match EirDesignAssembler::assemble(vec![module]) {
             Ok(design) => design,
             Err(error) => panic!("test EIR should pass structural validation: {error}"),
         };

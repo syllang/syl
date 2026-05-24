@@ -1,53 +1,33 @@
 mod lower;
 
-pub(crate) use syl_sema::const_mir::{ConstExpr, ConstFunction};
+pub(crate) use syl_sema::const_mir::{ConstExpr, ConstFunction, ConstMirBuilder, ConstMirProgram};
 
-use crate::{CompileError, tir::TirDesign};
+use crate::{
+    CompileError,
+    const_eval::{ConstEvalEnv, ConstValue},
+    program::ElabExpr,
+};
 
-#[non_exhaustive]
-pub(crate) struct ConstMirProgram {
-    inner: syl_sema::const_mir::ConstMirProgram,
-}
+pub(crate) trait ConstMirElabExt {
+    fn elab_value(
+        &self,
+        program: &crate::program::ElabProgram,
+        expr: &ElabExpr,
+        env: &mut ConstEvalEnv,
+    ) -> Result<ConstValue, CompileError>;
 
-impl ConstMirProgram {
-    fn new(inner: syl_sema::const_mir::ConstMirProgram) -> Self {
-        Self { inner }
-    }
+    fn elab_bool(
+        &self,
+        program: &crate::program::ElabProgram,
+        expr: &ElabExpr,
+        env: &mut ConstEvalEnv,
+    ) -> Result<Option<bool>, CompileError>;
 
-    pub(crate) fn evaluator(&self) -> syl_sema::const_eval::ConstEvaluator<'_> {
-        self.inner.evaluator()
-    }
-
-    pub(crate) fn function(&self, id: syl_hir::DefId) -> Option<&ConstFunction> {
-        self.inner.function(id)
-    }
-
-    pub(crate) fn node_count(&self) -> usize {
-        self.inner.node_count()
-    }
-
-    pub(crate) fn local_ref_count(&self) -> usize {
-        self.inner.local_ref_count()
-    }
-
-    pub(crate) fn resolved_local_ref_count(&self) -> usize {
-        self.inner.resolved_local_ref_count()
-    }
-}
-
-#[non_exhaustive]
-pub(crate) struct ConstMirBuilder<'a> {
-    inner: syl_sema::const_mir::ConstMirBuilder<'a>,
-}
-
-impl<'a> ConstMirBuilder<'a> {
-    pub(crate) fn new(tir: &'a TirDesign) -> Self {
-        Self {
-            inner: syl_sema::const_mir::ConstMirBuilder::new(tir),
-        }
-    }
-
-    pub(crate) fn build(self) -> Result<ConstMirProgram, CompileError> {
-        self.inner.build().map(ConstMirProgram::new)
-    }
+    fn require_elab_nat(
+        &self,
+        program: &crate::program::ElabProgram,
+        expr: &ElabExpr,
+        env: &mut ConstEvalEnv,
+        context: &str,
+    ) -> Result<ConstValue, CompileError>;
 }

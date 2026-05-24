@@ -11,11 +11,11 @@ use crate::{
     program::ElabProgram,
 };
 
+mod assemble;
 mod facts;
 mod validate;
 
-use facts::EirFactCollector;
-use validate::EirValidator;
+pub(crate) use assemble::EirDesignAssembler;
 
 #[non_exhaustive]
 pub(crate) struct EirDesign {
@@ -26,16 +26,13 @@ pub(crate) struct EirDesign {
 }
 
 impl EirDesign {
-    pub(crate) fn new(modules: Vec<EirModule>) -> Result<Self, CompileError> {
-        EirValidator::new(&modules).validate()?;
-        let mut facts = EirFactCollector::new();
-        facts.collect_modules(&modules)?;
-        Ok(Self {
+    fn from_parts(modules: Vec<EirModule>, facts: EirFacts) -> Self {
+        Self {
             modules,
             objects: facts.objects,
             drives: facts.drives,
             reads: facts.reads,
-        })
+        }
     }
 
     pub(crate) fn modules(&self) -> &[EirModule] {
@@ -53,6 +50,12 @@ impl EirDesign {
     pub(crate) fn reads(&self) -> &[EirRead] {
         &self.reads
     }
+}
+
+struct EirFacts {
+    objects: Vec<EirObject>,
+    drives: Vec<EirDrive>,
+    reads: Vec<EirRead>,
 }
 
 #[non_exhaustive]

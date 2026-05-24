@@ -3,8 +3,9 @@
 ## Responsibilities
 
 `syl_sema` owns semantic analysis over syntax and HIR: name resolution, type
-checking, const evaluation, capability facts, completion facts, and structured
-semantic diagnostics.
+checking, const evaluation, capability facts, completion facts, TIR side
+tables over stable HIR IDs, sema-owned Const MIR for `fn` evaluation, sema-owned
+Map IR for pure combinational map semantics, and structured semantic diagnostics.
 
 ## Inputs
 
@@ -15,6 +16,7 @@ semantic diagnostics.
 ## Outputs
 
 - semantic side tables keyed by HIR entities
+- TIR side tables over HIR, plus sema-owned Const MIR and Map IR programs
 - typed HIR and TIR analysis objects consumed by `syl_elab`, `syl_session`, and
   `syl_query`
 - semantic hover/definition/completion support over HIR and TIR
@@ -38,7 +40,7 @@ semantic diagnostics.
 
 - lower syntax into HIR-owned semantic structures
 - resolve names and imports
-- compute types, const facts, and capability facts
+- compute types, const facts, capability facts, and sema-owned middle IR facts
 - expose semantic analysis objects and lookup APIs that later crates can read
 
 ## Forbidden Responsibilities
