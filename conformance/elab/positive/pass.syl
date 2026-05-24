@@ -1,0 +1,5 @@
+package conformance.elab.positive
+
+module Pass(x: in Bit, y: out Bit) {
+    y := x
+}

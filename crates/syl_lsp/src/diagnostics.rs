@@ -157,7 +157,7 @@ impl<'a> LspDiagnostics<'a> {
     pub(crate) fn publications(&self) -> Vec<LspDiagnosticPublication> {
         self.grouped
             .packages()
-            .into_iter()
+            .iter()
             .flat_map(|package| package.documents().iter())
             .filter_map(|document| self.document_publication(document))
             .collect()

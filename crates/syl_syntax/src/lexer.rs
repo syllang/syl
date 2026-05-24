@@ -226,7 +226,7 @@ impl<'a> Lexer<'a> {
                     } else {
                         let span = self.span(i, i + 1);
                         self.diagnostics
-                            .push(Diagnostic::new(span, "unexpected '&'"));
+                            .push(self.diagnostic(span, "unexpected '&'"));
                         tokens.push(self.lossless_unknown(span));
                     }
                 }
@@ -238,7 +238,7 @@ impl<'a> Lexer<'a> {
                     } else {
                         let span = self.span(i, i + 1);
                         self.diagnostics
-                            .push(Diagnostic::new(span, "unexpected '|'"));
+                            .push(self.diagnostic(span, "unexpected '|'"));
                         tokens.push(self.lossless_unknown(span));
                     }
                 }
@@ -301,10 +301,8 @@ impl<'a> Lexer<'a> {
                 _ => {
                     self.chars.next();
                     let span = self.span(i, i + ch.len_utf8());
-                    self.diagnostics.push(Diagnostic::new(
-                        span,
-                        format!("unexpected character {ch:?}"),
-                    ));
+                    self.diagnostics
+                        .push(self.diagnostic(span, format!("unexpected character {ch:?}")));
                     tokens.push(self.lossless_unknown(span));
                 }
             }
@@ -401,10 +399,8 @@ impl<'a> Lexer<'a> {
 
     fn lex_string(&mut self) -> Result<Token, Vec<Diagnostic>> {
         let Some((start, _)) = self.chars.next() else {
-            self.diagnostics.push(Diagnostic::new(
-                Span::default(),
-                "unterminated string literal",
-            ));
+            self.diagnostics
+                .push(self.string_diagnostic(Span::default(), "unterminated string literal"));
             return Err(std::mem::take(&mut self.diagnostics));
         };
         let mut value = String::new();
@@ -419,14 +415,14 @@ impl<'a> Lexer<'a> {
                     Some((_, '"')) => value.push('"'),
                     Some((_, '\\')) => value.push('\\'),
                     Some((j, other)) => {
-                        self.diagnostics.push(Diagnostic::new(
+                        self.diagnostics.push(self.string_escape_diagnostic(
                             self.span(j, j + other.len_utf8()),
                             "unsupported string escape",
                         ));
                         return Err(std::mem::take(&mut self.diagnostics));
                     }
                     None => {
-                        self.diagnostics.push(Diagnostic::new(
+                        self.diagnostics.push(self.string_diagnostic(
                             self.span(start, start + 1),
                             "unterminated string literal",
                         ));
@@ -437,11 +433,28 @@ impl<'a> Lexer<'a> {
                 value.push(ch);
             }
         }
-        self.diagnostics.push(Diagnostic::new(
-            self.span(start, start + 1),
-            "unterminated string literal",
-        ));
+        self.diagnostics.push(
+            self.string_diagnostic(self.span(start, start + 1), "unterminated string literal"),
+        );
         Err(std::mem::take(&mut self.diagnostics))
+    }
+
+    fn diagnostic(&self, span: Span, message: impl Into<String>) -> Diagnostic {
+        Diagnostic::new(span, message)
+            .with_code("E_SYNTAX_UNEXPECTED_CHARACTER")
+            .with_source("syl_syntax::lexer")
+    }
+
+    fn string_diagnostic(&self, span: Span, message: impl Into<String>) -> Diagnostic {
+        Diagnostic::new(span, message)
+            .with_code("E_SYNTAX_UNTERMINATED_STRING")
+            .with_source("syl_syntax::lexer")
+    }
+
+    fn string_escape_diagnostic(&self, span: Span, message: impl Into<String>) -> Diagnostic {
+        Diagnostic::new(span, message)
+            .with_code("E_SYNTAX_UNSUPPORTED_STRING_ESCAPE")
+            .with_source("syl_syntax::lexer")
     }
 
     fn span(&self, start: usize, end: usize) -> Span {

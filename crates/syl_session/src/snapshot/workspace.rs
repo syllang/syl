@@ -204,9 +204,7 @@ impl<'a> WorkspaceSnapshotBuilder<'a> {
             let path = self.package_path(file);
             let name = self.package_name(file, path.as_ref());
             let key = PackageKey::new(name, path.unwrap_or_default());
-            let package = packages
-                .entry(key)
-                .or_insert_with(PackageAccumulator::default);
+            let package = packages.entry(key).or_default();
             package.documents.push(file.uri().clone());
             package
                 .imports

@@ -12,6 +12,7 @@ members = [
     "crates/syl_query",
     "crates/syl_lsp",
     "crates/sylc",
+    "crates/syl_fuzz",
 ]
 resolver = "2"
 
@@ -20,6 +21,8 @@ version = "0.1.0"
 edition = "2024"
 rust-version = "1.85"
 license = "Apache-2.0"
+repository = "https://github.com/syllang/syl"
+homepage = "https://github.com/syllang/syl"
 
 [workspace.dependencies]
 syl_elab = { path = "crates/syl_elab", version = "0.1.0" }

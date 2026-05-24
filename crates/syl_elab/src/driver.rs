@@ -122,7 +122,7 @@ impl DriveFact {
 #[non_exhaustive]
 pub(crate) enum DriveEffect {
     Continuous,
-    Next { storage_target: DriverPlace },
+    Next { storage_target: Box<DriverPlace> },
 }
 
 #[non_exhaustive]

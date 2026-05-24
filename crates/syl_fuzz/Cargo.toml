@@ -1,0 +1,20 @@
+[package]
+name = "syl_fuzz"
+description = "Private fuzz and syntax smoke harnesses for Syl parser quality gates."
+documentation = "https://docs.rs/syl_fuzz"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+publish = false
+
+[[bin]]
+name = "parser_fuzz"
+path = "src/bin/parser_fuzz.rs"
+
+[dependencies]
+syl_span.workspace = true
+syl_syntax.workspace = true

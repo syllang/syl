@@ -241,10 +241,11 @@ mod tests {
             }],
         );
 
-        let error = match {
+        let validation = {
             let raw = EirRawDesign::new(vec![module]);
             EirValidator::new(raw.modules()).validate()
-        } {
+        };
+        let error = match validation {
             Ok(_) => panic!("unsupported EIR expression must be rejected"),
             Err(error) => error,
         };
@@ -273,10 +274,11 @@ mod tests {
             }],
         );
 
-        let error = match {
+        let validation = {
             let raw = EirRawDesign::new(vec![module]);
             EirValidator::new(raw.modules()).validate()
-        } {
+        };
+        let error = match validation {
             Ok(_) => panic!("unsupported EIR place index must be rejected"),
             Err(error) => error,
         };
@@ -329,10 +331,11 @@ mod tests {
             ))],
         );
 
-        let error = match {
+        let validation = {
             let raw = EirRawDesign::new(vec![module]);
             EirValidator::new(raw.modules()).validate()
-        } {
+        };
+        let error = match validation {
             Ok(_) => panic!("missing opaque cell summary must be rejected"),
             Err(error) => error,
         };

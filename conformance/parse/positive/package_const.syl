@@ -1,0 +1,7 @@
+package conformance.parse.positive
+
+const W: Nat = 8
+
+fn width() -> Nat {
+    return W
+}

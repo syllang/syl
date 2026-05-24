@@ -1,0 +1,11 @@
+package conformance.backend.positive
+
+module Child(x: in Bit, y: out Bit) {
+    y := x
+}
+
+module Top(x: in Bit, y: out Bit) {
+    signal tmp: Bit
+    inst child = Child(x: x, y: tmp)
+    y := tmp
+}

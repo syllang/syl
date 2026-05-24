@@ -615,7 +615,11 @@ impl Parser {
             .unwrap_or_default()
     }
     fn error(&mut self, span: Span, message: impl Into<String>) {
-        self.diagnostics.push(Diagnostic::new(span, message));
+        self.diagnostics.push(
+            Diagnostic::new(span, message)
+                .with_code("E_SYNTAX_PARSE")
+                .with_source("syl_syntax::parser"),
+        );
     }
 }
 

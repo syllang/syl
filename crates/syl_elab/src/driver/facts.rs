@@ -105,7 +105,12 @@ impl<'a> DriverFactsCollector<'a> {
                         "{}.next",
                         storage_target.display()
                     )));
-                    (next_target, DriveEffect::Next { storage_target })
+                    (
+                        next_target,
+                        DriveEffect::Next {
+                            storage_target: Box::new(storage_target),
+                        },
+                    )
                 }
             };
             self.drives.push(DriveFact::new(

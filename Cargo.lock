@@ -514,6 +514,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "syl_fuzz"
+version = "0.1.0"
+dependencies = [
+ "syl_span",
+ "syl_syntax",
+]
+
+[[package]]
 name = "syl_hir"
 version = "0.1.0"
 dependencies = [

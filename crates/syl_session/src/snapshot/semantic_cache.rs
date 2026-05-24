@@ -7,7 +7,7 @@ use syl_sema::{
 use syl_span::Diagnostic;
 use syl_syntax::AstFile;
 
-const CANCELLATION_HANDOFF_YIELDS: usize = 64;
+const CANCELLATION_HANDOFF_YIELDS: usize = 1024;
 
 #[non_exhaustive]
 pub struct SemanticCache {

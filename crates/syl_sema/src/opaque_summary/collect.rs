@@ -16,14 +16,9 @@ pub(super) fn collect_source_cell_summary(
     protocols: &ProtocolFacts,
     item: &HirCallableItem,
 ) -> OpaqueItemSummary {
-    let (endpoints, driven_fields, consumed_fields, domain_behavior) = signature_facts(
-        tir,
-        types,
-        capabilities,
-        protocols,
-        &item.params,
-        item.result.as_ref(),
-    );
+    let context = SummarySignatureContext::new(tir, types, capabilities, protocols);
+    let (endpoints, driven_fields, consumed_fields, domain_behavior) =
+        signature_facts(&context, &item.params, item.result.as_ref());
     let latency_class = if block_contains_storage(&item.body) {
         SummaryLatencyClass::Sequential
     } else {
@@ -48,14 +43,9 @@ pub(super) fn collect_extern_summary(
     protocols: &ProtocolFacts,
     item: &crate::hir::HirExternModuleItem,
 ) -> OpaqueItemSummary {
-    let (endpoints, driven_fields, consumed_fields, domain_behavior) = signature_facts(
-        tir,
-        types,
-        capabilities,
-        protocols,
-        &item.params,
-        item.result.as_ref(),
-    );
+    let context = SummarySignatureContext::new(tir, types, capabilities, protocols);
+    let (endpoints, driven_fields, consumed_fields, domain_behavior) =
+        signature_facts(&context, &item.params, item.result.as_ref());
     let latency_class = match domain_behavior {
         SummaryDomainBehavior::Explicit { .. } => SummaryLatencyClass::Sequential,
         SummaryDomainBehavior::Clockless | SummaryDomainBehavior::Unknown => {
@@ -74,11 +64,31 @@ pub(super) fn collect_extern_summary(
         .build()
 }
 
+struct SummarySignatureContext<'a> {
+    tir: &'a TirDesign,
+    types: &'a TypeTable,
+    capabilities: &'a CapabilityTable,
+    protocols: &'a ProtocolFacts,
+}
+
+impl<'a> SummarySignatureContext<'a> {
+    fn new(
+        tir: &'a TirDesign,
+        types: &'a TypeTable,
+        capabilities: &'a CapabilityTable,
+        protocols: &'a ProtocolFacts,
+    ) -> Self {
+        Self {
+            tir,
+            types,
+            capabilities,
+            protocols,
+        }
+    }
+}
+
 fn signature_facts(
-    tir: &TirDesign,
-    types: &TypeTable,
-    capabilities: &CapabilityTable,
-    protocols: &ProtocolFacts,
+    context: &SummarySignatureContext<'_>,
     params: &[crate::hir::HirSignatureParam],
     result: Option<&HirSignatureResultBinding>,
 ) -> (
@@ -95,10 +105,7 @@ fn signature_facts(
 
     for param in params {
         let endpoint = endpoint_for_local(
-            tir,
-            types,
-            capabilities,
-            protocols,
+            context,
             param.id,
             &param.name,
             SummaryDirection::from(param.direction),
@@ -113,7 +120,7 @@ fn signature_facts(
         endpoints.push(endpoint);
     }
     if let Some(result) = result {
-        let endpoint = endpoint_for_result(tir, types, capabilities, protocols, result);
+        let endpoint = endpoint_for_result(context, result);
         record_endpoint_effects(
             &endpoint,
             &mut driven_fields,
@@ -166,28 +173,14 @@ fn block_contains_storage(block: &HirBlock) -> bool {
 }
 
 fn endpoint_for_result(
-    tir: &TirDesign,
-    types: &TypeTable,
-    capabilities: &CapabilityTable,
-    protocols: &ProtocolFacts,
+    context: &SummarySignatureContext<'_>,
     result: &HirSignatureResultBinding,
 ) -> SummaryEndpoint {
-    endpoint_for_local(
-        tir,
-        types,
-        capabilities,
-        protocols,
-        result.id,
-        &result.name,
-        SummaryDirection::Out,
-    )
+    endpoint_for_local(context, result.id, &result.name, SummaryDirection::Out)
 }
 
 fn endpoint_for_local(
-    tir: &TirDesign,
-    types: &TypeTable,
-    capabilities: &CapabilityTable,
-    protocols: &ProtocolFacts,
+    context: &SummarySignatureContext<'_>,
     local: Option<syl_hir::LocalId>,
     name: &str,
     direction: SummaryDirection,
@@ -201,20 +194,23 @@ fn endpoint_for_local(
         );
     };
     let hir_id = HirFactId::Local(local_id);
-    let layout = types
+    let layout = context
+        .types
         .get(hir_id)
-        .and_then(|type_id| tir.type_table().get(type_id))
-        .map(|ty| summary_layout_for_type(tir, protocols, ty))
+        .and_then(|type_id| context.tir.type_table().get(type_id))
+        .map(|ty| summary_layout_for_type(context.tir, context.protocols, ty))
         .unwrap_or(SummaryLayout::Unknown);
-    let capability = capabilities
+    let capability = context
+        .capabilities
         .get(hir_id)
-        .map(|facts| OpaqueItemSummary::summary_capability_for_kind(tir, facts.kind()))
+        .map(|facts| OpaqueItemSummary::summary_capability_for_kind(context.tir, facts.kind()))
         .unwrap_or(SummaryCapability::Unknown);
     let endpoint = SummaryEndpoint::new(name, direction, layout, capability);
-    types
+    context
+        .types
         .get(hir_id)
-        .and_then(|type_id| tir.type_table().get(type_id))
-        .and_then(|ty| protocol_for_type(protocols, ty))
+        .and_then(|type_id| context.tir.type_table().get(type_id))
+        .and_then(|ty| protocol_for_type(context.protocols, ty))
         .map_or(endpoint.clone(), |protocol| {
             endpoint.with_protocol(protocol)
         })

@@ -43,28 +43,33 @@ impl<'a> SnapshotQuery<'a> {
 
     fn execute(
         self,
-        resolver: &ProjectResolver,
-        opaque_summaries: &OpaqueSummaryTable,
-        snapshot_cache: &mut SnapshotCache,
-        semantic_cache_store: &mut SemanticCacheStore,
-        token: &CancellationToken,
+        context: SnapshotQueryExecution<'_>,
     ) -> Result<AnalysisSnapshot, ProjectError> {
-        if let Some(snapshot) = snapshot_cache.lookup(&self.key) {
+        if let Some(snapshot) = context.snapshot_cache.lookup(&self.key) {
             return Ok(snapshot);
         }
 
         let (roots, overlays) = self.inputs.into_resolver_inputs();
-        let resolved = resolver.snapshot(roots, overlays, token)?;
+        let resolved = context.resolver.snapshot(roots, overlays, context.token)?;
         let workspace_semantic = Arc::new(SemanticCache::new(
             resolved.ast_files(),
-            opaque_summaries.clone(),
+            context.opaque_summaries.clone(),
         ));
-        let package_semantics =
-            semantic_cache_store.package_shards_for_snapshot(&resolved, opaque_summaries);
+        let package_semantics = context
+            .semantic_cache_store
+            .package_shards_for_snapshot(&resolved, context.opaque_summaries);
         let snapshot = AnalysisSnapshot::new(resolved, workspace_semantic, package_semantics);
         let cached = CachedSnapshot::new(self.key.clone(), snapshot);
-        Ok(snapshot_cache.store(cached))
+        Ok(context.snapshot_cache.store(cached))
     }
+}
+
+struct SnapshotQueryExecution<'a> {
+    resolver: &'a ProjectResolver,
+    opaque_summaries: &'a OpaqueSummaryTable,
+    snapshot_cache: &'a mut SnapshotCache,
+    semantic_cache_store: &'a mut SemanticCacheStore,
+    token: &'a CancellationToken,
 }
 
 impl AnalysisDatabase {
@@ -206,17 +211,13 @@ impl AnalysisDatabase {
         token: &CancellationToken,
     ) -> Result<AnalysisSnapshot, ProjectError> {
         let query = SnapshotQuery::new(self.documents.snapshot_inputs());
-        let resolver = &self.resolver;
-        let opaque_summaries = &self.opaque_summaries;
-        let snapshot_cache = &mut self.snapshot_cache;
-        let semantic_cache_store = &mut self.semantic_cache_store;
-        let snapshot = query.execute(
-            resolver,
-            opaque_summaries,
-            snapshot_cache,
-            semantic_cache_store,
+        let snapshot = query.execute(SnapshotQueryExecution {
+            resolver: &self.resolver,
+            opaque_summaries: &self.opaque_summaries,
+            snapshot_cache: &mut self.snapshot_cache,
+            semantic_cache_store: &mut self.semantic_cache_store,
             token,
-        )?;
+        })?;
         self.last_workspace = Some(snapshot.workspace().clone());
         Ok(snapshot)
     }

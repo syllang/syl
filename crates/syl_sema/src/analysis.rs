@@ -42,10 +42,7 @@ impl<'files> SemanticSession<'files> {
 
     pub fn resolve_hir_partial(&self) -> HirAnalysisOutput {
         let (design, errors) = HirResolver::new(self.files).resolve_partial();
-        let diagnostics = errors
-            .into_iter()
-            .map(|error| Diagnostic::from(error))
-            .collect();
+        let diagnostics = errors.into_iter().map(Diagnostic::from).collect();
         HirAnalysisOutput::new(HirAnalysis::new(design), diagnostics)
     }
 

@@ -147,8 +147,7 @@ fn assign_sibling_descriptors(siblings: &[usize], nodes: &[PendingNode], descrip
         let prev_identity = run_idx.checked_sub(1).map(|idx| runs[idx].identity);
         let next_identity = runs.get(run_idx.saturating_add(1)).map(|run| run.identity);
         let mut ordinal = 1usize;
-        for pos in run.start..run.end {
-            let node_idx = siblings[pos];
+        for node_idx in siblings.iter().take(run.end).skip(run.start).copied() {
             let node = &nodes[node_idx];
             descriptors[node_idx] = descriptor_hash(
                 node.kind,

@@ -180,22 +180,24 @@ pub struct DefinitionPath {
     span: Span,
 }
 
+struct DefinitionPathInput {
+    def: DefId,
+    package: PackageNodeId,
+    name: String,
+    kind: DefinitionKind,
+    canonical_path: HirPath,
+    span: Span,
+}
+
 impl DefinitionPath {
-    fn new(
-        def: DefId,
-        package: PackageNodeId,
-        name: String,
-        kind: DefinitionKind,
-        canonical_path: HirPath,
-        span: Span,
-    ) -> Self {
+    fn new(input: DefinitionPathInput) -> Self {
         Self {
-            def,
-            package,
-            name,
-            kind,
-            canonical_path,
-            span,
+            def: input.def,
+            package: input.package,
+            name: input.name,
+            kind: input.kind,
+            canonical_path: input.canonical_path,
+            span: input.span,
         }
     }
 
@@ -294,14 +296,14 @@ impl ResolutionGraph {
                 };
                 definitions.insert(
                     def,
-                    DefinitionPath::new(
+                    DefinitionPath::new(DefinitionPathInput {
                         def,
                         package,
-                        hir_def.name.clone(),
-                        DefinitionKind::from(hir_def.kind),
-                        hir_def.canonical_path.clone(),
-                        hir_def.span,
-                    ),
+                        name: hir_def.name.clone(),
+                        kind: DefinitionKind::from(hir_def.kind),
+                        canonical_path: hir_def.canonical_path.clone(),
+                        span: hir_def.span,
+                    }),
                 );
                 package_definitions
                     .entry(package)

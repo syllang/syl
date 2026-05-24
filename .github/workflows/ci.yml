@@ -31,5 +31,5 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ripgrep verilator
 
-      - name: Baseline
-        run: scripts/check_baseline.sh
+      - name: Quality gate
+        run: scripts/quality_gate.sh

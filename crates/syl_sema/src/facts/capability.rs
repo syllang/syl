@@ -2,7 +2,7 @@ use super::{HirFactId, ProtocolFacts, ProtocolFieldDirection, TypeTable};
 use crate::{
     TypeId,
     hir::HirLocalKind,
-    tir::{TirDesign, TirType, TirTypeTable},
+    tir::{TirDesign, TirType},
 };
 use std::collections::BTreeMap;
 use syl_hir::DefId;
@@ -102,10 +102,9 @@ impl CapabilityTable {
 
     pub(crate) fn collect(tir: &TirDesign, types: &TypeTable, protocols: &ProtocolFacts) -> Self {
         let mut values = BTreeMap::new();
+        let context = CapabilityKindContext::new(tir, protocols, types);
         for (id, ty_id) in types.raw_values() {
-            let Some(kind) =
-                capability_kind_for_id(tir, protocols, types, *id, *ty_id, types.type_table())
-            else {
+            let Some(kind) = capability_kind_for_id(&context, *id, *ty_id) else {
                 continue;
             };
             values.insert(*id, CapabilityFacts::new(*ty_id, kind));
@@ -118,27 +117,40 @@ impl CapabilityTable {
     }
 }
 
+struct CapabilityKindContext<'a> {
+    tir: &'a TirDesign,
+    protocols: &'a ProtocolFacts,
+    types: &'a TypeTable,
+}
+
+impl<'a> CapabilityKindContext<'a> {
+    fn new(tir: &'a TirDesign, protocols: &'a ProtocolFacts, types: &'a TypeTable) -> Self {
+        Self {
+            tir,
+            protocols,
+            types,
+        }
+    }
+}
+
 fn capability_kind_for_id(
-    tir: &TirDesign,
-    protocols: &ProtocolFacts,
-    types: &TypeTable,
+    context: &CapabilityKindContext<'_>,
     id: HirFactId,
     ty_id: TypeId,
-    table: &TirTypeTable,
 ) -> Option<CapabilityKind> {
-    let ty = table.get(ty_id)?;
+    let ty = context.types.type_table().get(ty_id)?;
     match ty {
         TirType::Domain => Some(CapabilityKind::Domain),
         TirType::Clock { domain } => Some(CapabilityKind::Clock {
             domain: domain
                 .as_deref()
-                .map(|value| domain_fact_for_type(types, value))
+                .map(|value| domain_fact_for_type(context.types, value))
                 .unwrap_or(DomainFact::Unknown),
         }),
         TirType::Reset { domain } => Some(CapabilityKind::Reset {
             domain: domain
                 .as_deref()
-                .map(|value| domain_fact_for_type(types, value))
+                .map(|value| domain_fact_for_type(context.types, value))
                 .unwrap_or(DomainFact::Unknown),
         }),
         TirType::View { base, view } => {
@@ -146,12 +158,12 @@ fn capability_kind_for_id(
                 return None;
             };
             let interface = base.definition()?;
-            let summary = protocols.get(interface)?;
+            let summary = context.protocols.get(interface)?;
             let view_summary = summary
                 .views()
                 .iter()
                 .find(|candidate| candidate.name() == view)?;
-            let local = tir.hir().locals.get(local_id.get())?;
+            let local = context.tir.hir().locals.get(local_id.get())?;
             let mut readable = Vec::new();
             let mut writable = Vec::new();
             for field in view_summary.fields() {

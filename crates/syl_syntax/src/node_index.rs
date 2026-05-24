@@ -17,6 +17,11 @@ use syl_span::{SourceFile, SourcePosition, SourceRange, Span};
 
 type NodeHandle = usize;
 
+struct NamedTagSeed<'a> {
+    tag: &'a str,
+    name: &'a str,
+}
+
 struct AstNodeIndexBuilder<'a> {
     file: &'a AstFile,
     source: &'a str,
@@ -90,10 +95,14 @@ impl<'a> AstNodeIndexBuilder<'a> {
         kind: AstNodeKind,
         span: Span,
         parent: Option<NodeHandle>,
-        tag: &str,
-        name: &str,
+        named_tag: NamedTagSeed<'_>,
     ) -> NodeHandle {
-        self.push_seed(kind, span, parent, local_seed_named_tag(tag, name))
+        self.push_seed(
+            kind,
+            span,
+            parent,
+            local_seed_named_tag(named_tag.tag, named_tag.name),
+        )
     }
 
     fn push_path(
@@ -329,8 +338,10 @@ impl<'a> AstNodeIndexBuilder<'a> {
             AstNodeKind::PortDecl,
             item.span,
             Some(parent),
-            param_direction_label(Some(&item.dir)),
-            &item.name,
+            NamedTagSeed {
+                tag: param_direction_label(Some(&item.dir)),
+                name: &item.name,
+            },
         );
         self.visit_type_expr(&item.ty, id);
     }
@@ -340,8 +351,10 @@ impl<'a> AstNodeIndexBuilder<'a> {
             AstNodeKind::Param,
             item.span,
             Some(parent),
-            param_direction_label(item.dir.as_ref()),
-            &item.name,
+            NamedTagSeed {
+                tag: param_direction_label(item.dir.as_ref()),
+                name: &item.name,
+            },
         );
         self.visit_type_expr(&item.ty, id);
     }
@@ -385,8 +398,10 @@ impl<'a> AstNodeIndexBuilder<'a> {
             AstNodeKind::ViewField,
             item.span,
             Some(parent),
-            view_direction_label(&item.dir),
-            &item.name,
+            NamedTagSeed {
+                tag: view_direction_label(&item.dir),
+                name: &item.name,
+            },
         );
     }
 

@@ -71,7 +71,10 @@ module Direct(
     let rst_local = local_id(hir_design, top_def, "rst");
     let up_local = local_id(hir_design, top_def, "up");
     let y_local = local_id(hir_design, top_def, "y");
-    let up_expr = expr_id_at(app, SourceId::new(1), "up.payload", 0, 2, hir_design);
+    let up_expr = expr_id_at(
+        ExprLookup::new(app, SourceId::new(1), "up.payload", 0, 2),
+        hir_design,
+    );
     let direct_def = def_id(hir_design, "Direct");
     let direct_clk_local = local_id(hir_design, direct_def, "clk");
     let direct_rst_local = local_id(hir_design, direct_def, "rst");
@@ -153,11 +156,7 @@ module Direct(
     );
     assert_eq!(
         facts.consts().value(HirFactId::Expr(expr_id_at(
-            shared,
-            SourceId::new(0),
-            "4 + 1",
-            0,
-            "4 + 1".len(),
+            ExprLookup::new(shared, SourceId::new(0), "4 + 1", 0, "4 + 1".len()),
             hir_design,
         ))),
         Some(ConstValue::Nat(5))
@@ -340,19 +339,17 @@ module Top(y: out UInt<WIDTH>) {
     let width_def = def_id(first_hir, "WIDTH");
     let height_def = def_id(first_hir, "HEIGHT");
     let width_call = expr_id_at(
-        source,
-        SourceId::new(0),
-        "add_one(4)",
-        0,
-        "add_one(4)".len(),
+        ExprLookup::new(
+            source,
+            SourceId::new(0),
+            "add_one(4)",
+            0,
+            "add_one(4)".len(),
+        ),
         first_hir,
     );
     let add_one_body = expr_id_at(
-        source,
-        SourceId::new(0),
-        "x + 1",
-        0,
-        "x + 1".len(),
+        ExprLookup::new(source, SourceId::new(0), "x + 1", 0, "x + 1".len()),
         first_hir,
     );
 
@@ -462,19 +459,39 @@ fn local_id(hir: &HirDesign, owner: DefId, name: &str) -> LocalId {
         .id
 }
 
-fn expr_id_at(
-    source: &str,
+struct ExprLookup<'a> {
+    source: &'a str,
     source_id: SourceId,
-    needle: &str,
+    needle: &'a str,
     start_offset: usize,
     width: usize,
-    hir: &HirDesign,
-) -> ExprId {
-    let base = source
-        .find(needle)
-        .unwrap_or_else(|| panic!("missing needle {needle}"));
-    let start = base + start_offset;
-    let span = Span::new_in(source_id, start, start + width);
+}
+
+impl<'a> ExprLookup<'a> {
+    fn new(
+        source: &'a str,
+        source_id: SourceId,
+        needle: &'a str,
+        start_offset: usize,
+        width: usize,
+    ) -> Self {
+        Self {
+            source,
+            source_id,
+            needle,
+            start_offset,
+            width,
+        }
+    }
+}
+
+fn expr_id_at(lookup: ExprLookup<'_>, hir: &HirDesign) -> ExprId {
+    let base = lookup
+        .source
+        .find(lookup.needle)
+        .unwrap_or_else(|| panic!("missing needle {}", lookup.needle));
+    let start = base + lookup.start_offset;
+    let span = Span::new_in(lookup.source_id, start, start + lookup.width);
     hir.exprs
         .iter()
         .find(|expr| expr.span == span)

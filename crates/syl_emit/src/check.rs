@@ -27,11 +27,11 @@ impl<'a> SvBackendValidator<'a> {
 
     fn check_item(&self, module: &SvModule, item: &SvItem) -> Result<(), CompileError> {
         match item {
-            SvItem::LocalParam { value, .. } => self.check_expr(module, value),
+            SvItem::LocalParam { value, .. } => Self::check_expr(&module.name, value),
             SvItem::Wire { .. } | SvItem::Reg { .. } => Ok(()),
             SvItem::Assign { lhs, rhs } => {
-                self.check_expr(module, lhs)?;
-                self.check_expr(module, rhs)
+                Self::check_expr(&module.name, lhs)?;
+                Self::check_expr(&module.name, rhs)
             }
             SvItem::AlwaysReg {
                 clock,
@@ -39,17 +39,17 @@ impl<'a> SvBackendValidator<'a> {
                 reset,
                 next,
             } => {
-                self.check_expr(module, clock)?;
-                self.check_expr(module, target)?;
+                Self::check_expr(&module.name, clock)?;
+                Self::check_expr(&module.name, target)?;
                 if let Some(reset) = reset {
-                    self.check_expr(module, &reset.condition)?;
-                    self.check_expr(module, &reset.value)?;
+                    Self::check_expr(&module.name, &reset.condition)?;
+                    Self::check_expr(&module.name, &reset.value)?;
                 }
-                self.check_expr(module, next)
+                Self::check_expr(&module.name, next)
             }
             SvItem::Instance(instance) => {
                 for connection in &instance.connections {
-                    self.check_expr(module, &connection.actual)?;
+                    Self::check_expr(&module.name, &connection.actual)?;
                 }
                 Ok(())
             }
@@ -59,18 +59,18 @@ impl<'a> SvBackendValidator<'a> {
                 else_items,
                 ..
             } => {
-                self.check_expr(module, cond)?;
+                Self::check_expr(&module.name, cond)?;
                 self.check_items(module, then_items)?;
                 self.check_items(module, else_items)
             }
             SvItem::GenerateFor {
                 start, end, items, ..
             } => {
-                self.check_expr(module, start)?;
-                self.check_expr(module, end)?;
+                Self::check_expr(&module.name, start)?;
+                Self::check_expr(&module.name, end)?;
                 self.check_items(module, items)
             }
-            SvItem::InitialError { message } => self.check_expr(module, message),
+            SvItem::InitialError { message } => Self::check_expr(&module.name, message),
         }
     }
 
@@ -81,54 +81,54 @@ impl<'a> SvBackendValidator<'a> {
         Ok(())
     }
 
-    fn check_expr(&self, module: &SvModule, expr: &SvExpr) -> Result<(), CompileError> {
+    fn check_expr(module_name: &str, expr: &SvExpr) -> Result<(), CompileError> {
         match expr {
             SvExpr::Ident(_) | SvExpr::Int(_) | SvExpr::Bool(_) | SvExpr::Str(_) | SvExpr::Zero => {
                 Ok(())
             }
-            SvExpr::Unary { expr, .. } => self.check_expr(module, expr),
+            SvExpr::Unary { expr, .. } => Self::check_expr(module_name, expr),
             SvExpr::Binary { left, right, .. } => {
-                self.check_expr(module, left)?;
-                self.check_expr(module, right)
+                Self::check_expr(module_name, left)?;
+                Self::check_expr(module_name, right)
             }
             SvExpr::Mux {
                 cond,
                 then_value,
                 else_value,
             } => {
-                self.check_expr(module, cond)?;
-                self.check_expr(module, then_value)?;
-                self.check_expr(module, else_value)
+                Self::check_expr(module_name, cond)?;
+                Self::check_expr(module_name, then_value)?;
+                Self::check_expr(module_name, else_value)
             }
             SvExpr::Select { arms, default, .. } => {
                 for arm in arms {
-                    self.check_expr(module, &arm.guard)?;
-                    self.check_expr(module, &arm.value)?;
+                    Self::check_expr(module_name, &arm.guard)?;
+                    Self::check_expr(module_name, &arm.value)?;
                 }
-                self.check_expr(module, default)
+                Self::check_expr(module_name, default)
             }
             SvExpr::Concat(parts) => {
                 for part in parts {
-                    self.check_expr(module, part)?;
+                    Self::check_expr(module_name, part)?;
                 }
                 Ok(())
             }
-            SvExpr::Slice { value, .. } => self.check_expr(module, value),
+            SvExpr::Slice { value, .. } => Self::check_expr(module_name, value),
             SvExpr::IndexedPartSelect { value, index, .. } | SvExpr::Index { value, index } => {
-                self.check_expr(module, value)?;
-                self.check_expr(module, index)
+                Self::check_expr(module_name, value)?;
+                Self::check_expr(module_name, index)
             }
             SvExpr::Call { name, args } => {
                 if !name.starts_with('$') {
                     return Err(CompileError::verilog(
                         VerilogError::UnsupportedFunctionCall {
-                            module: module.name.clone(),
+                            module: module_name.to_string(),
                             name: name.clone(),
                         },
                     ));
                 }
                 for arg in args {
-                    self.check_expr(module, arg)?;
+                    Self::check_expr(module_name, arg)?;
                 }
                 Ok(())
             }
