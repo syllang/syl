@@ -382,7 +382,7 @@
 
   ———
 
-  ## [ ] Phase 9：工业质量门槛
+  ## [x] Phase 9：工业质量门槛
 
   目标：让项目可以承载长期外部贡献和真实硬件项目。
 
@@ -424,5 +424,6 @@
   - 2026-05-24 S2 - Review SubAgent 判定 Phase 9 仍未收敛：质量门禁、workspace tests、LSP cancellation 重复测试、Verilator、committed whitespace 和 conformance 均通过，但 public API checker 虽已基于 rustdoc JSON，仍只把 enum/struct variant 记录为 `public`，没有快照 enum variant payload、struct variant fields、tuple/newtype public fields，例如 `CompileError::InvalidHwir { report: ... }`、`SyntaxNode::Package(PackageItem)`、`ObjectId(pub usize)`，未满足 public API surface review 对 fields/variants/methods 的完整覆盖。
   - 2026-05-24 S3 - 主 Agent 审核第二轮 Review 结论后派 Work SubAgent 做窄整改：扩展 rustdoc JSON public API extractor，渲染 enum variant kind/signature、tuple variant payload、struct variant fields、tuple/newtype public fields，并重新生成 `api/public-surface.txt` 与逐 surface line consumer policy；补测试防止 `CompileError::InvalidHwir { report: ... }`、`SyntaxNode::Package(PackageItem)`、`ObjectId(pub usize)` 这类 payload 再被降级为 `public`。
   - 2026-05-24 S4 - Work SubAgent 完成第二轮 public API surface 窄整改：`check_public_api.py` 继续基于 rustdoc JSON，但 enum variant 现在区分 `unit`、tuple payload 和 struct field signature，public tuple/newtype struct fields 作为 `field` surface 记录；重新生成 `api/public-surface.txt` 与逐 surface line consumer notes，并增加 guard 断言 `CompileError::InvalidHwir { report: ... }`、当前 AST `Item::Package(PackageItem)` 和 `ObjectId(pub usize)` 不再退化为 `|public`。
+  - 2026-05-24 S2 - Review SubAgent 授权 Phase 9 完成：复核确认 public API extractor 基于 rustdoc JSON 渲染 enum unit/tuple/struct variants 与 public struct/tuple fields，`api/public-surface.txt` 包含 `CompileError::InvalidHwir { report: syl_hw::HwValidationReport }`、`Item::Package(PackageItem)`、`ObjectId::0|usize` 等精确 surface；consumer policy 覆盖全部 2798 条 surface line，`scripts/quality_gate.sh`、workspace all-target tests、committed whitespace、Verilator、conformance 和 Rust 文件行数检查均通过。
 
   ———
