@@ -24,4 +24,11 @@ impl TirTypeTable {
     pub fn get(&self, id: TypeId) -> Option<&TirType> {
         self.types.get(id.get())
     }
+
+    pub fn iter(&self) -> impl Iterator<Item = (TypeId, &TirType)> {
+        self.types
+            .iter()
+            .enumerate()
+            .map(|(index, ty)| (TypeId::new(index), ty))
+    }
 }

@@ -3,6 +3,7 @@ use crate::TypeId;
 use crate::hir::HirDefKind;
 use crate::{
     CompileError, HirError, TirError,
+    facts::SemanticFacts,
     hir::{HirBodyExpr, HirDesign, HirExprNode},
     hir_resolve::HirResolution,
     hir_view::HirDesignViewExt,
@@ -15,10 +16,10 @@ use syl_span::Span;
 mod body_check;
 mod check;
 mod return_type;
-#[cfg(any())]
+#[cfg(test)]
 mod type_identity_tests;
 mod type_support;
-pub use type_support::{TirType, TirTypeTable};
+pub use type_support::{TirConstTerm, TirType, TirTypeTable};
 
 #[non_exhaustive]
 pub struct TirDesign {
@@ -28,6 +29,7 @@ pub struct TirDesign {
     expr_types: BTreeMap<ExprId, TypeId>,
     binding_kinds: BTreeMap<BindingRef, BindingKind>,
     binding_types: BTreeMap<BindingRef, TypeId>,
+    facts: SemanticFacts,
 }
 
 impl TirDesign {
@@ -53,6 +55,22 @@ impl TirDesign {
 
     pub fn binding_kinds(&self) -> &BTreeMap<BindingRef, BindingKind> {
         &self.binding_kinds
+    }
+
+    pub fn type_table(&self) -> &TirTypeTable {
+        &self.type_table
+    }
+
+    pub fn expr_types(&self) -> &BTreeMap<ExprId, TypeId> {
+        &self.expr_types
+    }
+
+    pub fn binding_types(&self) -> &BTreeMap<BindingRef, TypeId> {
+        &self.binding_types
+    }
+
+    pub fn facts(&self) -> &SemanticFacts {
+        &self.facts
     }
 
     pub fn type_count(&self) -> usize {

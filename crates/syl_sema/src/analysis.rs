@@ -1,6 +1,7 @@
 use crate::{
     CompileError, HirResolver, StageOutput,
     completion::{CompletionItem, CompletionKind},
+    facts::{ResolutionTable, SemanticFacts},
     hir::{HirDef, HirDesign, HirExpr},
     tir::{TirDesign, TypePhaseChecker},
 };
@@ -89,6 +90,10 @@ impl SemanticOutput {
         self.tir.as_ref()
     }
 
+    pub fn facts(&self) -> Option<&SemanticFacts> {
+        self.tir().map(TirAnalysis::facts)
+    }
+
     pub fn diagnostics(&self) -> &[Diagnostic] {
         &self.diagnostics
     }
@@ -121,13 +126,20 @@ impl HirAnalysisOutput {
 #[non_exhaustive]
 pub struct HirAnalysis {
     design: Arc<HirDesign>,
+    resolution: ResolutionTable,
 }
 
 impl HirAnalysis {
     fn new(design: HirDesign) -> Self {
+        let resolution = ResolutionTable::collect(&design);
         Self {
             design: Arc::new(design),
+            resolution,
         }
+    }
+
+    pub fn resolution(&self) -> &ResolutionTable {
+        &self.resolution
     }
 
     pub fn def_count(&self) -> usize {
@@ -350,6 +362,10 @@ impl TirAnalysis {
 
     pub fn design(&self) -> &TirDesign {
         &self.design
+    }
+
+    pub fn facts(&self) -> &SemanticFacts {
+        self.design.facts()
     }
 
     pub fn debug_dump(&self) -> String {

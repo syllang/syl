@@ -17,7 +17,7 @@ use syl_syntax::BinaryOp;
 mod const_term;
 mod type_table;
 
-pub(crate) use const_term::TirConstTerm;
+pub use const_term::TirConstTerm;
 pub(super) use const_term::TirConstTermResolver;
 pub use type_table::TirTypeTable;
 
@@ -98,18 +98,16 @@ impl PartialEq for TirType {
             ) => left_base == right_base && left_view == right_view,
             (
                 Self::Named {
-                    name: left_name,
                     def: left_def,
                     generic: left_generic,
-                    kind: left_kind,
                     args: left_args,
+                    ..
                 },
                 Self::Named {
-                    name: right_name,
                     def: right_def,
                     generic: right_generic,
-                    kind: right_kind,
                     args: right_args,
+                    ..
                 },
             ) => {
                 if left_def.is_some() || right_def.is_some() {
@@ -118,8 +116,7 @@ impl PartialEq for TirType {
                 if left_generic.is_some() || right_generic.is_some() {
                     return left_generic == right_generic && left_args == right_args;
                 }
-                // Conservative fallback for error-recovery types that lack a semantic id.
-                left_name == right_name && left_kind == right_kind && left_args == right_args
+                false
             }
             _ => false,
         }

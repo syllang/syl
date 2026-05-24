@@ -132,6 +132,8 @@ pub enum ConstEvalError {
     ConstLogicalTypeMismatch,
     #[error("const arithmetic operands have different types")]
     ConstArithmeticTypeMismatch,
+    #[error("const evaluation exceeded sandbox limit of {limit} steps")]
+    StepLimitExceeded { limit: usize },
 }
 
 impl ConstEvalError {
@@ -147,6 +149,7 @@ impl ConstEvalError {
             Self::ConstComparisonTypeMismatch => "E_MIDDLE_CONST_COMPARISON_TYPE_MISMATCH",
             Self::ConstLogicalTypeMismatch => "E_MIDDLE_CONST_LOGICAL_TYPE_MISMATCH",
             Self::ConstArithmeticTypeMismatch => "E_MIDDLE_CONST_ARITH_TYPE_MISMATCH",
+            Self::StepLimitExceeded { .. } => "E_MIDDLE_CONST_STEP_LIMIT",
         }
     }
 }
@@ -373,6 +376,12 @@ pub enum CompileError {
 }
 
 impl CompileError {
+    pub fn kind(&self) -> &LoweringError {
+        match self {
+            Self::Lowering { kind, .. } => kind.as_ref(),
+        }
+    }
+
     pub fn diagnostic(&self) -> &Diagnostic {
         match self {
             Self::Lowering { diagnostic, .. } => diagnostic,

@@ -11,6 +11,7 @@ pub mod const_eval;
 pub mod const_mir;
 pub mod diagnostic;
 pub mod error;
+pub mod facts;
 mod hir;
 mod hir_lower;
 mod hir_resolve;
@@ -30,6 +31,13 @@ pub use diagnostic::{SemanticDiagnostic, SemanticDiagnosticStage};
 pub use error::{
     CapabilityError, CompileError, ConstEvalError, DriverError, EirError, HirError, HwirError,
     LoweringError, TirError,
+};
+pub use facts::{
+    CapabilityFacts, CapabilityKind, CapabilityTable, ConstFactKey, ConstFacts, DefinitionKind,
+    DefinitionPath, HirFactId, ImportEdge, Layout, LayoutConst, LayoutFacts, PackageSummary,
+    ProtocolFacts, ProtocolFieldDirection, ProtocolSummary, ProtocolViewSummary, ResolutionGraph,
+    ResolutionTable, SemanticFacts, SemanticResolution, TypeTable, ViewCapabilityFacts,
+    ViewFieldSummary, WordEncoding,
 };
 pub use hir_lower::HirResolver;
 pub use stage_output::StageOutput;

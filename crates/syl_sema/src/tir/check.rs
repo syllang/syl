@@ -90,14 +90,18 @@ impl TypePhaseChecker {
     }
 
     fn finish(self) -> TirDesign {
-        TirDesign {
+        let mut design = TirDesign {
             hir: self.hir,
             type_table: self.type_table,
             expr_phases: self.expr_phases,
             expr_types: self.expr_types,
             binding_kinds: self.binding_kinds,
             binding_types: self.binding_types,
-        }
+            facts: crate::facts::SemanticFacts::empty(),
+        };
+        let facts = crate::facts::SemanticFacts::collect(&design);
+        design.facts = facts;
+        design
     }
 
     fn hir(&self) -> &crate::hir::HirDesign {

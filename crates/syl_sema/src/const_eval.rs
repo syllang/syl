@@ -7,14 +7,14 @@ use std::collections::BTreeMap;
 use syl_hir::DefId;
 use syl_span::Span;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[non_exhaustive]
 pub enum ConstKind {
     Nat,
     Bool,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[non_exhaustive]
 pub enum ConstValue {
     Unknown(ConstKind),
@@ -50,19 +50,30 @@ impl ConstEvalEnv {
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+struct ConstCallKey {
+    callee: DefId,
+    args: Vec<ConstValue>,
+}
+
 #[non_exhaustive]
 pub struct ConstEvaluator<'program> {
     program: &'program ConstMirProgram,
     call_stack: Vec<String>,
+    step_limit: usize,
     remaining_steps: usize,
+    call_cache: BTreeMap<ConstCallKey, ConstValue>,
 }
 
 impl<'program> ConstEvaluator<'program> {
     pub fn new(program: &'program ConstMirProgram) -> Self {
+        let step_limit = 10_000;
         Self {
             program,
             call_stack: Vec::new(),
-            remaining_steps: 10_000,
+            step_limit,
+            remaining_steps: step_limit,
+            call_cache: BTreeMap::new(),
         }
     }
 
@@ -79,6 +90,8 @@ impl<'program> ConstEvaluator<'program> {
         expr: &ConstExpr,
         env: &mut ConstEvalEnv,
     ) -> Result<ConstValue, CompileError> {
+        self.call_stack.clear();
+        self.remaining_steps = self.step_limit;
         self.mir_expr_value(expr, env)
     }
 
@@ -322,8 +335,11 @@ impl<'program> ConstEvaluator<'program> {
                     ));
                 };
                 let mut values = BTreeMap::new();
+                let mut arg_values = Vec::new();
                 for (param, arg) in function.params().iter().zip(args) {
-                    values.insert(param.clone(), self.mir_expr_value(arg, env)?);
+                    let value = self.mir_expr_value(arg, env)?;
+                    arg_values.push(value);
+                    values.insert(param.clone(), value);
                 }
                 if values
                     .values()
@@ -336,7 +352,16 @@ impl<'program> ConstEvaluator<'program> {
                         )
                     });
                 }
-                self.eval_function(function, values)
+                let cache_key = ConstCallKey {
+                    callee: *callee,
+                    args: arg_values,
+                };
+                if let Some(value) = self.call_cache.get(&cache_key).copied() {
+                    return Ok(value);
+                }
+                let value = self.eval_function(function, values)?;
+                self.call_cache.insert(cache_key, value);
+                Ok(value)
             }
             ConstExprKind::Unsupported => Err(CompileError::lowering_at(
                 ConstEvalError::InvalidElaborationExpression,
@@ -348,7 +373,9 @@ impl<'program> ConstEvaluator<'program> {
     fn consume_step(&mut self, span: Span) -> Result<(), CompileError> {
         if self.remaining_steps == 0 {
             return Err(CompileError::lowering_at(
-                ConstEvalError::InvalidElaborationExpression,
+                ConstEvalError::StepLimitExceeded {
+                    limit: self.step_limit,
+                },
                 span,
             ));
         }
