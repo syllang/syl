@@ -127,6 +127,9 @@
   - parser 不依赖后续阶段才能报出基本错误。
   - AST dump 稳定，可用于回归测试。
 
+  Log
+  - 2026-05-23 S1 - 主 Agent 派出 Work SubAgent，执行 Phase 2 前端工业化：拆分 `syl_syntax` AST/token/parser/recovery/dump 边界，控制入口文件膨胀，补充 examples parse、invalid recovery、span precision 和 AST dump 回归测试。
+
   ———
 
   ## [ ] Phase 3：语义层硬化
