@@ -53,6 +53,7 @@
   - 时间 - 完成的任务
   - 2026-05-23 S1 - 主 Agent 派出 Work SubAgent，执行 Phase 0 架构契约冻结：补齐 crate README 职责边界、建立依赖方向验证、避免进入后续 Phase 逻辑。
   - 2026-05-23 S1 - Work SubAgent 完成 Phase 0 初版交付：更新全部 crate README，新增 architecture_contracts 测试；主 Agent 验证 `cargo test -p sylc architecture_ -- --nocapture`、`cargo check --workspace --all-targets`、`git diff --check` 均通过。
+  - 2026-05-23 S2 - 主 Agent 派出 Review SubAgent，按 Phase 0 MUST FIX 和退出标准独立审查 README 契约、依赖方向测试和 public API policy。
 
   ———
 
