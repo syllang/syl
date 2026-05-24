@@ -345,7 +345,7 @@
 
   ———
 
-  ## [ ] Phase 8：标准库与组合 API
+  ## [x] Phase 8：标准库与组合 API
 
   目标：补齐语言生态的“好用层”，但不污染核心编译器。
 
@@ -378,6 +378,7 @@
   - 2026-05-24 S2 - Review SubAgent 判定 Phase 8 未收敛：`examples/std/logic.syl` 未通过 `git diff --check`；`syl_lsp` cancellation diagnostics 测试出现一次失败后重跑通过，说明 request cancellation 仍可能 flaky；source-derived `std.stage.stage_link` summary 尚未证明能表达 endpoint capability/protocol/latency，现有 latency 证据只来自手写 vendor opaque summary；std 改写后的 examples 弱化了原有 transform 行为；`std.bundle`/`std.assert` 因关键字改为 `std.bundles`/`std.assertions` 未记录为命名债务；hardcode guard 仍偏字符串搜索，证据不足。
   - 2026-05-24 S3 - 主 Agent 审核 Review 结论后派 Work SubAgent 整改：修复 whitespace 与 flaky cancellation；补强 source-derived Stage/Link public summary，使 driver/capability/latency 或当前等价事实能由普通 std source 产生并被 opaque 测试消费；恢复 examples 中有意义的 payload/ALU transform 组合；明确记录 `std.bundles`/`std.assertions` 是关键字限制下的临时命名债务或改语法支持目标命名；用更结构化的架构测试替代单纯字符串 hardcode smoke test。
   - 2026-05-24 S4 - Work SubAgent 完成 S3 整改：修复 std whitespace；在 token-aware package diagnostics 的 stage/包边界增加取消 checkpoint 与 bounded handoff，并用 query/LSP 重复取消测试覆盖 beta package 不启动；`OpaqueSummaryTable` 增加 source-derived `SourceCell` summary，`std.stage.stage_link` 通过普通 std source 产出 endpoint capability/protocol、domain behavior、latency、protocol preservation，并被 metadata/opaque summary 消费路径读取；examples 恢复 `pipeline_user` 的 decode/execute 到 `AluRsp` 变换和 `02_stream_buffer` 的 payload transform；parser 支持 package/use 路径中的 contextual keyword segment，正式恢复 `std.bundle`/`std.assert` 目标命名而非记录债务；architecture_phase8_std 增加 std_roots 普通 source document/package graph 证据和非核心层 std_roots/hardcode guard。
+  - 2026-05-24 S2 - Review SubAgent 授权 Phase 8 完成：复核确认 `git diff --check` clean、`syl_lsp` cancellation 重复测试稳定、`std.stage.stage_link` 以 `SourceCell`/`SourceDerived` 形式暴露 endpoint capability/protocol、domain behavior、latency 和 protocol preservation；std 仍经 `std_roots` 作为普通 source/package graph 输入且 sema/elab/hw/emit 无 std-specific branch，examples 恢复有意义 transform 并主要通过 `std.stage` 组合。
 
   ———
 
