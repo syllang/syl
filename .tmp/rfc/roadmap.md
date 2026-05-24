@@ -90,6 +90,9 @@
   - 删除一个 pass 不应该破坏前后 IR 的数据定义。
   - 每层 IR 都有 golden/debug dump，便于诊断和测试。
 
+  Log
+  - 2026-05-23 S1 - 主 Agent 派出 Work SubAgent，执行 Phase 1 IR 所有权收敛：审查并整改 AST/HIR/TIR/Const MIR/Map IR/EIR/HW IR/SV AST owner，优先收敛 Const MIR/Map IR/EIR/TIR 边界并补充可执行架构证据。
+
   ———
 
   ## [ ] Phase 2：前端工业化
