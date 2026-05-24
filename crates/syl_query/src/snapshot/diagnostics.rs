@@ -9,7 +9,6 @@ use syl_session::{
     DocumentVersion, PackageStageDiagnostics, ProjectError,
 };
 use syl_span::{Diagnostic, DiagnosticRelatedInfo};
-use syl_syntax::Item;
 
 #[non_exhaustive]
 pub(super) struct DiagnosticQueryEngine<'a> {
@@ -53,36 +52,38 @@ impl<'a> DiagnosticQueryEngine<'a> {
         &self,
         token: &CancellationToken,
     ) -> Result<GroupedDiagnostics, QueryError> {
-        let mut packages = BTreeMap::<String, Vec<DocumentDiagnostics>>::new();
-        let mut package_stage_sets = BTreeMap::<String, PackageStageDiagnostics>::new();
+        let mut package_files = BTreeMap::<String, Vec<&AnalysisFile>>::new();
         for file in self.snapshot.files() {
             let package = self.package_for_file(file);
-            if !package_stage_sets.contains_key(package.name()) {
-                let stage_set = self
+            package_files
+                .entry(package.name().to_string())
+                .or_default()
+                .push(file);
+        }
+
+        let mut packages = Vec::new();
+        for (name, files) in package_files {
+            Self::check_cancellation(token)?;
+            let stage_set = match files.first() {
+                Some(file) => self
                     .snapshot
                     .package_stage_diagnostics_with_token(file.uri(), token)
                     .map_err(Self::map_error)?
-                    .unwrap_or_default();
-                package_stage_sets.insert(package.name().to_string(), stage_set);
-            }
-            let stage_set = package_stage_sets
-                .get(package.name())
-                .expect("package diagnostics should be cached for every visited file");
-            let document = self.document_diagnostics_for_file(file, package.clone(), stage_set);
-            packages
-                .entry(package.name().to_string())
-                .or_default()
-                .push(document);
+                    .unwrap_or_default(),
+                None => PackageStageDiagnostics::default(),
+            };
+            let package = DiagnosticPackage::new(name.clone());
+            let documents = files
+                .into_iter()
+                .map(|file| self.document_diagnostics_for_file(file, package.clone(), &stage_set))
+                .collect();
+            packages.push(PackageDiagnostics::new(
+                DiagnosticPackage::new(name),
+                documents,
+            ));
         }
 
-        Ok(GroupedDiagnostics::new(
-            packages
-                .into_iter()
-                .map(|(name, documents)| {
-                    PackageDiagnostics::new(DiagnosticPackage::new(name), documents)
-                })
-                .collect(),
-        ))
+        Ok(GroupedDiagnostics::new(packages))
     }
 
     fn document_diagnostics_for_file(
@@ -149,16 +150,11 @@ impl<'a> DiagnosticQueryEngine<'a> {
     }
 
     fn package_for_file(&self, file: &AnalysisFile) -> DiagnosticPackage {
-        let name = file
-            .ast()
-            .items
-            .iter()
-            .find_map(|item| match item {
-                Item::Package(item) if !item.path.is_empty() => Some(item.path.join(".")),
-                _ => None,
-            })
-            .unwrap_or_else(|| file.uri().to_string());
-        DiagnosticPackage::new(name)
+        let name = self
+            .snapshot
+            .package_name_for_uri(file.uri())
+            .unwrap_or_else(|| file.uri().as_str());
+        DiagnosticPackage::new(name.to_string())
     }
 
     fn diagnostic_version(file: &AnalysisFile) -> Option<DocumentVersion> {
@@ -174,5 +170,12 @@ impl<'a> DiagnosticQueryEngine<'a> {
             ProjectError::Cancelled => QueryError::Cancelled,
             other => panic!("unexpected session error during snapshot query: {other}"),
         }
+    }
+
+    fn check_cancellation(token: &CancellationToken) -> Result<(), QueryError> {
+        if token.is_cancelled() {
+            return Err(QueryError::Cancelled);
+        }
+        Ok(())
     }
 }

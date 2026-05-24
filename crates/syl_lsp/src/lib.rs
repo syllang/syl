@@ -1,8 +1,10 @@
 mod adapter;
+mod cancellation;
 mod diagnostics;
 mod mapping;
 
 use adapter::LspAdapter;
+use cancellation::{CancellationRegistry, CancellationSlot};
 use diagnostics::{LspDiagnosticPublication, LspDiagnosticState};
 use std::{
     future::Future,
@@ -13,7 +15,7 @@ use std::{
     },
     time::Duration,
 };
-use syl_query::AnalysisQueries;
+use syl_query::{AnalysisQueries, QueryError};
 use syl_session::{
     AnalysisHost, AnalysisSnapshot, CancellationToken, DocumentUri, DocumentVersion, ProjectError,
 };
@@ -40,6 +42,7 @@ pub struct SylLanguageServer {
     workspace_diagnostic_uri: Arc<Mutex<Option<Url>>>,
     initialization_error: Arc<Mutex<Option<ProjectError>>>,
     diagnostic_scheduler: Arc<DiagnosticsScheduler>,
+    cancellation_registry: Arc<CancellationRegistry>,
     adapter: LspAdapter,
 }
 
@@ -50,6 +53,7 @@ struct DiagnosticPublishRequest {
     generation: u64,
     scheduler: Arc<DiagnosticsScheduler>,
     fallback_uri: Option<Url>,
+    token: CancellationToken,
 }
 
 impl SylLanguageServer {
@@ -61,13 +65,17 @@ impl SylLanguageServer {
             workspace_diagnostic_uri: Arc::new(Mutex::new(None)),
             initialization_error: Arc::new(Mutex::new(None)),
             diagnostic_scheduler: Arc::new(DiagnosticsScheduler::new()),
+            cancellation_registry: Arc::new(CancellationRegistry::new()),
             adapter: LspAdapter::new(),
         }
     }
 
-    async fn analysis_snapshot(&self) -> Result<AnalysisSnapshot, ProjectError> {
+    async fn analysis_snapshot_with_token(
+        &self,
+        token: &CancellationToken,
+    ) -> Result<AnalysisSnapshot, ProjectError> {
         let mut host = self.host.lock().await;
-        host.snapshot()
+        host.snapshot_with_token(token)
     }
 
     async fn publish_project_error(&self, uri: Url, error: ProjectError) {
@@ -90,6 +98,9 @@ impl SylLanguageServer {
         let host = Arc::clone(&self.host);
         let diagnostics = Arc::clone(&self.diagnostics);
         let scheduler = Arc::clone(&self.diagnostic_scheduler);
+        let token = self
+            .cancellation_registry
+            .replace(CancellationSlot::Diagnostics);
         let request = DiagnosticPublishRequest {
             client,
             host,
@@ -97,6 +108,7 @@ impl SylLanguageServer {
             generation,
             scheduler: Arc::clone(&scheduler),
             fallback_uri,
+            token,
         };
         tokio::spawn(async move {
             Self::run_debounced_publish(scheduler, generation, delay, move || async move {
@@ -132,40 +144,56 @@ impl SylLanguageServer {
             generation,
             scheduler,
             fallback_uri,
+            token,
         } = request;
-        if !scheduler.is_current(generation) {
+        if token.is_cancelled() || !scheduler.is_current(generation) {
             return;
         }
         let snapshot = {
             let mut host = host.lock().await;
-            host.snapshot()
+            host.snapshot_with_token(&token)
         };
-        if !scheduler.is_current(generation) {
+        if token.is_cancelled() || !scheduler.is_current(generation) {
             return;
         }
         let publications = match snapshot {
-            Ok(snapshot) => {
-                let grouped = snapshot.grouped_diagnostics();
-                LspAdapter::new().diagnostic_publications(&grouped)
-            }
+            Ok(snapshot) => match Self::diagnostic_publications(&snapshot, &token) {
+                Ok(publications) => publications,
+                Err(QueryError::Cancelled) => return,
+                Err(error) => {
+                    panic!("unexpected query error during diagnostic publication: {error}")
+                }
+            },
+            Err(ProjectError::Cancelled) => return,
             Err(error) => fallback_uri
                 .map(|uri| LspDiagnosticPublication::project_error(uri, error))
                 .into_iter()
                 .collect(),
         };
-        if !scheduler.is_current(generation) {
+        if token.is_cancelled() || !scheduler.is_current(generation) {
             return;
         }
         let publications = diagnostics.lock().await.reconcile(publications);
-        if !scheduler.is_current(generation) {
+        if token.is_cancelled() || !scheduler.is_current(generation) {
             return;
         }
         for publication in publications {
+            if token.is_cancelled() || !scheduler.is_current(generation) {
+                return;
+            }
             let (target_uri, diagnostics, version) = publication.into_parts();
             client
                 .publish_diagnostics(target_uri, diagnostics, version)
                 .await;
         }
+    }
+
+    fn diagnostic_publications(
+        snapshot: &AnalysisSnapshot,
+        token: &CancellationToken,
+    ) -> Result<Vec<LspDiagnosticPublication>, QueryError> {
+        let grouped = snapshot.grouped_diagnostics_with_token(token)?;
+        Ok(LspAdapter::new().diagnostic_publications(&grouped))
     }
 }
 
@@ -266,11 +294,11 @@ impl LanguageServer for SylLanguageServer {
         let position = self
             .adapter
             .source_position(params.text_document_position_params.position);
+        let token = self.cancellation_registry.replace(CancellationSlot::Hover);
         let snapshot = self
-            .analysis_snapshot()
+            .analysis_snapshot_with_token(&token)
             .await
             .map_err(|error| self.adapter.project_error(error))?;
-        let token = CancellationToken::new();
         let Some(hover) = snapshot
             .hover_at_with_token(&document_uri, position, &token)
             .map_err(|error| self.adapter.query_error(error))?
@@ -289,11 +317,13 @@ impl LanguageServer for SylLanguageServer {
         let position = self
             .adapter
             .source_position(params.text_document_position_params.position);
+        let token = self
+            .cancellation_registry
+            .replace(CancellationSlot::Definition);
         let snapshot = self
-            .analysis_snapshot()
+            .analysis_snapshot_with_token(&token)
             .await
             .map_err(|error| self.adapter.project_error(error))?;
-        let token = CancellationToken::new();
         let Some(definition) = snapshot
             .definition_at_with_token(&document_uri, position, &token)
             .map_err(|error| self.adapter.query_error(error))?
@@ -308,11 +338,13 @@ impl LanguageServer for SylLanguageServer {
         let position = params.text_document_position.position;
         let document_uri = DocumentUri::new(uri.to_string());
         let position = self.adapter.source_position(position);
+        let token = self
+            .cancellation_registry
+            .replace(CancellationSlot::Completion);
         let snapshot = self
-            .analysis_snapshot()
+            .analysis_snapshot_with_token(&token)
             .await
             .map_err(|error| self.adapter.project_error(error))?;
-        let token = CancellationToken::new();
         let completions = snapshot
             .completions_at_with_token(&document_uri, position, &token)
             .map_err(|error| self.adapter.query_error(error))?;
@@ -325,8 +357,9 @@ impl LanguageServer for SylLanguageServer {
     ) -> LspResult<Option<DocumentSymbolResponse>> {
         let uri = params.text_document.uri;
         let document_uri = DocumentUri::new(uri.to_string());
+        let token = CancellationToken::new();
         let snapshot = self
-            .analysis_snapshot()
+            .analysis_snapshot_with_token(&token)
             .await
             .map_err(|error| self.adapter.project_error(error))?;
         let symbols = snapshot.symbols(&document_uri);
@@ -504,9 +537,12 @@ impl ClientDocumentVersion {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::{
-        Arc,
-        atomic::{AtomicBool, Ordering},
+    use std::{
+        sync::{
+            Arc,
+            atomic::{AtomicBool, Ordering},
+        },
+        thread,
     };
 
     #[tokio::test(start_paused = true)]
@@ -554,5 +590,63 @@ mod tests {
             .expect("debounced publish task must finish cleanly");
 
         assert!(published.load(Ordering::Acquire));
+    }
+
+    #[test]
+    fn new_diagnostics_generation_cancels_previous_token() {
+        let registry = CancellationRegistry::new();
+
+        let first = registry.replace(CancellationSlot::Diagnostics);
+        let second = registry.replace(CancellationSlot::Diagnostics);
+
+        assert!(first.is_cancelled());
+        assert!(!second.is_cancelled());
+    }
+
+    #[test]
+    fn diagnostic_publications_use_token_aware_grouped_diagnostics() {
+        let first_uri = DocumentUri::new("untitled:syl/lsp-alpha");
+        let second_uri = DocumentUri::new("untitled:syl/lsp-beta");
+        let mut host = AnalysisHost::new();
+        host.open_document(
+            first_uri,
+            "package alpha;\nmodule Alpha(y: out Bit) { y := 1 }\n".to_string(),
+            DocumentVersion::new(1),
+        );
+        host.open_document(
+            second_uri,
+            "package beta;\nmodule Beta(y: out Bit) { y := 1 }\n".to_string(),
+            DocumentVersion::new(1),
+        );
+        let snapshot = host
+            .snapshot()
+            .expect("LSP cancellation fixture must snapshot cleanly");
+        let alpha_cache = snapshot
+            .package_semantic_cache("alpha")
+            .expect("alpha package shard must exist");
+        let beta_cache = snapshot
+            .package_semantic_cache("beta")
+            .expect("beta package shard must exist");
+        let token = CancellationToken::new();
+        let cancelled = token.clone();
+        let alpha_probe = alpha_cache.clone();
+        let canceller = thread::spawn(move || {
+            while !alpha_probe.is_hir_cached() {
+                thread::yield_now();
+            }
+            cancelled.cancel();
+        });
+
+        let err = SylLanguageServer::diagnostic_publications(&snapshot, &token)
+            .expect_err("cancelled diagnostic publication must stop before the next package");
+
+        canceller
+            .join()
+            .expect("diagnostic cancellation helper thread must complete cleanly");
+        assert_eq!(err, QueryError::Cancelled);
+        assert!(alpha_cache.is_hir_cached());
+        assert!(!beta_cache.is_hir_cached());
+        assert!(!beta_cache.is_tir_cached());
+        assert!(!beta_cache.is_elaboration_cached());
     }
 }

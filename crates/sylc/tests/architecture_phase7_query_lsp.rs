@@ -21,41 +21,53 @@ fn architecture_phase7_session_owns_workspace_and_package_scoped_cache_invalidat
         "package first;\nmodule First(y: out Bit) {\n    y := 1\n}\n".to_string(),
         DocumentVersion::new(1),
     );
-    let first = host
-        .snapshot()
-        .expect("phase7 first package fixture must snapshot");
-
     host.open_document(
         second_uri.clone(),
-        "package second;\nmodule Second(y: out Bit) {\n    y := 1\n}\n".to_string(),
+        "package second;\nmodule Second(y: out Bit) {\n    y := 0\n}\n".to_string(),
         DocumentVersion::new(1),
     );
-    let combined = host
+    let baseline = host
         .snapshot()
         .expect("phase7 combined package fixture must snapshot");
-    let combined_packages = combined.workspace().package_graph().packages();
-    assert_eq!(combined_packages.len(), 2);
+    let baseline_first = baseline
+        .package_semantic_cache("first")
+        .expect("first package shard must exist");
+    let baseline_second = baseline
+        .package_semantic_cache("second")
+        .expect("second package shard must exist");
+
+    host.update_document_at_version(
+        &second_uri,
+        "package second;\nmodule Second(y: out Bit) {\n    y := 1\n}\n".to_string(),
+        DocumentVersion::new(2),
+    )
+    .expect("phase7 second package update must succeed");
+    let updated = host
+        .snapshot()
+        .expect("phase7 updated package fixture must snapshot");
+    let updated_first = updated
+        .package_semantic_cache("first")
+        .expect("first package shard must still exist");
+    let updated_second = updated
+        .package_semantic_cache("second")
+        .expect("second package shard must still exist");
+    let updated_packages = updated.workspace().package_graph().packages();
+    assert_eq!(updated_packages.len(), 2);
     assert!(
-        combined_packages.iter().any(|package| {
+        updated_packages.iter().any(|package| {
             package.name() == "first" && package.documents().contains(&first_uri)
         })
     );
-    assert!(combined_packages.iter().any(|package| {
+    assert!(updated_packages.iter().any(|package| {
         package.name() == "second" && package.documents().contains(&second_uri)
     }));
-
-    host.close_document(&second_uri);
-    let restored = host
-        .snapshot()
-        .expect("closing the unrelated package should restore the first package snapshot");
-
-    assert!(first.shares_semantic_cache_with(&restored));
-    assert_eq!(restored.workspace().package_graph().packages().len(), 1);
     assert_eq!(
-        restored.workspace().source_database().documents().len(),
-        1,
+        updated.workspace().source_database().documents().len(),
+        2,
         "workspace snapshot should stay session-owned and track live documents"
     );
+    assert!(baseline_first.shares_with(&updated_first));
+    assert!(!baseline_second.shares_with(&updated_second));
 }
 
 #[test]

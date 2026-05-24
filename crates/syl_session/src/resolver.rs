@@ -1,8 +1,9 @@
 use crate::{
     AnalysisSnapshot, CancellationToken, DocumentUri, Project, ProjectConfig, ProjectError,
     SourceDocument, collector::SylFileCollector, import_resolver::ImportResolver,
-    snapshot::AnalysisFile, snapshot::AnalysisFileInput, snapshot::ResolvedSnapshot,
-    snapshot::SemanticCache, snapshot::WorkspaceSnapshot, vfs::FsVfs,
+    snapshot::AnalysisFile, snapshot::AnalysisFileInput, snapshot::PackageSemanticIndex,
+    snapshot::PackageSemanticShard, snapshot::ResolvedSnapshot, snapshot::SemanticCache,
+    snapshot::WorkspaceSnapshot, vfs::FsVfs,
 };
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::path::{Path, PathBuf};
@@ -88,11 +89,36 @@ where
         token: &CancellationToken,
     ) -> Result<Project, ProjectError> {
         let resolved = self.snapshot(paths, &BTreeMap::new(), token)?;
-        let semantic = Arc::new(SemanticCache::new(
+        let workspace_semantic = Arc::new(SemanticCache::new(
             resolved.ast_files(),
             OpaqueSummaryTable::new(),
         ));
-        Ok(Project::new(AnalysisSnapshot::new(resolved, semantic)))
+        let package_semantics = PackageSemanticIndex::new(
+            resolved
+                .workspace()
+                .package_graph()
+                .packages()
+                .iter()
+                .map(|package| {
+                    let ast_files = resolved
+                        .files()
+                        .iter()
+                        .filter(|file| package.documents().contains(file.uri()))
+                        .map(|file| file.ast().clone())
+                        .collect();
+                    PackageSemanticShard::new(
+                        package.name().to_string(),
+                        package.documents().to_vec(),
+                        Arc::new(SemanticCache::new(ast_files, OpaqueSummaryTable::new())),
+                    )
+                })
+                .collect(),
+        );
+        Ok(Project::new(AnalysisSnapshot::new(
+            resolved,
+            workspace_semantic,
+            package_semantics,
+        )))
     }
 
     pub(crate) fn snapshot(

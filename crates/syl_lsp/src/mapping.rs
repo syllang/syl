@@ -5,7 +5,7 @@ use syl_query::{
 use syl_session::ProjectError;
 use syl_span::{SourcePosition, SourceRange};
 use tower_lsp::{
-    jsonrpc::Error as LspError,
+    jsonrpc::{Error as LspError, ErrorCode},
     lsp_types::{
         DocumentSymbol, Hover, HoverContents, Location, MarkedString, Position, Range, SymbolKind,
         Url,
@@ -47,9 +47,18 @@ impl LspMapper {
     }
 
     pub(crate) fn project_error(&self, error: ProjectError) -> LspError {
-        let mut lsp_error = LspError::internal_error();
-        lsp_error.message = Cow::Owned(error.to_string());
-        lsp_error
+        match error {
+            ProjectError::Cancelled => LspError {
+                code: ErrorCode::RequestCancelled,
+                message: Cow::Owned(ProjectError::Cancelled.to_string()),
+                data: None,
+            },
+            other => {
+                let mut lsp_error = LspError::internal_error();
+                lsp_error.message = Cow::Owned(other.to_string());
+                lsp_error
+            }
+        }
     }
 
     pub(crate) fn completion_kind(

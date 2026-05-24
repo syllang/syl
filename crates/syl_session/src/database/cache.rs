@@ -1,6 +1,7 @@
 use crate::{
     AnalysisSnapshot, DocumentUri, DocumentVersion, SourceDocument, snapshot::AnalysisFile,
-    snapshot::ResolvedSnapshot, snapshot::SemanticCache,
+    snapshot::PackageSemanticIndex, snapshot::PackageSemanticShard, snapshot::ResolvedSnapshot,
+    snapshot::SemanticCache, snapshot::WorkspacePackage,
 };
 use std::{collections::BTreeMap, path::PathBuf, sync::Arc};
 use syl_sema::OpaqueSummaryTable;
@@ -79,16 +80,18 @@ impl SnapshotKey {
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[non_exhaustive]
-/// Semantic reuse is keyed by the resolved document set and per-file content hash.
-pub(crate) struct SemanticSnapshotKey {
+/// Package-local semantic reuse is keyed by the package document set and per-file content hash.
+pub(crate) struct PackageSemanticKey {
+    package_name: String,
     documents: Vec<DocumentFingerprint>,
 }
 
-impl SemanticSnapshotKey {
-    pub(crate) fn from_snapshot(snapshot: &ResolvedSnapshot) -> Self {
+impl PackageSemanticKey {
+    pub(crate) fn from_package(snapshot: &ResolvedSnapshot, package: &WorkspacePackage) -> Self {
         let mut documents = snapshot
             .files()
             .iter()
+            .filter(|file| package.documents().contains(file.uri()))
             .map(|file| {
                 let text = snapshot
                     .source_map()
@@ -99,7 +102,10 @@ impl SemanticSnapshotKey {
             })
             .collect::<Vec<_>>();
         documents.sort();
-        Self { documents }
+        Self {
+            package_name: package.name().to_string(),
+            documents,
+        }
     }
 
     fn document_keys(&self) -> impl Iterator<Item = &DocumentKey> {
@@ -217,13 +223,13 @@ impl SnapshotCache {
 #[derive(Debug, Default)]
 #[non_exhaustive]
 pub(crate) struct SemanticCacheStore {
-    cached: BTreeMap<SemanticSnapshotKey, CachedSemanticCache>,
+    cached: BTreeMap<PackageSemanticKey, CachedPackageSemanticCache>,
 }
 
 #[derive(Clone, Debug)]
 #[non_exhaustive]
-struct CachedSemanticCache {
-    key: SemanticSnapshotKey,
+struct CachedPackageSemanticCache {
+    key: PackageSemanticKey,
     cache: Arc<SemanticCache>,
 }
 
@@ -232,17 +238,49 @@ impl SemanticCacheStore {
         Self::default()
     }
 
-    pub(crate) fn semantic_for_snapshot(
+    pub(crate) fn package_shards_for_snapshot(
         &mut self,
-        key: SemanticSnapshotKey,
+        snapshot: &ResolvedSnapshot,
+        opaque_summary_overlay: &OpaqueSummaryTable,
+    ) -> PackageSemanticIndex {
+        let shards = snapshot
+            .workspace()
+            .package_graph()
+            .packages()
+            .iter()
+            .map(|package| {
+                let key = PackageSemanticKey::from_package(snapshot, package);
+                let ast_files = snapshot
+                    .files()
+                    .iter()
+                    .filter(|file| package.documents().contains(file.uri()))
+                    .map(|file| file.ast().clone())
+                    .collect::<Vec<_>>();
+                let cache = self.semantic_for_package(key, ast_files, opaque_summary_overlay);
+                PackageSemanticShard::new(
+                    package.name().to_string(),
+                    package.documents().to_vec(),
+                    cache,
+                )
+            })
+            .collect();
+        PackageSemanticIndex::new(shards)
+    }
+
+    fn semantic_for_package(
+        &mut self,
+        key: PackageSemanticKey,
         ast_files: Vec<AstFile>,
-        opaque_summary_overlay: OpaqueSummaryTable,
+        opaque_summary_overlay: &OpaqueSummaryTable,
     ) -> Arc<SemanticCache> {
         self.cached
             .entry(key.clone())
-            .or_insert_with(|| CachedSemanticCache {
+            .or_insert_with(|| CachedPackageSemanticCache {
                 key,
-                cache: Arc::new(SemanticCache::new(ast_files, opaque_summary_overlay)),
+                cache: Arc::new(SemanticCache::new(
+                    ast_files,
+                    opaque_summary_overlay.clone(),
+                )),
             })
             .cache
             .clone()
@@ -263,7 +301,7 @@ impl SemanticCacheStore {
     }
 }
 
-impl SemanticSnapshotKey {
+impl PackageSemanticKey {
     fn matches_document(&self, key: &DocumentKey) -> bool {
         self.document_keys().any(|cached| cached == key)
     }

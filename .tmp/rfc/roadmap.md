@@ -336,6 +336,7 @@
   - 2026-05-24 S2 - 主 Agent 派出 Review SubAgent，按 Phase 7 MUST FIX 和退出标准独立审查 session workspace/cache ownership、query compiler-facts-only 边界、LSP protocol adapter 边界、stage/file/package diagnostics、cancellation、partial result 和 hover/completion no-emit 证据。
   - 2026-05-24 S2 - Review SubAgent 判定 Phase 7 未收敛：session/query/LSP 边界、结构化 grouped diagnostics 和 hover/completion no-emit 基本成立，但 semantic cache 仍按 whole-workspace snapshot 建一个 `SemanticCache`，`A+B -> A+B'` 会重算 A，未满足改一个文件只 invalidate 相关 package；取消也只在阶段边界检查，LSP request/diagnostics 没有接入可取消 token，in-flight long-running query 不能停止。
   - 2026-05-24 S3 - 主 Agent 审核 Review 结论后派 Work SubAgent 整改：实现 package-granular semantic cache 或等价分片，使 `A+B -> A+B'` 复用 A 的 package semantic cache；将 cancellation token 接入 LSP request/diagnostics 与 query/session 长查询路径，补充 in-flight 或主动取消不会继续触发后续昂贵阶段的结构化测试。
+  - 2026-05-24 S4 - Work SubAgent 完成整改：`syl_session` 增加 package semantic shard/index 与 package cache probe，`AnalysisSnapshot` 内部同时持有 workspace facade 与 package shards，grouped diagnostics 改为消费 package shard，`A+B -> A+B'` 测试证明 A shard 复用而 B shard 重建；`syl_lsp` 增加 cancellation registry，diagnostics generation 与 hover/definition/completion 使用 registry token，publish 路径调用 token-aware grouped diagnostics 并测试取消后不启动后续 package；主 Agent 验证 architecture tests、syl_session/query/lsp tests、workspace check、文件规模和 `git diff --check` 均通过。
 
   ———
 

@@ -5,13 +5,14 @@ mod revision;
 use crate::{
     AnalysisSnapshot, CancellationToken, DocumentUri, DocumentVersion, ProjectConfig, ProjectError,
     ProjectResolver, SourceDocument, WorkspaceSnapshot, collector::SylFileCollector,
+    snapshot::SemanticCache,
 };
 use cache::{
     CachedSnapshot, DocumentInvalidation, DocumentKey, InvalidationPlan, SemanticCacheStore,
-    SemanticSnapshotKey, SnapshotCache, SnapshotKey,
+    SnapshotCache, SnapshotKey,
 };
 use documents::{DocumentInputs, DocumentStore};
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::Arc};
 use syl_sema::{OpaqueItemSummary, OpaqueSummaryTable};
 
 pub use revision::DatabaseRevision;
@@ -54,13 +55,13 @@ impl<'a> SnapshotQuery<'a> {
 
         let (roots, overlays) = self.inputs.into_resolver_inputs();
         let resolved = resolver.snapshot(roots, overlays, token)?;
-        let semantic_key = SemanticSnapshotKey::from_snapshot(&resolved);
-        let semantic = semantic_cache_store.semantic_for_snapshot(
-            semantic_key,
+        let workspace_semantic = Arc::new(SemanticCache::new(
             resolved.ast_files(),
             opaque_summaries.clone(),
-        );
-        let snapshot = AnalysisSnapshot::new(resolved, semantic);
+        ));
+        let package_semantics =
+            semantic_cache_store.package_shards_for_snapshot(&resolved, opaque_summaries);
+        let snapshot = AnalysisSnapshot::new(resolved, workspace_semantic, package_semantics);
         let cached = CachedSnapshot::new(self.key.clone(), snapshot);
         Ok(snapshot_cache.store(cached))
     }
@@ -343,6 +344,53 @@ module Overlay(y: out Bit) {
             .expect("closing an overlay should leave the base snapshot reusable");
         assert!(base.shares_semantic_cache_with(&restored));
         assert!(restored.hwir().is_some());
+    }
+
+    #[test]
+    fn package_semantic_shards_reuse_unmodified_packages_after_package_edit() {
+        let first_uri = DocumentUri::new("untitled:syl/package-first");
+        let second_uri = DocumentUri::new("untitled:syl/package-second");
+        let mut database = AnalysisDatabase::new();
+        database.open_document(
+            first_uri,
+            "package first;\nmodule First(y: out Bit) { y := 1 }\n".to_string(),
+            DocumentVersion::new(1),
+        );
+        database.open_document(
+            second_uri.clone(),
+            "package second;\nmodule Second(y: out Bit) { y := 0 }\n".to_string(),
+            DocumentVersion::new(1),
+        );
+
+        let baseline = database
+            .snapshot()
+            .expect("package shard baseline fixture must snapshot");
+        let baseline_first = baseline
+            .package_semantic_cache("first")
+            .expect("first package shard must exist");
+        let baseline_second = baseline
+            .package_semantic_cache("second")
+            .expect("second package shard must exist");
+
+        database
+            .update_document_at_version(
+                &second_uri,
+                "package second;\nmodule Second(y: out Bit) { y := 1 }\n".to_string(),
+                DocumentVersion::new(2),
+            )
+            .expect("package shard edit must update the second package");
+        let updated = database
+            .snapshot()
+            .expect("package shard update fixture must snapshot");
+        let updated_first = updated
+            .package_semantic_cache("first")
+            .expect("first package shard must still exist");
+        let updated_second = updated
+            .package_semantic_cache("second")
+            .expect("second package shard must still exist");
+
+        assert!(baseline_first.shares_with(&updated_first));
+        assert!(!baseline_second.shares_with(&updated_second));
     }
 
     #[test]

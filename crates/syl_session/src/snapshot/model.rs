@@ -4,12 +4,12 @@ use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
-use syl_elab::HardwareCompiler;
 use syl_hw::ParametricHwDesign;
-use syl_sema::{HirAnalysis, OpaqueSummaryTable, SemanticCompiler, TirAnalysis};
+use syl_sema::{HirAnalysis, OpaqueSummaryTable, TirAnalysis};
 use syl_span::{Diagnostic, SourceId, SourceMap};
 use syl_syntax::{AstFile, AstNodeIndex};
 
+use super::package_semantics::{PackageSemanticCacheProbe, PackageSemanticIndex};
 use super::semantic_cache::SemanticCache;
 use super::workspace::WorkspaceSnapshot;
 
@@ -143,7 +143,8 @@ pub struct AnalysisSnapshot {
     pub(crate) source_map: SourceMap,
     pub(crate) files: Vec<AnalysisFile>,
     pub(crate) diagnostics: Vec<Diagnostic>,
-    pub(crate) semantic: Arc<SemanticCache>,
+    pub(crate) workspace_semantic: Arc<SemanticCache>,
+    pub(crate) package_semantics: PackageSemanticIndex,
     pub(crate) workspace: WorkspaceSnapshot,
 }
 
@@ -189,7 +190,11 @@ impl PackageStageDiagnostics {
 }
 
 impl AnalysisSnapshot {
-    pub fn new(parts: ResolvedSnapshot, semantic: Arc<SemanticCache>) -> Self {
+    pub(crate) fn new(
+        parts: ResolvedSnapshot,
+        workspace_semantic: Arc<SemanticCache>,
+        package_semantics: PackageSemanticIndex,
+    ) -> Self {
         let ResolvedSnapshot {
             source_map,
             mut files,
@@ -201,7 +206,8 @@ impl AnalysisSnapshot {
             source_map,
             files,
             diagnostics,
-            semantic,
+            workspace_semantic,
+            package_semantics,
             workspace,
         }
     }
@@ -231,51 +237,30 @@ impl AnalysisSnapshot {
         uri: &DocumentUri,
         token: &CancellationToken,
     ) -> Result<Option<PackageStageDiagnostics>, ProjectError> {
-        let package_files = self.package_files(uri);
-        if package_files.is_empty() {
+        let Some(package) = self.package_semantics.entry_for_uri(uri) else {
             return Ok(None);
-        }
+        };
         Self::check_cancellation(token)?;
 
-        let source_ids = package_files
-            .iter()
-            .map(|file| file.source_id())
-            .collect::<BTreeSet<_>>();
+        let source_ids = self.package_source_ids(package.documents());
         let parse = self
             .diagnostics()
             .iter()
             .filter(|diagnostic| source_ids.contains(&diagnostic.span.source))
             .cloned()
             .collect::<Vec<_>>();
-        let ast_files = package_files
-            .iter()
-            .map(|file| file.ast().clone())
-            .collect::<Vec<_>>();
-        let hir_output = SemanticCompiler::new()
-            .session(&ast_files)
-            .resolve_hir_partial();
-        let hir = hir_output.diagnostics().to_vec();
-        Self::check_cancellation(token)?;
-
-        let tir_output = hir_output.stage().check_tir_partial();
-        let tir = tir_output.diagnostics().to_vec();
-        let elaboration = if hir.is_empty() && tir.is_empty() {
-            if let Some(tir_stage) = tir_output.partial_stage() {
-                Self::check_cancellation(token)?;
-                let opaque_summaries = self
-                    .opaque_summaries()
-                    .cloned()
-                    .unwrap_or_else(OpaqueSummaryTable::new);
-                HardwareCompiler::with_opaque_summaries(opaque_summaries)
-                    .output_for_tir(tir_stage)
-                    .diagnostics()
-                    .to_vec()
-            } else {
-                Vec::new()
-            }
-        } else {
-            Vec::new()
-        };
+        let hir = package
+            .semantic()
+            .hir_diagnostics_with_token(token)?
+            .to_vec();
+        let tir = package
+            .semantic()
+            .tir_diagnostics_with_token(token)?
+            .to_vec();
+        let elaboration = package
+            .semantic()
+            .elaboration_diagnostics_with_token(token)?
+            .to_vec();
         Ok(Some(PackageStageDiagnostics::new(
             parse,
             hir,
@@ -289,85 +274,101 @@ impl AnalysisSnapshot {
     }
 
     pub fn semantic_diagnostics(&self) -> Vec<Diagnostic> {
-        self.semantic.diagnostics()
+        if self.package_semantics.len() <= 1 {
+            return self.workspace_semantic.diagnostics();
+        }
+        let mut diagnostics = Vec::new();
+        for package in self.package_semantics.shards() {
+            diagnostics.extend(package.semantic().diagnostics());
+        }
+        diagnostics
     }
 
     pub fn hir_diagnostics_with_token(
         &self,
         token: &CancellationToken,
     ) -> Result<&[Diagnostic], ProjectError> {
-        self.semantic.hir_diagnostics_with_token(token)
+        self.workspace_semantic.hir_diagnostics_with_token(token)
     }
 
     pub fn tir_diagnostics_with_token(
         &self,
         token: &CancellationToken,
     ) -> Result<&[Diagnostic], ProjectError> {
-        self.semantic.tir_diagnostics_with_token(token)
+        self.workspace_semantic.tir_diagnostics_with_token(token)
     }
 
     pub fn elaboration_diagnostics_with_token(
         &self,
         token: &CancellationToken,
     ) -> Result<&[Diagnostic], ProjectError> {
-        self.semantic.elaboration_diagnostics_with_token(token)
+        self.workspace_semantic
+            .elaboration_diagnostics_with_token(token)
     }
 
     pub fn hwir(&self) -> Option<&ParametricHwDesign> {
         if self.diagnostics.is_empty() {
-            self.semantic.elaboration_output()?.hwir()
+            self.workspace_semantic.elaboration_output()?.hwir()
         } else {
             None
         }
     }
 
     pub fn hir_analysis(&self) -> &HirAnalysis {
-        self.semantic.hir()
+        self.workspace_semantic.hir()
     }
 
     pub fn hir_analysis_with_token(
         &self,
         token: &CancellationToken,
     ) -> Result<&HirAnalysis, ProjectError> {
-        self.semantic.hir_with_token(token)
+        self.workspace_semantic.hir_with_token(token)
     }
 
     pub fn tir_analysis(&self) -> Option<&TirAnalysis> {
-        self.semantic.tir()
+        self.workspace_semantic.tir()
     }
 
     pub fn tir_analysis_with_token(
         &self,
         token: &CancellationToken,
     ) -> Result<Option<&TirAnalysis>, ProjectError> {
-        self.semantic.tir_with_token(token)
+        self.workspace_semantic.tir_with_token(token)
     }
 
     pub fn opaque_summaries(&self) -> Option<&OpaqueSummaryTable> {
-        self.semantic.opaque_summaries()
+        self.workspace_semantic.opaque_summaries()
     }
 
     pub fn opaque_summaries_with_token(
         &self,
         token: &CancellationToken,
     ) -> Result<Option<&OpaqueSummaryTable>, ProjectError> {
-        self.semantic.opaque_summaries_with_token(token)
+        self.workspace_semantic.opaque_summaries_with_token(token)
+    }
+
+    pub fn package_name_for_uri(&self, uri: &DocumentUri) -> Option<&str> {
+        self.package_semantics.name_for_uri(uri)
+    }
+
+    pub fn package_semantic_cache(&self, package_name: &str) -> Option<PackageSemanticCacheProbe> {
+        self.package_semantics.probe(package_name)
     }
 
     pub fn is_hir_cached(&self) -> bool {
-        self.semantic.is_hir_cached()
+        self.workspace_semantic.is_hir_cached()
     }
 
     pub fn is_tir_cached(&self) -> bool {
-        self.semantic.is_tir_cached()
+        self.workspace_semantic.is_tir_cached()
     }
 
     pub fn is_elaboration_cached(&self) -> bool {
-        self.semantic.is_elaboration_cached()
+        self.workspace_semantic.is_elaboration_cached()
     }
 
     pub fn shares_semantic_cache_with(&self, other: &Self) -> bool {
-        Arc::ptr_eq(&self.semantic, &other.semantic)
+        Arc::ptr_eq(&self.workspace_semantic, &other.workspace_semantic)
     }
 
     pub fn hwir_with_token(
@@ -378,20 +379,17 @@ impl AnalysisSnapshot {
             return Ok(None);
         }
         Ok(self
-            .semantic
+            .workspace_semantic
             .elaboration_output_with_token(token)?
             .and_then(|output| output.hwir()))
     }
 
-    fn package_files(&self, uri: &DocumentUri) -> Vec<&AnalysisFile> {
-        if let Some(package) = self.workspace.package_graph().package_for_uri(uri) {
-            return self
-                .files()
-                .iter()
-                .filter(|file| package.documents().contains(file.uri()))
-                .collect();
-        }
-        self.file_by_uri(uri).into_iter().collect()
+    fn package_source_ids(&self, documents: &[DocumentUri]) -> BTreeSet<SourceId> {
+        self.files()
+            .iter()
+            .filter(|file| documents.contains(file.uri()))
+            .map(AnalysisFile::source_id)
+            .collect()
     }
 
     fn check_cancellation(token: &CancellationToken) -> Result<(), ProjectError> {
