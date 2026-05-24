@@ -1,5 +1,6 @@
 use crate::{HwExpr, HwItem, HwOrigin, HwParam, HwPort};
 
+#[derive(Debug)]
 #[non_exhaustive]
 pub struct ParametricHwDesign {
     modules: Vec<ParametricHwModule>,

@@ -3,8 +3,9 @@
 ## Responsibilities
 
 `syl_hw` owns the backend-neutral hardware IR data model produced by elaboration
-and consumed by emitters. It is a data contract only: no EIR builder state,
-driver-analysis scratch state, or semantic temporaries should leak into it.
+and consumed by emitters. It also owns lightweight backend-neutral
+normalization/validation over HW IR itself. No EIR builder state, driver-analysis
+scratch state, or semantic temporaries should leak into it.
 
 ## Inputs
 
@@ -16,6 +17,7 @@ driver-analysis scratch state, or semantic temporaries should leak into it.
 - hardware object IDs
 - module, port, instance, connection, guard, place, and expression data
 - parametric hardware design containers consumed by backends
+- backend-neutral HW normalization / validation reports
 
 ## Allowed Dependencies
 
@@ -37,6 +39,7 @@ driver-analysis scratch state, or semantic temporaries should leak into it.
 - define HW IR structs, enums, builders, and IDs
 - carry source origin and backend-neutral hardware structure as data
 - provide a backend-neutral exchange format between elaboration and emission
+- validate backend-independent HW naming/reference/interface invariants
 
 ## Forbidden Responsibilities
 
@@ -48,6 +51,8 @@ driver-analysis scratch state, or semantic temporaries should leak into it.
 
 ## Public Surface Policy
 
-Public items are limited to the HW IR types that must cross from elaboration to
-emitters and tests. Analysis algorithms belong in `syl_elab` or backend crates;
-`syl_hw` should stay a data contract, not a behavior bucket.
+Public items are limited to the HW IR types and validation entry points that
+must cross from elaboration to emitters and tests. Elaborator algorithms still
+belong in `syl_elab`, and target-language validation still belongs in backend
+crates; `syl_hw` should stay a narrow HW data contract plus backend-neutral
+checks.

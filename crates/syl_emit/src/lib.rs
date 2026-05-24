@@ -2,12 +2,14 @@ mod check;
 mod lower;
 mod sv_ir;
 
-use syl_hw::ParametricHwDesign;
+use syl_hw::{HwNormalizer, ParametricHwDesign};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum CompileError {
+    #[error("invalid HWIR for backend consumption: {report}")]
+    InvalidHwir { report: syl_hw::HwValidationReport },
     #[error("verilog backend error: {kind}")]
     Verilog { kind: VerilogError },
     #[error("unsupported HWIR for SystemVerilog backend: {message}")]
@@ -15,6 +17,10 @@ pub enum CompileError {
 }
 
 impl CompileError {
+    pub fn invalid_hwir(report: syl_hw::HwValidationReport) -> Self {
+        Self::InvalidHwir { report }
+    }
+
     pub fn verilog(kind: VerilogError) -> Self {
         Self::Verilog { kind }
     }
@@ -29,16 +35,6 @@ impl CompileError {
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum VerilogError {
-    #[error("duplicate module name: {name}")]
-    DuplicateModule { name: String },
-    #[error("duplicate declaration in {module}: {name}")]
-    DuplicateDeclaration { module: String, name: String },
-    #[error("unknown instance module in {module}: {instance} -> {target}")]
-    UnknownInstanceModule {
-        module: String,
-        instance: String,
-        target: String,
-    },
     #[error("module without name at line {line}")]
     ModuleWithoutName { line: usize },
     #[error("endmodule without matching module at line {line}")]
@@ -66,8 +62,6 @@ pub enum VerilogError {
     UnclosedBeginBlock,
     #[error("unsupported function call in {module}: {name}")]
     UnsupportedFunctionCall { module: String, name: String },
-    #[error("undeclared signal reference in {module}: {name}")]
-    UndeclaredSignalReference { module: String, name: String },
 }
 
 #[derive(Debug)]
@@ -80,17 +74,26 @@ impl SystemVerilogBackend {
     }
 
     pub fn debug_dump(&self, hwir: &ParametricHwDesign) -> Result<String, CompileError> {
-        let design = lower::SvEmitter::new(hwir).lower()?;
+        let design = self.compile_sv_design(hwir)?;
         Ok(design.debug_dump())
     }
 
     pub fn emit(&self, hwir: &ParametricHwDesign) -> Result<String, CompileError> {
-        let design = lower::SvEmitter::new(hwir).lower()?;
+        let design = self.compile_sv_design(hwir)?;
         let text = design.emit_text();
-        check::SvValidator::new(&design)
-            .with_source(&text)
-            .validate()?;
+        check::SvBackendValidator::new(&design).validate()?;
+        check::SvSourceValidator::new().validate(&text)?;
         Ok(text)
+    }
+
+    fn compile_sv_design(
+        &self,
+        hwir: &ParametricHwDesign,
+    ) -> Result<sv_ir::SvDesign, CompileError> {
+        let normalized = HwNormalizer::new()
+            .normalize(hwir)
+            .map_err(CompileError::invalid_hwir)?;
+        lower::SvEmitter::new(normalized.design()).lower()
     }
 }
 
