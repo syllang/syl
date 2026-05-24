@@ -1,11 +1,54 @@
 # syl_span
 
-`syl_span` defines source identity, byte spans, UTF-16 positions, source maps,
-and diagnostic data structures for Syl.
+## Responsibilities
 
-This crate is the shared source-location layer used by syntax, semantic
-analysis, session snapshots, editor queries, and diagnostics.
+`syl_span` owns source identity, byte spans, UTF-16 coordinate mapping, source
+maps, and cross-crate diagnostic payloads.
 
-It does not own diagnostic rendering policy, recovery strategy, HIR IDs,
-semantic IDs, or hardware graph IDs. Those concepts belong to the crate that
-owns the corresponding compiler stage or arena.
+## Inputs
+
+- registered source text and source URIs
+- byte offsets and spans produced by parser, sema, elab, session, and LSP code
+
+## Outputs
+
+- `SourceId`, `Span`, `SourcePosition`, `SourceRange`
+- `SourceFile` and `SourceMap`
+- cross-crate `Diagnostic` values and related info
+
+## Allowed Dependencies
+
+- `std` only
+
+## Forbidden Dependencies
+
+- `syl_syntax`
+- `syl_hir`
+- `syl_sema`
+- `syl_elab`
+- `syl_hw`
+- `syl_emit`
+- `syl_session`
+- `syl_query`
+- `syl_lsp`
+- `syl`
+- `sylc`
+
+## Allowed Responsibilities
+
+- represent source coordinates and file identity
+- convert byte offsets to UTF-16 protocol coordinates
+- carry structured diagnostics across crate boundaries
+
+## Forbidden Responsibilities
+
+- parser recovery policy
+- HIR IDs, semantic IDs, or hardware IDs
+- name resolution, type checking, elaboration, or backend emission
+- diagnostic rendering, publishing, debounce, or transport concerns
+
+## Public Surface Policy
+
+Items are public here only when multiple crates must exchange source locations
+or diagnostics through a shared type. Stage-local helper functions and policies
+stay in the crate that owns that stage, not in `syl_span`.

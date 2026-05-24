@@ -1,11 +1,54 @@
 # syl_query
 
-`syl_query` defines protocol-neutral query APIs over `syl_session` analysis
-snapshots.
+## Responsibilities
 
-It provides diagnostics, hover, definition, completion, and document-symbol
-queries without depending on LSP protocol types. This keeps editor semantics
-usable by CLI tools, tests, and future non-LSP integrations.
+`syl_query` owns protocol-neutral read-only queries over a session-owned
+analysis snapshot.
 
-LSP transport, UTF-16 protocol mapping, publish scheduling, debounce, and
-cancellation are owned by `syl_lsp`.
+## Inputs
+
+- `syl_session::AnalysisSnapshot` and `syl_session::Project`
+- semantic facts from `syl_sema` reachable through the snapshot
+- syntax trees and source coordinates used for navigation and completions
+
+## Outputs
+
+- protocol-neutral diagnostics grouped by document
+- hover, definition, completion, and document-symbol results
+- query traits consumed by LSP, tests, and future non-LSP tools
+
+## Allowed Dependencies
+
+- `syl_session`
+- `syl_sema`
+- `syl_syntax`
+- `syl_span`
+
+## Forbidden Dependencies
+
+- `syl_elab`
+- `syl_hw`
+- `syl_emit`
+- `syl_lsp`
+- `tokio`
+- `tower-lsp`
+- `url`
+
+## Allowed Responsibilities
+
+- compute editor-facing answers from an existing snapshot
+- keep query result DTOs protocol-neutral
+- bridge syntax and semantic facts into navigation and diagnostics answers
+
+## Forbidden Responsibilities
+
+- owning workspace state or cache invalidation policy
+- becoming a shared DTO bucket for unrelated compiler data
+- protocol transport, debounce, cancellation scheduling, or UTF-16 adaptation
+- triggering backend emission or elaboration-specific mutation
+
+## Public Surface Policy
+
+Public items are limited to query traits and result DTOs that another crate must
+consume. Query engines, collectors, and heuristics stay private so callers see a
+stable question-and-answer surface instead of internal traversal machinery.

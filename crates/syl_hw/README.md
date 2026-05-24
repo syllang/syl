@@ -1,9 +1,51 @@
 # syl_hw
 
-`syl_hw` defines the elaborated hardware graph data model for Syl.
+## Responsibilities
 
-It owns hardware graph structs, hardware object IDs, places, guards, expansion
-origins, modules, ports, instances, and parameterized hardware designs as data.
+`syl_hw` owns the backend-neutral hardware IR data model produced by elaboration
+and consumed by emitters.
 
-Validation algorithms such as driver conflict checking, place overlap analysis,
-undriven checks, and bounds proofs belong to `syl_elab`, not this crate.
+## Inputs
+
+- elaborated hardware structure produced by `syl_elab`
+- source-origin data from `syl_span` attached to hardware objects
+
+## Outputs
+
+- hardware object IDs
+- module, port, instance, connection, guard, place, and expression data
+- parametric hardware design containers consumed by backends
+
+## Allowed Dependencies
+
+- `syl_span`
+
+## Forbidden Dependencies
+
+- `syl_syntax`
+- `syl_hir`
+- `syl_sema`
+- `syl_elab`
+- `syl_emit`
+- `syl_session`
+- `syl_query`
+- `syl_lsp`
+
+## Allowed Responsibilities
+
+- define HW IR structs, enums, builders, and IDs
+- carry source origin and hardware facts as data
+- provide a backend-neutral exchange format between elaboration and emission
+
+## Forbidden Responsibilities
+
+- parser or semantic analysis
+- elaboration algorithms or driver conflict analysis
+- target-language validation or printing
+- workspace orchestration or protocol adaptation
+
+## Public Surface Policy
+
+Public items are limited to the HW IR types that must cross from elaboration to
+emitters and tests. Analysis algorithms belong in `syl_elab` or backend crates;
+`syl_hw` should stay a data contract, not a behavior bucket.
