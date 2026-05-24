@@ -254,6 +254,9 @@
   - extern IP 不需要重复写 drives y 这种能从签名推导的信息。
   - public API 摘要能被 LSP、CLI、elab 共同读取。
 
+  Log
+  - 2026-05-24 S1 - 主 Agent 派出 Work SubAgent，执行 Phase 5 Opaque Boundary 与 Metadata：建立 machine-readable extern/precompiled summary，确保 driver/capability/domain/layout/latency/protocol facts 可进入编译产物，定义 blackbox/vendor IP trust boundary，并补充无源码库参与 multi-driver 检查的可执行证据。
+
   ———
 
   ## [ ] Phase 6：Backend 与验证层分离
