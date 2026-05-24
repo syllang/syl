@@ -139,7 +139,7 @@
 
   ———
 
-  ## [ ] Phase 3：语义层硬化
+  ## [x] Phase 3：语义层硬化
 
   目标：把类型、名字、capability、layout、const eval 都变成可查询、可缓存、可诊断的事实。
 
@@ -179,6 +179,7 @@
   - 2026-05-24 S3 - 主 Agent 审核第二轮 Review 结论后派 Work SubAgent 做窄整改：为 Clock/Reset 引入可表达 generic 与 builtin/direct domain carrier 的 canonical domain fact，保持禁止结构相等 fallback，并补充对应 semantic facts 与 architecture tests。
   - 2026-05-24 S4 - Work SubAgent 完成窄整改：`CapabilityKind::Clock/Reset` 改用 `DomainFact::{Named(TypeId), BuiltinDomain, Unknown}`，generic `D: Domain` 和 direct `Clock<Domain>`/`Reset<Domain>` 均有测试覆盖，architecture_phase3_sema 增加 `DomainFact` 形态与结构 fallback 禁令；主 Agent 验证 architecture tests、sema tests、workspace check、文件规模和 `git diff --check` 均通过。
   - 2026-05-24 S2 - 主 Agent 派出第三轮 Review SubAgent，复查 Clock/Reset canonical domain fact 窄整改是否满足 Phase 3，只有 Review Agent 判 PASS 才允许标记完成。
+  - 2026-05-24 S2 - Review SubAgent 判定 PASS 且授权标记 Phase 3 完成：Clock/Reset 使用 `DomainFact` 覆盖 generic 与 builtin/direct domain carrier，结构相等 fallback 禁止守卫仍有效，ConstFacts、ResolutionGraph、layout facts、cache API 和 production-boundary 均未回退；主 Agent 将 Phase 3 标记为完成。
 
   ———
 
