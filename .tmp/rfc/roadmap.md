@@ -178,6 +178,7 @@
   - 2026-05-24 S2 - Review SubAgent 判定 Phase 3 仍未收敛：上一轮 ConstFacts、ResolutionGraph、layout、cache API 和 production-boundary 问题已实质修复，但 Clock/Reset domain facts 仍只通过 `TirType::Named { generic: Some(local) }` 找回 canonical `TypeId`，缺少直接 `Clock<Domain>`/`Reset<Domain>` 或未来非 local domain carrier 的 canonical domain fact 覆盖。
   - 2026-05-24 S3 - 主 Agent 审核第二轮 Review 结论后派 Work SubAgent 做窄整改：为 Clock/Reset 引入可表达 generic 与 builtin/direct domain carrier 的 canonical domain fact，保持禁止结构相等 fallback，并补充对应 semantic facts 与 architecture tests。
   - 2026-05-24 S4 - Work SubAgent 完成窄整改：`CapabilityKind::Clock/Reset` 改用 `DomainFact::{Named(TypeId), BuiltinDomain, Unknown}`，generic `D: Domain` 和 direct `Clock<Domain>`/`Reset<Domain>` 均有测试覆盖，architecture_phase3_sema 增加 `DomainFact` 形态与结构 fallback 禁令；主 Agent 验证 architecture tests、sema tests、workspace check、文件规模和 `git diff --check` 均通过。
+  - 2026-05-24 S2 - 主 Agent 派出第三轮 Review SubAgent，复查 Clock/Reset canonical domain fact 窄整改是否满足 Phase 3，只有 Review Agent 判 PASS 才允许标记完成。
 
   ———
 
