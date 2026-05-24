@@ -266,7 +266,7 @@
 
   ———
 
-  ## [ ] Phase 6：Backend 与验证层分离
+  ## [x] Phase 6：Backend 与验证层分离
 
   目标：不要让 SystemVerilog emitter 变成最后的语义垃圾处理器。
 
@@ -297,6 +297,7 @@
   - 2026-05-24 S1 - 主 Agent 派出 Work SubAgent，执行 Phase 6 Backend 与验证层分离：拆清 HW IR normalization/checks 与 SystemVerilog emission，确保 emitter 不承担前端语义修复，补充 HW IR debug dump、SV golden output 和 Verilator smoke test 证据。
   - 2026-05-24 S1 - Work SubAgent 完成 Phase 6 初版交付：`syl_hw` 增加 backend-independent `HwValidator`/`HwNormalizer`，`syl_emit::SystemVerilogBackend` 先消费 normalized HW IR 再执行 SV emission 与 backend-local checks，新增 HW IR dump + SV 同源测试、全文 golden SV 回归、Verilator lint smoke 覆盖 example 与 integration fixture；主 Agent 验证 architecture tests、syl_emit tests、syl_hw tests、driver_overlap、workspace check、文件规模和 `git diff --check` 均通过。
   - 2026-05-24 S2 - 主 Agent 派出 Review SubAgent，按 Phase 6 MUST FIX 和退出标准独立审查 HW normalization/checks 与 SV emission 分离、backend-independent checks 所在层、emitter 依赖边界、golden SV 回归和 Verilator smoke/CI 证据。
+  - 2026-05-24 S2 - Review SubAgent 判定 PASS 且授权标记 Phase 6 完成：HW validation/normalization 已下沉到 `syl_hw`，SystemVerilog backend 只消费 normalized HW IR 并执行 backend-local checks，emitter 无 HIR/TIR/sema/elab 依赖，golden SV 与 Verilator smoke 已进入回归/CI 路径；主 Agent 将 Phase 6 标记为完成。
 
   ———
 
