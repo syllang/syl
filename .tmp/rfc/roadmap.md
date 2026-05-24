@@ -22,8 +22,8 @@
   ———
 
 ```
-  ## [ ] Phase N：表示未完成。 
-  ## [x] Phase N：表示完成。 
+  ## [ ] Phase N：表示未完成。
+  ## [x] Phase N：表示完成。
 ```
 
 执行时，必须遵照 AGENTS.md。S1 主 Agent 先派出任务给 Work SubAgent（使用 gpt-4-xhigh），然后 S2 Review SubAgent （ gpt-4-medium）检查并反馈问题，S3 主 Agent 审核和仔细分析后传达给 Work SubAgent 整改。S4 整改完之后 Review SubAgent 重复检查(S2~S4)……这是循环过程，直到本 Phase 问题收敛。每个 S 步骤，在对应 .tmp/rfc/roadmap.md 的对应 Phase下标记一个 Log 行。整个Phase 问题收敛完成后只有 Review Agent 有权独立地标记为完成，然后才能进入下一个 Phase.

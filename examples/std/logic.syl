@@ -16,4 +16,3 @@ map bit_enable(value: Bit, enable: Bit) -> Bit =
 
 map word_increment<W: Nat>(value: UInt<W>) -> UInt<W> =
     value + 1
-
