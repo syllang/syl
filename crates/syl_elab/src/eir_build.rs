@@ -1,7 +1,7 @@
 use crate::{
     CompileError,
     const_mir::ConstMirProgram,
-    eir::{EirDesign, EirDesignAssembler, EirModule, EirParam},
+    eir::{EirModule, EirParam, EirRawDesign},
     eir_connect::PortSpec,
     eir_expr::{EirBinaryOp, EirExpr, EirUnaryOp},
     eir_origin::{EirExpansion, EirOrigin},
@@ -182,10 +182,10 @@ impl<'a> Elaborator<'a> {
         }
     }
 
-    pub(crate) fn elaborate(self) -> Result<EirDesign, CompileError> {
+    pub(crate) fn build_raw_design(self) -> Result<EirRawDesign, CompileError> {
         let _const_mir_nodes = self.const_mir.node_count();
         let _map_ir_nodes = self.map_ir.len();
-        EirBuilder::new(self.program, self.const_mir, self.map_ir).build_design()
+        EirBuilder::new(self.program, self.const_mir, self.map_ir).build_raw_design()
     }
 }
 
@@ -202,7 +202,7 @@ impl<'a> EirBuilder<'a> {
         }
     }
 
-    pub(crate) fn build_design(&self) -> Result<EirDesign, CompileError> {
+    pub(crate) fn build_raw_design(&self) -> Result<EirRawDesign, CompileError> {
         let mut modules = Vec::new();
         for (owner, callable) in self.program.callables() {
             match callable {
@@ -215,7 +215,7 @@ impl<'a> EirBuilder<'a> {
                 ElabCallable::Cell(_) => {}
             }
         }
-        EirDesignAssembler::assemble(modules)
+        Ok(EirRawDesign::new(modules))
     }
 
     fn build_callable(

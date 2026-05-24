@@ -1,4 +1,4 @@
-use super::{ConstMirStage, EirStage, MapIrStage};
+use super::{ConstMirStage, EirBuildStage, MapIrStage};
 use crate::{CompileError, eir_build::Elaborator, program::ElabProgram, tir::TirDesign};
 
 #[non_exhaustive]
@@ -13,13 +13,13 @@ impl ElabStage {
         }
     }
 
-    pub fn elaborate(
+    pub fn build_raw_eir(
         &self,
         const_mir: &ConstMirStage,
         map_ir: &MapIrStage,
-    ) -> Result<EirStage, CompileError> {
+    ) -> Result<EirBuildStage, CompileError> {
         Elaborator::new(&self.program, &const_mir.program, &map_ir.program)
-            .elaborate()
-            .map(EirStage::new)
+            .build_raw_design()
+            .map(EirBuildStage::new)
     }
 }

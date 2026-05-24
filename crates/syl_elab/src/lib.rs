@@ -36,7 +36,7 @@ pub use hardware_metadata::{
     HardwareDriveFact, HardwareMetadata, HardwareReadFact,
 };
 pub use pipeline::{
-    ConstMirStage, DrcStage, DriverFactsStage, EirStage, ElabStage, ElaborationOutput,
-    HardwareCompiler, MapIrStage,
+    ConstMirStage, DrcStage, DriverFactsStage, EirBuildStage, EirFactsStage, EirStage,
+    EirValidationStage, ElabStage, ElaborationOutput, HardwareCompiler, MapIrStage,
 };
 pub(crate) use syl_sema::cell_summary::CellBoundarySummary;

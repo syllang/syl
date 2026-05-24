@@ -1,5 +1,5 @@
 use super::{
-    EirDirection, EirDrive, EirDriveKind, EirExpr, EirFacts, EirInstance, EirItem, EirModule,
+    EirDesignFacts, EirDirection, EirDrive, EirDriveKind, EirExpr, EirInstance, EirItem, EirModule,
     EirObject, EirObjectKind, EirRead,
 };
 use crate::{
@@ -12,27 +12,27 @@ use crate::{
 use std::collections::{BTreeMap, BTreeSet};
 
 #[non_exhaustive]
-pub(super) struct EirFactCollector {
-    pub(super) objects: Vec<EirObject>,
-    pub(super) drives: Vec<EirDrive>,
-    pub(super) reads: Vec<EirRead>,
+pub(crate) struct EirFactCollector {
+    pub(crate) objects: Vec<EirObject>,
+    pub(crate) drives: Vec<EirDrive>,
+    pub(crate) reads: Vec<EirRead>,
     module_ports: BTreeMap<String, Vec<(String, EirDirection)>>,
     guard_stack: Vec<EirGuardFrame>,
     module: String,
 }
 
 impl EirFactCollector {
-    pub(super) fn collect(modules: &[EirModule]) -> Result<EirFacts, CompileError> {
+    pub(crate) fn collect(modules: &[EirModule]) -> Result<EirDesignFacts, CompileError> {
         let mut collector = Self::new();
         collector.collect_modules(modules)?;
-        Ok(EirFacts {
-            objects: collector.objects,
-            drives: collector.drives,
-            reads: collector.reads,
-        })
+        Ok(EirDesignFacts::new(
+            collector.objects,
+            collector.drives,
+            collector.reads,
+        ))
     }
 
-    pub(super) fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             objects: Vec::new(),
             drives: Vec::new(),
@@ -43,7 +43,7 @@ impl EirFactCollector {
         }
     }
 
-    pub(super) fn collect_modules(&mut self, modules: &[EirModule]) -> Result<(), CompileError> {
+    pub(crate) fn collect_modules(&mut self, modules: &[EirModule]) -> Result<(), CompileError> {
         self.index_module_ports(modules);
         for module in modules {
             self.module = module.name().to_string();

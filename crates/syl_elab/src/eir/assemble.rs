@@ -1,13 +1,11 @@
-use super::{EirDesign, EirModule, facts::EirFactCollector, validate::EirValidator};
-use crate::CompileError;
+use super::{EirDesign, EirDesignFacts, EirRawDesign};
+use std::sync::Arc;
 
 #[non_exhaustive]
-pub(crate) struct EirDesignAssembler;
+pub(crate) struct EirDesignComposer;
 
-impl EirDesignAssembler {
-    pub(crate) fn assemble(modules: Vec<EirModule>) -> Result<EirDesign, CompileError> {
-        EirValidator::new(&modules).validate()?;
-        let facts = EirFactCollector::collect(&modules)?;
-        Ok(EirDesign::from_parts(modules, facts))
+impl EirDesignComposer {
+    pub(crate) fn compose(raw: Arc<EirRawDesign>, facts: Arc<EirDesignFacts>) -> EirDesign {
+        EirDesign::from_parts(raw, facts)
     }
 }

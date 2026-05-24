@@ -163,12 +163,23 @@ mod tests {
     use super::*;
     use crate::{
         LoweringError,
-        eir::{EirDesignAssembler, EirItem, EirModule},
+        eir::{
+            EirDesign, EirDesignComposer, EirFactCollector, EirItem, EirModule, EirRawDesign,
+            EirValidator,
+        },
         eir_expr::EirExpr,
         eir_origin::EirOrigin,
         eir_place::EirPlace,
     };
+    use std::sync::Arc;
     use syl_span::{SourceId, Span};
+
+    fn validated_design(modules: Vec<EirModule>) -> Result<EirDesign, CompileError> {
+        let raw = Arc::new(EirRawDesign::new(modules));
+        EirValidator::new(raw.modules()).validate()?;
+        let facts = Arc::new(EirFactCollector::collect(raw.modules())?);
+        Ok(EirDesignComposer::compose(raw, facts))
+    }
 
     #[test]
     fn rejects_unresolved_drive_root() {
@@ -185,7 +196,7 @@ mod tests {
                 origin,
             }],
         );
-        let design = match EirDesignAssembler::assemble(vec![module]) {
+        let design = match validated_design(vec![module]) {
             Ok(design) => design,
             Err(error) => panic!("test EIR should pass structural validation: {error}"),
         };
@@ -231,7 +242,7 @@ mod tests {
                 },
             ],
         );
-        let design = match EirDesignAssembler::assemble(vec![module]) {
+        let design = match validated_design(vec![module]) {
             Ok(design) => design,
             Err(error) => panic!("test EIR should assemble: {error}"),
         };

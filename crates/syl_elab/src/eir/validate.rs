@@ -7,16 +7,16 @@ use crate::{
 };
 
 #[non_exhaustive]
-pub(super) struct EirValidator<'a> {
+pub(crate) struct EirValidator<'a> {
     modules: &'a [EirModule],
 }
 
 impl<'a> EirValidator<'a> {
-    pub(super) fn new(modules: &'a [EirModule]) -> Self {
+    pub(crate) fn new(modules: &'a [EirModule]) -> Self {
         Self { modules }
     }
 
-    pub(super) fn validate(&self) -> Result<(), CompileError> {
+    pub(crate) fn validate(&self) -> Result<(), CompileError> {
         for module in self.modules {
             self.check_items(module.items())?;
         }
@@ -200,13 +200,24 @@ mod tests {
     use super::*;
     use crate::{
         CellBoundarySummary, DriverError, LoweringError,
-        eir::{EirDesignAssembler, EirDriveKind, EirItem, EirModule},
+        eir::{
+            EirDesign, EirDesignComposer, EirDriveKind, EirFactCollector, EirItem, EirModule,
+            EirRawDesign,
+        },
         eir_guard::EirGuard,
         eir_origin::EirOrigin,
         eir_place::EirPlace,
     };
+    use std::sync::Arc;
     use syl_sema::cell_summary::{CellSummaryDeclaration, CellSummaryRegistry, HwOrigin, HwPlace};
     use syl_span::{SourceId, Span};
+
+    fn validated_design(modules: Vec<EirModule>) -> Result<EirDesign, CompileError> {
+        let raw = Arc::new(EirRawDesign::new(modules));
+        EirValidator::new(raw.modules()).validate()?;
+        let facts = Arc::new(EirFactCollector::collect(raw.modules())?);
+        Ok(EirDesignComposer::compose(raw, facts))
+    }
 
     #[test]
     fn rejects_unsupported_expr_before_collecting_facts() {
@@ -224,7 +235,10 @@ mod tests {
             }],
         );
 
-        let error = match EirDesignAssembler::assemble(vec![module]) {
+        let error = match {
+            let raw = EirRawDesign::new(vec![module]);
+            EirValidator::new(raw.modules()).validate()
+        } {
             Ok(_) => panic!("unsupported EIR expression must be rejected"),
             Err(error) => error,
         };
@@ -253,7 +267,10 @@ mod tests {
             }],
         );
 
-        let error = match EirDesignAssembler::assemble(vec![module]) {
+        let error = match {
+            let raw = EirRawDesign::new(vec![module]);
+            EirValidator::new(raw.modules()).validate()
+        } {
             Ok(_) => panic!("unsupported EIR place index must be rejected"),
             Err(error) => error,
         };
@@ -277,7 +294,7 @@ mod tests {
             }],
         );
 
-        let design = match EirDesignAssembler::assemble(vec![module]) {
+        let design = match validated_design(vec![module]) {
             Ok(design) => design,
             Err(error) => panic!("supported EIR must validate: {error}"),
         };
@@ -306,7 +323,10 @@ mod tests {
             ))],
         );
 
-        let error = match EirDesignAssembler::assemble(vec![module]) {
+        let error = match {
+            let raw = EirRawDesign::new(vec![module]);
+            EirValidator::new(raw.modules()).validate()
+        } {
             Ok(_) => panic!("missing opaque cell summary must be rejected"),
             Err(error) => error,
         };
@@ -354,7 +374,7 @@ mod tests {
             vec![EirItem::CellBoundary(resolved)],
         );
 
-        let design = match EirDesignAssembler::assemble(vec![module]) {
+        let design = match validated_design(vec![module]) {
             Ok(design) => design,
             Err(error) => panic!("resolved cell boundary summary must validate: {error}"),
         };

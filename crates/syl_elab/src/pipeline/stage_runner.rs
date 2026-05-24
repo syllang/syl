@@ -1,10 +1,12 @@
 use super::{
-    ConstMirStage, DrcStage, DriverFactsStage, EirStage, ElabStage, ElaborationOutput, MapIrStage,
+    ConstMirStage, DrcStage, DriverFactsStage, EirBuildStage, EirFactsStage, EirStage,
+    EirValidationStage, ElabStage, ElaborationOutput, MapIrStage,
 };
 use crate::{
     CompileError,
     const_mir::ConstMirBuilder,
     driver::{DriverDrcChecker, DriverFactsCollector},
+    eir::{EirDesignComposer, EirFactCollector, EirValidator},
     hardware_metadata::HardwareMetadata,
     hardware_metadata_lower::HardwareMetadataLowerer,
     hw_lower::HwLowerer,
@@ -27,7 +29,10 @@ impl<'tir_stage> TirStageRunner<'tir_stage> {
     pub(super) fn compile_hwir(&self) -> Result<ParametricHwDesign, CompileError> {
         let const_mir = ConstMirPass::run(self.tir)?;
         let map_ir = MapIrPass::run(self.tir)?;
-        let eir = EirBuildPass::run(self.tir, &const_mir, &map_ir)?;
+        let eir_build = EirBuildPass::run(self.tir, &const_mir, &map_ir)?;
+        let _validation = EirValidationPass::run(&eir_build)?;
+        let eir_facts = EirFactsPass::run(&eir_build)?;
+        let eir = EirComposePass::run(&eir_build, &eir_facts);
         let driver_facts = DriverFactsPass::run(&eir).map_err(first_error)?;
         let _drc = DrcPass::run(&eir, &driver_facts).map_err(first_error)?;
         HwLoweringPass::run(&eir)
@@ -40,6 +45,9 @@ impl<'tir_stage> TirStageRunner<'tir_stage> {
     pub(super) fn stage_output(&self) -> ElaborationOutput {
         let finish = |const_mir: Option<ConstMirStage>,
                       map_ir: Option<MapIrStage>,
+                      eir_build: Option<EirBuildStage>,
+                      eir_validation: Option<EirValidationStage>,
+                      eir_facts: Option<EirFactsStage>,
                       eir: Option<EirStage>,
                       driver_facts: Option<DriverFactsStage>,
                       drc: Option<DrcStage>,
@@ -48,6 +56,9 @@ impl<'tir_stage> TirStageRunner<'tir_stage> {
                       diagnostics: Vec<Diagnostic>| ElaborationOutput {
             const_mir,
             map_ir,
+            eir_build,
+            eir_validation,
+            eir_facts,
             eir,
             driver_facts,
             drc,
@@ -61,17 +72,41 @@ impl<'tir_stage> TirStageRunner<'tir_stage> {
             Ok(stage) => Some(stage),
             Err(error) => {
                 diagnostics.push(Diagnostic::from(error));
-                return finish(None, None, None, None, None, None, None, diagnostics);
+                return finish(
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    diagnostics,
+                );
             }
         };
         let map_ir = match MapIrPass::run(self.tir) {
             Ok(stage) => Some(stage),
             Err(error) => {
                 diagnostics.push(Diagnostic::from(error));
-                return finish(const_mir, None, None, None, None, None, None, diagnostics);
+                return finish(
+                    const_mir,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    diagnostics,
+                );
             }
         };
-        let eir = match EirBuildPass::run(
+        let eir_build = match EirBuildPass::run(
             self.tir,
             const_mir
                 .as_ref()
@@ -83,17 +118,88 @@ impl<'tir_stage> TirStageRunner<'tir_stage> {
             Ok(stage) => Some(stage),
             Err(error) => {
                 diagnostics.push(Diagnostic::from(error));
-                return finish(const_mir, map_ir, None, None, None, None, None, diagnostics);
+                return finish(
+                    const_mir,
+                    map_ir,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    diagnostics,
+                );
             }
         };
-        let driver_facts = match DriverFactsPass::run(
-            eir.as_ref()
-                .expect("EIR pass succeeded before driver facts collection"),
+        let eir_validation = match EirValidationPass::run(
+            eir_build
+                .as_ref()
+                .expect("EIR build stage must exist before validation"),
         ) {
+            Ok(stage) => Some(stage),
+            Err(error) => {
+                diagnostics.push(Diagnostic::from(error));
+                return finish(
+                    const_mir,
+                    map_ir,
+                    eir_build,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    diagnostics,
+                );
+            }
+        };
+        let eir_facts = match EirFactsPass::run(
+            eir_build
+                .as_ref()
+                .expect("EIR build stage must exist before facts collection"),
+        ) {
+            Ok(stage) => Some(stage),
+            Err(error) => {
+                diagnostics.push(Diagnostic::from(error));
+                return finish(
+                    const_mir,
+                    map_ir,
+                    eir_build,
+                    eir_validation,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    diagnostics,
+                );
+            }
+        };
+        let eir = Some(EirComposePass::run(
+            eir_build.as_ref().expect("EIR build stage must exist"),
+            eir_facts.as_ref().expect("EIR facts stage must exist"),
+        ));
+        let driver_facts = match DriverFactsPass::run(eir.as_ref().expect("EIR stage must exist")) {
             Ok(stage) => Some(stage),
             Err(errors) => {
                 diagnostics.extend(errors.into_iter().map(Diagnostic::from));
-                return finish(const_mir, map_ir, eir, None, None, None, None, diagnostics);
+                return finish(
+                    const_mir,
+                    map_ir,
+                    eir_build,
+                    eir_validation,
+                    eir_facts,
+                    eir,
+                    None,
+                    None,
+                    None,
+                    None,
+                    diagnostics,
+                );
             }
         };
         let drc = match DrcPass::run(
@@ -108,6 +214,9 @@ impl<'tir_stage> TirStageRunner<'tir_stage> {
                 return finish(
                     const_mir,
                     map_ir,
+                    eir_build,
+                    eir_validation,
+                    eir_facts,
                     eir,
                     driver_facts,
                     None,
@@ -135,9 +244,13 @@ impl<'tir_stage> TirStageRunner<'tir_stage> {
                 None
             }
         };
+
         finish(
             const_mir,
             map_ir,
+            eir_build,
+            eir_validation,
+            eir_facts,
             eir,
             driver_facts,
             drc,
@@ -176,8 +289,39 @@ impl EirBuildPass {
         tir: &TirAnalysis,
         const_mir: &ConstMirStage,
         map_ir: &MapIrStage,
-    ) -> Result<EirStage, CompileError> {
-        ElabStage::from_tir(tir.design()).elaborate(const_mir, map_ir)
+    ) -> Result<EirBuildStage, CompileError> {
+        ElabStage::from_tir(tir.design()).build_raw_eir(const_mir, map_ir)
+    }
+}
+
+#[non_exhaustive]
+struct EirValidationPass;
+
+impl EirValidationPass {
+    fn run(eir_build: &EirBuildStage) -> Result<EirValidationStage, CompileError> {
+        EirValidator::new(eir_build.design.modules()).validate()?;
+        Ok(EirValidationStage::new(eir_build.design.modules().len()))
+    }
+}
+
+#[non_exhaustive]
+struct EirFactsPass;
+
+impl EirFactsPass {
+    fn run(eir_build: &EirBuildStage) -> Result<EirFactsStage, CompileError> {
+        EirFactCollector::collect(eir_build.design.modules()).map(EirFactsStage::new)
+    }
+}
+
+#[non_exhaustive]
+struct EirComposePass;
+
+impl EirComposePass {
+    fn run(eir_build: &EirBuildStage, eir_facts: &EirFactsStage) -> EirStage {
+        EirStage::new(EirDesignComposer::compose(
+            eir_build.design.clone(),
+            eir_facts.facts.clone(),
+        ))
     }
 }
 

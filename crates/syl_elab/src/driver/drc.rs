@@ -261,13 +261,24 @@ mod tests {
     use super::*;
     use crate::{
         LoweringError,
-        eir::{EirDesignAssembler, EirItem, EirModule},
+        eir::{
+            EirDesign, EirDesignComposer, EirFactCollector, EirItem, EirModule, EirRawDesign,
+            EirValidator,
+        },
         eir_expr::EirExpr,
         eir_guard::EirGuard,
         eir_origin::{EirExpansion, EirOrigin},
         eir_place::EirPlace,
     };
+    use std::sync::Arc;
     use syl_span::{SourceId, Span};
+
+    fn validated_design(modules: Vec<EirModule>) -> Result<EirDesign, CompileError> {
+        let raw = Arc::new(EirRawDesign::new(modules));
+        EirValidator::new(raw.modules()).validate()?;
+        let facts = Arc::new(EirFactCollector::collect(raw.modules())?);
+        Ok(EirDesignComposer::compose(raw, facts))
+    }
 
     #[test]
     fn duplicate_driver_keeps_expansion_call_stack_in_related_spans() {
@@ -306,7 +317,7 @@ mod tests {
                 },
             ],
         );
-        let design = match EirDesignAssembler::assemble(vec![module]) {
+        let design = match validated_design(vec![module]) {
             Ok(design) => design,
             Err(error) => panic!("test EIR should assemble: {error}"),
         };

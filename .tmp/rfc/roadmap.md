@@ -217,6 +217,7 @@
   - 2026-05-24 S2 - 主 Agent 派出 Review SubAgent，按 Phase 4 MUST FIX 和退出标准独立审查 pass 边界真实性、DriverFacts/DRC 分离、EIR builder 边界、multi-driver facts basis、EIR dump、call stack diagnostics 和 cell/module boundary。
   - 2026-05-24 S2 - Review SubAgent 判定 Phase 4 未收敛：DriverFacts/DRC、call stack diagnostics、dump 与 cell/module boundary 已实质改善，但 `EirBuildPass` 仍经 `EirDesignAssembler::assemble` 内联执行 `EirValidator` 与 `EirFactCollector`，build/validation/diagnostic 责任未真实拆开；architecture_phase4_elab 未能拦住该边界泄漏。
   - 2026-05-24 S3 - 主 Agent 审核 Review 结论后派 Work SubAgent 做窄整改：拆开 raw EIR build、EIR validation、EIR facts collection 三个真实 pass，禁止 `EirBuildPass` 经由隐式 assembler 聚合验证和 facts，并补强 architecture_phase4_elab 的结构化边界守卫。
+  - 2026-05-24 S4 - Work SubAgent 完成窄整改：`EirBuildPass` 改为只产出 raw EIR，新增独立 `EirValidationPass`、`EirFactsPass` 与 `EirComposePass`，`EirDesignAssembler` 收敛为不运行验证/事实收集的 composer，architecture_phase4_elab 增加 raw/facts 结构化断言与 pass 边界 guard；主 Agent 验证 architecture tests、syl_elab tests、driver_overlap、workspace check、文件规模和 `git diff --check` 均通过。
 
   ———
 

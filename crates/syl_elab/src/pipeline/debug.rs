@@ -1,4 +1,6 @@
-use super::{DrcStage, DriverFactsStage, EirStage};
+use super::{
+    DrcStage, DriverFactsStage, EirBuildStage, EirFactsStage, EirStage, EirValidationStage,
+};
 use crate::{
     driver::{CreateKind, DriveEffect},
     eir::{EirDriveKind, EirItem, EirModule, EirObjectKind, EirSignalActivity},
@@ -6,6 +8,62 @@ use crate::{
     eir_origin::EirOrigin,
     eir_place::EirPlace,
 };
+
+pub(super) fn eir_build_stage_dump(stage: &EirBuildStage) -> String {
+    let mut lines = vec![format!(
+        "eir_build modules={}",
+        stage.design.modules().len()
+    )];
+    for module in stage.design.modules() {
+        lines.push(format!("module {}", module.name()));
+        dump_module(module, &mut lines);
+    }
+    lines.join("\n")
+}
+
+pub(super) fn eir_validation_stage_dump(stage: &EirValidationStage) -> String {
+    format!("eir_validation modules={} status=ok", stage.module_count())
+}
+
+pub(super) fn eir_facts_stage_dump(stage: &EirFactsStage) -> String {
+    let mut lines = vec![format!(
+        "eir_facts objects={} drives={} reads={}",
+        stage.facts.objects().len(),
+        stage.facts.drives().len(),
+        stage.facts.reads().len(),
+    )];
+    for object in stage.facts.objects() {
+        lines.push(format!(
+            "create {} {}.{} width={} activity={} origin={}",
+            object_kind_name(object.kind()),
+            object.module(),
+            object.name(),
+            object.width_bound().source(),
+            activity_name(object.activity()),
+            origin_text(object.origin()),
+        ));
+    }
+    for drive in stage.facts.drives() {
+        lines.push(format!(
+            "drive {} {} kind={} guard={} origin={}",
+            drive.module(),
+            place_text(drive.target_place()),
+            eir_drive_kind_name(drive.kind()),
+            guard_text(drive.guard()),
+            origin_text(drive.origin()),
+        ));
+    }
+    for read in stage.facts.reads() {
+        lines.push(format!(
+            "read {} {} guard={} origin={}",
+            read.module(),
+            place_text(read.source_place()),
+            guard_text(read.guard()),
+            origin_text(read.origin()),
+        ));
+    }
+    lines.join("\n")
+}
 
 pub(super) fn eir_stage_dump(stage: &EirStage) -> String {
     let mut lines = vec![format!(

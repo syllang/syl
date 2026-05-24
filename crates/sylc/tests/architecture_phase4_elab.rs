@@ -15,6 +15,12 @@ fn architecture_phase4_pipeline_passes_stay_explicit() {
     let workspace = workspace_root();
     let pipeline = read_text(&workspace.join("crates/syl_elab/src/pipeline.rs"));
     for required in [
+        "pub struct EirBuildStage",
+        "pub struct EirValidationStage",
+        "pub struct EirFactsStage",
+        "pub fn eir_build(&self) -> Option<&EirBuildStage>",
+        "pub fn eir_validation(&self) -> Option<&EirValidationStage>",
+        "pub fn eir_facts(&self) -> Option<&EirFactsStage>",
         "pub struct DriverFactsStage",
         "pub struct DrcStage",
         "pub fn driver_facts(&self) -> Option<&DriverFactsStage>",
@@ -31,6 +37,9 @@ fn architecture_phase4_pipeline_passes_stay_explicit() {
         "struct ConstMirPass",
         "struct MapIrPass",
         "struct EirBuildPass",
+        "struct EirValidationPass",
+        "struct EirFactsPass",
+        "struct EirComposePass",
         "struct DriverFactsPass",
         "struct DrcPass",
         "struct HardwareMetadataPass",
@@ -47,6 +56,47 @@ fn architecture_phase4_pipeline_passes_stay_explicit() {
             "Phase 4 runner must not keep giant builder orchestration: found {forbidden:?}"
         );
     }
+    let build_pass = section_between(
+        &stage_runner,
+        "impl EirBuildPass",
+        "#[non_exhaustive]\nstruct EirValidationPass",
+    );
+    for forbidden in [
+        "EirValidator::new",
+        "EirFactCollector::collect",
+        "EirDesignComposer::compose",
+    ] {
+        assert!(
+            !build_pass.contains(forbidden),
+            "EirBuildPass must stay raw-only and avoid {forbidden:?}"
+        );
+    }
+    let validation_pass = section_between(
+        &stage_runner,
+        "impl EirValidationPass",
+        "#[non_exhaustive]\nstruct EirFactsPass",
+    );
+    assert!(
+        validation_pass.contains("EirValidator::new"),
+        "EirValidationPass must own structural validation"
+    );
+    assert!(
+        !validation_pass.contains("EirFactCollector::collect"),
+        "EirValidationPass must not collect facts"
+    );
+    let facts_pass = section_between(
+        &stage_runner,
+        "impl EirFactsPass",
+        "#[non_exhaustive]\nstruct EirComposePass",
+    );
+    assert!(
+        facts_pass.contains("EirFactCollector::collect"),
+        "EirFactsPass must own fact collection"
+    );
+    assert!(
+        !facts_pass.contains("EirValidator::new"),
+        "EirFactsPass must not re-run validation"
+    );
 
     let facts = normalize_whitespace(&read_text(
         &workspace.join("crates/syl_elab/src/driver/facts.rs"),
@@ -79,6 +129,9 @@ fn architecture_phase4_output_exposes_each_stage() {
 
     assert!(output.const_mir().is_some());
     assert!(output.map_ir().is_some());
+    assert!(output.eir_build().is_some());
+    assert!(output.eir_validation().is_some());
+    assert!(output.eir_facts().is_some());
     assert!(output.eir().is_some());
     assert!(output.driver_facts().is_some());
     assert!(output.drc().is_some());
@@ -111,6 +164,46 @@ fn architecture_phase4_eir_dump_explains_created_and_driven_objects() {
             "EIR dump must explain create/drive/read provenance: missing {required:?}\n{dump}"
         );
     }
+}
+
+#[test]
+fn architecture_phase4_raw_eir_and_fact_stages_stay_structured() {
+    let file = SourceParser::new(phase4_boundary_source())
+        .parse_file()
+        .expect("phase4 boundary fixture must parse");
+    let output = MiddleCompiler::new()
+        .output_files(&[file])
+        .expect("phase4 boundary fixture must elaborate");
+    let eir_build = output
+        .eir_build()
+        .expect("raw EIR build stage must be present");
+    let eir_validation = output
+        .eir_validation()
+        .expect("EIR validation stage must be present");
+    let eir_facts = output.eir_facts().expect("EIR facts stage must be present");
+
+    assert_eq!(eir_build.module_count(), 2);
+    assert_eq!(eir_validation.module_count(), 2);
+    assert!(
+        eir_build.contains_cell_expansion("MakeBit", "made"),
+        "raw EIR build must keep inline cell structure before fact collection"
+    );
+    assert!(
+        eir_build.contains_instance_module("Child"),
+        "raw EIR build must keep module instances as hierarchy boundaries"
+    );
+    assert!(
+        eir_facts.contains_created_object("Top", "made_tmp"),
+        "EIR facts pass must expose created object summaries independently"
+    );
+    assert!(
+        eir_facts.contains_drive("Top", "y"),
+        "EIR facts pass must expose driven places independently"
+    );
+    assert!(
+        eir_facts.contains_read("Top", "made_tmp"),
+        "EIR facts pass must expose read places independently"
+    );
 }
 
 #[test]
@@ -164,7 +257,7 @@ fn architecture_phase4_cell_and_module_boundaries_stay_distinct() {
         .metadata()
         .expect("boundary fixture must lower metadata after DRC");
     let hwir = output.hwir().expect("boundary fixture must lower HW IR");
-    let eir_dump = output.eir().expect("EIR stage must exist").debug_dump();
+    let eir_build = output.eir_build().expect("raw EIR build stage must exist");
 
     assert!(
         metadata
@@ -174,12 +267,12 @@ fn architecture_phase4_cell_and_module_boundaries_stay_distinct() {
         "inline cells must stay inline-elaboration boundaries with exported summaries"
     );
     assert!(
-        eir_dump.contains("cell inline MakeBit as made"),
-        "EIR dump must mark inline cell expansion boundaries"
+        eir_build.contains_cell_expansion("MakeBit", "made"),
+        "raw EIR build must mark inline cell expansion boundaries structurally"
     );
     assert!(
-        eir_dump.contains("instance Child as child_inst"),
-        "EIR dump must keep module hierarchy as instance boundaries"
+        eir_build.contains_instance_module("Child"),
+        "raw EIR build must keep module hierarchy as instance boundaries structurally"
     );
 
     let top = hwir
@@ -247,4 +340,14 @@ fn read_text(path: &Path) -> String {
 
 fn normalize_whitespace(text: &str) -> String {
     text.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+fn section_between<'a>(text: &'a str, start: &str, end: &str) -> &'a str {
+    let (_, after_start) = text
+        .split_once(start)
+        .unwrap_or_else(|| panic!("missing section start {start:?}"));
+    let (section, _) = after_start
+        .split_once(end)
+        .unwrap_or_else(|| panic!("missing section end {end:?}"));
+    section
 }

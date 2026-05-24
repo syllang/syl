@@ -72,7 +72,7 @@ fn architecture_phase1_ir_owners_stay_single_source() {
     let eir_source = read_text(&workspace.join("crates/syl_elab/src/eir.rs"));
     let eir_assemble = read_text(&workspace.join("crates/syl_elab/src/eir/assemble.rs"));
     assert!(
-        eir_assemble.contains("struct EirDesignAssembler"),
+        eir_assemble.contains("struct EirDesignComposer"),
         "syl_elab must keep EIR assembly separate from the EirDesign data model"
     );
     for forbidden in [
@@ -92,9 +92,19 @@ fn architecture_phase1_ir_owners_stay_single_source() {
 
     let eir_builder = read_text(&workspace.join("crates/syl_elab/src/eir_build.rs"));
     assert!(
-        eir_builder.contains("EirDesignAssembler::assemble(modules)"),
-        "EIR builder must flow through the assembler boundary"
+        eir_builder.contains("EirRawDesign::new(modules)"),
+        "EIR builder must stop at raw EIR construction"
     );
+    for forbidden in [
+        "EirDesignComposer::compose",
+        "EirValidator::new",
+        "EirFactCollector::collect",
+    ] {
+        assert!(
+            !eir_builder.contains(forbidden),
+            "EIR builder must not inline validation/facts composition: {forbidden}"
+        );
+    }
 
     let tir_source = read_text(&workspace.join("crates/syl_sema/src/tir.rs"));
     for required in [

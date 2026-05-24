@@ -6,33 +6,73 @@ use crate::{
     eir_origin::EirOrigin,
     eir_place::EirPlace,
 };
+use std::sync::Arc;
 
 mod assemble;
 mod facts;
 mod validate;
 
-pub(crate) use assemble::EirDesignAssembler;
+pub(crate) use assemble::EirDesignComposer;
+pub(crate) use facts::EirFactCollector;
+pub(crate) use validate::EirValidator;
+
+#[non_exhaustive]
+pub(crate) struct EirRawDesign {
+    modules: Vec<EirModule>,
+}
+
+impl EirRawDesign {
+    pub(crate) fn new(modules: Vec<EirModule>) -> Self {
+        Self { modules }
+    }
+
+    pub(crate) fn modules(&self) -> &[EirModule] {
+        &self.modules
+    }
+}
 
 #[non_exhaustive]
 pub(crate) struct EirDesign {
-    modules: Vec<EirModule>,
+    raw: Arc<EirRawDesign>,
+    facts: Arc<EirDesignFacts>,
+}
+
+impl EirDesign {
+    fn from_parts(raw: Arc<EirRawDesign>, facts: Arc<EirDesignFacts>) -> Self {
+        Self { raw, facts }
+    }
+
+    pub(crate) fn modules(&self) -> &[EirModule] {
+        self.raw.modules()
+    }
+
+    pub(crate) fn objects(&self) -> &[EirObject] {
+        self.facts.objects()
+    }
+
+    pub(crate) fn drives(&self) -> &[EirDrive] {
+        self.facts.drives()
+    }
+
+    pub(crate) fn reads(&self) -> &[EirRead] {
+        self.facts.reads()
+    }
+}
+
+#[non_exhaustive]
+pub(crate) struct EirDesignFacts {
     objects: Vec<EirObject>,
     drives: Vec<EirDrive>,
     reads: Vec<EirRead>,
 }
 
-impl EirDesign {
-    fn from_parts(modules: Vec<EirModule>, facts: EirFacts) -> Self {
+impl EirDesignFacts {
+    pub(crate) fn new(objects: Vec<EirObject>, drives: Vec<EirDrive>, reads: Vec<EirRead>) -> Self {
         Self {
-            modules,
-            objects: facts.objects,
-            drives: facts.drives,
-            reads: facts.reads,
+            objects,
+            drives,
+            reads,
         }
-    }
-
-    pub(crate) fn modules(&self) -> &[EirModule] {
-        &self.modules
     }
 
     pub(crate) fn objects(&self) -> &[EirObject] {
@@ -46,12 +86,6 @@ impl EirDesign {
     pub(crate) fn reads(&self) -> &[EirRead] {
         &self.reads
     }
-}
-
-struct EirFacts {
-    objects: Vec<EirObject>,
-    drives: Vec<EirDrive>,
-    reads: Vec<EirRead>,
 }
 
 #[non_exhaustive]
