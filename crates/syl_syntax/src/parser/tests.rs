@@ -406,3 +406,69 @@ fn node_index_ids_stay_stable_when_leading_trivia_changes() {
     assert_eq!(base_record.id(), commented_record.id());
     assert_ne!(base_record.range(), commented_record.range());
 }
+
+#[test]
+fn node_index_ids_stay_stable_when_preceding_identical_sibling_is_inserted() {
+    let base = "const A = 1;\nconst A = 1;\nconst B = A;\n";
+    let expanded = "const A = 1;\nconst A = 1;\nconst A = 1;\nconst B = A;\n";
+
+    let base_output = SourceParser::new(base).parse_file_partial();
+    let expanded_output = SourceParser::new(expanded).parse_file_partial();
+
+    let base_b = base_output
+        .file
+        .items
+        .get(2)
+        .expect("base source should contain const B");
+    let expanded_b = expanded_output
+        .file
+        .items
+        .get(3)
+        .expect("expanded source should contain const B");
+
+    let base_b_record = base_output
+        .node_index()
+        .find_by_span(base_b.span())
+        .expect("base node index should track const B");
+    let expanded_b_record = expanded_output
+        .node_index()
+        .find_by_span(expanded_b.span())
+        .expect("expanded node index should track const B");
+
+    assert_eq!(base_b_record.id(), expanded_b_record.id());
+
+    let base_a_ids: Vec<_> = base_output
+        .file
+        .items
+        .iter()
+        .take(2)
+        .map(|item| {
+            base_output
+                .node_index()
+                .find_by_span(item.span())
+                .expect("base duplicate const should exist in the node index")
+                .id()
+        })
+        .collect();
+    let expanded_a_ids: Vec<_> = expanded_output
+        .file
+        .items
+        .iter()
+        .take(3)
+        .map(|item| {
+            expanded_output
+                .node_index()
+                .find_by_span(item.span())
+                .expect("expanded duplicate const should exist in the node index")
+                .id()
+        })
+        .collect();
+
+    assert_eq!(base_a_ids.len(), 2);
+    assert_ne!(base_a_ids[0], base_a_ids[1]);
+    assert_eq!(expanded_a_ids.len(), 3);
+    assert_ne!(expanded_a_ids[0], expanded_a_ids[1]);
+    assert_ne!(expanded_a_ids[1], expanded_a_ids[2]);
+    assert_eq!(base_a_ids[0], expanded_a_ids[0]);
+    assert_eq!(base_a_ids[1], expanded_a_ids[1]);
+}

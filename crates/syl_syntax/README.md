@@ -64,7 +64,13 @@ syntax inputs or outputs.
   text slices.
 - AST node `Span` values are intended to cover the full concrete construct,
   including names and delimiters that define the node's source extent.
-- `AstNodeIndex` derives stable syntax-local node ids from node kind plus the
-  covered source text and an occurrence counter. These ids are suitable for
-  syntax/LSP bookkeeping, but they are not semantic identities and must not be
-  reused as HIR/TIR keys.
+- `AstNodeIndex` derives syntax-owned stable anchors from a structural path:
+  node kind, local syntax label, and the nearest distinct sibling context are
+  hashed per level, then composed down the tree. This keeps unchanged nodes
+  stable across leading trivia edits and many insertions of earlier siblings,
+  which is the intended shape for LSP incremental bookkeeping.
+- When a parent contains a contiguous run of completely indistinguishable
+  siblings, the index falls back to a left-to-right ordinal inside that run to
+  keep ids unique. Editing inside that indistinguishable run can still reassign
+  those duplicate ids, so `AstNodeId` must not be treated as a semantic or
+  cross-file identity. It is only a syntax-layer anchor.

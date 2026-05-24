@@ -148,8 +148,62 @@ fn architecture_phase2_frontend_node_ids_stay_stable_and_ranges_precise() {
 }
 
 #[test]
+fn architecture_phase2_frontend_node_ids_survive_same_text_sibling_insertions() {
+    let base = "const A = 1;\nconst A = 1;\nconst B = A;\n";
+    let expanded = "const A = 1;\nconst A = 1;\nconst A = 1;\nconst B = A;\n";
+
+    let base_output = SourceParser::new(base).parse_file_partial();
+    let expanded_output = SourceParser::new(expanded).parse_file_partial();
+
+    let base_record = base_output
+        .node_index()
+        .find_by_span(
+            base_output
+                .file
+                .items
+                .get(2)
+                .expect("base source should contain const B")
+                .span(),
+        )
+        .expect("base node index should track const B");
+    let expanded_record = expanded_output
+        .node_index()
+        .find_by_span(
+            expanded_output
+                .file
+                .items
+                .get(3)
+                .expect("expanded source should contain const B")
+                .span(),
+        )
+        .expect("expanded node index should track const B");
+
+    assert_eq!(base_record.id(), expanded_record.id());
+}
+
+#[test]
 fn architecture_phase2_frontend_ast_dump_stays_stable() {
-    let source = "const X = 1;\nconst Y = X;";
+    let source = concat!(
+        "const WIDTH = 8;\n",
+        "fn id(x: UInt<8>) -> UInt<8> { return x; }\n",
+        "bundle Pair {\n",
+        "    left: Bit\n",
+        "}\n",
+        "interface Stream<T> {\n",
+        "    payload: T\n",
+        "    valid: Bit\n",
+        "\n",
+        "    view source {\n",
+        "        out payload\n",
+        "        out valid\n",
+        "    }\n",
+        "}\n",
+        "map keep(x: Bit) -> Bit =\n",
+        "    x\n",
+        "module Top(x: in Bit, y: out Bit) {\n",
+        "    y := x\n",
+        "}\n",
+    );
     let file = SourceParser::new(source)
         .parse_file()
         .unwrap_or_else(|errors| {
@@ -159,10 +213,39 @@ fn architecture_phase2_frontend_ast_dump_stays_stable() {
             )
         });
 
-    assert_eq!(
-        file.debug_dump(),
-        "ast items=2 [const X@0..12, const Y@13..25]"
+    let expected = format!(
+        "ast items=6 [const WIDTH@{}..{}, fn id@{}..{}, bundle Pair@{}..{}, interface Stream@{}..{}, map keep@{}..{}, module Top@{}..{}]",
+        span_of(source, "const WIDTH = 8;").0,
+        span_of(source, "const WIDTH = 8;").1,
+        span_of(source, "fn id(x: UInt<8>) -> UInt<8> { return x; }").0,
+        span_of(source, "fn id(x: UInt<8>) -> UInt<8> { return x; }").1,
+        span_of(source, "bundle Pair {\n    left: Bit\n}").0,
+        span_of(source, "bundle Pair {\n    left: Bit\n}").1,
+        span_of(
+            source,
+            "interface Stream<T> {\n    payload: T\n    valid: Bit\n\n    view source {\n        out payload\n        out valid\n    }\n}",
+        )
+        .0,
+        span_of(
+            source,
+            "interface Stream<T> {\n    payload: T\n    valid: Bit\n\n    view source {\n        out payload\n        out valid\n    }\n}",
+        )
+        .1,
+        span_of(source, "map keep(x: Bit) -> Bit =\n    x").0,
+        span_of(source, "map keep(x: Bit) -> Bit =\n    x").1,
+        span_of(
+            source,
+            "module Top(x: in Bit, y: out Bit) {\n    y := x\n}",
+        )
+        .0,
+        span_of(
+            source,
+            "module Top(x: in Bit, y: out Bit) {\n    y := x\n}",
+        )
+        .1,
     );
+
+    assert_eq!(file.debug_dump(), expected);
 }
 
 fn workspace_root() -> PathBuf {
@@ -177,6 +260,13 @@ fn workspace_root() -> PathBuf {
 fn read_text(path: &Path) -> String {
     fs::read_to_string(path)
         .unwrap_or_else(|error| panic!("failed to read {}: {error}", path.display()))
+}
+
+fn span_of(source: &str, snippet: &str) -> (usize, usize) {
+    let start = source
+        .find(snippet)
+        .unwrap_or_else(|| panic!("golden snippet should exist:\n{snippet}"));
+    (start, start + snippet.len())
 }
 
 fn diagnostics_text(diagnostics: &[syl_span::Diagnostic]) -> String {
