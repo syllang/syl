@@ -1,15 +1,10 @@
-// Syl example standard library: typed stage/link pipeline primitives.
+// Syl standard library: typed Stage/Link pipeline primitives.
 //
-// SpinalHDL's pipeline library is organized around Node + Link:
-// - Node owns valid/ready/cancel and lazily-created payload values.
-// - Link propagates payload/control needs through the graph, then builds hardware.
-//
-// Syl keeps the useful shape but makes the static facts explicit:
-// - Stage<T> is a typed endpoint with one structured payload.
-// - Links are cells, so driver ownership and field completeness remain visible.
-// - Result endpoints are declared in signatures; link bodies never use return.
+// This is deliberately source-only std code. Driver ownership, view
+// capabilities, and latency facts come from the same checker and summary paths
+// used by user-defined cells.
 
-package std.pipeline
+package std.stage
 
 use std.stream.Stream
 

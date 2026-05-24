@@ -1,0 +1,19 @@
+// Syl standard library: small combinational helpers.
+//
+// These declarations are ordinary Syl maps. They exist to keep examples at the
+// composition level without giving the compiler any library-specific behavior.
+
+package std.logic
+
+map bit_mux(sel: Bit, when_true: Bit, when_false: Bit) -> Bit =
+    select unique {
+        sel => when_true,
+        default => when_false,
+    }
+
+map bit_enable(value: Bit, enable: Bit) -> Bit =
+    value and enable
+
+map word_increment<W: Nat>(value: UInt<W>) -> UInt<W> =
+    value + 1
+

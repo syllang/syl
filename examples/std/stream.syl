@@ -3,7 +3,7 @@
 // This file is intentionally small. It demonstrates how an official library
 // exposes reusable hardware generation without compiler-private shortcuts.
 
-package examples.std.stream
+package std.stream
 
 interface Stream<T> {
     payload: T

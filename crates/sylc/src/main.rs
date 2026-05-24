@@ -13,6 +13,7 @@ fn main() {
 
 struct SylcApp {
     out_path: Option<String>,
+    std_roots: Vec<PathBuf>,
     inputs: Vec<PathBuf>,
 }
 
@@ -20,15 +21,24 @@ impl SylcApp {
     fn from_env() -> Self {
         let mut args = env::args().skip(1);
         let mut out_path = None;
+        let mut std_roots = Vec::new();
         let mut inputs = Vec::new();
         while let Some(arg) = args.next() {
             if arg == "--out" {
                 out_path = args.next();
+            } else if arg == "--std-root" {
+                if let Some(root) = args.next() {
+                    std_roots.push(PathBuf::from(root));
+                }
             } else {
                 inputs.push(PathBuf::from(arg));
             }
         }
-        Self { out_path, inputs }
+        Self {
+            out_path,
+            std_roots,
+            inputs,
+        }
     }
 
     fn run(self) -> Result<(), String> {
@@ -64,7 +74,11 @@ impl SylcApp {
         // the CLI.
         let cwd =
             env::current_dir().map_err(|err| format!("failed to read current directory: {err}"))?;
-        Ok(ProjectConfig::new().with_workspace_root(cwd))
+        let mut config = ProjectConfig::new().with_workspace_root(cwd);
+        for root in &self.std_roots {
+            config = config.with_std_root(root.clone());
+        }
+        Ok(config)
     }
 
     fn format_diagnostics(&self, diagnostics: &[syl_span::Diagnostic]) -> String {

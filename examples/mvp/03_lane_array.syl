@@ -13,8 +13,8 @@
 
 package examples.mvp.lane_array
 
-use examples.std.stream.Stream
-use examples.std.stream.stream_skid_buffer
+use std.stream.Stream
+use std.stream.stream_skid_buffer
 
 const DEFAULT_W: Nat = 32
 const DEFAULT_LANES: Nat = 4

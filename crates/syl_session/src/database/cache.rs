@@ -3,7 +3,11 @@ use crate::{
     snapshot::PackageSemanticIndex, snapshot::PackageSemanticShard, snapshot::ResolvedSnapshot,
     snapshot::SemanticCache, snapshot::WorkspacePackage,
 };
-use std::{collections::BTreeMap, path::PathBuf, sync::Arc};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    path::PathBuf,
+    sync::Arc,
+};
 use syl_sema::OpaqueSummaryTable;
 use syl_syntax::AstFile;
 
@@ -87,11 +91,15 @@ pub(crate) struct PackageSemanticKey {
 }
 
 impl PackageSemanticKey {
-    pub(crate) fn from_package(snapshot: &ResolvedSnapshot, package: &WorkspacePackage) -> Self {
+    fn from_documents(
+        snapshot: &ResolvedSnapshot,
+        package_name: &str,
+        package_documents: &[DocumentUri],
+    ) -> Self {
         let mut documents = snapshot
             .files()
             .iter()
-            .filter(|file| package.documents().contains(file.uri()))
+            .filter(|file| package_documents.contains(file.uri()))
             .map(|file| {
                 let text = snapshot
                     .source_map()
@@ -103,7 +111,7 @@ impl PackageSemanticKey {
             .collect::<Vec<_>>();
         documents.sort();
         Self {
-            package_name: package.name().to_string(),
+            package_name: package_name.to_string(),
             documents,
         }
     }
@@ -233,6 +241,51 @@ struct CachedPackageSemanticCache {
     cache: Arc<SemanticCache>,
 }
 
+struct PackageSemanticInputs<'a> {
+    snapshot: &'a ResolvedSnapshot,
+}
+
+impl<'a> PackageSemanticInputs<'a> {
+    fn new(snapshot: &'a ResolvedSnapshot) -> Self {
+        Self { snapshot }
+    }
+
+    fn documents_for(&self, package: &WorkspacePackage) -> Vec<DocumentUri> {
+        let mut documents = BTreeSet::new();
+        let mut visited = BTreeSet::new();
+        self.collect_package_documents(package, &mut visited, &mut documents);
+        documents.into_iter().collect()
+    }
+
+    fn collect_package_documents(
+        &self,
+        package: &WorkspacePackage,
+        visited: &mut BTreeSet<Vec<String>>,
+        documents: &mut BTreeSet<DocumentUri>,
+    ) {
+        if !visited.insert(package.path().to_vec()) {
+            return;
+        }
+        documents.extend(package.documents().iter().cloned());
+        for import in package.imports() {
+            let Some(imported) = self.package_for_import(import.path()) else {
+                continue;
+            };
+            self.collect_package_documents(imported, visited, documents);
+        }
+    }
+
+    fn package_for_import(&self, path: &[String]) -> Option<&WorkspacePackage> {
+        let package_path = path.get(..path.len().checked_sub(1)?)?;
+        self.snapshot
+            .workspace()
+            .package_graph()
+            .packages()
+            .iter()
+            .find(|package| package.path() == package_path)
+    }
+}
+
 impl SemanticCacheStore {
     pub(crate) fn new() -> Self {
         Self::default()
@@ -249,11 +302,17 @@ impl SemanticCacheStore {
             .packages()
             .iter()
             .map(|package| {
-                let key = PackageSemanticKey::from_package(snapshot, package);
+                let semantic_documents =
+                    PackageSemanticInputs::new(snapshot).documents_for(package);
+                let key = PackageSemanticKey::from_documents(
+                    snapshot,
+                    package.name(),
+                    &semantic_documents,
+                );
                 let ast_files = snapshot
                     .files()
                     .iter()
-                    .filter(|file| package.documents().contains(file.uri()))
+                    .filter(|file| semantic_documents.contains(file.uri()))
                     .map(|file| file.ast().clone())
                     .collect::<Vec<_>>();
                 let cache = self.semantic_for_package(key, ast_files, opaque_summary_overlay);

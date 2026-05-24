@@ -87,7 +87,6 @@ impl<'a> SvOutputProbe<'a> {
         Ok(name)
     }
 }
-
 #[test]
 fn cli_project_compiles_mvp_examples_from_disk_with_valid_sv_modules() {
     let workspace = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -101,7 +100,8 @@ fn cli_project_compiles_mvp_examples_from_disk_with_valid_sv_modules() {
         .current_dir(&workspace)
         .arg("--out")
         .arg(&out_path)
-        .arg(workspace.join("examples/std"))
+        .arg("--std-root")
+        .arg(workspace.join("examples"))
         .arg(workspace.join("examples/mvp"))
         .output()
         .expect("test cannot execute sylc binary for CLI/project e2e");
@@ -135,13 +135,12 @@ fn cli_project_compiles_mvp_examples_from_disk_with_valid_sv_modules() {
         );
     }
 }
-
 #[test]
 fn compiles_std_and_mvp_examples() {
     let verilog = TestCompiler::new()
         .compile_sources(&[
             include_str!("../../../examples/std/stream.syl"),
-            include_str!("../../../examples/std/pipeline.syl"),
+            include_str!("../../../examples/std/stage.syl"),
             include_str!("../../../examples/mvp/00_comb_alu.syl"),
             include_str!("../../../examples/mvp/01_counter.syl"),
             include_str!("../../../examples/mvp/02_stream_buffer.syl"),

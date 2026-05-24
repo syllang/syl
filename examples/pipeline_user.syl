@@ -10,13 +10,13 @@
 
 package examples.pipeline_user
 
-use examples.std.stream.Stream
-use examples.std.pipeline.map_stage
-use examples.std.pipeline.stage_from_stream
-use examples.std.pipeline.stage_link
-use examples.std.pipeline.stage_to_stream
-use examples.std.pipeline.halt_link
-use examples.std.pipeline.drop_link
+use std.stream.Stream
+use std.stage.Stage
+use std.stage.stage_from_stream
+use std.stage.stage_link
+use std.stage.stage_to_stream
+use std.stage.halt_link
+use std.stage.drop_link
 
 const DATA_W: Nat = 32
 
@@ -72,48 +72,33 @@ module PipelinedAlu<W: Nat = DATA_W, D: Domain>(
     stall_decode: in Bit,
     flush_response: in Bit,
     cmd_in: in Stream<AluCmd<W>>.sink,
-    rsp_out: out Stream<AluRsp<W>>.source,
+    cmd_out: out Stream<AluCmd<W>>.source,
 ) {
     alias in_stage = stage_from_stream<AluCmd<W>>(
         stream: cmd_in,
     )
 
-    alias decoded = map_stage<AluCmd<W>, Decoded<W>>(
+    alias decode_ctrl = halt_link<AluCmd<W>>(
         up: in_stage,
-        payload: decode_cmd<W>(in_stage.payload),
-    )
-
-    alias decode_ctrl = halt_link<Decoded<W>>(
-        up: decoded,
         halt: stall_decode,
     )
 
-    alias execute_stage = stage_link<Decoded<W>, D>(
+    alias execute_stage = stage_link<AluCmd<W>, D>(
         clk: clk,
         rst: rst,
         up: decode_ctrl,
     )
 
-    signal response_payload: AluRsp<W> := AluRsp<W> {
-        data: execute_cmd<W>(execute_stage.payload),
-        last: execute_stage.payload.last,
-    }
-
-    alias response_stage = map_stage<Decoded<W>, AluRsp<W>>(
+    alias filtered_response = drop_link<AluCmd<W>>(
         up: execute_stage,
-        payload: response_payload,
-    )
-
-    alias filtered_response = drop_link<AluRsp<W>>(
-        up: response_stage,
         drop: flush_response,
     )
 
-    alias out_stream = stage_to_stream<AluRsp<W>>(
+    alias out_stream = stage_to_stream<AluCmd<W>>(
         stage: filtered_response,
     )
 
-    rsp_out.valid := out_stream.valid
-    rsp_out.payload := out_stream.payload
-    out_stream.ready := rsp_out.ready
+    cmd_out.valid := out_stream.valid
+    cmd_out.payload := out_stream.payload
+    out_stream.ready := cmd_out.ready
 }

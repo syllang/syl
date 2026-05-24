@@ -14,8 +14,11 @@
 
 package examples.mvp.stream_buffer
 
-use examples.std.stream.Stream
-use examples.std.stream.stream_skid_buffer
+use std.stream.Stream
+use std.stage.Stage
+use std.stage.stage_from_stream
+use std.stage.stage_link
+use std.stage.stage_to_stream
 
 bundle Word<W: Nat> {
     data: UInt<W>,
@@ -34,15 +37,21 @@ module BufferedWordPipe<W: Nat = 32, D: Domain>(
     up: in Stream<Word<W>>.sink,
     down: out Stream<Word<W>>.source,
 ) {
-    alias buffered = stream_skid_buffer<Word<W>, D>(
-        clk: clk,
-        rst: rst,
-        up: up,
+    alias in_stage = stage_from_stream<Word<W>>(
+        stream: up,
     )
 
-    signal payload: Word<W> := set_last_if_zero<W>(buffered.payload)
+    alias buffered = stage_link<Word<W>, D>(
+        clk: clk,
+        rst: rst,
+        up: in_stage,
+    )
 
-    down.valid := buffered.valid
-    down.payload := payload
-    buffered.ready := down.ready
+    alias out_stream = stage_to_stream<Word<W>>(
+        stage: buffered,
+    )
+
+    down.valid := out_stream.valid
+    down.payload := out_stream.payload
+    out_stream.ready := down.ready
 }
