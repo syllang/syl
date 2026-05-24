@@ -130,6 +130,7 @@
   Log
   - 2026-05-23 S1 - 主 Agent 派出 Work SubAgent，执行 Phase 2 前端工业化：拆分 `syl_syntax` AST/token/parser/recovery/dump 边界，控制入口文件膨胀，补充 examples parse、invalid recovery、span precision 和 AST dump 回归测试。
   - 2026-05-23 S1 - Work SubAgent 完成 Phase 2 初版交付：`syl_syntax` 入口降为模块 wiring，AST/token/node-index 拆出独立模块，parser recovery 和 span 精度补强，`ParseOutput` 与 session snapshot 携带 `AstNodeIndex`，新增 syntax lib tests 与 architecture_phase2_frontend 覆盖 examples parse、invalid recovery、span precision、node id/range 和 AST dump；主 Agent 验证 `cargo fmt --all`、`cargo test -p syl_syntax --lib -- --nocapture`、`cargo test -p sylc architecture_ -- --nocapture`、`cargo check --workspace --all-targets`、`git diff --check` 均通过。
+  - 2026-05-23 S2 - 主 Agent 派出 Review SubAgent，按 Phase 2 MUST FIX 和退出标准独立审查 syntax 分层、error recovery、trivia/span 策略、AstNodeIndex 稳定性、测试覆盖和文件规模。
 
   ———
 
