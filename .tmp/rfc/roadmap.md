@@ -56,6 +56,7 @@
   - 2026-05-23 S2 - 主 Agent 派出 Review SubAgent，按 Phase 0 MUST FIX 和退出标准独立审查 README 契约、依赖方向测试和 public API policy。
   - 2026-05-23 S2 - Review SubAgent 判定 Phase 0 未收敛：`syl_elab` 仍公开 HIR/TIR/query-like API，`syl_session` 持有并公开 semantic stage，`syl_query` 依赖 elab stage internals，architecture_contracts 只验证文档和 Cargo DAG 且固化了错误边界。
   - 2026-05-23 S3 - 主 Agent 审核 Review 结论后派 Work SubAgent 整改：收敛 `syl_elab/session/query` 真实边界，移除或封闭 HIR/TIR/query-like elab API 泄漏，并修正 architecture_contracts 避免固化错误架构。
+  - 2026-05-23 S4 - Work SubAgent 完成边界整改：将前端语义分析与 query-like API 迁入 `syl_sema`，`syl_elab` public API 收敛为硬件编译入口，`syl_session/query` 改用 sema analysis accessor，architecture_contracts 增加 public surface/source guard；主 Agent 验证 `cargo test -p sylc architecture_ -- --nocapture`、`cargo check --workspace --all-targets`、`git diff --check` 均通过。
 
   ———
 

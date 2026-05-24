@@ -1,6 +1,5 @@
 use crate::mir::{MirBinaryOp, MirConstExpr, MirPattern, MirSelectMode, MirTypeRef, MirUnaryOp};
 use syl_span::Span;
-use syl_syntax::{BinaryOp, UnaryOp};
 use std::collections::HashMap;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -10,17 +9,6 @@ pub(crate) enum MapUnaryOp {
     Not,
     NotWord,
     Unsupported,
-}
-
-impl From<UnaryOp> for MapUnaryOp {
-    fn from(op: UnaryOp) -> Self {
-        match op {
-            UnaryOp::Neg => Self::Neg,
-            UnaryOp::Not => Self::Not,
-            UnaryOp::NotWord => Self::NotWord,
-            _ => Self::Unsupported,
-        }
-    }
 }
 
 impl From<MirUnaryOp> for MapUnaryOp {
@@ -57,33 +45,6 @@ pub(crate) enum MapBinaryOp {
     BitOr,
     BitXor,
     Unsupported,
-}
-
-impl From<BinaryOp> for MapBinaryOp {
-    fn from(op: BinaryOp) -> Self {
-        match op {
-            BinaryOp::Assign => Self::Assign,
-            BinaryOp::OrOr => Self::OrOr,
-            BinaryOp::AndAnd => Self::AndAnd,
-            BinaryOp::EqEq | BinaryOp::EqWord => Self::Eq,
-            BinaryOp::NotEq => Self::NotEq,
-            BinaryOp::Lt => Self::Lt,
-            BinaryOp::LtEq => Self::LtEq,
-            BinaryOp::Gt => Self::Gt,
-            BinaryOp::GtEq => Self::GtEq,
-            BinaryOp::Add => Self::Add,
-            BinaryOp::Sub => Self::Sub,
-            BinaryOp::Mul => Self::Mul,
-            BinaryOp::Div => Self::Div,
-            BinaryOp::Rem => Self::Rem,
-            BinaryOp::Shl => Self::Shl,
-            BinaryOp::Field => Self::Field,
-            BinaryOp::AndWord => Self::BitAnd,
-            BinaryOp::OrWord => Self::BitOr,
-            BinaryOp::XorWord => Self::BitXor,
-            _ => Self::Unsupported,
-        }
-    }
 }
 
 impl From<MirBinaryOp> for MapBinaryOp {

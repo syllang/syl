@@ -3,8 +3,8 @@ use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
-use syl_elab::{HirStage, TirStage};
 use syl_hw::ParametricHwDesign;
+use syl_sema::{HirAnalysis, TirAnalysis};
 use syl_span::{Diagnostic, SourceId, SourceMap};
 use syl_syntax::AstFile;
 
@@ -170,17 +170,17 @@ impl AnalysisSnapshot {
 
     pub fn hwir(&self) -> Option<&ParametricHwDesign> {
         if self.diagnostics.is_empty() {
-            self.semantic.downstream_output()?.hwir()
+            self.semantic.elaboration_output()?.hwir()
         } else {
             None
         }
     }
 
-    pub fn hir_stage(&self) -> &HirStage {
+    pub fn hir_analysis(&self) -> &HirAnalysis {
         self.semantic.hir()
     }
 
-    pub fn tir_stage(&self) -> Option<&TirStage> {
+    pub fn tir_analysis(&self) -> Option<&TirAnalysis> {
         self.semantic.tir()
     }
 

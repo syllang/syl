@@ -2,30 +2,26 @@
 
 ## Responsibilities
 
-`syl_elab` owns the elaboration pipeline that consumes typed HIR plus semantic
-facts and produces validated hardware graph output.
+`syl_elab` owns the elaboration pipeline that consumes typed semantic analysis
+and produces validated hardware graph output.
 
 ## Inputs
 
-- HIR definitions from `syl_hir`
-- semantic stage outputs, typed facts, and diagnostics inputs from `syl_sema`
-- source spans and syntax-origin data from `syl_span` and `syl_syntax`
+- `syl_sema::TirAnalysis`
+- semantic facts and HIR-owned identities reachable through `syl_sema`
+- source spans from `syl_span`
 - hardware IR data model from `syl_hw` as the output carrier
 
 ## Outputs
 
-- elaboration pipeline stages such as HIR, TIR, and elaboration runners
+- `HardwareCompiler` and elaboration-stage outputs rooted in TIR input
 - elaboration diagnostics and driver facts
 - `syl_hw::ParametricHwDesign` for backend consumption
 
 ## Allowed Dependencies
 
-- `syl_hir`
-- `syl_sema`
-- `syl_hw`
-- `syl_span`
-- `syl_syntax`
-- `thiserror`
+- normal dependencies: `syl_hir`, `syl_sema`, `syl_hw`, `syl_span`
+- test-only parser dependency: `syl_syntax`
 
 ## Forbidden Dependencies
 
@@ -39,7 +35,7 @@ facts and produces validated hardware graph output.
 
 ## Allowed Responsibilities
 
-- consume semantic facts and typed HIR
+- consume `TirAnalysis` and semantic facts
 - elaborate cells, modules, maps, and drivers
 - validate elaborated structure before backend emission
 - lower elaborated results into the backend-neutral HW IR
@@ -53,7 +49,7 @@ facts and produces validated hardware graph output.
 
 ## Public Surface Policy
 
-Public items should expose stage boundaries or final outputs that other crates
-must consume, such as pipeline stages and HWIR results. Internal EIR builders,
-driver analyzers, and lowering helpers stay private so the crate exports
-contracts between stages instead of leaking pass internals.
+Public items should expose elaboration-stage boundaries or final HWIR outputs
+that other crates must consume, such as `HardwareCompiler` and
+`ParametricHwDesign`. HIR/TIR analysis stages, hover/definition helpers, and
+session-style orchestration must stay out of this crate's public API.

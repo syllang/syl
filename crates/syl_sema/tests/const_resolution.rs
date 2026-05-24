@@ -1,4 +1,6 @@
-use syl_elab::MiddleCompiler;
+mod support;
+
+use support::MiddleCompiler;
 use syl_emit::SystemVerilogBackend;
 use syl_syntax::SourceParser;
 

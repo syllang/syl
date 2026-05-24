@@ -13,5 +13,6 @@ syl_hir.workspace = true
 syl_hw.workspace = true
 syl_sema.workspace = true
 syl_span.workspace = true
+
+[dev-dependencies]
 syl_syntax.workspace = true
-thiserror.workspace = true

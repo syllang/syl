@@ -98,6 +98,105 @@ fn architecture_workspace_dependencies_stay_one_way_and_acyclic() {
     );
 }
 
+#[test]
+fn architecture_elab_public_surface_stays_out_of_frontend_semantic_api() {
+    let elab_lib = read_text(&workspace_root().join("crates/syl_elab/src/lib.rs"));
+    for forbidden in [
+        "MiddleCompiler",
+        "MiddleSession",
+        "HirStage",
+        "HirStageOutput",
+        "TirStage",
+        "TirStageOutput",
+        "DefinitionInfo",
+        "HoverInfo",
+    ] {
+        assert!(
+            !elab_lib.contains(forbidden),
+            "syl_elab public surface must not re-export {forbidden}"
+        );
+    }
+
+    let elab_source = read_text(&workspace_root().join("crates/syl_elab/src/pipeline.rs"));
+    for forbidden in [
+        "pub struct MiddleSession",
+        "pub struct HirStage",
+        "pub struct TirStage",
+        "pub struct DefinitionInfo",
+        "pub struct HoverInfo",
+        "pub fn resolve_hir",
+        "pub fn check_tir",
+        "pub fn completion_items_at",
+        "pub fn hover_at",
+        "pub fn definition_at",
+    ] {
+        assert!(
+            !elab_source.contains(forbidden),
+            "syl_elab pipeline must not publish frontend semantic API: {forbidden}"
+        );
+    }
+    assert!(
+        elab_source.contains("pub struct HardwareCompiler"),
+        "syl_elab must expose a hardware compiler boundary instead of frontend stages"
+    );
+}
+
+#[test]
+fn architecture_session_and_query_use_sema_accessors_not_elab_stage_api() {
+    let session_model =
+        read_text(&workspace_root().join("crates/syl_session/src/snapshot/model.rs"));
+    let session_cache =
+        read_text(&workspace_root().join("crates/syl_session/src/snapshot/semantic_cache.rs"));
+    let query_api = read_text(&workspace_root().join("crates/syl_query/src/snapshot/api.rs"));
+
+    for forbidden in ["pub fn hir_stage", "pub fn tir_stage"] {
+        assert!(
+            !session_model.contains(forbidden),
+            "syl_session snapshot API must not expose legacy elab stage accessors: {forbidden}"
+        );
+    }
+    assert!(
+        session_model.contains("pub fn hir_analysis"),
+        "syl_session snapshot should forward sema-owned HIR analysis access"
+    );
+    assert!(
+        session_model.contains("pub fn tir_analysis"),
+        "syl_session snapshot should forward sema-owned TIR analysis access"
+    );
+
+    for forbidden in ["HirStage", "TirStage", "MiddleCompiler", "TirStageOutput"] {
+        assert!(
+            !session_cache.contains(forbidden),
+            "syl_session semantic cache must not depend on elab frontend stage types: {forbidden}"
+        );
+    }
+    for required in [
+        "SemanticCompiler",
+        "HirAnalysis",
+        "TirAnalysis",
+        "HardwareCompiler",
+        "ElaborationOutput",
+    ] {
+        assert!(
+            session_cache.contains(required),
+            "syl_session semantic cache should use the new sema/elab boundary: {required}"
+        );
+    }
+
+    for forbidden in ["hir_stage()", "tir_stage()", "syl_elab::", "use syl_elab"] {
+        assert!(
+            !query_api.contains(forbidden),
+            "syl_query must not depend on elab frontend stage API: {forbidden}"
+        );
+    }
+    for required in ["hir_analysis()", "tir_analysis()"] {
+        assert!(
+            query_api.contains(required),
+            "syl_query should read sema analysis through session accessors: {required}"
+        );
+    }
+}
+
 struct CrateContract {
     name: &'static str,
     rank: usize,
@@ -175,26 +274,21 @@ fn crate_contracts() -> &'static [CrateContract] {
                 "syl_emit",
                 "syl_hw",
                 "semantic side tables",
+                "semantic hover/definition/completion",
             ],
         },
         CrateContract {
             name: "syl_elab",
             rank: 4,
-            dependencies: &[
-                "syl_hir",
-                "syl_hw",
-                "syl_sema",
-                "syl_span",
-                "syl_syntax",
-                "thiserror",
-            ],
-            dev_dependencies: &[],
+            dependencies: &["syl_hir", "syl_hw", "syl_sema", "syl_span"],
+            dev_dependencies: &["syl_syntax"],
             readme_mentions: &[
                 "syl_hir",
                 "syl_sema",
                 "syl_hw",
                 "syl_emit",
-                "syl_session",
+                "TirAnalysis",
+                "HardwareCompiler",
                 "ParametricHwDesign",
             ],
         },
@@ -237,6 +331,7 @@ fn crate_contracts() -> &'static [CrateContract] {
                 "syl_sema",
                 "syl_query",
                 "AnalysisSnapshot",
+                "semantic analysis",
                 "workspace",
             ],
         },

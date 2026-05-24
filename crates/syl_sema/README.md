@@ -15,8 +15,9 @@ semantic diagnostics.
 ## Outputs
 
 - semantic side tables keyed by HIR entities
-- typed HIR and TIR-facing stage outputs consumed by `syl_elab`, `syl_session`,
-  and `syl_query`
+- typed HIR and TIR analysis objects consumed by `syl_elab`, `syl_session`, and
+  `syl_query`
+- semantic hover/definition/completion support over HIR and TIR
 - structured semantic errors and diagnostics
 
 ## Allowed Dependencies
@@ -38,7 +39,7 @@ semantic diagnostics.
 - lower syntax into HIR-owned semantic structures
 - resolve names and imports
 - compute types, const facts, and capability facts
-- expose semantic stage outputs that later crates can read
+- expose semantic analysis objects and lookup APIs that later crates can read
 
 ## Forbidden Responsibilities
 
@@ -50,6 +51,6 @@ semantic diagnostics.
 ## Public Surface Policy
 
 Public items must exist because session, query, and elaboration need semantic
-facts or structured errors across crate boundaries. Internal walkers, caches,
-and checking helpers should remain private so `syl_sema` exports facts, not its
-implementation details.
+facts, typed analysis objects, or structured errors across crate boundaries.
+Internal walkers, caches, and checking helpers should remain private so
+`syl_sema` exports facts and semantic lookups, not its implementation details.

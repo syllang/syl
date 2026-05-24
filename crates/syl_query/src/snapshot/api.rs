@@ -121,7 +121,7 @@ impl<'a> SnapshotQueryEngine<'a> {
         utf16_position: SourcePosition,
     ) -> Option<DefinitionResult> {
         let span = self.span_at(uri, utf16_position)?;
-        let hir = self.snapshot.hir_stage();
+        let hir = self.snapshot.hir_analysis();
         if let Some(definition) = hir.definition_at(span) {
             let file = self.snapshot.source_map().file(definition.span().source)?;
             let range = self.snapshot.source_map().utf16_range(definition.span())?;
@@ -135,8 +135,8 @@ impl<'a> SnapshotQueryEngine<'a> {
 
     fn hover_at(&self, uri: &DocumentUri, utf16_position: SourcePosition) -> Option<HoverResult> {
         let span = self.span_at(uri, utf16_position)?;
-        let hir = self.snapshot.hir_stage();
-        if let Some(tir) = self.snapshot.tir_stage()
+        let hir = self.snapshot.hir_analysis();
+        if let Some(tir) = self.snapshot.tir_analysis()
             && let Some(hover) = tir.hover_at(span)
         {
             return Some(HoverResult {
@@ -166,7 +166,7 @@ impl<'a> SnapshotQueryEngine<'a> {
             CompletionAnalyzer::new(file.ast(), span, source.text()).analyze()
         });
         if let Some(span) = span {
-            let hir = self.snapshot.hir_stage();
+            let hir = self.snapshot.hir_analysis();
             let collector = CompletionCollector::new(context.as_ref());
             if matches!(context, Some(CompletionContext::ImportPath)) {
                 return ImportPathCompletion::new(self.snapshot, uri, span).complete();

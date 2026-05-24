@@ -1,4 +1,6 @@
-use syl_elab::MiddleCompiler;
+mod support;
+
+use support::MiddleCompiler;
 use syl_hw::{HwPlace as HardwarePlace, ParametricHwDesign};
 use syl_sema::cell_summary::{
     CellBoundarySummary, CellSummaryDeclaration, CellSummaryRegistry, HwPlace as SummaryPlace,

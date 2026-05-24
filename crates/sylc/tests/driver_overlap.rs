@@ -1,4 +1,6 @@
-use syl_elab::MiddleCompiler;
+mod support;
+
+use support::MiddleCompiler;
 use syl_hw::{HwPlace, HwPlaceExpr, ParametricHwDesign};
 use syl_span::SourceId;
 use syl_syntax::SourceParser;

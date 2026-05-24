@@ -8,7 +8,8 @@ analysis snapshot.
 ## Inputs
 
 - `syl_session::AnalysisSnapshot` and `syl_session::Project`
-- semantic facts from `syl_sema` reachable through the snapshot
+- semantic facts and HIR/TIR analysis from `syl_sema` reachable through the
+  snapshot
 - syntax trees and source coordinates used for navigation and completions
 
 ## Outputs
@@ -38,7 +39,7 @@ analysis snapshot.
 
 - compute editor-facing answers from an existing snapshot
 - keep query result DTOs protocol-neutral
-- bridge syntax and semantic facts into navigation and diagnostics answers
+- bridge syntax and sema-owned facts into navigation and diagnostics answers
 
 ## Forbidden Responsibilities
 

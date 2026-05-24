@@ -1,5 +1,7 @@
 use std::{collections::BTreeSet, env, fs, path::Path, process::Command};
-use syl_elab::MiddleCompiler;
+mod support;
+
+use support::MiddleCompiler;
 use syl_emit::SystemVerilogBackend;
 use syl_hw::ParametricHwDesign;
 use syl_syntax::SourceParser;

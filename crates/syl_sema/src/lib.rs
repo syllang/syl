@@ -2,6 +2,7 @@ mod ids;
 pub use ids::TypeId;
 
 pub mod actual_binding;
+pub mod analysis;
 mod capability;
 mod capability_model;
 pub mod cell_summary;
@@ -21,6 +22,10 @@ mod stage_output;
 pub mod tir;
 mod tir_const;
 
+pub use analysis::{
+    DefinitionInfo, HirAnalysis, HirAnalysisOutput, HoverInfo, SemanticCompiler, SemanticOutput,
+    SemanticSession, TirAnalysis,
+};
 pub use diagnostic::{SemanticDiagnostic, SemanticDiagnosticStage};
 pub use error::{
     CapabilityError, CompileError, ConstEvalError, DriverError, EirError, HirError, HwirError,

@@ -503,7 +503,6 @@ dependencies = [
  "syl_sema",
  "syl_span",
  "syl_syntax",
- "thiserror",
 ]
 
 [[package]]

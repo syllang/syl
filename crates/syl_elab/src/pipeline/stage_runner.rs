@@ -1,73 +1,20 @@
-use super::{
-    ConstMirStage, DriverStage, EirStage, HirStage, MapIrStage, MiddleSession, TirStage,
-    TirStageOutput,
-};
-use crate::CompileError;
+use super::{ConstMirStage, DriverStage, EirStage, ElabStage, ElaborationOutput, MapIrStage};
+use crate::{CompileError, const_mir::ConstMirBuilder, map_ir::MapIrBuilder};
 use syl_hw::ParametricHwDesign;
+use syl_sema::TirAnalysis;
 use syl_span::Diagnostic;
 
 #[non_exhaustive]
-pub(super) struct StageRunner<'session, 'files> {
-    session: &'session MiddleSession<'files>,
-}
-
-impl<'session, 'files> StageRunner<'session, 'files> {
-    pub(super) fn new(session: &'session MiddleSession<'files>) -> Self {
-        Self { session }
-    }
-
-    pub(super) fn compile_hwir(&self) -> Result<ParametricHwDesign, CompileError> {
-        let hir = self.session.resolve_hir()?;
-        HirStageRunner::new(&hir).compile_hwir()
-    }
-
-    pub(super) fn diagnostics(&self) -> Vec<Diagnostic> {
-        let hir = match self.session.resolve_hir_collect() {
-            Ok(hir) => hir,
-            Err(errors) => return errors.into_iter().map(Diagnostic::from).collect(),
-        };
-        HirStageRunner::new(&hir).diagnostics()
-    }
-}
-
-#[non_exhaustive]
-pub(super) struct HirStageRunner<'hir_stage> {
-    hir: &'hir_stage HirStage,
-}
-
-impl<'hir_stage> HirStageRunner<'hir_stage> {
-    pub(super) fn new(hir: &'hir_stage HirStage) -> Self {
-        Self { hir }
-    }
-
-    pub(super) fn compile_hwir(&self) -> Result<ParametricHwDesign, CompileError> {
-        let tir = self.hir.check_tir()?;
-        TirStageRunner::new(&tir).compile_hwir()
-    }
-
-    pub(super) fn diagnostics(&self) -> Vec<Diagnostic> {
-        let tir = self.hir.check_tir_partial();
-        if !tir.diagnostics().is_empty() {
-            return tir.into_diagnostics();
-        }
-        let tir = tir
-            .into_stage()
-            .expect("partial TIR output should carry a stage when no diagnostics were emitted");
-        TirStageRunner::new(&tir).diagnostics()
-    }
-}
-
-#[non_exhaustive]
 pub(super) struct TirStageRunner<'tir_stage> {
-    tir: &'tir_stage TirStage,
+    tir: &'tir_stage TirAnalysis,
 }
 
 impl<'tir_stage> TirStageRunner<'tir_stage> {
-    pub(super) fn new(tir: &'tir_stage TirStage) -> Self {
+    pub(super) fn new(tir: &'tir_stage TirAnalysis) -> Self {
         Self { tir }
     }
 
-    fn compile_hwir(&self) -> Result<ParametricHwDesign, CompileError> {
+    pub(super) fn compile_hwir(&self) -> Result<ParametricHwDesign, CompileError> {
         let eir = self.elaborate_eir()?;
         let facts = eir.analyze_drivers()?;
         facts.lower_hwir(&eir)
@@ -77,21 +24,24 @@ impl<'tir_stage> TirStageRunner<'tir_stage> {
         self.stage_output().into_diagnostics()
     }
 
-    pub(super) fn stage_output(&self) -> TirStageOutput {
-        TirStageOutputBuilder::new(self.tir).run()
+    pub(super) fn stage_output(&self) -> ElaborationOutput {
+        ElaborationOutputBuilder::new(self.tir).run()
     }
 
     fn elaborate_eir(&self) -> Result<EirStage, CompileError> {
-        let const_mir = self.tir.build_const_mir()?;
-        let map_ir = self.tir.build_map_ir()?;
-        let elab = self.tir.build_program();
-        elab.elaborate(&const_mir, &map_ir)
+        let const_mir = ConstMirBuilder::new(self.tir.design())
+            .build()
+            .map(ConstMirStage::new)?;
+        let map_ir = MapIrBuilder::new(self.tir.design())
+            .build()
+            .map(MapIrStage::new)?;
+        ElabStage::from_tir(self.tir.design()).elaborate(&const_mir, &map_ir)
     }
 }
 
 #[non_exhaustive]
-struct TirStageOutputBuilder<'tir_stage> {
-    tir: &'tir_stage TirStage,
+struct ElaborationOutputBuilder<'tir_stage> {
+    tir: &'tir_stage TirAnalysis,
     const_mir: Option<ConstMirStage>,
     map_ir: Option<MapIrStage>,
     eir: Option<EirStage>,
@@ -100,8 +50,8 @@ struct TirStageOutputBuilder<'tir_stage> {
     diagnostics: Vec<Diagnostic>,
 }
 
-impl<'tir_stage> TirStageOutputBuilder<'tir_stage> {
-    fn new(tir: &'tir_stage TirStage) -> Self {
+impl<'tir_stage> ElaborationOutputBuilder<'tir_stage> {
+    fn new(tir: &'tir_stage TirAnalysis) -> Self {
         Self {
             tir,
             const_mir: None,
@@ -113,7 +63,7 @@ impl<'tir_stage> TirStageOutputBuilder<'tir_stage> {
         }
     }
 
-    fn run(mut self) -> TirStageOutput {
+    fn run(mut self) -> ElaborationOutput {
         self.build_const_mir();
         self.build_map_ir();
         if self.const_mir.is_none() || self.map_ir.is_none() {
@@ -132,9 +82,9 @@ impl<'tir_stage> TirStageOutputBuilder<'tir_stage> {
     }
 
     fn build_const_mir(&mut self) {
-        match self.tir.build_const_mir() {
+        match ConstMirBuilder::new(self.tir.design()).build() {
             Ok(const_mir) => {
-                self.const_mir = Some(const_mir);
+                self.const_mir = Some(ConstMirStage::new(const_mir));
             }
             Err(error) => {
                 self.diagnostics.push(Diagnostic::from(error));
@@ -143,9 +93,9 @@ impl<'tir_stage> TirStageOutputBuilder<'tir_stage> {
     }
 
     fn build_map_ir(&mut self) {
-        match self.tir.build_map_ir() {
+        match MapIrBuilder::new(self.tir.design()).build() {
             Ok(map_ir) => {
-                self.map_ir = Some(map_ir);
+                self.map_ir = Some(MapIrStage::new(map_ir));
             }
             Err(error) => {
                 self.diagnostics.push(Diagnostic::from(error));
@@ -157,8 +107,7 @@ impl<'tir_stage> TirStageOutputBuilder<'tir_stage> {
         let (Some(const_mir), Some(map_ir)) = (&self.const_mir, &self.map_ir) else {
             return;
         };
-        let elab = self.tir.build_program();
-        let eir = match elab.elaborate(const_mir, map_ir) {
+        let eir = match ElabStage::from_tir(self.tir.design()).elaborate(const_mir, map_ir) {
             Ok(eir) => eir,
             Err(error) => {
                 self.diagnostics.push(Diagnostic::from(error));
@@ -195,8 +144,8 @@ impl<'tir_stage> TirStageOutputBuilder<'tir_stage> {
         }
     }
 
-    fn finish(self) -> TirStageOutput {
-        TirStageOutput {
+    fn finish(self) -> ElaborationOutput {
+        ElaborationOutput {
             const_mir: self.const_mir,
             map_ir: self.map_ir,
             eir: self.eir,

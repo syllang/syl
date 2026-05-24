@@ -1,1 +1,1 @@
-pub(crate) use syl_sema::tir::{TirDesign, TypePhaseChecker};
+pub(crate) use syl_sema::tir::TirDesign;
