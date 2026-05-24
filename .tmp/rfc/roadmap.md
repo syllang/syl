@@ -28,7 +28,7 @@
 
 执行时，必须遵照 AGENTS.md。S1 主 Agent 先派出任务给 Work SubAgent（使用 gpt-4-xhigh），然后 S2 Review SubAgent （ gpt-4-medium）检查并反馈问题，S3 主 Agent 审核和仔细分析后传达给 Work SubAgent 整改。S4 整改完之后 Review SubAgent 重复检查(S2~S4)……这是循环过程，直到本 Phase 问题收敛。每个 S 步骤，在对应 .tmp/rfc/roadmap.md 的对应 Phase下标记一个 Log 行。整个Phase 问题收敛完成后只有 Review Agent 有权独立地标记为完成，然后才能进入下一个 Phase.
 
-  ## [ ] Phase 0：架构契约冻结
+  ## [x] Phase 0：架构契约冻结
 
   目标：先把每个 crate 的职责和阶段输入输出钉死，防止后续继续在错误边界上堆逻辑。
 
@@ -58,6 +58,7 @@
   - 2026-05-23 S3 - 主 Agent 审核 Review 结论后派 Work SubAgent 整改：收敛 `syl_elab/session/query` 真实边界，移除或封闭 HIR/TIR/query-like elab API 泄漏，并修正 architecture_contracts 避免固化错误架构。
   - 2026-05-23 S4 - Work SubAgent 完成边界整改：将前端语义分析与 query-like API 迁入 `syl_sema`，`syl_elab` public API 收敛为硬件编译入口，`syl_session/query` 改用 sema analysis accessor，architecture_contracts 增加 public surface/source guard；主 Agent 验证 `cargo test -p sylc architecture_ -- --nocapture`、`cargo check --workspace --all-targets`、`git diff --check` 均通过。
   - 2026-05-23 S2 - 主 Agent 派出第二轮 Review SubAgent，复查 S4 边界整改是否满足 Phase 0，只有 Review Agent 判 PASS 才允许标记完成。
+  - 2026-05-23 S2 - Review SubAgent 判定 PASS 且授权标记 Phase 0 完成：前一轮 Must Fix 已实质收敛，architecture_contracts 覆盖 README、依赖方向、elab public surface、session/query source guard；主 Agent 将 Phase 0 标记为完成。
 
   ———
 
