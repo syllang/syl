@@ -169,6 +169,7 @@ pub(crate) struct EirDrive {
 }
 
 impl EirDrive {
+    #[allow(clippy::too_many_arguments)]
     fn new(
         module: impl Into<String>,
         target: EirPlace,

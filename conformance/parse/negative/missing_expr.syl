@@ -1,5 +1,3 @@
-package conformance.parse.negative
-
 module MissingExpr(x: in Bit, y: out Bit) {
     y :=
 }

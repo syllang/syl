@@ -484,6 +484,7 @@ impl<'a> EirBuilder<'a> {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn emit_for_let(
         &self,
         binding_name: &str,

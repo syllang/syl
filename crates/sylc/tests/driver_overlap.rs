@@ -31,6 +31,13 @@ impl DriverHarness {
         self.middle.compile_sources(sources)
     }
 
+    fn compile_hwir_sources_with_paths(
+        &self,
+        sources: &[(Vec<String>, &str)],
+    ) -> Result<ParametricHwDesign, String> {
+        self.middle.compile_sources_with_paths(sources)
+    }
+
     fn compile_output_sources(&self, sources: &[&str]) -> Result<ElaborationOutput, String> {
         self.middle.output_sources(sources)
     }
@@ -406,19 +413,20 @@ module Maybe<ENABLE: Bool>(y: out Bit) {
 #[test]
 fn rejects_opposite_branch_drivers_from_different_sources() {
     let err = DriverHarness::new()
-        .compile_hwir_sources(&[
-            r#"
-package a;
-
+        .compile_hwir_sources_with_paths(&[
+            (
+                vec!["a".to_string()],
+                r#"
 cell A<E: Bool>(y: out Bit) {
     if E {
         y := 1
     }
 }
 "#,
-            r#"
-package b;
-
+            ),
+            (
+                vec!["b".to_string()],
+                r#"
 cell B<E: Bool>(y: out Bit) {
     if E {
     } else {
@@ -426,9 +434,10 @@ cell B<E: Bool>(y: out Bit) {
     }
 }
 "#,
-            r#"
-package app;
-
+            ),
+            (
+                vec!["top".to_string()],
+                r#"
 use a.A
 use b.B
 
@@ -437,6 +446,7 @@ module Top<X: Bool, Z: Bool>(y: out Bit) {
     let second = place B<Z>(y: y)
 }
 "#,
+            ),
         ])
         .map(|_| ())
         .expect_err("same-offset guards from different source files are not mutually exclusive");

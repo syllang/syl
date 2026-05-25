@@ -158,11 +158,9 @@ module Top(pkt: in Word<4>, y: out Bit) {
 }
 
 #[test]
-fn unimported_package_item_is_not_resolved_by_unique_short_name() {
+fn unimported_module_item_is_not_resolved_by_unique_short_name() {
     let lib = SourceParser::new(
         r#"
-package lib;
-
 cell MakeBit() -> y: Bit {
     y := 1
 }
@@ -172,8 +170,6 @@ cell MakeBit() -> y: Bit {
     .expect("library source must parse");
     let top = SourceParser::new(
         r#"
-package app;
-
 module Top(y: out Bit) {
     let tmp = place MakeBit()
     y := tmp
@@ -293,8 +289,6 @@ module Top(y: out Bit) {
 #[test]
 fn diagnostics_collects_multiple_duplicate_items_in_hir_index() {
     let source = r#"
-package app;
-
 const WIDTH: Nat = 8
 const WIDTH: Nat = 16
 const DEPTH: Nat = 2
@@ -329,8 +323,6 @@ module Top(y: out Bit) {
 #[test]
 fn diagnostics_collects_multiple_unknown_imports_in_hir_index() {
     let source = r#"
-package app;
-
 use missing.First
 use missing.Second
 
@@ -409,8 +401,6 @@ module Top(y: out Bit) {
 fn inline_cell_body_uses_cell_owner_for_map_resolution() {
     let lib = SourceParser::new(
         r#"
-package lib;
-
 map passthrough(x: Bit) -> Bit =
     x
 
@@ -423,8 +413,6 @@ cell Make(x: in Bit) -> y: Bit {
     .expect("library source must parse");
     let top = SourceParser::new(
         r#"
-package app;
-
 use lib.Make
 
 map passthrough(x: Bit) -> Bit =
@@ -440,7 +428,10 @@ module Top(x: in Bit, y: out Bit) {
     .expect("top source must parse");
 
     MiddleCompiler::new()
-        .compile_files(&[lib, top])
+        .compile_files_with_paths(&[
+            (vec!["lib".to_string()], lib),
+            (vec!["top".to_string()], top),
+        ])
         .expect("inlined cell body must resolve map calls through the cell owner DefId");
 }
 
@@ -448,8 +439,6 @@ module Top(x: in Bit, y: out Bit) {
 fn ambiguous_same_leaf_imports_are_rejected() {
     let first = SourceParser::new(
         r#"
-package first;
-
 module Make(y: out Bit) {
     y := 1
 }
@@ -459,8 +448,6 @@ module Make(y: out Bit) {
     .expect("first source must parse");
     let second = SourceParser::new(
         r#"
-package second;
-
 module Make(y: out Bit) {
     y := 0
 }
@@ -470,8 +457,6 @@ module Make(y: out Bit) {
     .expect("second source must parse");
     let top = SourceParser::new(
         r#"
-package app;
-
 use first.Make
 use second.Make
 
@@ -483,7 +468,11 @@ module Top(y: out Bit) {
     .parse_file()
     .expect("top source must parse");
 
-    let result = MiddleCompiler::new().compile_files(&[first, second, top]);
+    let result = MiddleCompiler::new().compile_files_with_paths(&[
+        (vec!["first".to_string()], first),
+        (vec!["second".to_string()], second),
+        (vec!["top".to_string()], top),
+    ]);
     let err = match result {
         Ok(_) => panic!("same leaf imports must be rejected before name lookup"),
         Err(err) => err.to_string(),

@@ -7,12 +7,12 @@ cd "$workspace"
 sv_tmp="$(mktemp -d)"
 trap 'rm -rf "$sv_tmp"' EXIT
 
-cargo run --quiet -p sylc -- --std-root examples --out "$sv_tmp/minimal_features.sv" \
+cargo run --quiet -p sylc -- --std-root examples/std --out "$sv_tmp/minimal_features.sv" \
     examples/minimal_features.syl
-cargo run --quiet -p sylc -- --std-root examples --out "$sv_tmp/mvp.sv" examples/mvp
-cargo run --quiet -p sylc -- --std-root examples --out "$sv_tmp/pipeline_user.sv" \
+cargo run --quiet -p sylc -- --std-root examples/std --out "$sv_tmp/mvp.sv" examples/mvp
+cargo run --quiet -p sylc -- --std-root examples/std --out "$sv_tmp/pipeline_user.sv" \
     examples/pipeline_user.syl
-cargo run --quiet -p sylc -- --std-root examples --out "$sv_tmp/std_user.sv" \
+cargo run --quiet -p sylc -- --std-root examples/std --out "$sv_tmp/std_user.sv" \
     examples/std_user
 
 if ! command -v verilator >/dev/null; then

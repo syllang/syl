@@ -11,6 +11,27 @@ use syl_hir::{DefId, HirResolution};
 use syl_span::{Diagnostic, Span};
 use syl_syntax::AstFile;
 
+#[derive(Debug)]
+#[non_exhaustive]
+pub struct SemanticSourceFile<'files> {
+    module_path: Vec<String>,
+    ast: &'files AstFile,
+}
+
+impl<'files> SemanticSourceFile<'files> {
+    pub fn new(module_path: Vec<String>, ast: &'files AstFile) -> Self {
+        Self { module_path, ast }
+    }
+
+    pub fn module_path(&self) -> &[String] {
+        &self.module_path
+    }
+
+    pub fn ast(&self) -> &'files AstFile {
+        self.ast
+    }
+}
+
 #[derive(Debug, Default)]
 #[non_exhaustive]
 pub struct SemanticCompiler;
@@ -23,25 +44,43 @@ impl SemanticCompiler {
     pub fn session<'files>(&self, files: &'files [AstFile]) -> SemanticSession<'files> {
         SemanticSession::new(files)
     }
+
+    pub fn session_sources<'files>(
+        &self,
+        sources: Vec<SemanticSourceFile<'files>>,
+    ) -> SemanticSession<'files> {
+        SemanticSession::new_sources(sources)
+    }
 }
 
 #[derive(Debug)]
 #[non_exhaustive]
 pub struct SemanticSession<'files> {
-    files: &'files [AstFile],
+    sources: Vec<SemanticSourceFile<'files>>,
 }
 
 impl<'files> SemanticSession<'files> {
     pub fn new(files: &'files [AstFile]) -> Self {
-        Self { files }
+        let sources = files
+            .iter()
+            .enumerate()
+            .map(|(index, ast)| SemanticSourceFile::new(vec![format!("file{index}")], ast))
+            .collect();
+        Self { sources }
+    }
+
+    pub fn new_sources(sources: Vec<SemanticSourceFile<'files>>) -> Self {
+        Self { sources }
     }
 
     pub fn resolve_hir(&self) -> Result<HirAnalysis, CompileError> {
-        HirResolver::new(self.files).resolve().map(HirAnalysis::new)
+        HirResolver::new_sources(self.semantic_sources())
+            .resolve()
+            .map(HirAnalysis::new)
     }
 
     pub fn resolve_hir_partial(&self) -> HirAnalysisOutput {
-        let (design, errors) = HirResolver::new(self.files).resolve_partial();
+        let (design, errors) = HirResolver::new_sources(self.semantic_sources()).resolve_partial();
         let diagnostics = errors.into_iter().map(Diagnostic::from).collect();
         HirAnalysisOutput::new(HirAnalysis::new(design), diagnostics)
     }
@@ -66,9 +105,16 @@ impl<'files> SemanticSession<'files> {
     }
 
     fn resolve_hir_collect(&self) -> Result<HirAnalysis, Vec<CompileError>> {
-        HirResolver::new(self.files)
+        HirResolver::new_sources(self.semantic_sources())
             .resolve_collect()
             .map(HirAnalysis::new)
+    }
+
+    fn semantic_sources(&self) -> Vec<SemanticSourceFile<'files>> {
+        self.sources
+            .iter()
+            .map(|source| SemanticSourceFile::new(source.module_path().to_vec(), source.ast()))
+            .collect()
     }
 }
 

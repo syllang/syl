@@ -19,7 +19,6 @@ impl AstNodeId {
 pub enum AstNodeKind {
     File,
     ErrorItem,
-    PackageItem,
     UseItem,
     ConstItem,
     FnItem,
@@ -92,7 +91,6 @@ impl From<AstNodeKind> for &'static str {
         match value {
             AstNodeKind::File => "file",
             AstNodeKind::ErrorItem => "error_item",
-            AstNodeKind::PackageItem => "package_item",
             AstNodeKind::UseItem => "use_item",
             AstNodeKind::ConstItem => "const_item",
             AstNodeKind::FnItem => "fn_item",

@@ -51,5 +51,5 @@ if find . -path './target' -prune -o -path './.git' -prune -o -path './.tmp' -pr
 fi
 rm -f "$artifact_out"
 
-line_report="$(find crates -type f -name '*.rs' -print0 | xargs -0 wc -l | sort -nr | head)"
+line_report="$(find crates -type f -name '*.rs' -print0 | xargs -0 wc -l | sort -nr | sed -n '1,10p')"
 printf '==> largest Rust source files\n%s\n' "$line_report"

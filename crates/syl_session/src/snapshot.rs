@@ -9,7 +9,7 @@ pub use model::{
 };
 pub use package_semantics::PackageSemanticCacheProbe;
 pub(crate) use package_semantics::{PackageSemanticIndex, PackageSemanticShard};
-pub(crate) use semantic_cache::SemanticCache;
+pub(crate) use semantic_cache::{SemanticCache, SemanticCacheSource};
 pub use workspace::{
     PackageGraph, PackageImport, SourceDatabase, SourceDatabaseDocument, WorkspacePackage,
     WorkspaceSnapshot,

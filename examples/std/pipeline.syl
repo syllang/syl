@@ -9,8 +9,6 @@
 // - Links are cells, so driver ownership and field completeness remain visible.
 // - Result endpoints are declared in signatures; link bodies never use return.
 
-package std.pipeline
-
 use std.stream.Stream
 
 interface Stage<T> {

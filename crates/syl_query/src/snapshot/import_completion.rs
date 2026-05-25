@@ -1,6 +1,6 @@
 use crate::{CompletionItem, CompletionItemKind, CompletionResult};
 use std::collections::BTreeMap;
-use syl_session::{AnalysisSnapshot, DocumentUri};
+use syl_session::{AnalysisFile, AnalysisSnapshot, DocumentUri};
 use syl_span::Span;
 use syl_syntax::{AstFile, CallableItem, ExternModuleItem, Item};
 
@@ -26,7 +26,7 @@ impl<'a> ImportPathCompletion<'a> {
         };
         let mut candidates = BTreeMap::new();
         for file in self.snapshot.files() {
-            ImportDefinitionCollector::new(file.ast()).collect_into(&mut candidates, &prefix);
+            ImportDefinitionCollector::new(file).collect_into(&mut candidates, &prefix);
         }
         CompletionResult {
             items: candidates
@@ -106,16 +106,11 @@ struct ImportDefinitionCollector<'a> {
 }
 
 impl<'a> ImportDefinitionCollector<'a> {
-    fn new(file: &'a AstFile) -> Self {
-        let package = file
-            .items
-            .iter()
-            .find_map(|item| match item {
-                Item::Package(item) => Some(item.path.clone()),
-                _ => None,
-            })
-            .unwrap_or_default();
-        Self { file, package }
+    fn new(file: &'a AnalysisFile) -> Self {
+        Self {
+            file: file.ast(),
+            package: file.module_path().to_vec(),
+        }
     }
 
     fn collect_into(
@@ -176,7 +171,7 @@ impl ImportDefinition {
             Item::Map(item) => Some((item.name.clone(), CompletionItemKind::Function)),
             Item::Cell(item) | Item::Module(item) => Some(Self::callable_name_kind(item)),
             Item::ExternModule(item) => Some(Self::extern_name_kind(item)),
-            Item::Package(_) | Item::Use(_) | Item::Error(_) => None,
+            Item::Use(_) | Item::Error(_) => None,
             _ => None,
         }
     }

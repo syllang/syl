@@ -107,7 +107,7 @@ fn architecture_phase5_session_and_query_read_summary_without_elaboration() {
     let source = r#"
 extern module DriveBit(y: out Bit)
 "#;
-    let uri = DocumentUri::new("untitled:syl/phase5-summary");
+    let uri = DocumentUri::new("untitled:syl/phase5_summary");
     let mut host = AnalysisHost::new();
     host.open_document(uri.clone(), source.to_string(), DocumentVersion::new(1));
     let snapshot = host
@@ -164,7 +164,7 @@ module Top(y: out Bit) {
     y := tmp
 }
     "#;
-    let uri = DocumentUri::new("untitled:syl/phase5-overlay");
+    let uri = DocumentUri::new("untitled:syl/phase5_overlay");
     let mut host = AnalysisHost::new();
     host.open_document(uri.clone(), source.to_string(), DocumentVersion::new(1));
     let baseline = host

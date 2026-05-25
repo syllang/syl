@@ -1,7 +1,5 @@
 // Syl standard library: lightweight bundle helpers.
 
-package std.bundle
-
 @layout(packed)
 bundle ReadyValidWord<W: Nat> {
     payload: UInt<W>,

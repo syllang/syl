@@ -2,7 +2,8 @@ use crate::{CancellationToken, ProjectError};
 use std::{fmt, sync::OnceLock};
 use syl_elab::{ElaborationOutput, HardwareCompiler};
 use syl_sema::{
-    HirAnalysis, HirAnalysisOutput, OpaqueSummaryTable, SemanticCompiler, StageOutput, TirAnalysis,
+    HirAnalysis, HirAnalysisOutput, OpaqueSummaryTable, SemanticCompiler, SemanticSourceFile,
+    StageOutput, TirAnalysis,
 };
 use syl_span::Diagnostic;
 use syl_syntax::AstFile;
@@ -11,7 +12,7 @@ const CANCELLATION_HANDOFF_YIELDS: usize = 1024;
 
 #[non_exhaustive]
 pub struct SemanticCache {
-    ast_files: Vec<AstFile>,
+    sources: Vec<SemanticCacheSource>,
     opaque_summary_overlay: OpaqueSummaryTable,
     hir: OnceLock<HirAnalysisOutput>,
     tir: OnceLock<StageOutput<TirAnalysis>>,
@@ -21,9 +22,12 @@ pub struct SemanticCache {
 }
 
 impl SemanticCache {
-    pub fn new(ast_files: Vec<AstFile>, opaque_summary_overlay: OpaqueSummaryTable) -> Self {
+    pub fn new_sources(
+        sources: Vec<SemanticCacheSource>,
+        opaque_summary_overlay: OpaqueSummaryTable,
+    ) -> Self {
         Self {
-            ast_files,
+            sources,
             opaque_summary_overlay,
             hir: OnceLock::new(),
             tir: OnceLock::new(),
@@ -35,8 +39,9 @@ impl SemanticCache {
 
     pub(crate) fn hir_output(&self) -> &HirAnalysisOutput {
         self.hir.get_or_init(|| {
+            let sources = self.semantic_sources();
             SemanticCompiler::new()
-                .session(&self.ast_files)
+                .session_sources(sources)
                 .resolve_hir_partial()
         })
     }
@@ -239,11 +244,33 @@ impl SemanticCache {
     }
 }
 
+#[derive(Clone, Debug)]
+#[non_exhaustive]
+pub struct SemanticCacheSource {
+    module_path: Vec<String>,
+    ast: AstFile,
+}
+
+impl SemanticCacheSource {
+    pub fn new(module_path: Vec<String>, ast: AstFile) -> Self {
+        Self { module_path, ast }
+    }
+}
+
+impl SemanticCache {
+    fn semantic_sources(&self) -> Vec<SemanticSourceFile<'_>> {
+        self.sources
+            .iter()
+            .map(|source| SemanticSourceFile::new(source.module_path.clone(), &source.ast))
+            .collect()
+    }
+}
+
 impl fmt::Debug for SemanticCache {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
             .debug_struct("SemanticCache")
-            .field("ast_file_count", &self.ast_files.len())
+            .field("source_count", &self.sources.len())
             .field(
                 "opaque_summary_overlay_count",
                 &self.opaque_summary_overlay.len(),

@@ -51,8 +51,17 @@ impl<'a> SnapshotQuery<'a> {
 
         let (roots, overlays) = self.inputs.into_resolver_inputs();
         let resolved = context.resolver.snapshot(roots, overlays, context.token)?;
-        let workspace_semantic = Arc::new(SemanticCache::new(
-            resolved.ast_files(),
+        let workspace_semantic = Arc::new(SemanticCache::new_sources(
+            resolved
+                .files()
+                .iter()
+                .map(|file| {
+                    crate::snapshot::SemanticCacheSource::new(
+                        file.module_path().to_vec(),
+                        file.ast().clone(),
+                    )
+                })
+                .collect(),
             context.opaque_summaries.clone(),
         ));
         let package_semantics = context
@@ -261,13 +270,11 @@ mod tests {
 
     #[test]
     fn snapshot_reuses_semantic_cache_for_identical_state() {
-        let uri = DocumentUri::new("untitled:syl/database-cache");
+        let uri = DocumentUri::new("untitled:syl/cache");
         let mut database = AnalysisDatabase::new();
         database.open_document(
             uri.clone(),
             r#"
-package scratch;
-
 module Cache(y: out Bit) {
     y := 1
 }
@@ -305,8 +312,6 @@ module Cache(y: out Bit) {
         database.open_document(
             base_uri.clone(),
             r#"
-package scratch;
-
 module Base(y: out Bit) {
     y := 1
 }
@@ -322,8 +327,6 @@ module Base(y: out Bit) {
         database.open_document(
             overlay_uri.clone(),
             r#"
-package scratch;
-
 module Overlay(y: out Bit) {
     y := 1
 }
@@ -349,17 +352,17 @@ module Overlay(y: out Bit) {
 
     #[test]
     fn package_semantic_shards_reuse_unmodified_packages_after_package_edit() {
-        let first_uri = DocumentUri::new("untitled:syl/package-first");
-        let second_uri = DocumentUri::new("untitled:syl/package-second");
+        let first_uri = DocumentUri::new("untitled:syl/first");
+        let second_uri = DocumentUri::new("untitled:syl/second");
         let mut database = AnalysisDatabase::new();
         database.open_document(
             first_uri,
-            "package first;\nmodule First(y: out Bit) { y := 1 }\n".to_string(),
+            "module First(y: out Bit) { y := 1 }\n".to_string(),
             DocumentVersion::new(1),
         );
         database.open_document(
             second_uri.clone(),
-            "package second;\nmodule Second(y: out Bit) { y := 0 }\n".to_string(),
+            "module Second(y: out Bit) { y := 0 }\n".to_string(),
             DocumentVersion::new(1),
         );
 
@@ -376,7 +379,7 @@ module Overlay(y: out Bit) {
         database
             .update_document_at_version(
                 &second_uri,
-                "package second;\nmodule Second(y: out Bit) { y := 1 }\n".to_string(),
+                "module Second(y: out Bit) { y := 1 }\n".to_string(),
                 DocumentVersion::new(2),
             )
             .expect("package shard edit must update the second package");
@@ -396,17 +399,17 @@ module Overlay(y: out Bit) {
 
     #[test]
     fn workspace_snapshot_tracks_source_database_and_package_graph() {
-        let first_uri = DocumentUri::new("untitled:syl/workspace-first");
-        let second_uri = DocumentUri::new("untitled:syl/workspace-second");
+        let first_uri = DocumentUri::new("untitled:syl/first");
+        let second_uri = DocumentUri::new("untitled:syl/second");
         let mut database = AnalysisDatabase::new();
         database.open_document(
             first_uri.clone(),
-            "package first;\nmodule First(y: out Bit) { y := 1 }\n".to_string(),
+            "module First(y: out Bit) { y := 1 }\n".to_string(),
             DocumentVersion::new(1),
         );
         database.open_document(
             second_uri.clone(),
-            "package second;\nmodule Second(y: out Bit) { y := 1 }\n".to_string(),
+            "module Second(y: out Bit) { y := 1 }\n".to_string(),
             DocumentVersion::new(1),
         );
 
@@ -427,11 +430,11 @@ module Overlay(y: out Bit) {
 
     #[test]
     fn cancelled_snapshot_stops_before_resolution() {
-        let uri = DocumentUri::new("untitled:syl/session-cancelled");
+        let uri = DocumentUri::new("untitled:syl/app");
         let mut database = AnalysisDatabase::new();
         database.open_document(
             uri,
-            "package app;\nmodule Top(y: out Bit) { y := 1 }\n".to_string(),
+            "module Top(y: out Bit) { y := 1 }\n".to_string(),
             DocumentVersion::new(1),
         );
         let token = CancellationToken::new();

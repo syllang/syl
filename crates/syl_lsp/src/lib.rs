@@ -603,27 +603,27 @@ mod tests {
     #[test]
     fn diagnostic_publications_use_token_aware_grouped_diagnostics() {
         for attempt in 0..20 {
-            let first_uri = DocumentUri::new(format!("untitled:syl/lsp-alpha-{attempt}"));
-            let second_uri = DocumentUri::new(format!("untitled:syl/lsp-beta-{attempt}"));
+            let first_uri = DocumentUri::new(format!("untitled:syl/alpha{attempt}"));
+            let second_uri = DocumentUri::new(format!("untitled:syl/beta{attempt}"));
             let mut host = AnalysisHost::new();
             host.open_document(
                 first_uri,
-                "package alpha;\nmodule Alpha(y: out Bit) { y := 1 }\n".to_string(),
+                "module Alpha(y: out Bit) { y := 1 }\n".to_string(),
                 DocumentVersion::new(1),
             );
             host.open_document(
                 second_uri,
-                "package beta;\nmodule Beta(y: out Bit) { y := 1 }\n".to_string(),
+                "module Beta(y: out Bit) { y := 1 }\n".to_string(),
                 DocumentVersion::new(1),
             );
             let snapshot = host
                 .snapshot()
                 .expect("LSP cancellation fixture must snapshot cleanly");
             let alpha_cache = snapshot
-                .package_semantic_cache("alpha")
+                .package_semantic_cache(&format!("alpha{attempt}"))
                 .expect("alpha package shard must exist");
             let beta_cache = snapshot
-                .package_semantic_cache("beta")
+                .package_semantic_cache(&format!("beta{attempt}"))
                 .expect("beta package shard must exist");
             let token = CancellationToken::new();
             token.cancel();

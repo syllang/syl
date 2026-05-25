@@ -163,14 +163,6 @@ impl<'a> AstNodeIndexBuilder<'a> {
             Item::Error(item) => {
                 self.visit_error_item(item, parent);
             }
-            Item::Package(item) => {
-                self.push_path(
-                    AstNodeKind::PackageItem,
-                    item.span,
-                    Some(parent),
-                    &item.path,
-                );
-            }
             Item::Use(item) => {
                 self.visit_use_item(item, parent);
             }

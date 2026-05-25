@@ -3,8 +3,6 @@
 // These declarations are ordinary Syl maps. They exist to keep examples at the
 // composition level without giving the compiler any library-specific behavior.
 
-package std.logic
-
 map bit_mux(sel: Bit, when_true: Bit, when_false: Bit) -> Bit =
     select unique {
         sel => when_true,

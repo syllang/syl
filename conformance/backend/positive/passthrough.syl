@@ -1,5 +1,3 @@
-package conformance.backend.positive
-
 module Child(x: in Bit, y: out Bit) {
     y := x
 }

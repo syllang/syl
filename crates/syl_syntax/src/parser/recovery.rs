@@ -120,8 +120,7 @@ impl Parser {
     fn is_item_start(&self, kind: &TokenKind) -> bool {
         matches!(
             kind,
-            TokenKind::KwPackage
-                | TokenKind::KwUse
+            TokenKind::KwUse
                 | TokenKind::KwConst
                 | TokenKind::KwFn
                 | TokenKind::KwEnum

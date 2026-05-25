@@ -46,8 +46,6 @@
 // - Protocol rules, formal checks, timing relations, and user-visible effect
 //   annotations are intentionally deferred from this v0 syntax sketch.
 
-package examples.minimal_features
-
 const DATA_W: Nat = 32
 const LANES: Nat = 2
 

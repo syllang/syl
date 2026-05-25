@@ -328,7 +328,7 @@ impl TypePhaseChecker {
                     range,
                     body,
                     span: expr.span(),
-                    env: &env,
+                    env,
                 },
                 errors,
             ),

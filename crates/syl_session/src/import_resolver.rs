@@ -34,43 +34,42 @@ impl<V: Vfs> ImportResolver<V> {
     where
         F: FnMut(&Path) -> bool,
     {
-        let candidates = self.use_candidates(parts);
-        for base in self.import_bases() {
-            for candidate in &candidates {
-                let path = base.join(candidate);
-                if self.vfs.exists(&path) || overlay_exists(&path) {
-                    return Some(path);
-                }
+        let source_module = parts.get(..parts.len().checked_sub(1)?)?;
+        for base in self.config.workspace_roots() {
+            if let Some(path) = self.resolve_candidate(base, source_module, &mut overlay_exists) {
+                return Some(path);
+            }
+        }
+        for base in self.config.std_roots() {
+            let Some(candidate_parts) = source_module.strip_prefix(&["std".to_string()]) else {
+                continue;
+            };
+            if let Some(path) = self.resolve_candidate(base, candidate_parts, &mut overlay_exists) {
+                return Some(path);
+            }
+        }
+        for base in self.config.package_roots() {
+            if let Some(path) = self.resolve_candidate(base, source_module, &mut overlay_exists) {
+                return Some(path);
             }
         }
         None
     }
 
-    fn import_bases(&self) -> impl Iterator<Item = &Path> {
-        self.config
-            .workspace_roots()
-            .iter()
-            .map(|root| root.as_path())
-            .chain(self.config.std_roots().iter().map(|root| root.as_path()))
-            .chain(
-                self.config
-                    .package_roots()
-                    .iter()
-                    .map(|root| root.as_path()),
-            )
+    fn use_candidate(&self, parts: &[String]) -> Option<PathBuf> {
+        (!parts.is_empty()).then(|| PathBuf::from(format!("{}.syl", parts.join("/"))))
     }
 
-    fn use_candidates(&self, parts: &[String]) -> Vec<PathBuf> {
-        let mut candidates = Vec::new();
-        if parts.len() > 1 {
-            candidates.push(PathBuf::from(format!(
-                "{}.syl",
-                parts[..parts.len() - 1].join("/")
-            )));
-        }
-        if !parts.is_empty() {
-            candidates.push(PathBuf::from(format!("{}.syl", parts.join("/"))));
-        }
-        candidates
+    fn resolve_candidate<F>(
+        &self,
+        base: &Path,
+        parts: &[String],
+        overlay_exists: &mut F,
+    ) -> Option<PathBuf>
+    where
+        F: FnMut(&Path) -> bool,
+    {
+        let path = base.join(self.use_candidate(parts)?);
+        (self.vfs.exists(&path) || overlay_exists(&path)).then_some(path)
     }
 }

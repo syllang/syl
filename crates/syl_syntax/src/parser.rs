@@ -11,7 +11,7 @@ mod stmt;
 
 #[derive(Debug)]
 enum BlockEntry {
-    Stmt(Stmt),
+    Stmt(Box<Stmt>),
     Tail(Expr),
 }
 
@@ -58,8 +58,7 @@ impl<'a> SourceParser<'a> {
                     TokenKind::Int(_) => LosslessTokenKind::Int,
                     TokenKind::Str(_) => LosslessTokenKind::Str,
                     TokenKind::Bool(_) => LosslessTokenKind::Bool,
-                    TokenKind::KwPackage
-                    | TokenKind::KwUse
+                    TokenKind::KwUse
                     | TokenKind::KwConst
                     | TokenKind::KwFn
                     | TokenKind::KwLet
@@ -243,7 +242,6 @@ impl Parser {
     fn parse_item(&mut self) -> Result<Item, Vec<Diagnostic>> {
         let attrs = self.parse_attrs()?;
         let item = match self.peek_kind() {
-            Some(TokenKind::KwPackage) => Item::Package(self.parse_package_item()?),
             Some(TokenKind::KwUse) => Item::Use(self.parse_use_item()?),
             Some(TokenKind::KwConst) => Item::Const(self.parse_const_item()?),
             Some(TokenKind::KwFn) => Item::Fn(self.parse_fn_item()?),
@@ -269,16 +267,6 @@ impl Parser {
             None => return Err(std::mem::take(&mut self.diagnostics)),
         };
         Ok(item)
-    }
-
-    fn parse_package_item(&mut self) -> Result<PackageItem, Vec<Diagnostic>> {
-        let start = self.expect(TokenKind::KwPackage)?.span;
-        let path = self.parse_path()?;
-        let end = self
-            .consume(&TokenKind::Semi)
-            .map(|tok| tok.span)
-            .unwrap_or_else(|| self.prev_span());
-        Ok(PackageItem::new(path, start.join(end)))
     }
 
     fn parse_use_item(&mut self) -> Result<UseItem, Vec<Diagnostic>> {
@@ -472,7 +460,7 @@ impl Parser {
         while !self.check(&TokenKind::RBrace) && !self.is_eof() {
             let start_pos = self.pos;
             match self.parse_block_entry() {
-                Ok(BlockEntry::Stmt(stmt)) => stmts.push(stmt),
+                Ok(BlockEntry::Stmt(stmt)) => stmts.push(*stmt),
                 Ok(BlockEntry::Tail(expr)) => {
                     tail = Some(Box::new(expr));
                     break;
@@ -496,31 +484,49 @@ impl Parser {
 
     fn parse_block_entry(&mut self) -> Result<BlockEntry, Vec<Diagnostic>> {
         if self.check(&TokenKind::KwLet) {
-            return self.parse_let_stmt().map(BlockEntry::Stmt);
+            return self
+                .parse_let_stmt()
+                .map(|stmt| BlockEntry::Stmt(Box::new(stmt)));
         }
         if self.check(&TokenKind::KwConst) {
-            return self.parse_const_stmt().map(BlockEntry::Stmt);
+            return self
+                .parse_const_stmt()
+                .map(|stmt| BlockEntry::Stmt(Box::new(stmt)));
         }
         if self.check(&TokenKind::KwVar) {
-            return self.parse_var_stmt().map(BlockEntry::Stmt);
+            return self
+                .parse_var_stmt()
+                .map(|stmt| BlockEntry::Stmt(Box::new(stmt)));
         }
         if self.check(&TokenKind::KwSignal) {
-            return self.parse_signal_stmt().map(BlockEntry::Stmt);
+            return self
+                .parse_signal_stmt()
+                .map(|stmt| BlockEntry::Stmt(Box::new(stmt)));
         }
         if self.check(&TokenKind::KwReg) {
-            return self.parse_reg_stmt().map(BlockEntry::Stmt);
+            return self
+                .parse_reg_stmt()
+                .map(|stmt| BlockEntry::Stmt(Box::new(stmt)));
         }
         if self.check(&TokenKind::KwNext) {
-            return self.parse_next_stmt().map(BlockEntry::Stmt);
+            return self
+                .parse_next_stmt()
+                .map(|stmt| BlockEntry::Stmt(Box::new(stmt)));
         }
         if self.check(&TokenKind::KwWhile) {
-            return self.parse_while_stmt().map(BlockEntry::Stmt);
+            return self
+                .parse_while_stmt()
+                .map(|stmt| BlockEntry::Stmt(Box::new(stmt)));
         }
         if self.check(&TokenKind::KwFor) {
-            return self.parse_for_stmt().map(BlockEntry::Stmt);
+            return self
+                .parse_for_stmt()
+                .map(|stmt| BlockEntry::Stmt(Box::new(stmt)));
         }
         if self.check(&TokenKind::KwIf) {
-            return self.parse_if_stmt().map(BlockEntry::Stmt);
+            return self
+                .parse_if_stmt()
+                .map(|stmt| BlockEntry::Stmt(Box::new(stmt)));
         }
         if self.check(&TokenKind::KwReturn) {
             let span = self.expect(TokenKind::KwReturn)?.span;
@@ -533,11 +539,14 @@ impl Parser {
                 .consume(&TokenKind::Semi)
                 .map(|token| token.span)
                 .unwrap_or_else(|| expr.as_ref().map(|expr| expr.span()).unwrap_or(span));
-            return Ok(BlockEntry::Stmt(Stmt::Return(expr, span.join(end))));
+            return Ok(BlockEntry::Stmt(Box::new(Stmt::Return(
+                expr,
+                span.join(end),
+            ))));
         }
         let expr = self.parse_expr(0)?;
         if self.consume(&TokenKind::Semi).is_some() || !self.check(&TokenKind::RBrace) {
-            Ok(BlockEntry::Stmt(Stmt::Expr(expr)))
+            Ok(BlockEntry::Stmt(Box::new(Stmt::Expr(expr))))
         } else {
             Ok(BlockEntry::Tail(expr))
         }

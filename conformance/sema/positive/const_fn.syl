@@ -1,5 +1,3 @@
-package conformance.sema.positive
-
 const W: Nat = 8
 
 fn width() -> Nat {

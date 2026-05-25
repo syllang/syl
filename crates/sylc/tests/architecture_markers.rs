@@ -327,7 +327,6 @@ fn phase2_white_box_inventory() -> Vec<String> {
         "crates/sylc/tests/conformance.rs",
         "crates/sylc/tests/driver_overlap.rs",
         "crates/sylc/tests/interface_regression.rs",
-        "crates/sylc/tests/regression.rs",
         "crates/sylc/tests/support/mod.rs",
     ]
     .into_iter()

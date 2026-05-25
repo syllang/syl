@@ -1055,6 +1055,7 @@ syl_sema|method|syl_sema::analysis::HirAnalysisOutput::stage|fn(self: &Self) -> 
 syl_sema|method|syl_sema::analysis::HoverInfo::span|fn(self: &Self) -> Span
 syl_sema|method|syl_sema::analysis::HoverInfo::text|fn(self: &Self) -> &str
 syl_sema|method|syl_sema::analysis::SemanticCompiler::new|fn() -> Self
+syl_sema|method|syl_sema::analysis::SemanticCompiler::session_sources|fn(self: &Self, sources: Vec<SemanticSourceFile<'files>>) -> SemanticSession<'files>
 syl_sema|method|syl_sema::analysis::SemanticCompiler::session|fn(self: &Self, files: &[AstFile]) -> SemanticSession<'files>
 syl_sema|method|syl_sema::analysis::SemanticOutput::diagnostics|fn(self: &Self) -> &[Diagnostic]
 syl_sema|method|syl_sema::analysis::SemanticOutput::facts|fn(self: &Self) -> Option<&SemanticFacts>
@@ -1062,9 +1063,13 @@ syl_sema|method|syl_sema::analysis::SemanticOutput::opaque_summaries|fn(self: &S
 syl_sema|method|syl_sema::analysis::SemanticOutput::tir|fn(self: &Self) -> Option<&TirAnalysis>
 syl_sema|method|syl_sema::analysis::SemanticSession::check|fn(self: &Self) -> SemanticOutput
 syl_sema|method|syl_sema::analysis::SemanticSession::diagnostics|fn(self: &Self) -> Vec<Diagnostic>
+syl_sema|method|syl_sema::analysis::SemanticSession::new_sources|fn(sources: Vec<SemanticSourceFile<'files>>) -> Self
 syl_sema|method|syl_sema::analysis::SemanticSession::new|fn(files: &[AstFile]) -> Self
 syl_sema|method|syl_sema::analysis::SemanticSession::resolve_hir_partial|fn(self: &Self) -> HirAnalysisOutput
 syl_sema|method|syl_sema::analysis::SemanticSession::resolve_hir|fn(self: &Self) -> Result<HirAnalysis, CompileError>
+syl_sema|method|syl_sema::analysis::SemanticSourceFile::ast|fn(self: &Self) -> &AstFile
+syl_sema|method|syl_sema::analysis::SemanticSourceFile::module_path|fn(self: &Self) -> &[String]
+syl_sema|method|syl_sema::analysis::SemanticSourceFile::new|fn(module_path: Vec<String>, ast: &AstFile) -> Self
 syl_sema|method|syl_sema::analysis::TirAnalysis::binding_count|fn(self: &Self) -> usize
 syl_sema|method|syl_sema::analysis::TirAnalysis::debug_dump|fn(self: &Self) -> String
 syl_sema|method|syl_sema::analysis::TirAnalysis::design|fn(self: &Self) -> &TirDesign
@@ -1254,7 +1259,8 @@ syl_sema|method|syl_sema::facts::resolution::ResolutionTable::graph|fn(self: &Se
 syl_sema|method|syl_sema::facts::types::TypeTable::get|fn(self: &Self, id: HirFactId) -> Option<TypeId>
 syl_sema|method|syl_sema::facts::types::TypeTable::type_table|fn(self: &Self) -> &TirTypeTable
 syl_sema|method|syl_sema::facts::types::TypeTable::ty|fn(self: &Self, id: HirFactId) -> Option<&TirType>
-syl_sema|method|syl_sema::hir_lower::HirResolver::new|fn(files: &[AstFile]) -> Self
+syl_sema|method|syl_sema::hir_lower::HirResolver::new_sources|fn(sources: Vec<SemanticSourceFile<'files>>) -> Self
+syl_sema|method|syl_sema::hir_lower::HirResolver::new|fn(files: &[syl_syntax::AstFile]) -> Self
 syl_sema|method|syl_sema::hir_lower::HirResolver::resolve_collect|fn(self: Self) -> Result<HirDesign, Vec<CompileError>>
 syl_sema|method|syl_sema::hir_lower::HirResolver::resolve_partial|fn(self: Self) -> (HirDesign, Vec<CompileError>)
 syl_sema|method|syl_sema::hir_lower::HirResolver::resolve|fn(self: Self) -> Result<HirDesign, CompileError>
@@ -1396,6 +1402,7 @@ syl_sema|struct|syl_sema::analysis::HoverInfo|public
 syl_sema|struct|syl_sema::analysis::SemanticCompiler|public
 syl_sema|struct|syl_sema::analysis::SemanticOutput|public
 syl_sema|struct|syl_sema::analysis::SemanticSession|public
+syl_sema|struct|syl_sema::analysis::SemanticSourceFile|public
 syl_sema|struct|syl_sema::analysis::TirAnalysis|public
 syl_sema|struct|syl_sema::cell_summary::CellSummaryDeclaration|public
 syl_sema|struct|syl_sema::cell_summary::CellSummaryRegistry|public
@@ -1543,6 +1550,7 @@ syl_sema|use|SemanticOutput|named|source=analysis::SemanticOutput
 syl_sema|use|SemanticResolution|named|source=facts::SemanticResolution
 syl_sema|use|SemanticResolution|named|source=resolution::SemanticResolution
 syl_sema|use|SemanticSession|named|source=analysis::SemanticSession
+syl_sema|use|SemanticSourceFile|named|source=analysis::SemanticSourceFile
 syl_sema|use|StageOutput|named|source=stage_output::StageOutput
 syl_sema|use|SummaryCapability|named|source=model::SummaryCapability
 syl_sema|use|SummaryCapability|named|source=opaque_summary::SummaryCapability
@@ -1993,6 +2001,7 @@ syl_session|method|syl_session::resolver::ProjectResolver::with_config|fn(config
 syl_session|method|syl_session::resolver::ProjectResolver::with_vfs|fn(config: ProjectConfig, vfs: V) -> Self
 syl_session|method|syl_session::snapshot::model::AnalysisFile::ast_node_index|fn(self: &Self) -> &AstNodeIndex
 syl_session|method|syl_session::snapshot::model::AnalysisFile::ast|fn(self: &Self) -> &AstFile
+syl_session|method|syl_session::snapshot::model::AnalysisFile::module_path|fn(self: &Self) -> &[String]
 syl_session|method|syl_session::snapshot::model::AnalysisFile::origin|fn(self: &Self) -> &DocumentOrigin
 syl_session|method|syl_session::snapshot::model::AnalysisFile::path|fn(self: &Self) -> Option<&Path>
 syl_session|method|syl_session::snapshot::model::AnalysisFile::source_id|fn(self: &Self) -> SourceId
@@ -2286,8 +2295,6 @@ syl_syntax|field|syl_syntax::ast::MatchArm::value|Expr
 syl_syntax|field|syl_syntax::ast::NamedExpr::name|String
 syl_syntax|field|syl_syntax::ast::NamedExpr::span|syl_span::Span
 syl_syntax|field|syl_syntax::ast::NamedExpr::value|Expr
-syl_syntax|field|syl_syntax::ast::PackageItem::path|Vec<String>
-syl_syntax|field|syl_syntax::ast::PackageItem::span|syl_span::Span
 syl_syntax|field|syl_syntax::ast::Param::dir|Option<ParamDirection>
 syl_syntax|field|syl_syntax::ast::Param::name|String
 syl_syntax|field|syl_syntax::ast::Param::span|syl_span::Span
@@ -2354,7 +2361,6 @@ syl_syntax|method|syl_syntax::ast::Item::span|fn(self: &Self) -> Span
 syl_syntax|method|syl_syntax::ast::MapItem::builder|fn(name: String, body: Expr) -> MapItemBuilder
 syl_syntax|method|syl_syntax::ast::MatchArm::new|fn(pattern: crate::Pattern, value: Expr, span: Span) -> Self
 syl_syntax|method|syl_syntax::ast::NamedExpr::new|fn(name: String, value: Expr, span: Span) -> Self
-syl_syntax|method|syl_syntax::ast::PackageItem::new|fn(path: Vec<String>, span: Span) -> Self
 syl_syntax|method|syl_syntax::ast::Param::new|fn(name: String, dir: Option<ParamDirection>, ty: TypeExpr, span: Span) -> Self
 syl_syntax|method|syl_syntax::ast::ParamDirection::is_in|fn(self: &Self) -> bool
 syl_syntax|method|syl_syntax::ast::ParamDirection::is_out|fn(self: &Self) -> bool
@@ -2435,7 +2441,6 @@ syl_syntax|struct|syl_syntax::ast::InterfaceItem|public
 syl_syntax|struct|syl_syntax::ast::MapItem|public
 syl_syntax|struct|syl_syntax::ast::MatchArm|public
 syl_syntax|struct|syl_syntax::ast::NamedExpr|public
-syl_syntax|struct|syl_syntax::ast::PackageItem|public
 syl_syntax|struct|syl_syntax::ast::Param|public
 syl_syntax|struct|syl_syntax::ast::PortDecl|public
 syl_syntax|struct|syl_syntax::ast::RegReset|public
@@ -2501,7 +2506,6 @@ syl_syntax|use|LosslessToken|named|source=lossless::LosslessToken
 syl_syntax|use|MapItem|named|source=ast::MapItem
 syl_syntax|use|MatchArm|named|source=ast::MatchArm
 syl_syntax|use|NamedExpr|named|source=ast::NamedExpr
-syl_syntax|use|PackageItem|named|source=ast::PackageItem
 syl_syntax|use|ParamDirection|named|source=ast::ParamDirection
 syl_syntax|use|Param|named|source=ast::Param
 syl_syntax|use|ParseOutput|named|source=parser::ParseOutput
@@ -2573,7 +2577,6 @@ syl_syntax|variant|syl_syntax::ast::Item::Fn|(FnItem)
 syl_syntax|variant|syl_syntax::ast::Item::Interface|(InterfaceItem)
 syl_syntax|variant|syl_syntax::ast::Item::Map|(MapItem)
 syl_syntax|variant|syl_syntax::ast::Item::Module|(CallableItem)
-syl_syntax|variant|syl_syntax::ast::Item::Package|(PackageItem)
 syl_syntax|variant|syl_syntax::ast::Item::Use|(UseItem)
 syl_syntax|variant|syl_syntax::ast::ParamDirection::InOut|unit
 syl_syntax|variant|syl_syntax::ast::ParamDirection::In|unit
@@ -2621,7 +2624,6 @@ syl_syntax|variant|syl_syntax::lossless::LosslessItemKind::Fn|unit
 syl_syntax|variant|syl_syntax::lossless::LosslessItemKind::Interface|unit
 syl_syntax|variant|syl_syntax::lossless::LosslessItemKind::Map|unit
 syl_syntax|variant|syl_syntax::lossless::LosslessItemKind::Module|unit
-syl_syntax|variant|syl_syntax::lossless::LosslessItemKind::Package|unit
 syl_syntax|variant|syl_syntax::lossless::LosslessItemKind::Use|unit
 syl_syntax|variant|syl_syntax::lossless::LosslessNodeKind::File|unit
 syl_syntax|variant|syl_syntax::lossless::LosslessNodeKind::Item|(LosslessItemKind)
@@ -2682,7 +2684,6 @@ syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::MatchExpr|unit
 syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::ModuleItem|unit
 syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::NamedExpr|unit
 syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::NextStmt|unit
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::PackageItem|unit
 syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::Param|unit
 syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::PathPattern|unit
 syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::PathType|unit
@@ -2745,7 +2746,6 @@ syl_syntax|variant|syl_syntax::token::TokenKind::KwNext|unit
 syl_syntax|variant|syl_syntax::token::TokenKind::KwNot|unit
 syl_syntax|variant|syl_syntax::token::TokenKind::KwOr|unit
 syl_syntax|variant|syl_syntax::token::TokenKind::KwOut|unit
-syl_syntax|variant|syl_syntax::token::TokenKind::KwPackage|unit
 syl_syntax|variant|syl_syntax::token::TokenKind::KwPlace|unit
 syl_syntax|variant|syl_syntax::token::TokenKind::KwPriority|unit
 syl_syntax|variant|syl_syntax::token::TokenKind::KwReg|unit

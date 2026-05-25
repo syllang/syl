@@ -12,8 +12,6 @@
 // - in, signal, match
 // - Nat, Bit, UInt<W>, target-typed numeric literals
 
-package examples.mvp.comb_alu
-
 const DATA_W: Nat = 32
 
 enum AluOp {

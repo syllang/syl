@@ -8,7 +8,6 @@ pub enum TokenKind {
     Str(String),
     Bool(bool),
     At,
-    KwPackage,
     KwUse,
     KwConst,
     KwFn,

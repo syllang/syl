@@ -11,7 +11,6 @@ pub struct AstFile {
 #[non_exhaustive]
 pub enum Item {
     Error(ErrorItem),
-    Package(PackageItem),
     Use(UseItem),
     Const(ConstItem),
     Fn(FnItem),
@@ -28,7 +27,6 @@ impl Item {
     pub fn span(&self) -> Span {
         match self {
             Self::Error(item) => item.span,
-            Self::Package(item) => item.span,
             Self::Use(item) => item.span,
             Self::Const(item) => item.span,
             Self::Fn(item) => item.span,
@@ -45,7 +43,6 @@ impl Item {
     pub fn lossless_kind(&self) -> LosslessItemKind {
         match self {
             Self::Error(_) => LosslessItemKind::Error,
-            Self::Package(_) => LosslessItemKind::Package,
             Self::Use(_) => LosslessItemKind::Use,
             Self::Const(_) => LosslessItemKind::Const,
             Self::Fn(_) => LosslessItemKind::Fn,
@@ -63,13 +60,6 @@ impl Item {
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct ErrorItem {
-    pub span: Span,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-#[non_exhaustive]
-pub struct PackageItem {
-    pub path: Vec<String>,
     pub span: Span,
 }
 

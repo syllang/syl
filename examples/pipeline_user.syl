@@ -8,8 +8,6 @@
 // - Imported declarations remain normal Syl declarations; they do not gain
 //   compiler-private privileges.
 
-package examples.pipeline_user
-
 use std.stream.Stream
 use std.stage.Stage
 use std.stage.stage_from_stream

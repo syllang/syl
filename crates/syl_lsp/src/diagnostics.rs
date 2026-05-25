@@ -280,7 +280,7 @@ mod tests {
         let mut host = AnalysisHost::new();
         host.open_document(
             uri.clone(),
-            "package app;\nmodule Broken(".to_string(),
+            "module Broken(".to_string(),
             DocumentVersion::new(7),
         );
         let snapshot = host
@@ -299,7 +299,7 @@ mod tests {
     #[test]
     fn publications_preserve_facade_utf16_ranges() {
         let uri = DocumentUri::new("file:///tmp/syl_lsp_utf16.syl");
-        let source = format!("package app;\nconst WIDTH: Nat = {}\n", '\u{1F4A1}');
+        let source = format!("const WIDTH: Nat = {}\n", '\u{1F4A1}');
         let mut host = AnalysisHost::new();
         host.open_document(uri.clone(), source, DocumentVersion::new(5));
         let snapshot = host
@@ -317,7 +317,7 @@ mod tests {
             .expect("invalid non-ASCII token must publish a diagnostic");
 
         assert_eq!(version, Some(5));
-        assert_eq!(lexer_diagnostic.range.start.line, 1);
+        assert_eq!(lexer_diagnostic.range.start.line, 0);
         assert_eq!(
             lexer_diagnostic
                 .range
@@ -358,7 +358,7 @@ mod tests {
     #[test]
     fn disk_publications_do_not_carry_fake_versions() {
         let root = LspDiagnosticWorkspace::new();
-        let path = root.write("broken.syl", "package app\nmodule Broken(");
+        let path = root.write("broken.syl", "module Broken(");
         let snapshot = ProjectResolver::new()
             .load(&[path])
             .expect("diagnostic fixture must load through parser recovery")
@@ -380,7 +380,7 @@ mod tests {
         let mut host = AnalysisHost::new();
         host.open_document(
             uri.clone(),
-            "package app;\n\nmodule Bad(y: out Bit) {\n    y := 0\n    y := 1\n}\n".to_string(),
+            "module Bad(y: out Bit) {\n    y := 0\n    y := 1\n}\n".to_string(),
             DocumentVersion::new(11),
         );
         let snapshot = host
@@ -436,17 +436,17 @@ mod tests {
         let mut host = AnalysisHost::new();
         host.open_document(
             parse_uri.clone(),
-            "package parse;\nmodule Broken(".to_string(),
+            "module Broken(".to_string(),
             DocumentVersion::new(1),
         );
         host.open_document(
             tir_uri.clone(),
-            "package sema;\nmodule Bad(x: in Missing) {}\n".to_string(),
+            "module Bad(x: in Missing) {}\n".to_string(),
             DocumentVersion::new(1),
         );
         host.open_document(
             driver_uri.clone(),
-            "package driver;\n\nmodule Bad(y: out Bit) {\n    y := 0\n    y := 1\n}\n".to_string(),
+            "module Bad(y: out Bit) {\n    y := 0\n    y := 1\n}\n".to_string(),
             DocumentVersion::new(1),
         );
         let snapshot = host

@@ -1,8 +1,8 @@
 use crate::{
     AstFile, Attribute, Block, BundleItem, CallArg, CallableItem, ConstItem, DriveCapability,
     EnumItem, EnumVariant, ErrorItem, Expr, ExternModuleItem, FieldDecl, FnItem, GenericParam,
-    InterfaceItem, MapItem, MatchArm, NamedExpr, PackageItem, Param, ParamDirection, PortDecl,
-    RegReset, ResultBinding, SelectArm, TypeExpr, UseItem, ViewDecl, ViewDirection, ViewField,
+    InterfaceItem, MapItem, MatchArm, NamedExpr, Param, ParamDirection, PortDecl, RegReset,
+    ResultBinding, SelectArm, TypeExpr, UseItem, ViewDecl, ViewDirection, ViewField,
 };
 use syl_span::Span;
 
@@ -15,12 +15,6 @@ impl AstFile {
 impl ErrorItem {
     pub fn new(span: Span) -> Self {
         Self { span }
-    }
-}
-
-impl PackageItem {
-    pub fn new(path: Vec<String>, span: Span) -> Self {
-        Self { path, span }
     }
 }
 

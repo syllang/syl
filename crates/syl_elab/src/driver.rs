@@ -84,6 +84,7 @@ pub(crate) struct DriveFact {
 }
 
 impl DriveFact {
+    #[allow(clippy::too_many_arguments)]
     fn new(
         module: impl Into<String>,
         target: DriverPlace,

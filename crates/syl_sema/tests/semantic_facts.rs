@@ -3,7 +3,8 @@ use syl_sema::const_eval::{ConstEvalEnv, ConstValue};
 use syl_sema::const_mir::ConstMirBuilder;
 use syl_sema::{
     CapabilityKind, ConstEvalError, ConstFactKey, DomainFact, HirFactId, Layout, LoweringError,
-    ProtocolFieldDirection, SemanticCompiler, SemanticResolution, TirError, WordEncoding,
+    ProtocolFieldDirection, SemanticCompiler, SemanticResolution, SemanticSourceFile, TirError,
+    WordEncoding,
 };
 use syl_span::{SourceId, Span};
 use syl_syntax::{AstFile, SourceParser};
@@ -11,8 +12,6 @@ use syl_syntax::{AstFile, SourceParser};
 #[test]
 fn semantic_facts_bundle_exposes_queryable_phase3_tables() {
     let shared = r#"
-package shared;
-
 const WIDTH: Nat = 4 + 1
 
 interface Stream<D: Domain> {
@@ -28,8 +27,6 @@ interface Stream<D: Domain> {
 }
 "#;
     let app = r#"
-package app;
-
 use shared.Stream;
 use shared.WIDTH;
 
@@ -50,7 +47,10 @@ module Direct(
 "#;
     let files = parse_sources(&[shared, app]);
     let compiler = SemanticCompiler::new();
-    let session = compiler.session(&files);
+    let session = compiler.session_sources(vec![
+        SemanticSourceFile::new(vec!["shared".to_string()], &files[0]),
+        SemanticSourceFile::new(vec!["app".to_string()], &files[1]),
+    ]);
     let hir = session
         .resolve_hir()
         .expect("phase3 facts fixture must resolve HIR");

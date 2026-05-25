@@ -15,7 +15,6 @@ CONSUMER_START = "<!-- public-api-consumers:start -->"
 CONSUMER_END = "<!-- public-api-consumers:end -->"
 SIGNATURE_GUARDS = [
     "syl_emit|variant|syl_emit::CompileError::InvalidHwir|{ report: syl_hw::HwValidationReport }",
-    "syl_syntax|variant|syl_syntax::ast::Item::Package|(PackageItem)",
     "syl_hw|field|syl_hw::ids::ObjectId::0|usize",
 ]
 

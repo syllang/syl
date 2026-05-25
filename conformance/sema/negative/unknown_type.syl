@@ -1,3 +1,1 @@
-package conformance.sema.negative
-
 const BROKEN: MissingType = 1

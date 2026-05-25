@@ -1,6 +1,6 @@
 use syl_elab::{CompileError, ElaborationOutput, HardwareCompiler};
 use syl_hw::ParametricHwDesign;
-use syl_sema::{SemanticCompiler, SemanticSession};
+use syl_sema::{SemanticCompiler, SemanticSession, SemanticSourceFile};
 use syl_syntax::AstFile;
 
 #[derive(Debug, Default)]
@@ -20,6 +20,20 @@ impl MiddleCompiler {
     #[allow(dead_code)]
     pub fn compile_files(&self, files: &[AstFile]) -> Result<ParametricHwDesign, CompileError> {
         let hir = self.semantic.session(files).resolve_hir()?;
+        let tir = hir.check_tir()?;
+        self.hardware.compile_tir(&tir)
+    }
+
+    #[allow(dead_code)]
+    pub fn compile_files_with_paths(
+        &self,
+        files: &[(Vec<String>, AstFile)],
+    ) -> Result<ParametricHwDesign, CompileError> {
+        let sources = files
+            .iter()
+            .map(|(path, ast)| SemanticSourceFile::new(path.clone(), ast))
+            .collect();
+        let hir = self.semantic.session_sources(sources).resolve_hir()?;
         let tir = hir.check_tir()?;
         self.hardware.compile_tir(&tir)
     }

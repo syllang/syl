@@ -26,7 +26,7 @@ mod tir_const;
 
 pub use analysis::{
     DefinitionInfo, HirAnalysis, HirAnalysisOutput, HoverInfo, SemanticCompiler, SemanticOutput,
-    SemanticSession, TirAnalysis,
+    SemanticSession, SemanticSourceFile, TirAnalysis,
 };
 pub use diagnostic::{SemanticDiagnostic, SemanticDiagnosticStage};
 pub use error::{

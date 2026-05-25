@@ -602,7 +602,7 @@ impl<'a> CompletionCollector<'a> {
                         kind: CompletionItemKind::Module,
                     })
                 }
-                Item::Package(_) | Item::Use(_) | Item::Error(_) => None,
+                Item::Use(_) | Item::Error(_) => None,
                 _ => None,
             })
             .collect()

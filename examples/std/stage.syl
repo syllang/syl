@@ -4,8 +4,6 @@
 // capabilities, and latency facts come from the same checker and summary paths
 // used by user-defined cells.
 
-package std.stage
-
 use std.stream.Stream
 
 interface Stage<T> {

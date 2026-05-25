@@ -1,7 +1,7 @@
 use crate::{
     AnalysisSnapshot, DocumentUri, DocumentVersion, SourceDocument, snapshot::AnalysisFile,
     snapshot::PackageSemanticIndex, snapshot::PackageSemanticShard, snapshot::ResolvedSnapshot,
-    snapshot::SemanticCache, snapshot::WorkspacePackage,
+    snapshot::SemanticCache, snapshot::SemanticCacheSource, snapshot::WorkspacePackage,
 };
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -9,7 +9,6 @@ use std::{
     sync::Arc,
 };
 use syl_sema::OpaqueSummaryTable;
-use syl_syntax::AstFile;
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[non_exhaustive]
@@ -309,13 +308,15 @@ impl SemanticCacheStore {
                     package.name(),
                     &semantic_documents,
                 );
-                let ast_files = snapshot
+                let sources = snapshot
                     .files()
                     .iter()
                     .filter(|file| semantic_documents.contains(file.uri()))
-                    .map(|file| file.ast().clone())
+                    .map(|file| {
+                        SemanticCacheSource::new(file.module_path().to_vec(), file.ast().clone())
+                    })
                     .collect::<Vec<_>>();
-                let cache = self.semantic_for_package(key, ast_files, opaque_summary_overlay);
+                let cache = self.semantic_for_package(key, sources, opaque_summary_overlay);
                 PackageSemanticShard::new(
                     package.name().to_string(),
                     package.documents().to_vec(),
@@ -329,15 +330,15 @@ impl SemanticCacheStore {
     fn semantic_for_package(
         &mut self,
         key: PackageSemanticKey,
-        ast_files: Vec<AstFile>,
+        sources: Vec<SemanticCacheSource>,
         opaque_summary_overlay: &OpaqueSummaryTable,
     ) -> Arc<SemanticCache> {
         self.cached
             .entry(key.clone())
             .or_insert_with(|| CachedPackageSemanticCache {
                 key,
-                cache: Arc::new(SemanticCache::new(
-                    ast_files,
+                cache: Arc::new(SemanticCache::new_sources(
+                    sources,
                     opaque_summary_overlay.clone(),
                 )),
             })

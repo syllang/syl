@@ -1,7 +1,5 @@
 // User code composing ordinary std cells with a user-defined cell.
 
-package examples.std_user.custom_stage
-
 use std.stream.Stream
 use std.stage.Stage
 use std.stage.stage_from_stream

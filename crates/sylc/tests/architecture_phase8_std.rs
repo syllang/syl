@@ -17,7 +17,7 @@ fn architecture_phase8_std_sources_enter_ordinary_session_pipeline() {
     let mut host = AnalysisHost::with_config(
         ProjectConfig::new()
             .with_workspace_root(workspace.clone())
-            .with_std_root(workspace.join("examples")),
+            .with_std_root(workspace.join("examples/std")),
     );
     let snapshot = host
         .load(&[workspace.join("examples/std")])
@@ -63,7 +63,7 @@ fn architecture_phase8_std_imports_are_ordinary_source_documents() {
     let mut host = AnalysisHost::with_config(
         ProjectConfig::new()
             .with_workspace_root(workspace.clone())
-            .with_std_root(workspace.join("examples")),
+            .with_std_root(workspace.join("examples/std")),
     );
     let snapshot = host
         .load(std::slice::from_ref(&input))
@@ -100,7 +100,7 @@ fn architecture_phase8_std_public_summaries_feed_opaque_overlay() {
     let mut host = AnalysisHost::with_config(
         ProjectConfig::new()
             .with_workspace_root(workspace.clone())
-            .with_std_root(workspace.join("examples")),
+            .with_std_root(workspace.join("examples/std")),
     );
     host.register_opaque_summary(trusted_vendor_slice_summary());
     let snapshot = host
@@ -142,8 +142,6 @@ fn architecture_phase8_std_public_summaries_feed_opaque_overlay() {
 #[test]
 fn architecture_phase8_std_and_user_cells_share_capability_checker() {
     let bad_user_cell = r#"
-package examples.phase8.bad
-
 use std.stream.Stream
 use std.stage.Stage
 use std.stage.stage_from_stream
@@ -162,10 +160,16 @@ cell BadUserCell<T>(
 }
 "#;
     let err = MiddleCompiler::new()
-        .output_sources(&[
-            include_str!("../../../examples/std/stream.syl"),
-            include_str!("../../../examples/std/stage.syl"),
-            bad_user_cell,
+        .output_sources_with_paths(&[
+            (
+                vec!["std".to_string(), "stream".to_string()],
+                include_str!("../../../examples/std/stream.syl"),
+            ),
+            (
+                vec!["std".to_string(), "stage".to_string()],
+                include_str!("../../../examples/std/stage.syl"),
+            ),
+            (vec!["bad_user_cell".to_string()], bad_user_cell),
         ])
         .expect_err("user cells using std views must not bypass capability checks");
 
@@ -178,7 +182,7 @@ fn architecture_phase8_stage_link_summaries_are_source_derived() {
     let mut host = AnalysisHost::with_config(
         ProjectConfig::new()
             .with_workspace_root(workspace.clone())
-            .with_std_root(workspace.join("examples")),
+            .with_std_root(workspace.join("examples/std")),
     );
     let snapshot = host
         .load(&[workspace.join("examples/std_user/custom_stage.syl")])
@@ -227,10 +231,23 @@ fn architecture_phase8_stage_link_summaries_are_source_derived() {
     );
 
     let output = MiddleCompiler::new()
-        .output_sources(&[
-            include_str!("../../../examples/std/stream.syl"),
-            include_str!("../../../examples/std/stage.syl"),
-            include_str!("../../../examples/std_user/custom_stage.syl"),
+        .output_sources_with_paths(&[
+            (
+                vec!["std".to_string(), "stream".to_string()],
+                include_str!("../../../examples/std/stream.syl"),
+            ),
+            (
+                vec!["std".to_string(), "stage".to_string()],
+                include_str!("../../../examples/std/stage.syl"),
+            ),
+            (
+                vec![
+                    "examples".to_string(),
+                    "std_user".to_string(),
+                    "custom_stage".to_string(),
+                ],
+                include_str!("../../../examples/std_user/custom_stage.syl"),
+            ),
         ])
         .expect("user std composition example must elaborate");
     let metadata = output
@@ -282,14 +299,13 @@ fn architecture_phase8_std_files_are_not_hardcoded_in_compiler_layers() {
     let workspace = workspace_root();
     let resolver = read_text(&workspace.join("crates/syl_session/src/import_resolver.rs"));
     assert!(
-        resolver.contains("fn import_bases(&self) -> impl Iterator<Item = &Path>")
-            && resolver.contains(".workspace_roots()")
+        resolver.contains(".workspace_roots()")
             && resolver.contains(".std_roots()")
             && resolver.contains(".package_roots()"),
         "std_roots must stay one ordinary import base among other source roots"
     );
     assert!(
-        resolver.contains("for base in self.import_bases()")
+        resolver.contains("fn resolve_candidate")
             && resolver.contains("self.vfs.exists(&path) || overlay_exists(&path)"),
         "std imports must use the same VFS/overlay existence path as ordinary imports"
     );

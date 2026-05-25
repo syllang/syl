@@ -97,19 +97,24 @@ extern module PadCell(
 
 #[test]
 fn path_segments_accept_contextual_keywords() {
-    let file = SourceParser::new("package std.bundle\nuse std.bundle.ReadyValidWord\n")
+    let file = SourceParser::new("use std.bundle.ReadyValidWord\n")
         .parse_file()
         .unwrap();
 
-    assert_eq!(file.items.len(), 2);
+    assert_eq!(file.items.len(), 1);
     match &file.items[0] {
-        Item::Package(item) => assert_eq!(item.path, ["std", "bundle"]),
-        other => panic!("unexpected first item: {other:?}"),
-    }
-    match &file.items[1] {
         Item::Use(item) => assert_eq!(item.path, ["std", "bundle", "ReadyValidWord"]),
-        other => panic!("unexpected second item: {other:?}"),
+        other => panic!("unexpected item: {other:?}"),
     }
+}
+
+#[test]
+fn package_declaration_is_rejected_as_top_level_syntax() {
+    let errors = SourceParser::new("package std.bundle\n")
+        .parse_file()
+        .expect_err("package declarations are no longer syntax");
+
+    assert!(errors.iter().any(|error| error.message == "expected item"));
 }
 
 #[test]

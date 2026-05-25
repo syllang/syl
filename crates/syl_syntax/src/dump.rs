@@ -15,9 +15,6 @@ impl AstFile {
 fn debug_item(item: &Item) -> String {
     match item {
         Item::Error(item) => format!("error@{}", debug_span(item.span)),
-        Item::Package(item) => {
-            format!("package {}@{}", item.path.join("::"), debug_span(item.span))
-        }
         Item::Use(item) => format!("use {}@{}", item.path.join("::"), debug_span(item.span)),
         Item::Const(item) => format!("const {}@{}", item.name, debug_span(item.span)),
         Item::Fn(item) => format!("fn {}@{}", item.name, debug_span(item.span)),

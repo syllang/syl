@@ -24,8 +24,11 @@ impl TestCompiler {
         self.backend.emit(&hwir).map_err(|err| err.to_string())
     }
 
-    fn compile_sources(&self, sources: &[&str]) -> Result<String, String> {
-        let hwir = self.compile_hwir(sources)?;
+    fn compile_sources_with_paths(
+        &self,
+        sources: &[(Vec<String>, &str)],
+    ) -> Result<String, String> {
+        let hwir = self.middle.compile_sources_with_paths(sources)?;
         self.backend.emit(&hwir).map_err(|err| err.to_string())
     }
 
@@ -181,8 +184,6 @@ module Top<W: Nat>(
 #[test]
 fn inline_cell_reg_width_uses_callsite_bundle_actual_scope() {
     let lib = r#"
-package lib.stream
-
 interface Stream<T> {
     payload: T
     valid: Bit
@@ -215,8 +216,6 @@ cell hold<T, D: Domain>(
 }
 "#;
     let app = r#"
-package app.top
-
 use lib.stream.Stream
 use lib.stream.hold
 
@@ -244,7 +243,10 @@ module Top<W: Nat, D: Domain>(
 "#;
 
     let verilog = TestCompiler::new()
-        .compile_sources(&[lib, app])
+        .compile_sources_with_paths(&[
+            (vec!["lib".to_string(), "stream".to_string()], lib),
+            (vec!["app".to_string(), "top".to_string()], app),
+        ])
         .expect("inline cell generic bundle actual should keep callsite type resolution");
 
     assert!(
@@ -277,8 +279,6 @@ fn module_generic_defaults_resolve_owner_consts() {
     let verilog = TestCompiler::new()
         .compile(
             r#"
-package defaults
-
 const DEFAULT_W: Nat = 7
 
 module Top<

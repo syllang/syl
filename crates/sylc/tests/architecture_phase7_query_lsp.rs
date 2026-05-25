@@ -13,17 +13,17 @@ use syl_span::SourcePosition;
 
 #[test]
 fn architecture_phase7_session_owns_workspace_and_package_scoped_cache_invalidation() {
-    let first_uri = DocumentUri::new("untitled:syl/phase7-first");
-    let second_uri = DocumentUri::new("untitled:syl/phase7-second");
+    let first_uri = DocumentUri::new("untitled:syl/first");
+    let second_uri = DocumentUri::new("untitled:syl/second");
     let mut host = AnalysisHost::new();
     host.open_document(
         first_uri.clone(),
-        "package first;\nmodule First(y: out Bit) {\n    y := 1\n}\n".to_string(),
+        "module First(y: out Bit) {\n    y := 1\n}\n".to_string(),
         DocumentVersion::new(1),
     );
     host.open_document(
         second_uri.clone(),
-        "package second;\nmodule Second(y: out Bit) {\n    y := 0\n}\n".to_string(),
+        "module Second(y: out Bit) {\n    y := 0\n}\n".to_string(),
         DocumentVersion::new(1),
     );
     let baseline = host
@@ -38,7 +38,7 @@ fn architecture_phase7_session_owns_workspace_and_package_scoped_cache_invalidat
 
     host.update_document_at_version(
         &second_uri,
-        "package second;\nmodule Second(y: out Bit) {\n    y := 1\n}\n".to_string(),
+        "module Second(y: out Bit) {\n    y := 1\n}\n".to_string(),
         DocumentVersion::new(2),
     )
     .expect("phase7 second package update must succeed");
@@ -72,11 +72,11 @@ fn architecture_phase7_session_owns_workspace_and_package_scoped_cache_invalidat
 
 #[test]
 fn architecture_phase7_navigation_uses_target_package_semantic_shard() {
-    let alpha_source = "package alpha;\nmodule Alpha(x: in Bit, y: out Bit) {\n    y := x\n}\n";
-    let beta_source = "package beta;\nmodule Beta(y: out Bit) {\n    y := 0\n}\n";
-    let beta_updated_source = "package beta;\nmodule Beta(y: out Bit) {\n    y := 1\n}\n";
-    let alpha_uri = DocumentUri::new("untitled:syl/phase7-nav-alpha");
-    let beta_uri = DocumentUri::new("untitled:syl/phase7-nav-beta");
+    let alpha_source = "module Alpha(x: in Bit, y: out Bit) {\n    y := x\n}\n";
+    let beta_source = "module Beta(y: out Bit) {\n    y := 0\n}\n";
+    let beta_updated_source = "module Beta(y: out Bit) {\n    y := 1\n}\n";
+    let alpha_uri = DocumentUri::new("untitled:syl/alpha");
+    let beta_uri = DocumentUri::new("untitled:syl/beta");
     let mut host = AnalysisHost::new();
     host.open_document(
         alpha_uri.clone(),
@@ -196,23 +196,23 @@ fn architecture_phase7_query_surface_stays_on_compiler_facts() {
 
 #[test]
 fn architecture_phase7_grouped_diagnostics_and_partial_failure_stages_stay_distinct() {
-    let parse_uri = DocumentUri::new("untitled:syl/phase7-parse");
-    let tir_uri = DocumentUri::new("untitled:syl/phase7-tir");
-    let elab_uri = DocumentUri::new("untitled:syl/phase7-elab");
+    let parse_uri = DocumentUri::new("untitled:syl/parse");
+    let tir_uri = DocumentUri::new("untitled:syl/sema");
+    let elab_uri = DocumentUri::new("untitled:syl/elab");
     let mut host = AnalysisHost::new();
     host.open_document(
         parse_uri.clone(),
-        "package parse;\nmodule Broken(".to_string(),
+        "module Broken(".to_string(),
         DocumentVersion::new(1),
     );
     host.open_document(
         tir_uri.clone(),
-        "package sema;\nmodule Bad(x: in Missing) {}\n".to_string(),
+        "module Bad(x: in Missing) {}\n".to_string(),
         DocumentVersion::new(1),
     );
     host.open_document(
         elab_uri.clone(),
-        "package elab;\nextern module VendorLatch(y: in Bit)\n\nmodule Top(y: out Bit) {\n    signal tmp: Bit := 0\n    let vendor = place VendorLatch(y: tmp)\n    y := tmp\n}\n".to_string(),
+        "extern module VendorLatch(y: in Bit)\n\nmodule Top(y: out Bit) {\n    signal tmp: Bit := 0\n    let vendor = place VendorLatch(y: tmp)\n    y := tmp\n}\n".to_string(),
         DocumentVersion::new(1),
     );
     host.register_opaque_summary(trusted_vendor_summary());
@@ -230,8 +230,8 @@ fn architecture_phase7_grouped_diagnostics_and_partial_failure_stages_stay_disti
 
 #[test]
 fn architecture_phase7_hover_and_completion_do_not_emit_and_respect_cancellation() {
-    let source = "package app;\nmodule Top(x: in Bit, y: out Bit) {\n    y := x\n}\n";
-    let uri = DocumentUri::new("untitled:syl/phase7-query");
+    let source = "module Top(x: in Bit, y: out Bit) {\n    y := x\n}\n";
+    let uri = DocumentUri::new("untitled:syl/app");
     let mut query_host = AnalysisHost::new();
     query_host.open_document(uri.clone(), source.to_string(), DocumentVersion::new(1));
     let snapshot = query_host
@@ -257,7 +257,7 @@ fn architecture_phase7_hover_and_completion_do_not_emit_and_respect_cancellation
     assert!(!snapshot.is_tir_cached());
     assert!(!snapshot.is_elaboration_cached());
 
-    let cancel_uri = DocumentUri::new("untitled:syl/phase7-query-cancel");
+    let cancel_uri = DocumentUri::new("untitled:syl/app");
     let mut cancel_host = AnalysisHost::new();
     cancel_host.open_document(
         cancel_uri.clone(),

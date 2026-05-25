@@ -9,7 +9,7 @@ use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use syl_sema::OpaqueSummaryTable;
-use syl_span::{Diagnostic, SourceMap};
+use syl_span::{Diagnostic, SourceMap, Span};
 use syl_syntax::parser::SourceParser;
 use syl_syntax::{AstFile, Item};
 
@@ -89,8 +89,17 @@ where
         token: &CancellationToken,
     ) -> Result<Project, ProjectError> {
         let resolved = self.snapshot(paths, &BTreeMap::new(), token)?;
-        let workspace_semantic = Arc::new(SemanticCache::new(
-            resolved.ast_files(),
+        let workspace_semantic = Arc::new(SemanticCache::new_sources(
+            resolved
+                .files()
+                .iter()
+                .map(|file| {
+                    crate::snapshot::SemanticCacheSource::new(
+                        file.module_path().to_vec(),
+                        file.ast().clone(),
+                    )
+                })
+                .collect(),
             OpaqueSummaryTable::new(),
         ));
         let package_semantics = PackageSemanticIndex::new(
@@ -104,12 +113,20 @@ where
                         .files()
                         .iter()
                         .filter(|file| package.documents().contains(file.uri()))
-                        .map(|file| file.ast().clone())
+                        .map(|file| {
+                            crate::snapshot::SemanticCacheSource::new(
+                                file.module_path().to_vec(),
+                                file.ast().clone(),
+                            )
+                        })
                         .collect();
                     PackageSemanticShard::new(
                         package.name().to_string(),
                         package.documents().to_vec(),
-                        Arc::new(SemanticCache::new(ast_files, OpaqueSummaryTable::new())),
+                        Arc::new(SemanticCache::new_sources(
+                            ast_files,
+                            OpaqueSummaryTable::new(),
+                        )),
                     )
                 })
                 .collect(),
@@ -195,6 +212,9 @@ where
         let parsed_diagnostics = parsed.diagnostics;
         let ast = parsed.file;
         context.diagnostics.extend(parsed_diagnostics);
+        let (module_path, mut module_diagnostics) =
+            self.module_path_for_document(&document, source_id);
+        context.diagnostics.append(&mut module_diagnostics);
         self.queue_imports(document.uri(), &ast, context);
         context.files.push(AnalysisFile::new(AnalysisFileInput {
             source_id,
@@ -202,6 +222,7 @@ where
             uri: document.uri().clone(),
             version: document.version(),
             origin: document.origin().clone(),
+            module_path,
             ast_node_index,
             ast,
         }));
@@ -264,6 +285,98 @@ where
             Ok(path)
         }
     }
+
+    fn module_path_for_document(
+        &self,
+        document: &SourceDocument,
+        source_id: syl_span::SourceId,
+    ) -> (Vec<String>, Vec<Diagnostic>) {
+        let parts = document
+            .path()
+            .and_then(|path| self.module_path_for_path(path))
+            .unwrap_or_else(|| self.fallback_module_path(document));
+        let diagnostics = parts
+            .iter()
+            .filter(|part| !is_valid_module_segment(part))
+            .map(|part| {
+                Diagnostic::new(
+                    Span::new_in(source_id, 0, 0),
+                    format!("invalid module path segment `{part}`"),
+                )
+                .with_code("E_INVALID_MODULE_PATH")
+                .with_source("syl_session")
+            })
+            .collect();
+        (parts, diagnostics)
+    }
+
+    fn module_path_for_path(&self, path: &Path) -> Option<Vec<String>> {
+        for root in self.import_resolver.config().std_roots() {
+            if let Some(mut parts) = self.module_path_relative_to_root(path, root) {
+                parts.insert(0, "std".to_string());
+                return Some(parts);
+            }
+        }
+        for root in self.import_resolver.config().workspace_roots() {
+            if let Some(parts) = self.module_path_relative_to_root(path, root) {
+                return Some(parts);
+            }
+        }
+        for root in self.import_resolver.config().package_roots() {
+            if let Some(parts) = self.module_path_relative_to_root(path, root) {
+                return Some(parts);
+            }
+        }
+        path.file_stem()
+            .and_then(|stem| stem.to_str())
+            .map(|stem| vec![stem.to_string()])
+    }
+
+    fn fallback_module_path(&self, document: &SourceDocument) -> Vec<String> {
+        document
+            .uri()
+            .as_str()
+            .rsplit(['/', ':'])
+            .find(|segment| !segment.is_empty())
+            .map(|segment| vec![segment.to_string()])
+            .unwrap_or_else(|| vec!["scratch".to_string()])
+    }
+
+    fn module_path_relative_to_root(&self, path: &Path, root: &Path) -> Option<Vec<String>> {
+        module_path_relative_to(path, root).or_else(|| {
+            self.import_resolver
+                .vfs()
+                .canonicalize(root)
+                .ok()
+                .and_then(|root| module_path_relative_to(path, &root))
+        })
+    }
+}
+
+fn module_path_relative_to(path: &Path, root: &Path) -> Option<Vec<String>> {
+    let relative = path.strip_prefix(root).ok()?;
+    let mut parts = Vec::new();
+    for component in relative.components() {
+        let segment = component.as_os_str().to_str()?;
+        if segment == "." {
+            continue;
+        }
+        if let Some(stem) = segment.strip_suffix(".syl") {
+            parts.push(stem.to_string());
+        } else {
+            parts.push(segment.to_string());
+        }
+    }
+    (!parts.is_empty()).then_some(parts)
+}
+
+fn is_valid_module_segment(segment: &str) -> bool {
+    let mut chars = segment.chars();
+    let Some(first) = chars.next() else {
+        return false;
+    };
+    (first == '_' || first.is_ascii_alphabetic())
+        && chars.all(|ch| ch == '_' || ch.is_ascii_alphanumeric())
 }
 
 #[derive(Debug)]

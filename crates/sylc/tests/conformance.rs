@@ -118,7 +118,7 @@ fn conformance_examples_and_std_user_remain_compatible() {
     let mut host = AnalysisHost::with_config(
         ProjectConfig::new()
             .with_workspace_root(workspace.clone())
-            .with_std_root(workspace.join("examples")),
+            .with_std_root(workspace.join("examples/std")),
     );
     for input in [
         "examples/mvp",

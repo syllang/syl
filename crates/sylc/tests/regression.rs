@@ -1,10 +1,14 @@
-use std::{collections::BTreeSet, env, fs, path::Path, process::Command};
+use std::{env, fs, path::Path, process::Command};
 mod support;
 
-use support::MiddleCompiler;
+use support::{MiddleCompiler, SvOutputProbe};
 use syl_emit::SystemVerilogBackend;
-use syl_hw::ParametricHwDesign;
-use syl_syntax::SourceParser;
+
+macro_rules! path {
+    ($($part:literal),+ $(,)?) => {
+        vec![$($part.to_string()),+]
+    };
+}
 
 struct TestCompiler {
     middle: MiddleCompiler,
@@ -24,69 +28,19 @@ impl TestCompiler {
     }
 
     fn compile_sources(&self, sources: &[&str]) -> Result<String, String> {
-        let hwir = self.compile_hwir(sources)?;
+        let hwir = self.middle.compile_sources(sources)?;
         self.backend.emit(&hwir).map_err(|err| err.to_string())
     }
 
-    fn compile_hwir(&self, sources: &[&str]) -> Result<ParametricHwDesign, String> {
-        let mut files = Vec::new();
-        for source in sources {
-            let file = SourceParser::new(source).parse_file().map_err(|errs| {
-                errs.iter()
-                    .map(ToString::to_string)
-                    .collect::<Vec<_>>()
-                    .join("\n")
-            })?;
-            files.push(file);
-        }
-        self.middle
-            .compile_files(&files)
-            .map_err(|err| err.to_string())
+    fn compile_sources_with_paths(
+        &self,
+        sources: &[(Vec<String>, &str)],
+    ) -> Result<String, String> {
+        let hwir = self.middle.compile_sources_with_paths(sources)?;
+        self.backend.emit(&hwir).map_err(|err| err.to_string())
     }
 }
 
-struct SvOutputProbe<'a> {
-    source: &'a str,
-}
-
-impl<'a> SvOutputProbe<'a> {
-    fn new(source: &'a str) -> Self {
-        Self { source }
-    }
-
-    fn module_names(&self) -> Result<BTreeSet<String>, String> {
-        let mut names = BTreeSet::new();
-        let mut endmodule_count = 0usize;
-        for line in self.source.lines().map(str::trim) {
-            if let Some(rest) = line.strip_prefix("module ") {
-                let name = self.module_name_from_header(rest)?;
-                if !names.insert(name.clone()) {
-                    return Err(format!("duplicate module declaration {name}"));
-                }
-            } else if line == "endmodule" {
-                endmodule_count += 1;
-            }
-        }
-        if names.len() != endmodule_count {
-            return Err(format!(
-                "module declarations ({}) do not match endmodule count ({endmodule_count})",
-                names.len()
-            ));
-        }
-        Ok(names)
-    }
-
-    fn module_name_from_header(&self, header: &str) -> Result<String, String> {
-        let name = header
-            .chars()
-            .take_while(|ch| ch.is_ascii_alphanumeric() || *ch == '_' || *ch == '$')
-            .collect::<String>();
-        if name.is_empty() {
-            return Err(format!("missing module name in header {header}"));
-        }
-        Ok(name)
-    }
-}
 #[test]
 fn cli_project_compiles_mvp_examples_from_disk_with_valid_sv_modules() {
     let workspace = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -101,7 +55,7 @@ fn cli_project_compiles_mvp_examples_from_disk_with_valid_sv_modules() {
         .arg("--out")
         .arg(&out_path)
         .arg("--std-root")
-        .arg(workspace.join("examples"))
+        .arg(workspace.join("examples/std"))
         .arg(workspace.join("examples/mvp"))
         .output()
         .expect("test cannot execute sylc binary for CLI/project e2e");
@@ -138,13 +92,31 @@ fn cli_project_compiles_mvp_examples_from_disk_with_valid_sv_modules() {
 #[test]
 fn compiles_std_and_mvp_examples() {
     let verilog = TestCompiler::new()
-        .compile_sources(&[
-            include_str!("../../../examples/std/stream.syl"),
-            include_str!("../../../examples/std/stage.syl"),
-            include_str!("../../../examples/mvp/00_comb_alu.syl"),
-            include_str!("../../../examples/mvp/01_counter.syl"),
-            include_str!("../../../examples/mvp/02_stream_buffer.syl"),
-            include_str!("../../../examples/mvp/03_lane_array.syl"),
+        .compile_sources_with_paths(&[
+            (
+                path!("std", "stream"),
+                include_str!("../../../examples/std/stream.syl"),
+            ),
+            (
+                path!("std", "stage"),
+                include_str!("../../../examples/std/stage.syl"),
+            ),
+            (
+                path!("examples", "mvp", "comb_alu"),
+                include_str!("../../../examples/mvp/comb_alu.syl"),
+            ),
+            (
+                path!("examples", "mvp", "counter"),
+                include_str!("../../../examples/mvp/counter.syl"),
+            ),
+            (
+                path!("examples", "mvp", "stream_buffer"),
+                include_str!("../../../examples/mvp/stream_buffer.syl"),
+            ),
+            (
+                path!("examples", "mvp", "lane_array"),
+                include_str!("../../../examples/mvp/lane_array.syl"),
+            ),
         ])
         .expect("checked-in Syl examples must compile through middle and Verilog backend");
 
@@ -684,8 +656,6 @@ fn rejects_unknown_import_paths_in_hir() {
     let err = TestCompiler::new()
         .compile(
             r#"
-package examples.bad
-
 use examples.missing.Symbol
 
 module Top(y: out Bit) {

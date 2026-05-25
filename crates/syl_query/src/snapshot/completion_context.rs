@@ -88,7 +88,7 @@ impl CompletionContextInspector {
             Item::Map(item) => self.inspect_map_item(item),
             Item::Cell(item) | Item::Module(item) => self.inspect_callable_item(item),
             Item::ExternModule(item) => self.inspect_extern_module_item(item),
-            Item::Package(_) | Item::Use(_) | Item::Enum(_) | Item::Error(_) => None,
+            Item::Use(_) | Item::Enum(_) | Item::Error(_) => None,
             _ => None,
         }
     }

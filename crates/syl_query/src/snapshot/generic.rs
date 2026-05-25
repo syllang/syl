@@ -42,7 +42,7 @@ impl GenericDefinitionResolver {
             Item::ExternModule(item) => self
                 .resolve_generic_decl(&item.generics)
                 .or_else(|| self.resolve_extern_module(item)),
-            Item::Package(_) | Item::Use(_) | Item::Const(_) | Item::Fn(_) | Item::Enum(_) => None,
+            Item::Use(_) | Item::Const(_) | Item::Fn(_) | Item::Enum(_) => None,
             _ => None,
         }
     }
@@ -137,7 +137,6 @@ impl GenericDefinitionResolver {
 
     fn item_span(&self, item: &Item) -> Option<Span> {
         match item {
-            Item::Package(item) => Some(item.span),
             Item::Use(item) => Some(item.span),
             Item::Const(item) => Some(item.span),
             Item::Fn(item) => Some(item.span),

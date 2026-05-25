@@ -66,6 +66,7 @@ pub struct AnalysisFile {
     uri: DocumentUri,
     version: DocumentVersion,
     origin: DocumentOrigin,
+    module_path: Vec<String>,
     ast: AstFile,
     ast_node_index: AstNodeIndex,
 }
@@ -78,6 +79,7 @@ pub(crate) struct AnalysisFileInput {
     pub(crate) uri: DocumentUri,
     pub(crate) version: DocumentVersion,
     pub(crate) origin: DocumentOrigin,
+    pub(crate) module_path: Vec<String>,
     pub(crate) ast: AstFile,
     pub(crate) ast_node_index: AstNodeIndex,
 }
@@ -90,6 +92,7 @@ impl AnalysisFile {
             uri,
             version,
             origin,
+            module_path,
             ast,
             ast_node_index,
         } = input;
@@ -99,6 +102,7 @@ impl AnalysisFile {
             uri,
             version,
             origin,
+            module_path,
             ast,
             ast_node_index,
         }
@@ -126,6 +130,10 @@ impl AnalysisFile {
 
     pub fn origin(&self) -> &DocumentOrigin {
         &self.origin
+    }
+
+    pub fn module_path(&self) -> &[String] {
+        &self.module_path
     }
 
     pub fn ast(&self) -> &AstFile {

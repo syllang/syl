@@ -40,8 +40,6 @@ fn map_bundle_field_uses_owner_type_scope() {
     let verilog = BundleHarness::new()
         .compile_sources(&[
             r#"
-package lib;
-
 bundle Pair {
     hi: Bit,
     lo: Bit,
@@ -59,8 +57,6 @@ module LibTop(x: in Bit, y: out Bit) {
 }
 "#,
             r#"
-package app;
-
 bundle Pair {
     only: UInt<4>,
 }

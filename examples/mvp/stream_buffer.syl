@@ -12,8 +12,6 @@
 // - in, out through imported Stream views
 // - Nat, Bit, UInt<W>, Domain, Clock<D>, Reset<D>
 
-package examples.mvp.stream_buffer
-
 use std.stream.Stream
 use std.stage.Stage
 use std.stage.stage_from_stream

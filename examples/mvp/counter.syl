@@ -11,8 +11,6 @@
 // - package, module, reg, signal, reset, next, select, priority
 // - Nat, Bit, UInt<W>, Domain, Clock<D>, Reset<D>
 
-package examples.mvp.counter
-
 module Counter<W: Nat, D: Domain>(
     clk: in Clock<D>,
     rst: in Reset<D>,

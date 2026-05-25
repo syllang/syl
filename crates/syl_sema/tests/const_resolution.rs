@@ -40,8 +40,6 @@ fn elaboration_const_uses_owner_scope_not_global_leaf_name() {
     let verilog = ConstResolutionHarness::new()
         .compile_sources(&[
             r#"
-package lib;
-
 const ENABLE: Bool = true
 
 module LibTop(y: out Bit) {
@@ -53,8 +51,6 @@ module LibTop(y: out Bit) {
 }
 "#,
             r#"
-package app;
-
 const ENABLE: Nat = 0
 "#,
         ])
@@ -69,8 +65,6 @@ fn elaboration_fn_call_uses_owner_scope_not_global_leaf_name() {
     let verilog = ConstResolutionHarness::new()
         .compile_sources(&[
             r#"
-package lib;
-
 fn choose(x: Nat) -> Bool {
     return x == 1
 }
@@ -84,8 +78,6 @@ module LibTop(y: out Bit) {
 }
 "#,
             r#"
-package app;
-
 fn choose(x: Bool) -> Bool {
     return false
 }
@@ -101,8 +93,6 @@ fn choose(x: Bool) -> Bool {
 fn enum_variants_are_scoped_by_enum_definition() {
     let verilog = ConstResolutionHarness::new()
         .compile_sources(&[r#"
-package lib;
-
 enum Left {
     Same,
     Other,

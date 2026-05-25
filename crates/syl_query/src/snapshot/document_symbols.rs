@@ -33,12 +33,6 @@ impl<'a> DocumentSymbolCollector<'a> {
 
     fn item_symbol(&self, item: &Item) -> Option<DocumentSymbolResult> {
         match item {
-            Item::Package(item) => self.symbol(
-                item.path.join("."),
-                DocumentSymbolKind::Package,
-                item.span,
-                Vec::new(),
-            ),
             Item::Const(item) => self.symbol(
                 item.name.clone(),
                 DocumentSymbolKind::Constant,

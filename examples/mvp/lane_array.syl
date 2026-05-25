@@ -10,8 +10,6 @@
 // Compiler-provided forms used here:
 // - package, use, const, if, for, compile_error, module, let, signal, place // - Nat, Bit, UInt<W>, Domain, Clock<D>, Reset<D>, [N] T arrays
 
-package examples.mvp.lane_array
-
 use std.stream.Stream
 use std.stream.stream_skid_buffer
 

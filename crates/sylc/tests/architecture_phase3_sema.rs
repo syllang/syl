@@ -48,7 +48,7 @@ module Top(x: in Bit, y: out Bit) {
 }
 "#;
     let x_offset = source.rfind('x').expect("query fixture must contain rhs x");
-    let uri = DocumentUri::new("untitled:syl/phase3-query");
+    let uri = DocumentUri::new("untitled:syl/phase3_query");
     let mut host = AnalysisHost::new();
     host.open_document(uri, source.to_string(), DocumentVersion::new(1));
     let snapshot = host

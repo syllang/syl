@@ -1,5 +1,5 @@
 use crate::{
-    CompileError, HirError,
+    CompileError, HirError, SemanticSourceFile,
     hir::{
         HirBlock, HirBodyExpr, HirBundleItem, HirCallable, HirCallableItem, HirConstItem, HirDef,
         HirDefKind, HirDesign, HirEnumItem, HirEnumVariant, HirEnumVariantKey, HirExprNode,
@@ -13,22 +13,30 @@ use std::collections::BTreeSet;
 use syl_hir::{DefId, LocalId, PackageId, name::HirPath};
 use syl_span::Span;
 use syl_syntax::{
-    AstFile, BundleItem, ConstItem, EnumItem, ExternModuleItem, FnItem, InterfaceItem, Item,
-    MapItem,
+    BundleItem, ConstItem, EnumItem, ExternModuleItem, FnItem, InterfaceItem, Item, MapItem,
 };
 
 mod index;
 
 #[non_exhaustive]
 pub struct HirResolver<'files> {
-    files: &'files [AstFile],
+    sources: Vec<SemanticSourceFile<'files>>,
     design: HirDesign,
 }
 
 impl<'files> HirResolver<'files> {
-    pub fn new(files: &'files [AstFile]) -> Self {
+    pub fn new(files: &'files [syl_syntax::AstFile]) -> Self {
+        let sources = files
+            .iter()
+            .enumerate()
+            .map(|(index, ast)| SemanticSourceFile::new(vec![format!("file{index}")], ast))
+            .collect();
+        Self::new_sources(sources)
+    }
+
+    pub fn new_sources(sources: Vec<SemanticSourceFile<'files>>) -> Self {
         Self {
-            files,
+            sources,
             design: HirDesign::empty(),
         }
     }
@@ -64,11 +72,12 @@ impl<'files> HirResolver<'files> {
     }
 
     fn build_index(&mut self) -> Result<(), CompileError> {
-        for file in self.files {
-            let package = PackageScope::new(file);
-            self.insert_package(file);
-            self.insert_imports(file, &package);
-            for item in &file.items {
+        let sources = std::mem::take(&mut self.sources);
+        for source in sources {
+            let package = PackageScope::new(source.module_path());
+            self.insert_package(&source);
+            self.insert_imports(&source, &package);
+            for item in &source.ast().items {
                 self.insert_item(item, &package)?;
             }
         }
@@ -78,11 +87,12 @@ impl<'files> HirResolver<'files> {
 
     fn build_index_collect(&mut self) -> Vec<CompileError> {
         let mut errors = Vec::new();
-        for file in self.files {
-            let package = PackageScope::new(file);
-            self.insert_package(file);
-            self.insert_imports(file, &package);
-            for item in &file.items {
+        let sources = std::mem::take(&mut self.sources);
+        for source in sources {
+            let package = PackageScope::new(source.module_path());
+            self.insert_package(&source);
+            self.insert_imports(&source, &package);
+            for item in &source.ast().items {
                 if let Err(error) = self.insert_item(item, &package) {
                     errors.push(error);
                 }
@@ -92,20 +102,22 @@ impl<'files> HirResolver<'files> {
         errors
     }
 
-    fn insert_package(&mut self, file: &AstFile) {
-        for item in &file.items {
-            let Item::Package(package) = item else {
-                continue;
-            };
-            let id = PackageId::new(self.design.packages.len());
-            self.design
-                .packages
-                .push(HirPackage::new(id, package.path.clone(), package.span));
-        }
+    fn insert_package(&mut self, source: &SemanticSourceFile<'_>) {
+        let id = PackageId::new(self.design.packages.len());
+        self.design.packages.push(HirPackage::new(
+            id,
+            source.module_path().to_vec(),
+            source
+                .ast()
+                .items
+                .first()
+                .map(Item::span)
+                .unwrap_or_default(),
+        ));
     }
 
-    fn insert_imports(&mut self, file: &AstFile, package: &PackageScope) {
-        for item in &file.items {
+    fn insert_imports(&mut self, source: &SemanticSourceFile<'_>, package: &PackageScope) {
+        for item in &source.ast().items {
             let Item::Use(import) = item else {
                 continue;
             };
@@ -166,7 +178,7 @@ impl<'files> HirResolver<'files> {
                 package,
             ),
             Item::ExternModule(item) => self.insert_extern_module(item, package),
-            Item::Error(_) | Item::Package(_) | Item::Use(_) => Ok(()),
+            Item::Error(_) | Item::Use(_) => Ok(()),
             _ => Ok(()),
         }
     }
@@ -593,15 +605,8 @@ struct PackageScope {
 }
 
 impl PackageScope {
-    fn new(file: &AstFile) -> Self {
-        let path = file
-            .items
-            .iter()
-            .find_map(|item| match item {
-                Item::Package(package) => Some(HirPath::new(package.path.clone())),
-                _ => None,
-            })
-            .unwrap_or_else(HirPath::empty);
+    fn new(module_path: &[String]) -> Self {
+        let path = HirPath::new(module_path.to_vec());
         Self { path }
     }
 

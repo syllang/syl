@@ -364,7 +364,6 @@ impl<'a> Lexer<'a> {
             "while" => TokenKind::KwWhile,
             "if" => TokenKind::KwIf,
             "else" => TokenKind::KwElse,
-            "package" => TokenKind::KwPackage,
             "enum" => TokenKind::KwEnum,
             "bundle" => TokenKind::KwBundle,
             "interface" => TokenKind::KwInterface,

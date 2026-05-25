@@ -201,9 +201,9 @@ impl<'a> WorkspaceSnapshotBuilder<'a> {
     fn collect_packages(&self) -> Vec<WorkspacePackage> {
         let mut packages = BTreeMap::<PackageKey, PackageAccumulator>::new();
         for file in self.files {
-            let path = self.package_path(file);
-            let name = self.package_name(file, path.as_ref());
-            let key = PackageKey::new(name, path.unwrap_or_default());
+            let path = file.module_path().to_vec();
+            let name = self.package_name(file, &path);
+            let key = PackageKey::new(name, path);
             let package = packages.entry(key).or_default();
             package.documents.push(file.uri().clone());
             package
@@ -222,17 +222,12 @@ impl<'a> WorkspaceSnapshotBuilder<'a> {
             .collect()
     }
 
-    fn package_path(&self, file: &AnalysisFile) -> Option<Vec<String>> {
-        file.ast().items.iter().find_map(|item| match item {
-            Item::Package(item) => Some(item.path.clone()),
-            _ => None,
-        })
-    }
-
-    fn package_name(&self, file: &AnalysisFile, path: Option<&Vec<String>>) -> String {
-        path.filter(|path| !path.is_empty())
-            .map(|path| path.join("."))
-            .unwrap_or_else(|| file.uri().to_string())
+    fn package_name(&self, file: &AnalysisFile, path: &[String]) -> String {
+        if path.is_empty() {
+            file.uri().to_string()
+        } else {
+            path.join(".")
+        }
     }
 }
 
