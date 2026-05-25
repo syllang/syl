@@ -65,6 +65,37 @@ fn parses_source_from_lexer() {
 }
 
 #[test]
+fn parses_inout_ports_and_view_fields() {
+    let source = r#"
+interface Pad {
+    data: Bit
+    view pad {
+        inout data
+    }
+}
+
+extern module PadCell(
+    pad: inout Pad.pad,
+)
+"#;
+    let file = SourceParser::new(source).parse_file().unwrap();
+
+    match &file.items[0] {
+        Item::Interface(item) => {
+            assert_eq!(item.views[0].fields[0].dir, ViewDirection::InOut);
+        }
+        other => panic!("unexpected interface item: {other:?}"),
+    }
+    match &file.items[1] {
+        Item::ExternModule(item) => {
+            assert_eq!(item.ports[0].dir, ParamDirection::InOut);
+            assert_eq!(item.ports[0].drive, DriveCapability::ReadWrite);
+        }
+        other => panic!("unexpected extern module item: {other:?}"),
+    }
+}
+
+#[test]
 fn path_segments_accept_contextual_keywords() {
     let file = SourceParser::new("package std.bundle\nuse std.bundle.ReadyValidWord\n")
         .parse_file()

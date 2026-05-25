@@ -5,6 +5,7 @@ pub enum HwExpr {
     Int(u64),
     Bool(bool),
     Str(String),
+    HighZ,
     Zero,
     Unary {
         op: HwUnaryOp,

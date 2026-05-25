@@ -93,7 +93,11 @@ impl MapExpr {
                     + arms.iter().map(MapMatchArm::local_ref_count).sum::<usize>()
             }
             Self::Select { arms, .. } => arms.iter().map(MapSelectArm::local_ref_count).sum(),
-            Self::Int(_) | Self::Bool(_) | Self::Str(_) | Self::BuiltinZero => 0,
+            Self::Int(_)
+            | Self::Bool(_)
+            | Self::Str(_)
+            | Self::BuiltinHighZ
+            | Self::BuiltinZero => 0,
         }
     }
 
@@ -124,7 +128,11 @@ impl MapExpr {
                 .iter()
                 .map(MapSelectArm::resolved_local_ref_count)
                 .sum(),
-            Self::Int(_) | Self::Bool(_) | Self::Str(_) | Self::BuiltinZero => 0,
+            Self::Int(_)
+            | Self::Bool(_)
+            | Self::Str(_)
+            | Self::BuiltinHighZ
+            | Self::BuiltinZero => 0,
         }
     }
 }

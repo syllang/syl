@@ -219,7 +219,11 @@ impl TypePhaseChecker {
             let builtin =
                 BuiltinResolver::new(&self.hir, self.current_owner).resolve_call_callee(callee);
             self.check_generator_args(args, errors)?;
-            if matches!(builtin, Some(BuiltinIntrinsic::Zero)) || self.is_map_callee(callee) {
+            if matches!(
+                builtin,
+                Some(BuiltinIntrinsic::HighZ | BuiltinIntrinsic::Zero)
+            ) || self.is_map_callee(callee)
+            {
                 return Ok(());
             }
             errors.push(CompileError::lowering_at(
@@ -257,7 +261,11 @@ impl TypePhaseChecker {
             };
             let builtin =
                 BuiltinResolver::new(&self.hir, self.current_owner).resolve_call_callee(callee);
-            if !matches!(builtin, Some(BuiltinIntrinsic::Zero)) && !self.is_map_callee(callee) {
+            if !matches!(
+                builtin,
+                Some(BuiltinIntrinsic::HighZ | BuiltinIntrinsic::Zero)
+            ) && !self.is_map_callee(callee)
+            {
                 errors.push(CompileError::lowering_at(
                     EirError::UnknownHardwareValueCall { name },
                     callee.span(),

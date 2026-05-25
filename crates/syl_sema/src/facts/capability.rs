@@ -171,6 +171,10 @@ fn capability_kind_for_id(
                     (HirLocalKind::Signal, ProtocolFieldDirection::In) => {
                         readable.push(field.name().to_string())
                     }
+                    (_, ProtocolFieldDirection::InOut) => {
+                        readable.push(field.name().to_string());
+                        writable.push(field.name().to_string());
+                    }
                     (HirLocalKind::Signal, ProtocolFieldDirection::Out) => {
                         writable.push(field.name().to_string())
                     }

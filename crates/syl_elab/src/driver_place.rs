@@ -204,6 +204,7 @@ impl DriverExpr {
             EirExpr::Int(value) => Ok(Self::Int(*value)),
             EirExpr::Bool(value) => Ok(Self::Bool(*value)),
             EirExpr::Str(value) => Ok(Self::Str(value.clone())),
+            EirExpr::HighZ => Err(DriverExprError),
             EirExpr::Zero => Ok(Self::Zero),
             EirExpr::Unary { op, expr } => Ok(Self::Unary {
                 op: *op,

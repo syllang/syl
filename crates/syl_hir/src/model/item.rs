@@ -10,6 +10,7 @@ use syl_syntax::{
 #[non_exhaustive]
 pub enum HirPortDirection {
     In,
+    InOut,
     Out,
 }
 
@@ -34,6 +35,7 @@ impl From<&HirSignatureParam> for HirPortDirection {
 impl From<&ParamDirection> for HirPortDirection {
     fn from(direction: &ParamDirection) -> Self {
         match direction {
+            ParamDirection::InOut => Self::InOut,
             ParamDirection::Out => Self::Out,
             ParamDirection::In => Self::In,
             _ => Self::In,
@@ -54,6 +56,7 @@ impl From<Option<&ParamDirection>> for HirPortDirection {
 #[non_exhaustive]
 pub enum HirDriveCapability {
     ReadOnly,
+    ReadWrite,
     WriteOnly,
 }
 
@@ -61,6 +64,7 @@ impl From<&DriveCapability> for HirDriveCapability {
     fn from(value: &DriveCapability) -> Self {
         match value {
             DriveCapability::ReadOnly => Self::ReadOnly,
+            DriveCapability::ReadWrite => Self::ReadWrite,
             DriveCapability::WriteOnly => Self::WriteOnly,
             _ => Self::ReadOnly,
         }
@@ -151,12 +155,14 @@ impl From<&TypeExpr> for HirReturnType {
 #[non_exhaustive]
 pub enum HirViewDirection {
     In,
+    InOut,
     Out,
 }
 
 impl From<&ViewDirection> for HirViewDirection {
     fn from(direction: &ViewDirection) -> Self {
         match direction {
+            ViewDirection::InOut => Self::InOut,
             ViewDirection::Out => Self::Out,
             ViewDirection::In => Self::In,
             _ => Self::In,
@@ -292,11 +298,13 @@ impl HirPortDecl {
     fn summary_count(&self) -> usize {
         let direction = match self.direction {
             HirPortDirection::In => 1,
-            HirPortDirection::Out => 2,
+            HirPortDirection::InOut => 2,
+            HirPortDirection::Out => 3,
         };
         let drive = match self.drive {
             HirDriveCapability::ReadOnly => 1,
-            HirDriveCapability::WriteOnly => 2,
+            HirDriveCapability::ReadWrite => 2,
+            HirDriveCapability::WriteOnly => 3,
         };
         self.name.len() + direction + self.ty.span().start + drive + self.span.start
     }

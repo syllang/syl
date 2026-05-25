@@ -144,11 +144,10 @@ impl<'a> EirBuilder<'a> {
         args: &[ElabInstArg],
         env: &Env,
     ) -> EirExpr {
-        if matches!(
-            EirBuiltinResolver::new(self.program, env.owner).resolve_call_callee(callee),
-            Some(EirBuiltinIntrinsic::Zero)
-        ) {
-            return EirExpr::zero();
+        match EirBuiltinResolver::new(self.program, env.owner).resolve_call_callee(callee) {
+            Some(EirBuiltinIntrinsic::HighZ) => return EirExpr::high_z(),
+            Some(EirBuiltinIntrinsic::Zero) => return EirExpr::zero(),
+            _ => {}
         }
         let Some(name) = self.elab_expr_name(callee) else {
             return EirExpr::unsupported("call callee is not a name");
@@ -574,6 +573,7 @@ impl<'a> EirBuilder<'a> {
 #[derive(Clone, Copy)]
 #[non_exhaustive]
 enum EirBuiltinIntrinsic {
+    HighZ,
     Zero,
 }
 
@@ -611,6 +611,7 @@ impl<'a> EirBuiltinResolver<'a> {
 
     fn resolve_name(&self, name: &str) -> Option<EirBuiltinIntrinsic> {
         match name {
+            "z" => Some(EirBuiltinIntrinsic::HighZ),
             "zero" => Some(EirBuiltinIntrinsic::Zero),
             _ => None,
         }

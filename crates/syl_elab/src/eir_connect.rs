@@ -46,6 +46,7 @@ impl<'a> EirBuilder<'a> {
         }
         let direction = match spec.dir {
             ElabPortDirection::In => EirDirection::In,
+            ElabPortDirection::InOut => EirDirection::InOut,
             ElabPortDirection::Out => EirDirection::Out,
             ElabPortDirection::Unsupported => {
                 return Err(CompileError::lowering_at(
@@ -104,6 +105,7 @@ impl<'a> EirBuilder<'a> {
             if let Some(field_ty) = field_ty {
                 let direction = match field.direction {
                     ElabViewDirection::In => EirDirection::In,
+                    ElabViewDirection::InOut => EirDirection::InOut,
                     ElabViewDirection::Out => EirDirection::Out,
                     ElabViewDirection::Unsupported => {
                         return Err(CompileError::lowering_at(
@@ -215,7 +217,9 @@ impl<'a> EirBuilder<'a> {
                         name: signal_name.clone(),
                         activity: match field.direction {
                             ElabViewDirection::Out => EirSignalActivity::Required,
-                            ElabViewDirection::In => EirSignalActivity::Optional,
+                            ElabViewDirection::In | ElabViewDirection::InOut => {
+                                EirSignalActivity::Optional
+                            }
                             ElabViewDirection::Unsupported => EirSignalActivity::Optional,
                         },
                         origin: env.origin(spec.span),

@@ -61,6 +61,7 @@ impl SummaryPath {
 #[non_exhaustive]
 pub enum SummaryDirection {
     In,
+    InOut,
     Out,
 }
 
@@ -68,6 +69,7 @@ impl From<HirPortDirection> for SummaryDirection {
     fn from(direction: HirPortDirection) -> Self {
         match direction {
             HirPortDirection::In => Self::In,
+            HirPortDirection::InOut => Self::InOut,
             HirPortDirection::Out => Self::Out,
             _ => Self::In,
         }
@@ -78,6 +80,7 @@ impl From<HirPortDirection> for SummaryDirection {
 #[non_exhaustive]
 pub enum SummaryFieldDirection {
     In,
+    InOut,
     Out,
 }
 
@@ -85,6 +88,7 @@ impl From<&crate::facts::ProtocolFieldDirection> for SummaryFieldDirection {
     fn from(direction: &crate::facts::ProtocolFieldDirection) -> Self {
         match direction {
             crate::facts::ProtocolFieldDirection::In => Self::In,
+            crate::facts::ProtocolFieldDirection::InOut => Self::InOut,
             crate::facts::ProtocolFieldDirection::Out => Self::Out,
         }
     }

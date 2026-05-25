@@ -359,7 +359,7 @@ impl<'a> Validator<'a> {
                     });
                 }
             }
-            HwExpr::Int(_) | HwExpr::Bool(_) | HwExpr::Str(_) | HwExpr::Zero => {}
+            HwExpr::Int(_) | HwExpr::Bool(_) | HwExpr::Str(_) | HwExpr::HighZ | HwExpr::Zero => {}
             HwExpr::Unary { expr, .. } => self.validate_expr(module, expr, scope),
             HwExpr::Binary { left, right, .. } => {
                 self.validate_expr(module, left, scope);

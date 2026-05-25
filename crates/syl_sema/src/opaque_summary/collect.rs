@@ -365,6 +365,10 @@ fn record_endpoint_effects(
                 SummaryDirection::In => {
                     push_path(consumed_fields, SummaryPath::new(endpoint.name()))
                 }
+                SummaryDirection::InOut => {
+                    push_path(consumed_fields, SummaryPath::new(endpoint.name()));
+                    push_path(driven_fields, SummaryPath::new(endpoint.name()));
+                }
                 SummaryDirection::Out => {
                     push_path(driven_fields, SummaryPath::new(endpoint.name()))
                 }

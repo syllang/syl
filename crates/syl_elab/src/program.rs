@@ -321,6 +321,7 @@ impl From<HirLocalKind> for ElabLocalKind {
 #[non_exhaustive]
 pub(crate) enum ElabPortDirection {
     In,
+    InOut,
     Out,
     Unsupported,
 }
@@ -329,6 +330,7 @@ impl From<HirPortDirection> for ElabPortDirection {
     fn from(value: HirPortDirection) -> Self {
         match value {
             HirPortDirection::In => Self::In,
+            HirPortDirection::InOut => Self::InOut,
             HirPortDirection::Out => Self::Out,
             _ => Self::Unsupported,
         }
@@ -339,6 +341,7 @@ impl From<HirPortDirection> for ElabPortDirection {
 #[non_exhaustive]
 pub(crate) enum ElabViewDirection {
     In,
+    InOut,
     Out,
     Unsupported,
 }
@@ -347,6 +350,7 @@ impl From<HirViewDirection> for ElabViewDirection {
     fn from(value: HirViewDirection) -> Self {
         match value {
             HirViewDirection::In => Self::In,
+            HirViewDirection::InOut => Self::InOut,
             HirViewDirection::Out => Self::Out,
             _ => Self::Unsupported,
         }

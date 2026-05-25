@@ -55,6 +55,10 @@ impl<'a> ViewCapabilityResolver<'a> {
                 | (EndpointSide::Returned, HirViewDirection::Out) => {
                     caps.readable.insert(field.name.clone());
                 }
+                (_, HirViewDirection::InOut) => {
+                    caps.readable.insert(field.name.clone());
+                    caps.drivable.insert(field.name.clone());
+                }
                 (EndpointSide::Local, HirViewDirection::Out)
                 | (EndpointSide::LocalSignal, HirViewDirection::Out)
                 | (EndpointSide::Returned, HirViewDirection::In) => {

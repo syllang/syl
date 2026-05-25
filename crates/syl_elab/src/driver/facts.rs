@@ -117,6 +117,7 @@ impl<'a> DriverFactsCollector<'a> {
                 drive.module(),
                 target,
                 effect,
+                drive.value().cloned(),
                 drive.guard().clone(),
                 drive.origin().clone(),
             ));

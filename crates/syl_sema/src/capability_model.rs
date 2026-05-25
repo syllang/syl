@@ -116,6 +116,16 @@ impl FieldCaps {
         }
     }
 
+    pub(super) fn read_write() -> Self {
+        Self {
+            whole_read: true,
+            whole_write: true,
+            read_local_drives: false,
+            readable: BTreeSet::new(),
+            drivable: BTreeSet::new(),
+        }
+    }
+
     pub(super) fn with_local_drive_readback(mut self) -> Self {
         self.read_local_drives = true;
         self

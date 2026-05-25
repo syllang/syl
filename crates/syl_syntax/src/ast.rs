@@ -207,16 +207,17 @@ impl PortDecl {
 #[non_exhaustive]
 pub enum DriveCapability {
     ReadOnly,
+    ReadWrite,
     WriteOnly,
 }
 
 impl DriveCapability {
     pub fn can_read(&self) -> bool {
-        matches!(self, Self::ReadOnly)
+        matches!(self, Self::ReadOnly | Self::ReadWrite)
     }
 
     pub fn can_write(&self) -> bool {
-        matches!(self, Self::WriteOnly)
+        matches!(self, Self::ReadWrite | Self::WriteOnly)
     }
 }
 
@@ -233,6 +234,7 @@ pub struct Param {
 #[non_exhaustive]
 pub enum ParamDirection {
     In,
+    InOut,
     Out,
 }
 
@@ -240,6 +242,7 @@ impl ParamDirection {
     pub fn is_in(&self) -> bool {
         match self {
             Self::In => true,
+            Self::InOut => true,
             Self::Out => false,
         }
     }
@@ -247,6 +250,7 @@ impl ParamDirection {
     pub fn is_out(&self) -> bool {
         match self {
             Self::In => false,
+            Self::InOut => true,
             Self::Out => true,
         }
     }
@@ -297,6 +301,7 @@ pub struct ViewField {
 #[non_exhaustive]
 pub enum ViewDirection {
     In,
+    InOut,
     Out,
 }
 

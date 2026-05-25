@@ -657,9 +657,12 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_hir|variant|syl_hir::model::callable::HirCallable::Extern|(super::HirExternModuleItem)` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|variant|syl_hir::model::callable::HirCallable::Module|(super::HirCallableItem)` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|variant|syl_hir::model::item::HirDriveCapability::ReadOnly|unit` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
+- `syl_hir|variant|syl_hir::model::item::HirDriveCapability::ReadWrite|unit` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|variant|syl_hir::model::item::HirDriveCapability::WriteOnly|unit` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
+- `syl_hir|variant|syl_hir::model::item::HirPortDirection::InOut|unit` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|variant|syl_hir::model::item::HirPortDirection::In|unit` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|variant|syl_hir::model::item::HirPortDirection::Out|unit` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
+- `syl_hir|variant|syl_hir::model::item::HirViewDirection::InOut|unit` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|variant|syl_hir::model::item::HirViewDirection::In|unit` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|variant|syl_hir::model::item::HirViewDirection::Out|unit` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|variant|syl_hir::model::type_ref::MirBinaryOp::Add|unit` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
@@ -835,6 +838,7 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_hw|use|ParametricHwDesign|named|source=parametric::ParametricHwDesign` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|use|ParametricHwItem|named|source=parametric::ParametricHwItem` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|use|ParametricHwModule|named|source=parametric::ParametricHwModule` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|variant|syl_hw::design::HwDirection::InOut|unit` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|variant|syl_hw::design::HwDirection::In|unit` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|variant|syl_hw::design::HwDirection::Out|unit` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|variant|syl_hw::design::HwGuardFrame::IfElse|{ label: String }` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
@@ -870,6 +874,7 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_hw|variant|syl_hw::expr::HwExpr::Bool|(bool)` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|variant|syl_hw::expr::HwExpr::Call|{ name: String, args: Vec<HwExpr> }` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|variant|syl_hw::expr::HwExpr::Concat|(Vec<HwExpr>)` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|variant|syl_hw::expr::HwExpr::HighZ|unit` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|variant|syl_hw::expr::HwExpr::Ident|(String)` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|variant|syl_hw::expr::HwExpr::IndexedPartSelect|{ value: Box<HwExpr>, index: Box<HwExpr>, width: String }` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|variant|syl_hw::expr::HwExpr::Index|{ value: Box<HwExpr>, index: Box<HwExpr> }` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
@@ -1824,6 +1829,7 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_sema|variant|syl_sema::facts::layout::WordEncoding::Bits|unit` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
 - `syl_sema|variant|syl_sema::facts::layout::WordEncoding::SInt|unit` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
 - `syl_sema|variant|syl_sema::facts::layout::WordEncoding::UInt|unit` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
+- `syl_sema|variant|syl_sema::facts::protocol::ProtocolFieldDirection::InOut|unit` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
 - `syl_sema|variant|syl_sema::facts::protocol::ProtocolFieldDirection::In|unit` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
 - `syl_sema|variant|syl_sema::facts::protocol::ProtocolFieldDirection::Out|unit` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
 - `syl_sema|variant|syl_sema::facts::resolution::DefinitionKind::Bundle|unit` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
@@ -1843,6 +1849,7 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_sema|variant|syl_sema::map_ir::MapExpr::Aggregate|{ ty: MapTypeRef, fields: Vec<MapNamedExpr> }` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
 - `syl_sema|variant|syl_sema::map_ir::MapExpr::Binary|{ op: MapBinaryOp, left: Box<MapExpr>, right: Box<MapExpr> }` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
 - `syl_sema|variant|syl_sema::map_ir::MapExpr::Bool|(bool)` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
+- `syl_sema|variant|syl_sema::map_ir::MapExpr::BuiltinHighZ|unit` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
 - `syl_sema|variant|syl_sema::map_ir::MapExpr::BuiltinZero|unit` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
 - `syl_sema|variant|syl_sema::map_ir::MapExpr::Call|{ callee: syl_hir::DefId, generic_args: Vec<MapGenericArg>, args: Vec<MapArg> }` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
 - `syl_sema|variant|syl_sema::map_ir::MapExpr::Field|{ base: Box<MapExpr>, field: String }` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
@@ -1897,6 +1904,7 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_sema|variant|syl_sema::opaque_summary::model::SummaryCapability::Unknown|unit` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
 - `syl_sema|variant|syl_sema::opaque_summary::model::SummaryCapability::Value|unit` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
 - `syl_sema|variant|syl_sema::opaque_summary::model::SummaryCapability::View|{ view: String, readable_fields: Vec<String>, writable_fields: Vec<String> }` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
+- `syl_sema|variant|syl_sema::opaque_summary::model::SummaryDirection::InOut|unit` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
 - `syl_sema|variant|syl_sema::opaque_summary::model::SummaryDirection::In|unit` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
 - `syl_sema|variant|syl_sema::opaque_summary::model::SummaryDirection::Out|unit` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
 - `syl_sema|variant|syl_sema::opaque_summary::model::SummaryDomain::Builtin|unit` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
@@ -1905,6 +1913,7 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_sema|variant|syl_sema::opaque_summary::model::SummaryDomainBehavior::Clockless|unit` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
 - `syl_sema|variant|syl_sema::opaque_summary::model::SummaryDomainBehavior::Explicit|{ clock_inputs: Vec<String>, reset_inputs: Vec<String> }` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
 - `syl_sema|variant|syl_sema::opaque_summary::model::SummaryDomainBehavior::Unknown|unit` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
+- `syl_sema|variant|syl_sema::opaque_summary::model::SummaryFieldDirection::InOut|unit` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
 - `syl_sema|variant|syl_sema::opaque_summary::model::SummaryFieldDirection::In|unit` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
 - `syl_sema|variant|syl_sema::opaque_summary::model::SummaryFieldDirection::Out|unit` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
 - `syl_sema|variant|syl_sema::opaque_summary::model::SummaryLatencyClass::Sequential|unit` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
@@ -1943,6 +1952,7 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_sema|variant|syl_sema::tir::BindingKind::Port|unit` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
 - `syl_sema|variant|syl_sema::tir::BindingRef::Def|(syl_hir::DefId)` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
 - `syl_sema|variant|syl_sema::tir::BindingRef::Local|(syl_hir::LocalId)` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
+- `syl_sema|variant|syl_sema::tir::BuiltinIntrinsic::HighZ|unit` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
 - `syl_sema|variant|syl_sema::tir::BuiltinIntrinsic::Zero|unit` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
 - `syl_sema|variant|syl_sema::tir::Phase::Comb|unit` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
 - `syl_sema|variant|syl_sema::tir::Phase::Const|unit` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
@@ -2605,6 +2615,7 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_syntax|variant|syl_syntax::ast::BinaryOp::Sub|unit` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|variant|syl_syntax::ast::BinaryOp::XorWord|unit` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|variant|syl_syntax::ast::DriveCapability::ReadOnly|unit` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
+- `syl_syntax|variant|syl_syntax::ast::DriveCapability::ReadWrite|unit` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|variant|syl_syntax::ast::DriveCapability::WriteOnly|unit` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|variant|syl_syntax::ast::Expr::Aggregate|{ ty: Box<TypeExpr>, fields: Vec<NamedExpr>, span: syl_span::Span }` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|variant|syl_syntax::ast::Expr::Binary|{ op: BinaryOp, left: Box<Expr>, right: Box<Expr>, span: syl_span::Span }` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
@@ -2636,6 +2647,7 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_syntax|variant|syl_syntax::ast::Item::Module|(CallableItem)` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|variant|syl_syntax::ast::Item::Package|(PackageItem)` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|variant|syl_syntax::ast::Item::Use|(UseItem)` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
+- `syl_syntax|variant|syl_syntax::ast::ParamDirection::InOut|unit` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|variant|syl_syntax::ast::ParamDirection::In|unit` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|variant|syl_syntax::ast::ParamDirection::Out|unit` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|variant|syl_syntax::ast::Pattern::Bool|(bool, syl_span::Span)` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
@@ -2666,6 +2678,7 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_syntax|variant|syl_syntax::ast::UnaryOp::Neg|unit` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|variant|syl_syntax::ast::UnaryOp::NotWord|unit` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|variant|syl_syntax::ast::UnaryOp::Not|unit` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
+- `syl_syntax|variant|syl_syntax::ast::ViewDirection::InOut|unit` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|variant|syl_syntax::ast::ViewDirection::In|unit` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|variant|syl_syntax::ast::ViewDirection::Out|unit` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|variant|syl_syntax::lexer::LosslessTokenKind::LineComment|unit` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
@@ -2797,6 +2810,7 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_syntax|variant|syl_syntax::token::TokenKind::KwFn|unit` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|variant|syl_syntax::token::TokenKind::KwFor|unit` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|variant|syl_syntax::token::TokenKind::KwIf|unit` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
+- `syl_syntax|variant|syl_syntax::token::TokenKind::KwInOut|unit` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|variant|syl_syntax::token::TokenKind::KwInst|unit` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|variant|syl_syntax::token::TokenKind::KwInterface|unit` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|variant|syl_syntax::token::TokenKind::KwIn|unit` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.

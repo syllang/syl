@@ -83,9 +83,12 @@ impl<'a> SvBackendValidator<'a> {
 
     fn check_expr(module_name: &str, expr: &SvExpr) -> Result<(), CompileError> {
         match expr {
-            SvExpr::Ident(_) | SvExpr::Int(_) | SvExpr::Bool(_) | SvExpr::Str(_) | SvExpr::Zero => {
-                Ok(())
-            }
+            SvExpr::Ident(_)
+            | SvExpr::Int(_)
+            | SvExpr::Bool(_)
+            | SvExpr::Str(_)
+            | SvExpr::HighZ
+            | SvExpr::Zero => Ok(()),
             SvExpr::Unary { expr, .. } => Self::check_expr(module_name, expr),
             SvExpr::Binary { left, right, .. } => {
                 Self::check_expr(module_name, left)?;

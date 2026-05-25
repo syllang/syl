@@ -41,6 +41,28 @@ fn architecture_phase6_hw_validation_happens_before_sv_emission() {
 }
 
 #[test]
+fn architecture_phase6_emits_inout_and_high_z() {
+    let design = ParametricHwDesign::new(vec![module(
+        "PadTop",
+        vec![port(HwDirection::InOut, "1", "pad")],
+        vec![ParametricHwItem::core(
+            HwItem::ContinuousDrive {
+                lhs: HwExpr::Ident("pad".to_string()),
+                rhs: HwExpr::HighZ,
+            },
+            origin(),
+        )],
+    )]);
+
+    let sv = SystemVerilogBackend::new()
+        .emit(&design)
+        .expect("inout high-z design must emit");
+
+    assert!(sv.contains("inout pad"));
+    assert!(sv.contains("assign pad = 'z;"));
+}
+
+#[test]
 fn architecture_phase6_emitter_stays_frontend_free_and_hw_checks_stay_outside() {
     let emit_manifest = read_text(&workspace_root().join("crates/syl_emit/Cargo.toml"));
     for forbidden in ["syl_hir", "syl_sema", "syl_elab"] {

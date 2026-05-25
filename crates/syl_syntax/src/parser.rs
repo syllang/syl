@@ -87,6 +87,7 @@ impl<'a> SourceParser<'a> {
                     | TokenKind::KwInst
                     | TokenKind::KwNext
                     | TokenKind::KwIn
+                    | TokenKind::KwInOut
                     | TokenKind::KwOut
                     | TokenKind::KwAnd
                     | TokenKind::KwOr
@@ -433,6 +434,7 @@ impl Parser {
             };
             let drive = match dir {
                 ParamDirection::In => DriveCapability::ReadOnly,
+                ParamDirection::InOut => DriveCapability::ReadWrite,
                 ParamDirection::Out => DriveCapability::WriteOnly,
             };
             ports.push(PortDecl::new(

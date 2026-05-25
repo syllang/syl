@@ -57,6 +57,7 @@ impl<'a> SvEmitter<'a> {
     fn lower_direction(&self, direction: HwDirection) -> Result<SvDirection, CompileError> {
         match direction {
             HwDirection::In => Ok(SvDirection::Input),
+            HwDirection::InOut => Ok(SvDirection::InOut),
             HwDirection::Out => Ok(SvDirection::Output),
             _ => Err(CompileError::unsupported_hwir("unknown port direction")),
         }
@@ -197,6 +198,7 @@ impl<'a> SvEmitter<'a> {
             HwExpr::Int(value) => Ok(SvExpr::Int(*value)),
             HwExpr::Bool(value) => Ok(SvExpr::Bool(*value)),
             HwExpr::Str(value) => Ok(SvExpr::Str(value.clone())),
+            HwExpr::HighZ => Ok(SvExpr::HighZ),
             HwExpr::Zero => Ok(SvExpr::Zero),
             HwExpr::Unary { op, expr } => Ok(SvExpr::Unary {
                 op: self.lower_unary_op(*op)?,

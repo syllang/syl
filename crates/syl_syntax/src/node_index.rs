@@ -440,6 +440,7 @@ fn select_mode_label(mode: &SelectMode) -> &'static str {
 fn param_direction_label(direction: Option<&ParamDirection>) -> &'static str {
     match direction {
         Some(ParamDirection::In) => "in",
+        Some(ParamDirection::InOut) => "inout",
         Some(ParamDirection::Out) => "out",
         None => "value",
     }
@@ -448,6 +449,7 @@ fn param_direction_label(direction: Option<&ParamDirection>) -> &'static str {
 fn view_direction_label(direction: &ViewDirection) -> &'static str {
     match direction {
         ViewDirection::In => "in",
+        ViewDirection::InOut => "inout",
         ViewDirection::Out => "out",
     }
 }

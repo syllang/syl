@@ -6,6 +6,7 @@ use syl_hir::DefId;
 #[non_exhaustive]
 pub enum ProtocolFieldDirection {
     In,
+    InOut,
     Out,
 }
 
@@ -120,6 +121,9 @@ impl ProtocolFacts {
                             .map(|field| {
                                 let direction = match field.direction {
                                     crate::hir::HirViewDirection::In => ProtocolFieldDirection::In,
+                                    crate::hir::HirViewDirection::InOut => {
+                                        ProtocolFieldDirection::InOut
+                                    }
                                     crate::hir::HirViewDirection::Out => {
                                         ProtocolFieldDirection::Out
                                     }

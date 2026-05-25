@@ -384,6 +384,7 @@ impl<'a> Lexer<'a> {
             "inst" => TokenKind::KwInst,
             "next" => TokenKind::KwNext,
             "in" => TokenKind::KwIn,
+            "inout" => TokenKind::KwInOut,
             "out" => TokenKind::KwOut,
             "and" => TokenKind::KwAnd,
             "or" => TokenKind::KwOr,

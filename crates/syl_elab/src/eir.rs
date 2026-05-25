@@ -162,6 +162,7 @@ pub(crate) enum EirSignalActivity {
 pub(crate) struct EirDrive {
     module: String,
     target: EirPlace,
+    value: Option<EirExpr>,
     kind: EirDriveKind,
     guard: EirGuard,
     origin: EirOrigin,
@@ -172,12 +173,14 @@ impl EirDrive {
         module: impl Into<String>,
         target: EirPlace,
         kind: EirDriveKind,
+        value: Option<EirExpr>,
         guard: EirGuard,
         origin: EirOrigin,
     ) -> Self {
         Self {
             module: module.into(),
             target,
+            value,
             kind,
             guard,
             origin,
@@ -190,6 +193,10 @@ impl EirDrive {
 
     pub(crate) fn target_place(&self) -> &EirPlace {
         &self.target
+    }
+
+    pub(crate) fn value(&self) -> Option<&EirExpr> {
+        self.value.as_ref()
     }
 
     pub(crate) fn kind(&self) -> EirDriveKind {
@@ -392,6 +399,7 @@ impl EirPort {
 #[non_exhaustive]
 pub(crate) enum EirDirection {
     In,
+    InOut,
     Out,
 }
 

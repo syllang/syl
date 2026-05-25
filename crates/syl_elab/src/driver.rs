@@ -1,6 +1,7 @@
 use crate::{
     driver_place::{DriverObjectTable, DriverPlace},
     eir::EirSignalActivity,
+    eir_expr::EirExpr,
     eir_guard::EirGuard,
     eir_origin::EirOrigin,
 };
@@ -15,6 +16,7 @@ mod guard;
 mod guard_coverage;
 mod loop_bounds;
 mod summary;
+mod tristate;
 
 use activity::DriverSignalActivityChecker;
 use bounds_check::DriverBoundsChecker;
@@ -76,6 +78,7 @@ pub(crate) struct DriveFact {
     module: String,
     target: DriverPlace,
     effect: DriveEffect,
+    value: Option<EirExpr>,
     guard: EirGuard,
     origin: EirOrigin,
 }
@@ -85,6 +88,7 @@ impl DriveFact {
         module: impl Into<String>,
         target: DriverPlace,
         effect: DriveEffect,
+        value: Option<EirExpr>,
         guard: EirGuard,
         origin: EirOrigin,
     ) -> Self {
@@ -92,6 +96,7 @@ impl DriveFact {
             module: module.into(),
             target,
             effect,
+            value,
             guard,
             origin,
         }
@@ -107,6 +112,10 @@ impl DriveFact {
 
     pub(crate) fn effect(&self) -> &DriveEffect {
         &self.effect
+    }
+
+    pub(crate) fn value(&self) -> Option<&EirExpr> {
+        self.value.as_ref()
     }
 
     pub(crate) fn guard(&self) -> &EirGuard {

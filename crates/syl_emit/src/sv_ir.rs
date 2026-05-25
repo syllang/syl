@@ -156,6 +156,7 @@ impl SvPort {
 #[non_exhaustive]
 pub(super) enum SvDirection {
     Input,
+    InOut,
     Output,
 }
 
@@ -163,6 +164,7 @@ impl SvDirection {
     fn keyword(self) -> &'static str {
         match self {
             Self::Input => "input",
+            Self::InOut => "inout",
             Self::Output => "output",
         }
     }
@@ -324,6 +326,7 @@ pub(super) enum SvExpr {
     Int(u64),
     Bool(bool),
     Str(String),
+    HighZ,
     Zero,
     Unary {
         op: SvUnaryOp,
@@ -388,6 +391,7 @@ impl SvExpr {
                 out.push_str(value);
                 out.push('"');
             }
+            Self::HighZ => out.push_str("'z"),
             Self::Zero => out.push_str("'0"),
             Self::Unary { op, expr } => {
                 out.push('(');

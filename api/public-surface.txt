@@ -587,9 +587,12 @@ syl_hir|variant|syl_hir::model::callable::HirCallable::Cell|(super::HirCallableI
 syl_hir|variant|syl_hir::model::callable::HirCallable::Extern|(super::HirExternModuleItem)
 syl_hir|variant|syl_hir::model::callable::HirCallable::Module|(super::HirCallableItem)
 syl_hir|variant|syl_hir::model::item::HirDriveCapability::ReadOnly|unit
+syl_hir|variant|syl_hir::model::item::HirDriveCapability::ReadWrite|unit
 syl_hir|variant|syl_hir::model::item::HirDriveCapability::WriteOnly|unit
+syl_hir|variant|syl_hir::model::item::HirPortDirection::InOut|unit
 syl_hir|variant|syl_hir::model::item::HirPortDirection::In|unit
 syl_hir|variant|syl_hir::model::item::HirPortDirection::Out|unit
+syl_hir|variant|syl_hir::model::item::HirViewDirection::InOut|unit
 syl_hir|variant|syl_hir::model::item::HirViewDirection::In|unit
 syl_hir|variant|syl_hir::model::item::HirViewDirection::Out|unit
 syl_hir|variant|syl_hir::model::type_ref::MirBinaryOp::Add|unit
@@ -765,6 +768,7 @@ syl_hw|use|ObjectId|named|source=ids::ObjectId
 syl_hw|use|ParametricHwDesign|named|source=parametric::ParametricHwDesign
 syl_hw|use|ParametricHwItem|named|source=parametric::ParametricHwItem
 syl_hw|use|ParametricHwModule|named|source=parametric::ParametricHwModule
+syl_hw|variant|syl_hw::design::HwDirection::InOut|unit
 syl_hw|variant|syl_hw::design::HwDirection::In|unit
 syl_hw|variant|syl_hw::design::HwDirection::Out|unit
 syl_hw|variant|syl_hw::design::HwGuardFrame::IfElse|{ label: String }
@@ -800,6 +804,7 @@ syl_hw|variant|syl_hw::expr::HwExpr::Binary|{ op: HwBinaryOp, left: Box<HwExpr>,
 syl_hw|variant|syl_hw::expr::HwExpr::Bool|(bool)
 syl_hw|variant|syl_hw::expr::HwExpr::Call|{ name: String, args: Vec<HwExpr> }
 syl_hw|variant|syl_hw::expr::HwExpr::Concat|(Vec<HwExpr>)
+syl_hw|variant|syl_hw::expr::HwExpr::HighZ|unit
 syl_hw|variant|syl_hw::expr::HwExpr::Ident|(String)
 syl_hw|variant|syl_hw::expr::HwExpr::IndexedPartSelect|{ value: Box<HwExpr>, index: Box<HwExpr>, width: String }
 syl_hw|variant|syl_hw::expr::HwExpr::Index|{ value: Box<HwExpr>, index: Box<HwExpr> }
@@ -1754,6 +1759,7 @@ syl_sema|variant|syl_sema::facts::layout::LayoutConst::Unknown|unit
 syl_sema|variant|syl_sema::facts::layout::WordEncoding::Bits|unit
 syl_sema|variant|syl_sema::facts::layout::WordEncoding::SInt|unit
 syl_sema|variant|syl_sema::facts::layout::WordEncoding::UInt|unit
+syl_sema|variant|syl_sema::facts::protocol::ProtocolFieldDirection::InOut|unit
 syl_sema|variant|syl_sema::facts::protocol::ProtocolFieldDirection::In|unit
 syl_sema|variant|syl_sema::facts::protocol::ProtocolFieldDirection::Out|unit
 syl_sema|variant|syl_sema::facts::resolution::DefinitionKind::Bundle|unit
@@ -1773,6 +1779,7 @@ syl_sema|variant|syl_sema::facts::resolution::SemanticResolution::Local|(syl_hir
 syl_sema|variant|syl_sema::map_ir::MapExpr::Aggregate|{ ty: MapTypeRef, fields: Vec<MapNamedExpr> }
 syl_sema|variant|syl_sema::map_ir::MapExpr::Binary|{ op: MapBinaryOp, left: Box<MapExpr>, right: Box<MapExpr> }
 syl_sema|variant|syl_sema::map_ir::MapExpr::Bool|(bool)
+syl_sema|variant|syl_sema::map_ir::MapExpr::BuiltinHighZ|unit
 syl_sema|variant|syl_sema::map_ir::MapExpr::BuiltinZero|unit
 syl_sema|variant|syl_sema::map_ir::MapExpr::Call|{ callee: syl_hir::DefId, generic_args: Vec<MapGenericArg>, args: Vec<MapArg> }
 syl_sema|variant|syl_sema::map_ir::MapExpr::Field|{ base: Box<MapExpr>, field: String }
@@ -1827,6 +1834,7 @@ syl_sema|variant|syl_sema::opaque_summary::model::SummaryCapability::Reset|{ dom
 syl_sema|variant|syl_sema::opaque_summary::model::SummaryCapability::Unknown|unit
 syl_sema|variant|syl_sema::opaque_summary::model::SummaryCapability::Value|unit
 syl_sema|variant|syl_sema::opaque_summary::model::SummaryCapability::View|{ view: String, readable_fields: Vec<String>, writable_fields: Vec<String> }
+syl_sema|variant|syl_sema::opaque_summary::model::SummaryDirection::InOut|unit
 syl_sema|variant|syl_sema::opaque_summary::model::SummaryDirection::In|unit
 syl_sema|variant|syl_sema::opaque_summary::model::SummaryDirection::Out|unit
 syl_sema|variant|syl_sema::opaque_summary::model::SummaryDomain::Builtin|unit
@@ -1835,6 +1843,7 @@ syl_sema|variant|syl_sema::opaque_summary::model::SummaryDomain::Unknown|unit
 syl_sema|variant|syl_sema::opaque_summary::model::SummaryDomainBehavior::Clockless|unit
 syl_sema|variant|syl_sema::opaque_summary::model::SummaryDomainBehavior::Explicit|{ clock_inputs: Vec<String>, reset_inputs: Vec<String> }
 syl_sema|variant|syl_sema::opaque_summary::model::SummaryDomainBehavior::Unknown|unit
+syl_sema|variant|syl_sema::opaque_summary::model::SummaryFieldDirection::InOut|unit
 syl_sema|variant|syl_sema::opaque_summary::model::SummaryFieldDirection::In|unit
 syl_sema|variant|syl_sema::opaque_summary::model::SummaryFieldDirection::Out|unit
 syl_sema|variant|syl_sema::opaque_summary::model::SummaryLatencyClass::Sequential|unit
@@ -1873,6 +1882,7 @@ syl_sema|variant|syl_sema::tir::BindingKind::Local|unit
 syl_sema|variant|syl_sema::tir::BindingKind::Port|unit
 syl_sema|variant|syl_sema::tir::BindingRef::Def|(syl_hir::DefId)
 syl_sema|variant|syl_sema::tir::BindingRef::Local|(syl_hir::LocalId)
+syl_sema|variant|syl_sema::tir::BuiltinIntrinsic::HighZ|unit
 syl_sema|variant|syl_sema::tir::BuiltinIntrinsic::Zero|unit
 syl_sema|variant|syl_sema::tir::Phase::Comb|unit
 syl_sema|variant|syl_sema::tir::Phase::Const|unit
@@ -2535,6 +2545,7 @@ syl_syntax|variant|syl_syntax::ast::BinaryOp::Shl|unit
 syl_syntax|variant|syl_syntax::ast::BinaryOp::Sub|unit
 syl_syntax|variant|syl_syntax::ast::BinaryOp::XorWord|unit
 syl_syntax|variant|syl_syntax::ast::DriveCapability::ReadOnly|unit
+syl_syntax|variant|syl_syntax::ast::DriveCapability::ReadWrite|unit
 syl_syntax|variant|syl_syntax::ast::DriveCapability::WriteOnly|unit
 syl_syntax|variant|syl_syntax::ast::Expr::Aggregate|{ ty: Box<TypeExpr>, fields: Vec<NamedExpr>, span: syl_span::Span }
 syl_syntax|variant|syl_syntax::ast::Expr::Binary|{ op: BinaryOp, left: Box<Expr>, right: Box<Expr>, span: syl_span::Span }
@@ -2566,6 +2577,7 @@ syl_syntax|variant|syl_syntax::ast::Item::Map|(MapItem)
 syl_syntax|variant|syl_syntax::ast::Item::Module|(CallableItem)
 syl_syntax|variant|syl_syntax::ast::Item::Package|(PackageItem)
 syl_syntax|variant|syl_syntax::ast::Item::Use|(UseItem)
+syl_syntax|variant|syl_syntax::ast::ParamDirection::InOut|unit
 syl_syntax|variant|syl_syntax::ast::ParamDirection::In|unit
 syl_syntax|variant|syl_syntax::ast::ParamDirection::Out|unit
 syl_syntax|variant|syl_syntax::ast::Pattern::Bool|(bool, syl_span::Span)
@@ -2596,6 +2608,7 @@ syl_syntax|variant|syl_syntax::ast::TypeExpr::ViewSelect|{ base: Box<TypeExpr>, 
 syl_syntax|variant|syl_syntax::ast::UnaryOp::Neg|unit
 syl_syntax|variant|syl_syntax::ast::UnaryOp::NotWord|unit
 syl_syntax|variant|syl_syntax::ast::UnaryOp::Not|unit
+syl_syntax|variant|syl_syntax::ast::ViewDirection::InOut|unit
 syl_syntax|variant|syl_syntax::ast::ViewDirection::In|unit
 syl_syntax|variant|syl_syntax::ast::ViewDirection::Out|unit
 syl_syntax|variant|syl_syntax::lexer::LosslessTokenKind::LineComment|unit
@@ -2727,6 +2740,7 @@ syl_syntax|variant|syl_syntax::token::TokenKind::KwExtern|unit
 syl_syntax|variant|syl_syntax::token::TokenKind::KwFn|unit
 syl_syntax|variant|syl_syntax::token::TokenKind::KwFor|unit
 syl_syntax|variant|syl_syntax::token::TokenKind::KwIf|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::KwInOut|unit
 syl_syntax|variant|syl_syntax::token::TokenKind::KwInst|unit
 syl_syntax|variant|syl_syntax::token::TokenKind::KwInterface|unit
 syl_syntax|variant|syl_syntax::token::TokenKind::KwIn|unit

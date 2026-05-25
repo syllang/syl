@@ -533,6 +533,7 @@ impl<'a> BuiltinCallCallee<'a> {
             return None;
         };
         match name.as_str() {
+            "z" => Some(HirBuiltinIntrinsic::Zero),
             "zero" => Some(HirBuiltinIntrinsic::Zero),
             _ => None,
         }

@@ -37,6 +37,7 @@ pub enum TokenKind {
     KwInst,
     KwNext,
     KwIn,
+    KwInOut,
     KwOut,
     KwAnd,
     KwOr,

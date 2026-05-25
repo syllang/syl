@@ -129,6 +129,7 @@ pub enum MapExpr {
         left: Box<MapExpr>,
         right: Box<MapExpr>,
     },
+    BuiltinHighZ,
     BuiltinZero,
     Call {
         callee: DefId,
@@ -365,11 +366,10 @@ impl<'a> MapIrBuilder<'a> {
         args: &[HirInstArg],
     ) -> Result<MapExpr, CompileError> {
         let generic_args = self.generic_args(callee);
-        if matches!(
-            BuiltinResolver::new(self.tir.hir(), Some(owner)).resolve_call_callee(callee),
-            Some(BuiltinIntrinsic::Zero)
-        ) {
-            return Ok(MapExpr::BuiltinZero);
+        match BuiltinResolver::new(self.tir.hir(), Some(owner)).resolve_call_callee(callee) {
+            Some(BuiltinIntrinsic::HighZ) => return Ok(MapExpr::BuiltinHighZ),
+            Some(BuiltinIntrinsic::Zero) => return Ok(MapExpr::BuiltinZero),
+            _ => {}
         }
         let Some(callee_name) = self.expr_name(callee) else {
             return Err(CompileError::lowering_at(

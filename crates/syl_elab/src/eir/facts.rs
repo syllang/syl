@@ -103,12 +103,17 @@ impl EirFactCollector {
                     origin: origin.clone(),
                 })),
                 EirItem::Drive {
-                    lhs, reads, origin, ..
+                    lhs,
+                    rhs,
+                    reads,
+                    origin,
+                    ..
                 } => {
                     self.drives.push(EirDrive::new(
                         &self.module,
                         lhs.clone(),
                         EirDriveKind::Continuous,
+                        Some(rhs.clone()),
                         self.guard(),
                         origin.clone(),
                     ));
@@ -124,6 +129,7 @@ impl EirFactCollector {
                         &self.module,
                         target.clone(),
                         EirDriveKind::Next,
+                        None,
                         self.guard(),
                         origin.clone(),
                     ));
@@ -250,6 +256,34 @@ impl EirFactCollector {
                         ));
                     }
                 }
+                EirDirection::InOut => {
+                    for place in
+                        EirReadPlaceCollector::new(&hardware_roots).collect(connection.actual())
+                    {
+                        self.reads.push(EirRead::new(
+                            &self.module,
+                            place,
+                            guard.clone(),
+                            instance.origin().clone(),
+                        ));
+                    }
+                    let place = EirPlace::try_from(connection.actual()).map_err(|_| {
+                        CompileError::lowering_at(
+                            EirError::UnsupportedHardwareValueExpression,
+                            instance.origin().span(),
+                        )
+                    })?;
+                    self.drives.push(EirDrive::new(
+                        &self.module,
+                        place,
+                        EirDriveKind::Continuous,
+                        Some(EirExpr::Unsupported {
+                            message: "instance inout enable is unknown".to_string(),
+                        }),
+                        guard.clone(),
+                        instance.origin().clone(),
+                    ));
+                }
                 EirDirection::Out => {
                     let place = EirPlace::try_from(connection.actual()).map_err(|_| {
                         CompileError::lowering_at(
@@ -261,6 +295,7 @@ impl EirFactCollector {
                         &self.module,
                         place,
                         EirDriveKind::Continuous,
+                        None,
                         guard.clone(),
                         instance.origin().clone(),
                     ));
@@ -289,6 +324,7 @@ impl EirFactCollector {
                 &self.module,
                 place,
                 EirDriveKind::Continuous,
+                None,
                 guard.clone(),
                 instance.origin().clone(),
             ));
@@ -430,6 +466,7 @@ impl<'a> EirReadPlaceCollector<'a> {
             | EirExpr::Int(_)
             | EirExpr::Bool(_)
             | EirExpr::Str(_)
+            | EirExpr::HighZ
             | EirExpr::Zero
             | EirExpr::Unsupported { .. } => {}
         }
@@ -446,6 +483,7 @@ impl<'a> EirReadPlaceCollector<'a> {
             | EirExpr::Int(_)
             | EirExpr::Bool(_)
             | EirExpr::Str(_)
+            | EirExpr::HighZ
             | EirExpr::Zero
             | EirExpr::Unary { .. }
             | EirExpr::Binary { .. }

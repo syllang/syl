@@ -136,6 +136,7 @@ pub enum BindingKind {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum BuiltinIntrinsic {
+    HighZ,
     Zero,
 }
 
@@ -173,6 +174,7 @@ impl<'a> BuiltinResolver<'a> {
 
     fn resolve_name(&self, name: &str) -> Option<BuiltinIntrinsic> {
         match name {
+            "z" => Some(BuiltinIntrinsic::HighZ),
             "zero" => Some(BuiltinIntrinsic::Zero),
             _ => None,
         }

@@ -264,6 +264,7 @@ impl DriverBoundFormula {
         match expr {
             EirExpr::Ident(name) => Some(Self::from_symbol(SymbolicFactor::new(name).normalized())),
             EirExpr::Int(value) => Some(Self::from_constant(*value)),
+            EirExpr::HighZ => None,
             EirExpr::Zero => Some(Self::zero()),
             EirExpr::Unary { op, expr } => match op {
                 EirUnaryOp::Neg => Self::zero().subtract(&Self::from_eir_expr(expr)?),

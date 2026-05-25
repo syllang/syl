@@ -68,6 +68,8 @@ impl Parser {
                 self.expect(TokenKind::Colon)?;
                 let dir = if self.consume(&TokenKind::KwIn).is_some() {
                     Some(ParamDirection::In)
+                } else if self.consume(&TokenKind::KwInOut).is_some() {
+                    Some(ParamDirection::InOut)
                 } else if self.consume(&TokenKind::KwOut).is_some() {
                     Some(ParamDirection::Out)
                 } else {
@@ -154,12 +156,17 @@ impl Parser {
                     ..
                 }) => (ViewDirection::In, span),
                 Some(Token {
+                    kind: TokenKind::KwInOut,
+                    span,
+                    ..
+                }) => (ViewDirection::InOut, span),
+                Some(Token {
                     kind: TokenKind::KwOut,
                     span,
                     ..
                 }) => (ViewDirection::Out, span),
                 Some(tok) => {
-                    self.error(tok.span, "expected in or out");
+                    self.error(tok.span, "expected in, inout, or out");
                     return Err(std::mem::take(&mut self.diagnostics));
                 }
                 None => {

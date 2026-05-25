@@ -8,6 +8,8 @@ use crate::{
 };
 use syl_span::Span;
 
+use super::tristate::DriveConflict;
+
 #[non_exhaustive]
 pub(crate) struct DriverDrcReport {
     module_count: usize,
@@ -155,6 +157,7 @@ impl<'a> DriverDrcChecker<'a> {
             claim.module() == drive.module()
                 && claim.target_place().overlaps(drive.target_place())
                 && !DriverGuardSet::new(claim.guard(), drive.guard()).is_mutually_exclusive()
+                && DriveConflict::new(claim, drive).can_conflict()
         })?;
         Some(CompileError::driver_error_with_related(
             DriverError::DuplicateHardwareDriver {
@@ -263,9 +266,9 @@ mod tests {
         LoweringError,
         eir::{
             EirDesign, EirDesignComposer, EirFactCollector, EirItem, EirModule, EirRawDesign,
-            EirValidator,
+            EirSignalActivity, EirValidator,
         },
-        eir_expr::EirExpr,
+        eir_expr::{EirBinaryOp, EirExpr, EirSelectArm, EirSelectMode, EirUnaryOp},
         eir_guard::EirGuard,
         eir_origin::{EirExpansion, EirOrigin},
         eir_place::EirPlace,
@@ -282,6 +285,98 @@ mod tests {
             &OpaqueSummaryTable::new(),
         )?);
         Ok(EirDesignComposer::compose(raw, facts))
+    }
+
+    fn origin() -> EirOrigin {
+        EirOrigin::new(Span::new_in(SourceId::new(0), 0, 1), Vec::new())
+    }
+
+    fn tri_drive(target: &str, enable: EirExpr, value: u64) -> EirItem {
+        EirItem::Drive {
+            lhs: EirPlace::Ident(target.to_string()),
+            rhs: EirExpr::select(
+                EirSelectMode::Priority,
+                vec![EirSelectArm::new(enable, EirExpr::Int(value))],
+                EirExpr::HighZ,
+            ),
+            reads: Vec::new(),
+            origin: origin(),
+        }
+    }
+
+    fn optional_signal(name: &str) -> EirItem {
+        EirItem::Signal {
+            width: "1".into(),
+            name: name.to_string(),
+            activity: EirSignalActivity::Optional,
+            origin: origin(),
+        }
+    }
+
+    #[test]
+    fn tristate_drivers_with_opposite_enables_do_not_conflict() {
+        let module = EirModule::new(
+            "Top",
+            Vec::new(),
+            Vec::new(),
+            vec![
+                optional_signal("bus"),
+                tri_drive("bus", EirExpr::ident("en"), 1),
+                tri_drive(
+                    "bus",
+                    EirExpr::unary(EirUnaryOp::Not, EirExpr::ident("en")),
+                    0,
+                ),
+            ],
+        );
+        let design = validated_design(vec![module]).expect("test EIR should assemble");
+        let facts = super::super::DriverFactsCollector::new(&design)
+            .collect()
+            .expect("facts pass should succeed");
+
+        DriverDrcChecker::new(&design, &facts)
+            .check_collect()
+            .expect("opposite tri-state enables must not conflict");
+    }
+
+    #[test]
+    fn tristate_drivers_with_overlapping_enables_conflict() {
+        let module = EirModule::new(
+            "Top",
+            Vec::new(),
+            Vec::new(),
+            vec![
+                optional_signal("bus"),
+                tri_drive("bus", EirExpr::ident("en"), 1),
+                tri_drive(
+                    "bus",
+                    EirExpr::binary(
+                        EirBinaryOp::AndAnd,
+                        EirExpr::ident("en"),
+                        EirExpr::ident("grant"),
+                    ),
+                    0,
+                ),
+            ],
+        );
+        let design = validated_design(vec![module]).expect("test EIR should assemble");
+        let facts = super::super::DriverFactsCollector::new(&design)
+            .collect()
+            .expect("facts pass should succeed");
+        let errors = match DriverDrcChecker::new(&design, &facts).check_collect() {
+            Ok(_) => panic!("overlapping tri-state enables must conflict"),
+            Err(errors) => errors,
+        };
+
+        assert!(errors.iter().any(|error| matches!(
+            error,
+            CompileError::Lowering { kind, .. }
+                if matches!(
+                    kind.as_ref(),
+                    LoweringError::Driver(DriverError::DuplicateHardwareDriver { name })
+                        if name == "bus"
+                )
+        )));
     }
 
     #[test]

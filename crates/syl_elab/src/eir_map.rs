@@ -226,6 +226,7 @@ impl<'a> EirBuilder<'a> {
                 };
                 EirExpr::binary(op, self.map_expr(left, env), self.map_expr(right, env))
             }
+            MapExpr::BuiltinHighZ => EirExpr::high_z(),
             MapExpr::BuiltinZero => EirExpr::zero(),
             MapExpr::Call {
                 callee,

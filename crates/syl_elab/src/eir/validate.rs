@@ -185,6 +185,7 @@ impl<'a> EirValidator<'a> {
             | EirExpr::Int(_)
             | EirExpr::Bool(_)
             | EirExpr::Str(_)
+            | EirExpr::HighZ
             | EirExpr::Zero => Ok(()),
         }
     }

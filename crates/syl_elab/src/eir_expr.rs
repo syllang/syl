@@ -57,6 +57,7 @@ pub(crate) enum EirExpr {
     Int(u64),
     Bool(bool),
     Str(String),
+    HighZ,
     Zero,
     Unary {
         op: EirUnaryOp,
@@ -108,6 +109,10 @@ impl EirExpr {
 
     pub(crate) fn zero() -> Self {
         Self::Zero
+    }
+
+    pub(crate) fn high_z() -> Self {
+        Self::HighZ
     }
 
     pub(crate) fn unary(op: EirUnaryOp, expr: EirExpr) -> Self {
@@ -191,6 +196,7 @@ impl EirExpr {
             Self::Int(value) => value.to_string(),
             Self::Bool(value) => value.to_string(),
             Self::Str(value) => format!("str({value})"),
+            Self::HighZ => "z".to_string(),
             Self::Zero => "zero".to_string(),
             Self::Unary { op, expr } => format!("{}({})", op.fact_name(), expr.fact_key()),
             Self::Binary { op, left, right } => {

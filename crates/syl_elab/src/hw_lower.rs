@@ -68,6 +68,7 @@ impl<'a> HwLowerer<'a> {
     fn lower_direction(&self, direction: EirDirection) -> Result<HwDirection, CompileError> {
         match direction {
             EirDirection::In => Ok(HwDirection::In),
+            EirDirection::InOut => Ok(HwDirection::InOut),
             EirDirection::Out => Ok(HwDirection::Out),
         }
     }
@@ -256,6 +257,7 @@ impl<'a> HwLowerer<'a> {
             EirExpr::Int(value) => Ok(HwExpr::Int(*value)),
             EirExpr::Bool(value) => Ok(HwExpr::Bool(*value)),
             EirExpr::Str(value) => Ok(HwExpr::Str(value.clone())),
+            EirExpr::HighZ => Ok(HwExpr::HighZ),
             EirExpr::Zero => Ok(HwExpr::Zero),
             EirExpr::Unary { op, expr } => Ok(HwExpr::Unary {
                 op: self.lower_unary_op(*op),

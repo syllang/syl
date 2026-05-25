@@ -407,10 +407,14 @@ impl<'a> CapabilityChecker<'a> {
         {
             return self.check_view_arg_caps(owner, check.actual, &caps, scope);
         }
-        if matches!(check.param.direction, HirPortDirection::Out) {
-            self.require_write(owner, check.actual, scope)
-        } else {
-            self.check_read_expr(owner, check.actual, scope)
+        match check.param.direction {
+            HirPortDirection::In => self.check_read_expr(owner, check.actual, scope),
+            HirPortDirection::InOut => {
+                self.check_read_expr(owner, check.actual, scope)?;
+                self.require_write(owner, check.actual, scope)
+            }
+            HirPortDirection::Out => self.require_write(owner, check.actual, scope),
+            _ => self.check_read_expr(owner, check.actual, scope),
         }
     }
 
@@ -527,10 +531,11 @@ impl<'a> CapabilityChecker<'a> {
         if let Some(caps) = self.view_caps(owner, &param.ty, EndpointSide::Local)? {
             return Ok(caps);
         }
-        if matches!(param.direction, HirPortDirection::Out) {
-            Ok(FieldCaps::write_only())
-        } else {
-            Ok(FieldCaps::read_only())
+        match param.direction {
+            HirPortDirection::In => Ok(FieldCaps::read_only()),
+            HirPortDirection::InOut => Ok(FieldCaps::read_write()),
+            HirPortDirection::Out => Ok(FieldCaps::write_only()),
+            _ => Ok(FieldCaps::read_only()),
         }
     }
 
@@ -541,6 +546,7 @@ impl<'a> CapabilityChecker<'a> {
     ) -> Result<FieldCaps, CompileError> {
         let fallback = match result.drive {
             HirDriveCapability::ReadOnly => FieldCaps::read_only,
+            HirDriveCapability::ReadWrite => FieldCaps::read_write,
             HirDriveCapability::WriteOnly => FieldCaps::write_only,
             _ => FieldCaps::read_only,
         };

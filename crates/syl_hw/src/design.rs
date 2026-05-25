@@ -263,6 +263,7 @@ impl HwPort {
 #[non_exhaustive]
 pub enum HwDirection {
     In,
+    InOut,
     Out,
 }
 
