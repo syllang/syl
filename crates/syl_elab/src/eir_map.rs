@@ -6,14 +6,14 @@ use crate::{
         MapArg, MapBinaryOp, MapExpr, MapFunction, MapGenericArg, MapMatchArm, MapNamedExpr,
         MapPattern, MapSelectArm, MapTypeRef, MapUnaryOp,
     },
-    program::{ElabDefKind, ElabExpr, ElabExprNode, ElabInstArg, ElabResolution},
+    program::{ElabCallArg, ElabDefKind, ElabExpr, ElabExprNode, ElabResolution},
 };
 use std::collections::HashMap;
 use syl_hir::DefId;
 
 struct MapElabArgBinding<'a> {
     map: &'a MapFunction,
-    args: &'a [ElabInstArg],
+    args: &'a [ElabCallArg],
     caller_env: &'a Env,
     map_env: &'a mut Env,
     replacements: &'a HashMap<String, MapTypeRef>,
@@ -31,7 +31,7 @@ impl<'a> EirBuilder<'a> {
     pub(super) fn map_call_expr_from_elab(
         &self,
         callee: &ElabExpr,
-        args: &[ElabInstArg],
+        args: &[ElabCallArg],
         env: &Env,
     ) -> EirExpr {
         let Some((map_id, map_name)) = self.map_callee_from_elab(callee, env) else {
@@ -106,7 +106,7 @@ impl<'a> EirBuilder<'a> {
     fn unknown_call_from_elab(
         &self,
         callee: &ElabExpr,
-        args: &[ElabInstArg],
+        args: &[ElabCallArg],
         env: &Env,
     ) -> EirExpr {
         let Some(name) = self.elab_expr_name(callee) else {

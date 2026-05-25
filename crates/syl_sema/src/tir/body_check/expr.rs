@@ -2,7 +2,7 @@ use super::super::{BuiltinIntrinsic, BuiltinResolver, Phase, TypePhaseChecker};
 use crate::{
     CompileError, EirError, TirError,
     hir::{
-        HirBodyExpr, HirDefKind, HirExprNode, HirInstArg, HirMatchArm, HirNamedExpr, HirSelectArm,
+        HirBodyExpr, HirCallArg, HirDefKind, HirExprNode, HirMatchArm, HirNamedExpr, HirSelectArm,
     },
     hir_resolve::HirResolution,
     hir_view::HirDesignViewExt,
@@ -21,7 +21,7 @@ impl TypePhaseChecker {
         self.checked_exprs += 1;
         Self::record_recoverable(errors, self.record_phase(expr, Phase::Comb));
         match &expr.node {
-            HirExprNode::Inst { .. }
+            HirExprNode::Place { .. }
             | HirExprNode::Block(_)
             | HirExprNode::CompileError { .. }
             | HirExprNode::Range { .. }
@@ -144,7 +144,7 @@ impl TypePhaseChecker {
             HirExprNode::Call { callee, args } => {
                 self.check_hardware_value_call(callee, args, errors)
             }
-            HirExprNode::Inst { .. }
+            HirExprNode::Place { .. }
             | HirExprNode::Block(_)
             | HirExprNode::CompileError { .. }
             | HirExprNode::Range { .. }
@@ -197,7 +197,7 @@ impl TypePhaseChecker {
     pub(in crate::tir) fn check_hardware_value_call(
         &mut self,
         callee: &HirBodyExpr,
-        args: &[HirInstArg],
+        args: &[HirCallArg],
         errors: &mut Vec<CompileError>,
     ) -> Result<(), CompileError> {
         if let Some(name) = self.hardware_generator_name(callee) {
@@ -240,7 +240,7 @@ impl TypePhaseChecker {
     fn check_map_call(
         &mut self,
         callee: &HirBodyExpr,
-        args: &[HirInstArg],
+        args: &[HirCallArg],
         errors: &mut Vec<CompileError>,
     ) -> Result<(), CompileError> {
         if let Some(name) = self.hardware_generator_name(callee) {
@@ -280,7 +280,7 @@ impl TypePhaseChecker {
 
     pub(in crate::tir) fn check_generator_args(
         &mut self,
-        args: &[HirInstArg],
+        args: &[HirCallArg],
         errors: &mut Vec<CompileError>,
     ) -> Result<(), CompileError> {
         for arg in args {
@@ -436,11 +436,6 @@ impl TypePhaseChecker {
 
     fn is_default_select_pattern(&self, expr: &HirBodyExpr) -> bool {
         matches!(&expr.node, HirExprNode::Ident(name) if name == "default")
-    }
-
-    pub(in crate::tir) fn instance_binding_name(&self, name: &HirBodyExpr, span: Span) -> String {
-        self.expr_name(name)
-            .unwrap_or_else(|| format!("inst@{}", span.start))
     }
 
     pub(in crate::tir) fn hardware_generator_name(&self, callee: &HirBodyExpr) -> Option<String> {

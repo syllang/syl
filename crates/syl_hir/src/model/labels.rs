@@ -25,7 +25,6 @@ impl From<HirLocalKind> for &'static str {
             HirLocalKind::Const => "const",
             HirLocalKind::Let => "let",
             HirLocalKind::Var => "var",
-            HirLocalKind::Alias => "alias",
             HirLocalKind::Signal => "signal",
             HirLocalKind::Reg => "reg",
             HirLocalKind::Instance => "instance",

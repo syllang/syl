@@ -1,8 +1,8 @@
 use crate::{
     CompileError, HirError,
     hir::{
-        HirBlock, HirBodyExpr, HirCallable, HirCallableItem, HirConstItem, HirDesign, HirExprNode,
-        HirExternModuleItem, HirFnItem, HirInstArg, HirInterfaceItem, HirMapItem, HirMatchArm,
+        HirBlock, HirBodyExpr, HirCallArg, HirCallable, HirCallableItem, HirConstItem, HirDesign,
+        HirExprNode, HirExternModuleItem, HirFnItem, HirInterfaceItem, HirMapItem, HirMatchArm,
         HirNamedExpr, HirSelectArm, HirSignatureGenericParam, HirSignatureParam, HirStmt,
     },
     hir_view::HirDesignViewExt,
@@ -260,21 +260,7 @@ impl<'a> HirNameResolver<'a> {
             | HirStmt::Reg { id, name, .. } => {
                 self.push_local_id(name, *id);
             }
-            HirStmt::Alias {
-                id, name, value, ..
-            } => {
-                self.resolve_expr(owner, value);
-                self.push_local_id(name, *id);
-            }
             HirStmt::Next { value, .. } => self.resolve_expr(owner, value),
-            HirStmt::Inst {
-                id, name, callee, ..
-            } => {
-                self.resolve_expr(owner, callee);
-                if let HirExprNode::Ident(name) = &name.node {
-                    self.push_local_id(name, *id);
-                }
-            }
             HirStmt::While { cond, body, .. } => {
                 self.resolve_expr(owner, cond);
                 self.resolve_block(owner, body);
@@ -325,7 +311,7 @@ impl<'a> HirNameResolver<'a> {
                 self.resolve_call_callee(owner, callee);
                 self.resolve_args(owner, args);
             }
-            HirExprNode::Inst { callee, args } => {
+            HirExprNode::Place { callee, args } => {
                 self.resolve_expr(owner, callee);
                 self.resolve_args(owner, args);
             }
@@ -346,6 +332,18 @@ impl<'a> HirNameResolver<'a> {
             HirExprNode::Range { start, end } => {
                 self.resolve_expr(owner, start);
                 self.resolve_expr(owner, end);
+            }
+            HirExprNode::For {
+                id,
+                name,
+                range,
+                body,
+            } => {
+                self.resolve_expr(owner, range);
+                self.scopes.push();
+                self.push_local_id(name, *id);
+                self.resolve_block(owner, body);
+                self.scopes.pop();
             }
             _ => {}
         }
@@ -405,7 +403,7 @@ impl<'a> HirNameResolver<'a> {
         self.resolve_expr(owner, callee);
     }
 
-    fn resolve_args(&mut self, owner: DefId, args: &[HirInstArg]) {
+    fn resolve_args(&mut self, owner: DefId, args: &[HirCallArg]) {
         for arg in args {
             self.resolve_expr(owner, &arg.value);
         }

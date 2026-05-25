@@ -7,7 +7,7 @@ use crate::{
     eir_expr::{EirBinaryOp, EirBound, EirExpr},
     mir::{MirTypeRef, MirTypeRefExt},
     program::{
-        ElabBlock, ElabCallable, ElabCallableItem, ElabExpr, ElabExprNode, ElabInstArg,
+        ElabBlock, ElabCallArg, ElabCallable, ElabCallableItem, ElabExpr, ElabExprNode,
         ElabPortDirection, ElabStmt, ElabViewDirection,
     },
 };
@@ -309,32 +309,6 @@ impl<'a> EirBuilder<'a> {
         ))])
     }
 
-    pub(super) fn emit_instance_expr(
-        &self,
-        inst_name: &str,
-        expr: &ElabExpr,
-        env: &Env,
-        span: Span,
-    ) -> Result<Vec<EirItem>, CompileError> {
-        match &expr.node {
-            ElabExprNode::Call { callee, args } | ElabExprNode::Inst { callee, args } => self
-                .emit_instance(InstanceEmitRequest {
-                    inst_name,
-                    callee,
-                    args,
-                    env,
-                    span,
-                }),
-            _ => self.emit_instance(InstanceEmitRequest {
-                inst_name,
-                callee: expr,
-                args: &[],
-                env,
-                span,
-            }),
-        }
-    }
-
     fn emit_cell_inline(
         &self,
         request: CellInlineRequest<'_>,
@@ -365,7 +339,7 @@ impl<'a> EirBuilder<'a> {
         ))])
     }
 
-    fn call_span(&self, callee: &ElabExpr, args: &[ElabInstArg]) -> Span {
+    fn call_span(&self, callee: &ElabExpr, args: &[ElabCallArg]) -> Span {
         args.iter()
             .fold(callee.span(), |span, arg| span.join(arg.span))
     }

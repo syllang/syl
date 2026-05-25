@@ -2,9 +2,9 @@ use crate::CompletionItemKind;
 use syl_sema::completion::CompletionKind;
 use syl_span::Span;
 use syl_syntax::{
-    AstFile, Block, CallableItem, ConstItem, Expr, ExternModuleItem, FieldDecl, FnItem,
-    GenericParam, InstArg, InterfaceItem, Item, MapItem, MatchArm, NamedExpr, Param, PortDecl,
-    RegReset, ResultBinding, SelectArm, Stmt, TypeExpr,
+    AstFile, Block, CallArg, CallableItem, ConstItem, Expr, ExternModuleItem, FieldDecl, FnItem,
+    GenericParam, InterfaceItem, Item, MapItem, MatchArm, NamedExpr, Param, PortDecl, RegReset,
+    ResultBinding, SelectArm, Stmt, TypeExpr,
 };
 
 #[non_exhaustive]
@@ -213,15 +213,10 @@ impl CompletionContextInspector {
             | Stmt::Signal { ty, value, .. } => self
                 .inspect_optional_type(ty.as_ref())
                 .or_else(|| self.inspect_optional_expr(value.as_ref())),
-            Stmt::Alias { value, .. } | Stmt::Next { value, .. } | Stmt::Return(Some(value), _) => {
-                self.inspect_expr(value)
-            }
+            Stmt::Next { value, .. } | Stmt::Return(Some(value), _) => self.inspect_expr(value),
             Stmt::Reg { ty, reset, .. } => self
                 .inspect_optional_type(ty.as_ref())
                 .or_else(|| self.inspect_optional_reg_reset(reset.as_ref())),
-            Stmt::Inst { name, callee, .. } => self
-                .inspect_expr(name)
-                .or_else(|| self.inspect_expr(callee)),
             Stmt::While { cond, body, .. } => {
                 self.inspect_expr(cond).or_else(|| self.inspect_block(body))
             }
@@ -270,9 +265,13 @@ impl CompletionContextInspector {
                 .inspect_expr(left)
                 .or_else(|| self.inspect_expr(right))
                 .or_else(|| self.expression_context(expr)),
-            Expr::Call { callee, args, .. } | Expr::Inst { callee, args, .. } => self
+            Expr::Call { callee, args, .. } | Expr::Place { callee, args, .. } => self
                 .inspect_expr(callee)
-                .or_else(|| self.inspect_inst_args(args))
+                .or_else(|| self.inspect_call_args(args))
+                .or_else(|| self.expression_context(expr)),
+            Expr::For { range, body, .. } => self
+                .inspect_expr(range)
+                .or_else(|| self.inspect_block(body))
                 .or_else(|| self.expression_context(expr)),
             Expr::Field { base, .. } => self
                 .inspect_expr(base)
@@ -330,7 +329,7 @@ impl CompletionContextInspector {
         }
     }
 
-    fn inspect_inst_args(&self, args: &[InstArg]) -> Option<CompletionContext> {
+    fn inspect_call_args(&self, args: &[CallArg]) -> Option<CompletionContext> {
         for arg in args {
             if let Some(context) = self.inspect_expr(&arg.value) {
                 return Some(context);

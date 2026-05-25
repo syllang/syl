@@ -23,6 +23,15 @@ struct HardwareCheckContext<'a> {
     errors: &'a mut Vec<CompileError>,
 }
 
+struct PlaceCollectionCheck<'a> {
+    id: Option<LocalId>,
+    binding_name: &'a str,
+    range: &'a HirBodyExpr,
+    body: &'a HirBlock,
+    span: Span,
+    env: &'a TirConstEnv,
+}
+
 impl TypePhaseChecker {
     pub(super) fn check_hardware_block(
         &mut self,
@@ -36,7 +45,6 @@ impl TypePhaseChecker {
         for stmt in &body.stmts {
             match stmt {
                 HirStmt::Var { span, .. }
-                | HirStmt::Let { span, .. }
                 | HirStmt::While { span, .. }
                 | HirStmt::Return(_, span) => errors.push(CompileError::lowering_at(
                     EirError::IllegalHardwareStatement,
@@ -111,19 +119,33 @@ impl TypePhaseChecker {
                         env = env.with_binding(name, kind);
                     }
                 }
-                HirStmt::Alias {
+                HirStmt::Let {
                     id,
                     name,
                     value,
                     span,
+                    ty,
                     ..
                 } => {
                     Self::record_recoverable(
                         errors,
                         self.record_decl_local_binding(name, *id, *span, BindingKind::Local),
                     );
-                    Self::record_recoverable(errors, self.record_phase(value, Phase::Hardware));
-                    self.check_generator_binding_expr(value, errors)?;
+                    if let Some(ty) = ty
+                        && let Some(explicit_ty) = Self::record_recoverable(
+                            errors,
+                            self.type_from_mir_type_ref(self.current_owner()?, ty),
+                        )
+                    {
+                        Self::record_recoverable(
+                            errors,
+                            self.record_decl_local_type(name, *id, *span, explicit_ty),
+                        );
+                    }
+                    if let Some(value) = value {
+                        Self::record_recoverable(errors, self.record_phase(value, Phase::Hardware));
+                        self.check_let_binding_expr(name, value, &env, errors)?;
+                    }
                 }
                 HirStmt::Signal {
                     id,
@@ -184,26 +206,6 @@ impl TypePhaseChecker {
                 HirStmt::Next { value, .. } => {
                     Self::record_recoverable(errors, self.record_phase(value, Phase::Hardware));
                     self.check_hardware_value_expr(value, errors)?;
-                }
-                HirStmt::Inst {
-                    id,
-                    name,
-                    callee,
-                    span,
-                    ..
-                } => {
-                    let binding_name = self.instance_binding_name(name, *span);
-                    Self::record_recoverable(
-                        errors,
-                        self.record_decl_local_binding(
-                            &binding_name,
-                            *id,
-                            *span,
-                            BindingKind::Local,
-                        ),
-                    );
-                    Self::record_recoverable(errors, self.record_phase(callee, Phase::Hardware));
-                    self.check_generator_binding_expr(callee, errors)?;
                 }
                 HirStmt::Expr(expr) => {
                     Self::record_recoverable(errors, self.record_phase(expr, Phase::Hardware));
@@ -297,13 +299,15 @@ impl TypePhaseChecker {
         }
     }
 
-    fn check_generator_binding_expr(
+    fn check_let_binding_expr(
         &mut self,
+        _binding_name: &str,
         expr: &HirBodyExpr,
+        env: &TirConstEnv,
         errors: &mut Vec<CompileError>,
     ) -> Result<(), CompileError> {
         match &expr.node {
-            HirExprNode::Call { callee, args } | HirExprNode::Inst { callee, args } => {
+            HirExprNode::Place { callee, args } => {
                 self.check_generator_args(args, errors)?;
                 if self.hardware_generator_name(callee).is_some() {
                     Self::record_recoverable(errors, self.record_phase(callee, Phase::Hardware));
@@ -311,8 +315,65 @@ impl TypePhaseChecker {
                 }
                 self.check_hardware_value_call(callee, args, errors)
             }
+            HirExprNode::For {
+                id,
+                name,
+                range,
+                body,
+                ..
+            } => self.check_place_collection_expr(
+                PlaceCollectionCheck {
+                    id: *id,
+                    binding_name: name,
+                    range,
+                    body,
+                    span: expr.span(),
+                    env: &env,
+                },
+                errors,
+            ),
             _ => self.check_hardware_value_expr(expr, errors),
         }
+    }
+
+    fn check_place_collection_expr(
+        &mut self,
+        request: PlaceCollectionCheck<'_>,
+        errors: &mut Vec<CompileError>,
+    ) -> Result<(), CompileError> {
+        Self::record_recoverable(errors, self.record_phase(request.range, Phase::Const));
+        Self::record_recoverable(
+            errors,
+            self.record_decl_local_binding(
+                request.binding_name,
+                request.id,
+                request.span,
+                BindingKind::Const,
+            ),
+        );
+        let loop_env = request
+            .env
+            .with_binding(request.binding_name, TirConstKind::Nat);
+        let mut body = request.body.clone();
+        let tail = body.tail.take();
+        self.check_hardware_block(&body, &loop_env, HardwareBlockMode::Normal, errors)?;
+        match tail.as_deref().map(|expr| &expr.node) {
+            Some(HirExprNode::Place { callee, args }) => {
+                self.check_generator_args(args, errors)?;
+                if self.hardware_generator_name(callee).is_some() {
+                    Self::record_recoverable(errors, self.record_phase(callee, Phase::Hardware));
+                } else {
+                    self.check_hardware_value_call(callee, args, errors)?;
+                }
+            }
+            Some(_) | None => {
+                errors.push(CompileError::lowering_at(
+                    EirError::UnsupportedHardwareValueExpression,
+                    request.span,
+                ));
+            }
+        }
+        Ok(())
     }
 
     fn check_signal_initializer_expr(
@@ -321,7 +382,7 @@ impl TypePhaseChecker {
         errors: &mut Vec<CompileError>,
     ) -> Result<(), CompileError> {
         match &expr.node {
-            HirExprNode::Inst { callee, args } => {
+            HirExprNode::Place { callee, args } => {
                 self.check_generator_args(args, errors)?;
                 if self.hardware_generator_name(callee).is_some() {
                     Self::record_recoverable(errors, self.record_phase(callee, Phase::Hardware));

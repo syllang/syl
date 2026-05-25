@@ -5,8 +5,9 @@ use crate::{
     eir_expr::{EirBinaryOp, EirBound, EirExpr, EirSelectArm, EirSelectMode},
     mir::{MirPattern, MirSelectMode, MirTypeRef},
     program::{
-        ElabCallable, ElabExpr, ElabExprNode, ElabInstArg, ElabLocalKind, ElabMatchArm,
+        ElabCallArg, ElabCallable, ElabExpr, ElabExprNode, ElabLocalKind, ElabMatchArm,
         ElabNamedExpr, ElabProgram, ElabResolution, ElabSelectArm, ElabSignatureResultBinding,
+        ElabStmt,
     },
 };
 use std::collections::{BTreeMap, HashMap};
@@ -54,7 +55,7 @@ impl<'a> EirBuilder<'a> {
             kind,
             ElabLocalKind::Param
                 | ElabLocalKind::Result
-                | ElabLocalKind::Alias
+                | ElabLocalKind::Let
                 | ElabLocalKind::Signal
                 | ElabLocalKind::Reg
                 | ElabLocalKind::Instance
@@ -100,7 +101,7 @@ impl<'a> EirBuilder<'a> {
                 self.collect_elab_read_places(left, env, reads);
                 self.collect_elab_read_places(right, env, reads);
             }
-            ElabExprNode::Call { callee, args } | ElabExprNode::Inst { callee, args } => {
+            ElabExprNode::Call { callee, args } | ElabExprNode::Place { callee, args } => {
                 self.collect_elab_read_places(callee, env, reads);
                 for arg in args {
                     self.collect_elab_read_places(&arg.value, env, reads);
@@ -126,6 +127,17 @@ impl<'a> EirBuilder<'a> {
             ElabExprNode::CompileError { message } => {
                 self.collect_elab_read_places(message, env, reads);
             }
+            ElabExprNode::For { range, body, .. } => {
+                self.collect_elab_read_places(range, env, reads);
+                if let Some(tail) = body.tail.as_deref() {
+                    self.collect_elab_read_places(tail, env, reads);
+                }
+                for stmt in &body.stmts {
+                    if let ElabStmt::Expr(expr) = stmt {
+                        self.collect_elab_read_places(expr, env, reads);
+                    }
+                }
+            }
             ElabExprNode::Ident(_)
             | ElabExprNode::Int(_)
             | ElabExprNode::Str(_)
@@ -141,7 +153,7 @@ impl<'a> EirBuilder<'a> {
     pub(super) fn elab_call_expr(
         &self,
         callee: &ElabExpr,
-        args: &[ElabInstArg],
+        args: &[ElabCallArg],
         env: &Env,
     ) -> EirExpr {
         match EirBuiltinResolver::new(self.program, env.owner).resolve_call_callee(callee) {
@@ -548,12 +560,6 @@ impl<'a> EirBuilder<'a> {
         })?;
         let canonical_name = self.program.def_name(def).unwrap_or(&name).to_string();
         Ok((def, canonical_name, callable))
-    }
-
-    pub(super) fn is_elab_callable_callee(&self, callee: &ElabExpr, env: &Env) -> bool {
-        self.callee_def_from_elab(callee, env)
-            .and_then(|def| self.program.callable_by_def(def))
-            .is_some()
     }
 
     pub(super) fn callee_def_from_elab(&self, callee: &ElabExpr, env: &Env) -> Option<DefId> {

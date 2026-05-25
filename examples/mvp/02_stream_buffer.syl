@@ -8,7 +8,7 @@
 // - field-level interface driver completeness
 //
 // Compiler-provided forms used here:
-// - package, use, bundle, map, module, alias, signal
+// - package, use, bundle, map, module, let, signal
 // - in, out through imported Stream views
 // - Nat, Bit, UInt<W>, Domain, Clock<D>, Reset<D>
 
@@ -37,17 +37,17 @@ module BufferedWordPipe<W: Nat = 32, D: Domain>(
     up: in Stream<Word<W>>.sink,
     down: out Stream<Word<W>>.source,
 ) {
-    alias in_stage = stage_from_stream<Word<W>>(
+    let in_stage = place stage_from_stream<Word<W>>(
         stream: up,
     )
 
-    alias buffered = stage_link<Word<W>, D>(
+    let buffered = place stage_link<Word<W>, D>(
         clk: clk,
         rst: rst,
         up: in_stage,
     )
 
-    alias out_stream = stage_to_stream<Word<W>>(
+    let out_stream = place stage_to_stream<Word<W>>(
         stage: buffered,
     )
 

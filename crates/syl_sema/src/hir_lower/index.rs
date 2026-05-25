@@ -132,7 +132,7 @@ impl<'files> HirResolver<'files> {
             | HirStmt::Signal {
                 ty, value: None, ..
             } => self.index_optional_type(owner, ty),
-            HirStmt::Alias { value, .. } | HirStmt::Next { value, .. } => {
+            HirStmt::Next { value, .. } => {
                 self.index_expr(owner, value);
             }
             HirStmt::Reg { ty, reset, .. } => {
@@ -140,10 +140,6 @@ impl<'files> HirResolver<'files> {
                 if let Some(reset) = reset {
                     self.index_reset(owner, reset);
                 }
-            }
-            HirStmt::Inst { name, callee, .. } => {
-                self.index_expr(owner, name);
-                self.index_expr(owner, callee);
             }
             HirStmt::While { cond, body, .. } => {
                 self.index_expr(owner, cond);
@@ -192,7 +188,7 @@ impl<'files> HirResolver<'files> {
                 self.index_expr(owner, left);
                 self.index_expr(owner, right);
             }
-            HirExprNode::Call { callee, args } | HirExprNode::Inst { callee, args } => {
+            HirExprNode::Call { callee, args } | HirExprNode::Place { callee, args } => {
                 self.index_expr(owner, callee);
                 for arg in args {
                     self.index_expr(owner, &mut arg.value);
@@ -240,6 +236,10 @@ impl<'files> HirResolver<'files> {
             HirExprNode::Range { start, end } => {
                 self.index_expr(owner, start);
                 self.index_expr(owner, end);
+            }
+            HirExprNode::For { range, body, .. } => {
+                self.index_expr(owner, range);
+                self.index_block(owner, body);
             }
             HirExprNode::Ident(_)
             | HirExprNode::Int(_)

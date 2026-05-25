@@ -55,7 +55,7 @@ module CombAlu32(
     req: in AluReq<DATA_W>,
 ) -> rsp: AluRsp<DATA_W> {
     signal inner: AluRsp<DATA_W> :=
-        inst CombAlu<DATA_W>(
+        place CombAlu<DATA_W>(
             req: req,
         )
 

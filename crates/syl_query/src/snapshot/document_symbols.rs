@@ -2,8 +2,8 @@ use crate::{DocumentSymbolKind, DocumentSymbolResult};
 use syl_session::{AnalysisFile, AnalysisSnapshot};
 use syl_span::Span;
 use syl_syntax::{
-    Block, BundleItem, CallableItem, EnumItem, Expr, ExternModuleItem, FieldDecl, FnItem,
-    GenericParam, InterfaceItem, Item, MapItem, Param, PortDecl, ResultBinding, Stmt, ViewDecl,
+    Block, BundleItem, CallableItem, EnumItem, ExternModuleItem, FieldDecl, FnItem, GenericParam,
+    InterfaceItem, Item, MapItem, Param, PortDecl, ResultBinding, Stmt, ViewDecl,
 };
 
 #[non_exhaustive]
@@ -255,11 +255,9 @@ impl<'a> DocumentSymbolCollector<'a> {
         match stmt {
             Stmt::Const { name, span, .. } => self.leaf(name, DocumentSymbolKind::Constant, *span),
             Stmt::Let { name, span, .. }
-            | Stmt::Alias { name, span, .. }
             | Stmt::Var { name, span, .. }
             | Stmt::Signal { name, span, .. }
             | Stmt::Reg { name, span, .. } => self.leaf(name, DocumentSymbolKind::Variable, *span),
-            Stmt::Inst { name, span, .. } => self.inst_symbol(name, *span),
             Stmt::ElabFor {
                 name, body, span, ..
             } => self.loop_symbol(name, body, *span),
@@ -286,13 +284,6 @@ impl<'a> DocumentSymbolCollector<'a> {
         self.symbol(name.to_string(), kind, span, Vec::new())
             .into_iter()
             .collect()
-    }
-
-    fn inst_symbol(&self, name: &Expr, span: Span) -> Vec<DocumentSymbolResult> {
-        let Some(name) = ExprSymbolName::new(name).name() else {
-            return Vec::new();
-        };
-        self.leaf(&name, DocumentSymbolKind::Module, span)
     }
 
     fn loop_symbol(&self, name: &str, body: &Block, span: Span) -> Vec<DocumentSymbolResult> {
@@ -328,29 +319,6 @@ impl<'a> DocumentSymbolCollector<'a> {
             selection_range,
             children,
         })
-    }
-}
-
-#[non_exhaustive]
-struct ExprSymbolName<'a> {
-    expr: &'a Expr,
-}
-
-impl<'a> ExprSymbolName<'a> {
-    fn new(expr: &'a Expr) -> Self {
-        Self { expr }
-    }
-
-    fn name(&self) -> Option<String> {
-        let mut current = self.expr;
-        loop {
-            match current {
-                Expr::Ident(name, _) => return Some(name.clone()),
-                Expr::Index { base, .. } | Expr::Field { base, .. } => current = base,
-                Expr::Group(expr, _) => current = expr,
-                _ => return None,
-            }
-        }
     }
 }
 

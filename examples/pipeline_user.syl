@@ -80,27 +80,27 @@ module PipelinedAlu<W: Nat = DATA_W, D: Domain>(
     cmd_in: in Stream<AluCmd<W>>.sink,
     rsp_out: out Stream<AluRsp<W>>.source,
 ) {
-    alias in_stage = stage_from_stream<AluCmd<W>>(
+    let in_stage = place stage_from_stream<AluCmd<W>>(
         stream: cmd_in,
     )
 
-    alias decode_ctrl = halt_link<AluCmd<W>>(
+    let decode_ctrl = place halt_link<AluCmd<W>>(
         up: in_stage,
         halt: stall_decode,
     )
 
-    alias execute_stage = stage_link<AluCmd<W>, D>(
+    let execute_stage = place stage_link<AluCmd<W>, D>(
         clk: clk,
         rst: rst,
         up: decode_ctrl,
     )
 
-    alias filtered_response = drop_link<AluCmd<W>>(
+    let filtered_response = place drop_link<AluCmd<W>>(
         up: execute_stage,
         drop: flush_response,
     )
 
-    alias out_stream = stage_to_stream<AluCmd<W>>(
+    let out_stream = place stage_to_stream<AluCmd<W>>(
         stage: filtered_response,
     )
 

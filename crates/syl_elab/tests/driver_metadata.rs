@@ -42,7 +42,7 @@ cell MakeBit() -> y: Bit {
 }
 
 module Top(y: out Bit) {
-    alias made = MakeBit()
+    let made = place MakeBit()
     y := made
 }
 "#])
@@ -80,7 +80,7 @@ cell MakeBit() -> y: Bit {
 }
 
 module Top(y: out Bit) {
-    alias made = MakeBit()
+    let made = place MakeBit()
     y := made
 }
 "#])

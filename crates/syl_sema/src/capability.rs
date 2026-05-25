@@ -6,8 +6,8 @@ use crate::{
         CapabilityScope, EndpointSide, FieldCaps, Place, PlaceResolution, PlaceResolver,
     },
     hir::{
-        HirBlock, HirBodyExpr, HirCallable, HirCallableItem, HirDefKind, HirDesign,
-        HirDriveCapability, HirExprNode, HirInstArg, HirPortDirection, HirSignatureParam,
+        HirBlock, HirBodyExpr, HirCallArg, HirCallable, HirCallableItem, HirDefKind, HirDesign,
+        HirDriveCapability, HirExprNode, HirPortDirection, HirSignatureParam,
         HirSignatureResultBinding, HirStmt,
     },
     hir_resolve::HirResolution,
@@ -117,14 +117,14 @@ impl<'a> CapabilityChecker<'a> {
                 HirStmt::Reg { id, name, span, .. } => {
                     scope.insert(self.local_id(name, *id, *span)?, FieldCaps::read_only());
                 }
-                HirStmt::Alias {
+                HirStmt::Let {
                     id,
                     name,
-                    value,
+                    value: Some(value),
                     span,
                     ..
                 } => {
-                    let caps = self.alias_caps(owner, value)?;
+                    let caps = self.let_caps(owner, value)?;
                     scope.insert(self.local_id(name, *id, *span)?, caps);
                     self.check_read_expr(owner, value, &scope)?;
                 }
@@ -155,14 +155,8 @@ impl<'a> CapabilityChecker<'a> {
                     loop_scope.insert(self.local_id(name, *id, *span)?, FieldCaps::read_only());
                     self.check_block(owner, body, &loop_scope)?;
                 }
-                HirStmt::Const { value, .. }
-                | HirStmt::Let {
-                    value: Some(value), ..
-                } => {
+                HirStmt::Const { value, .. } => {
                     self.check_read_expr(owner, value, &scope)?;
-                }
-                HirStmt::Inst { callee, .. } => {
-                    self.check_read_expr(owner, callee, &scope)?;
                 }
                 HirStmt::Var { .. }
                 | HirStmt::Let { value: None, .. }
@@ -303,8 +297,8 @@ impl<'a> CapabilityChecker<'a> {
                 }
                 self.check_read_expr(owner, right, scope)
             }
-            HirExprNode::Call { callee, args } | HirExprNode::Inst { callee, args } => {
-                self.check_inst_args(owner, callee, args, scope)
+            HirExprNode::Call { callee, args } | HirExprNode::Place { callee, args } => {
+                self.check_call_args(owner, callee, args, scope)
             }
             HirExprNode::Aggregate { fields, .. } => {
                 for field in fields {
@@ -365,11 +359,11 @@ impl<'a> CapabilityChecker<'a> {
         }
     }
 
-    fn check_inst_args(
+    fn check_call_args(
         &self,
         owner: DefId,
         callee: &HirBodyExpr,
-        args: &[HirInstArg],
+        args: &[HirCallArg],
         scope: &CapabilityScope,
     ) -> Result<(), CompileError> {
         let Some((callee_def, callee_name, callable)) = self.callable_for_callee(owner, callee)
@@ -555,7 +549,7 @@ impl<'a> CapabilityChecker<'a> {
             .unwrap_or_else(fallback))
     }
 
-    fn alias_caps(&self, owner: DefId, value: &HirBodyExpr) -> Result<FieldCaps, CompileError> {
+    fn let_caps(&self, owner: DefId, value: &HirBodyExpr) -> Result<FieldCaps, CompileError> {
         let Some((callee_def, _, callable)) = self.callable_from_value(owner, value) else {
             return Ok(FieldCaps::read_only());
         };
@@ -573,7 +567,7 @@ impl<'a> CapabilityChecker<'a> {
         expr: &HirBodyExpr,
     ) -> Option<(DefId, String, &HirCallable)> {
         match &expr.node {
-            HirExprNode::Call { callee, .. } | HirExprNode::Inst { callee, .. } => {
+            HirExprNode::Call { callee, .. } | HirExprNode::Place { callee, .. } => {
                 self.callable_for_callee(owner, callee)
             }
             _ => None,

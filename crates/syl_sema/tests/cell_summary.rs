@@ -44,7 +44,7 @@ cell MakePair() -> y: Bit {
 }
 
 module Top(y: out Bit) {
-    alias made = MakePair()
+    let made = place MakePair()
     y := made
 }
 "#,

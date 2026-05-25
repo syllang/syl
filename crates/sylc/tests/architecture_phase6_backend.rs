@@ -201,7 +201,7 @@ module Child(x: in Bit, y: out Bit) {
 
 module Top(x: in Bit, y: out Bit) {
     signal tmp: Bit
-    inst child = Child(x: x, y: tmp)
+    let child = place Child(x: x, y: tmp)
     y := tmp
 }
 "#

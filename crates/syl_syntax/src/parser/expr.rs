@@ -258,7 +258,7 @@ impl Parser {
         })
     }
 
-    pub(super) fn parse_inst_expr(&mut self, start: Span) -> Result<Expr, Vec<Diagnostic>> {
+    pub(super) fn parse_place_expr(&mut self, start: Span) -> Result<Expr, Vec<Diagnostic>> {
         let mut callee = self.parse_prefix()?;
         while self.peek_kind() == Some(&TokenKind::Lt) && self.looks_like_generic_app() {
             self.bump();
@@ -294,11 +294,11 @@ impl Parser {
                         self.expect(TokenKind::Colon)?;
                         let value = self.parse_expr(0)?;
                         let span = arg_start.join(value.span());
-                        InstArg::new(Some(name), value, span)
+                        CallArg::new(Some(name), value, span)
                     } else {
                         let value = self.parse_expr(0)?;
                         let span = value.span();
-                        InstArg::new(None, value, span)
+                        CallArg::new(None, value, span)
                     };
                     args.push(arg);
                     if self.consume(&TokenKind::Comma).is_none() || self.check(&TokenKind::RParen) {
@@ -309,9 +309,34 @@ impl Parser {
             end = self.expect(TokenKind::RParen)?.span;
         }
         let span = start.join(end);
-        Ok(Expr::Inst {
+        Ok(Expr::Place {
             callee: Box::new(callee),
             args,
+            span,
+        })
+    }
+
+    pub(super) fn parse_for_expr(&mut self, start: Span) -> Result<Expr, Vec<Diagnostic>> {
+        let name = self.expect_ident()?;
+        if self.consume(&TokenKind::KwIn).is_none() {
+            self.error(start, "expected `in` after `for` loop variable");
+            return Err(std::mem::take(&mut self.diagnostics));
+        }
+        let start_expr = self.parse_expr(0)?;
+        self.expect(TokenKind::DotDot)?;
+        let end_expr = self.parse_expr(0)?;
+        let range_span = start_expr.span().join(end_expr.span());
+        let range = Expr::Range {
+            start: Box::new(start_expr),
+            end: Box::new(end_expr),
+            span: range_span,
+        };
+        let body = self.parse_block()?;
+        let span = start.join(body.span);
+        Ok(Expr::For {
+            name,
+            range: Box::new(range),
+            body,
             span,
         })
     }
@@ -413,11 +438,11 @@ impl Parser {
                             self.expect(TokenKind::Colon)?;
                             let value = self.parse_expr(0)?;
                             let span = arg_start.join(value.span());
-                            InstArg::new(Some(name), value, span)
+                            CallArg::new(Some(name), value, span)
                         } else {
                             let value = self.parse_expr(0)?;
                             let span = value.span();
-                            InstArg::new(None, value, span)
+                            CallArg::new(None, value, span)
                         };
                         args.push(arg);
                         if self.consume(&TokenKind::Comma).is_none()
@@ -624,10 +649,15 @@ impl Parser {
                 ..
             }) => self.parse_select_expr(span),
             Some(Token {
-                kind: TokenKind::KwInst,
+                kind: TokenKind::KwPlace,
                 span,
                 ..
-            }) => self.parse_inst_expr(span),
+            }) => self.parse_place_expr(span),
+            Some(Token {
+                kind: TokenKind::KwFor,
+                span,
+                ..
+            }) => self.parse_for_expr(span),
             Some(tok) => {
                 self.error(tok.span, "expected expression");
                 Err(std::mem::take(&mut self.diagnostics))

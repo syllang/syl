@@ -23,7 +23,7 @@ cell vendor_assert_stream_fire<T, D: Domain>(
     stream: in Stream<T>.tap,
 ) {
     signal fire: Bit := stream.valid and stream.ready
-    inst check = VendorAssertBit<D>(
+    let check = place VendorAssertBit<D>(
         clk: clk,
         rst: rst,
         condition: fire,

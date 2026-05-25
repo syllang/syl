@@ -17,11 +17,11 @@ pub mod parser;
 pub mod token;
 
 pub use ast::{
-    AstFile, Attribute, BinaryOp, Block, BundleItem, CallableItem, ConstItem, DriveCapability,
-    EnumItem, EnumVariant, ErrorItem, Expr, ExternModuleItem, FieldDecl, FnItem, GenericParam,
-    InstArg, InterfaceItem, Item, MapItem, MatchArm, NamedExpr, PackageItem, Param, ParamDirection,
-    Pattern, PortDecl, RegReset, ResultBinding, SelectArm, SelectMode, Stmt, TypeExpr, UnaryOp,
-    UseItem, ViewDecl, ViewDirection, ViewField,
+    AstFile, Attribute, BinaryOp, Block, BundleItem, CallArg, CallableItem, ConstItem,
+    DriveCapability, EnumItem, EnumVariant, ErrorItem, Expr, ExternModuleItem, FieldDecl, FnItem,
+    GenericParam, InterfaceItem, Item, MapItem, MatchArm, NamedExpr, PackageItem, Param,
+    ParamDirection, Pattern, PortDecl, RegReset, ResultBinding, SelectArm, SelectMode, Stmt,
+    TypeExpr, UnaryOp, UseItem, ViewDecl, ViewDirection, ViewField,
 };
 pub use lossless::{LosslessItemKind, LosslessNodeKind, LosslessSyntaxElement, LosslessSyntaxNode};
 pub use lossless::{LosslessSyntaxFile, LosslessToken, LosslessTokenKind};

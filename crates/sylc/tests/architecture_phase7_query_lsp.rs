@@ -212,7 +212,7 @@ fn architecture_phase7_grouped_diagnostics_and_partial_failure_stages_stay_disti
     );
     host.open_document(
         elab_uri.clone(),
-        "package elab;\nextern module VendorLatch(y: in Bit)\n\nmodule Top(y: out Bit) {\n    signal tmp: Bit := 0\n    inst vendor = VendorLatch(y: tmp)\n    y := tmp\n}\n".to_string(),
+        "package elab;\nextern module VendorLatch(y: in Bit)\n\nmodule Top(y: out Bit) {\n    signal tmp: Bit := 0\n    let vendor = place VendorLatch(y: tmp)\n    y := tmp\n}\n".to_string(),
         DocumentVersion::new(1),
     );
     host.register_opaque_summary(trusted_vendor_summary());

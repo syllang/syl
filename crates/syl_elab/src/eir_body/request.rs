@@ -1,6 +1,6 @@
 use crate::{
     mir::MirTypeRef,
-    program::{ElabBlock, ElabExpr, ElabInstArg, ElabNamedExpr, ElabRegReset},
+    program::{ElabBlock, ElabCallArg, ElabExpr, ElabNamedExpr, ElabRegReset},
 };
 use syl_span::Span;
 
@@ -38,10 +38,10 @@ pub(super) struct IfEmit<'a> {
 }
 
 #[non_exhaustive]
-pub(super) struct AliasInstanceEmit<'a> {
+pub(super) struct LetPlaceEmit<'a> {
     pub(super) name: &'a str,
     pub(super) callee: &'a ElabExpr,
-    pub(super) args: &'a [ElabInstArg],
+    pub(super) args: &'a [ElabCallArg],
     pub(super) value: &'a ElabExpr,
 }
 

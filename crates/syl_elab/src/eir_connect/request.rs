@@ -2,7 +2,7 @@ use crate::{
     eir_build::Env,
     eir_expr::EirExpr,
     mir::{MirConstExpr, MirTypeRef},
-    program::{ElabCallableItem, ElabExpr, ElabInstArg, ElabPortDirection},
+    program::{ElabCallArg, ElabCallableItem, ElabExpr, ElabPortDirection},
 };
 use syl_hir::DefId;
 use syl_span::Span;
@@ -36,7 +36,7 @@ pub(crate) struct ViewSignalSpec<'a> {
 pub(crate) struct InstanceEmitRequest<'a> {
     pub(crate) inst_name: &'a str,
     pub(crate) callee: &'a ElabExpr,
-    pub(crate) args: &'a [ElabInstArg],
+    pub(crate) args: &'a [ElabCallArg],
     pub(crate) env: &'a Env,
     pub(crate) span: Span,
 }
@@ -48,7 +48,7 @@ pub(super) struct CellInlineRequest<'a> {
     pub(super) callable_name: &'a str,
     pub(super) item: &'a ElabCallableItem,
     pub(super) callee: &'a ElabExpr,
-    pub(super) args: &'a [ElabInstArg],
+    pub(super) args: &'a [ElabCallArg],
     pub(super) caller_env: &'a Env,
 }
 

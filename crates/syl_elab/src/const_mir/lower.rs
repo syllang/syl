@@ -2,7 +2,7 @@ use super::{ConstExpr, ConstFunction, ConstMirElabExt, ConstMirProgram};
 use crate::{
     CompileError, ConstEvalError, EirError, TirError,
     const_eval::{ConstEvalEnv, ConstKind, ConstValue},
-    program::{ElabExpr, ElabExprNode, ElabInstArg, ElabProgram, ElabResolution},
+    program::{ElabCallArg, ElabExpr, ElabExprNode, ElabProgram, ElabResolution},
 };
 use std::collections::BTreeMap;
 use syl_hir::DefId;
@@ -126,7 +126,8 @@ impl<'program, 'env> ElabConstLowerer<'program, 'env> {
             | ElabExprNode::Block(_)
             | ElabExprNode::Match { .. }
             | ElabExprNode::Select { .. }
-            | ElabExprNode::Inst { .. }
+            | ElabExprNode::Place { .. }
+            | ElabExprNode::For { .. }
             | ElabExprNode::CompileError { .. }
             | ElabExprNode::Range { .. } => Err(self.invalid(expr)),
         }
@@ -165,7 +166,7 @@ impl<'program, 'env> ElabConstLowerer<'program, 'env> {
         &self,
         expr: &ElabExpr,
         callee: &ElabExpr,
-        args: &[ElabInstArg],
+        args: &[ElabCallArg],
     ) -> Result<ConstExpr, CompileError> {
         let Some(def) = self.const_function_def(callee) else {
             return Err(CompileError::lowering_at(
@@ -197,7 +198,7 @@ impl<'program, 'env> ElabConstLowerer<'program, 'env> {
     fn call_args(
         &self,
         function: &ConstFunction,
-        args: &[ElabInstArg],
+        args: &[ElabCallArg],
     ) -> Result<Vec<ConstExpr>, CompileError> {
         let mut values = ElabConstArgBinder::new(self, function, args).bind()?;
         let mut out = Vec::new();
@@ -227,7 +228,7 @@ impl<'program, 'env> ElabConstLowerer<'program, 'env> {
 struct ElabConstArgBinder<'program, 'env, 'args> {
     lowerer: &'args ElabConstLowerer<'program, 'env>,
     function: &'args ConstFunction,
-    args: &'args [ElabInstArg],
+    args: &'args [ElabCallArg],
     values: BTreeMap<String, ConstExpr>,
     next_positional: usize,
 }
@@ -236,7 +237,7 @@ impl<'program, 'env, 'args> ElabConstArgBinder<'program, 'env, 'args> {
     fn new(
         lowerer: &'args ElabConstLowerer<'program, 'env>,
         function: &'args ConstFunction,
-        args: &'args [ElabInstArg],
+        args: &'args [ElabCallArg],
     ) -> Self {
         Self {
             lowerer,
@@ -255,7 +256,7 @@ impl<'program, 'env, 'args> ElabConstArgBinder<'program, 'env, 'args> {
         Ok(self.values)
     }
 
-    fn resolve_param(&mut self, arg: &ElabInstArg) -> Result<&str, CompileError> {
+    fn resolve_param(&mut self, arg: &ElabCallArg) -> Result<&str, CompileError> {
         if let Some(name) = &arg.name {
             return self
                 .function
@@ -275,7 +276,7 @@ impl<'program, 'env, 'args> ElabConstArgBinder<'program, 'env, 'args> {
         Ok(param)
     }
 
-    fn unknown_parameter(&self, arg: &ElabInstArg) -> CompileError {
+    fn unknown_parameter(&self, arg: &ElabCallArg) -> CompileError {
         CompileError::lowering_at(
             EirError::UnknownParameter {
                 name: arg

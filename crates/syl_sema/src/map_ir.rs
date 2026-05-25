@@ -1,7 +1,7 @@
 use crate::{
     CompileError, EirError, TirError,
     hir::{
-        HirBodyExpr, HirExprNode, HirInstArg, HirMapItem, HirMatchArm, HirNamedExpr, HirSelectArm,
+        HirBodyExpr, HirCallArg, HirExprNode, HirMapItem, HirMatchArm, HirNamedExpr, HirSelectArm,
     },
     hir_resolve::HirResolution,
     hir_view::HirDesignViewExt,
@@ -340,7 +340,8 @@ impl<'a> MapIrBuilder<'a> {
                 arms: self.lower_select_arms(owner, arms)?,
             },
             HirExprNode::Block(_)
-            | HirExprNode::Inst { .. }
+            | HirExprNode::Place { .. }
+            | HirExprNode::For { .. }
             | HirExprNode::CompileError { .. }
             | HirExprNode::Range { .. }
             | HirExprNode::Unsupported => {
@@ -363,7 +364,7 @@ impl<'a> MapIrBuilder<'a> {
         &self,
         owner: DefId,
         callee: &HirBodyExpr,
-        args: &[HirInstArg],
+        args: &[HirCallArg],
     ) -> Result<MapExpr, CompileError> {
         let generic_args = self.generic_args(callee);
         match BuiltinResolver::new(self.tir.hir(), Some(owner)).resolve_call_callee(callee) {

@@ -175,7 +175,7 @@ cell MakeBit() -> y: Bit {
 package app;
 
 module Top(y: out Bit) {
-    alias tmp = MakeBit()
+    let tmp = place MakeBit()
     y := tmp
 }
 "#,
@@ -431,7 +431,7 @@ map passthrough(x: Bit) -> Bit =
     0
 
 module Top(x: in Bit, y: out Bit) {
-    alias made = Make(x: x)
+    let made = place Make(x: x)
     y := made
 }
 "#,
@@ -476,7 +476,7 @@ use first.Make
 use second.Make
 
 module Top(y: out Bit) {
-    inst u = Make(y: y)
+    let u = place Make(y: y)
 }
 "#,
     )

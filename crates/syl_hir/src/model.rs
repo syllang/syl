@@ -15,7 +15,7 @@ mod type_ref;
 pub use type_ref::{MirBinaryOp, MirConstExpr, MirPattern, MirSelectMode, MirTypeRef, MirUnaryOp};
 
 pub use body::{
-    HirBlock, HirExpr as HirBodyExpr, HirExprNode, HirInstArg, HirMatchArm, HirNamedExpr,
+    HirBlock, HirCallArg, HirExpr as HirBodyExpr, HirExprNode, HirMatchArm, HirNamedExpr,
     HirRegReset, HirSelectArm, HirStmt,
 };
 pub use callable::HirCallable;
@@ -318,7 +318,6 @@ pub enum HirLocalKind {
     Const,
     Let,
     Var,
-    Alias,
     Signal,
     Reg,
     Instance,

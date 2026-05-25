@@ -220,11 +220,11 @@ syl_hir|field|syl_hir::model::HirTypeRef::ty|MirTypeRef
 syl_hir|field|syl_hir::model::body::HirBlock::span|syl_span::Span
 syl_hir|field|syl_hir::model::body::HirBlock::stmts|Vec<HirStmt>
 syl_hir|field|syl_hir::model::body::HirBlock::tail|Option<Box<HirExpr>>
+syl_hir|field|syl_hir::model::body::HirCallArg::name|Option<String>
+syl_hir|field|syl_hir::model::body::HirCallArg::value|HirExpr
 syl_hir|field|syl_hir::model::body::HirExpr::id|crate::ExprId
 syl_hir|field|syl_hir::model::body::HirExpr::node|HirExprNode
 syl_hir|field|syl_hir::model::body::HirExpr::span|syl_span::Span
-syl_hir|field|syl_hir::model::body::HirInstArg::name|Option<String>
-syl_hir|field|syl_hir::model::body::HirInstArg::value|HirExpr
 syl_hir|field|syl_hir::model::body::HirMatchArm::pattern|super::MirPattern
 syl_hir|field|syl_hir::model::body::HirMatchArm::value|HirExpr
 syl_hir|field|syl_hir::model::body::HirNamedExpr::name|String
@@ -347,9 +347,9 @@ syl_hir|method|syl_hir::model::HirMemberKind::label|fn(self: &Self) -> &str
 syl_hir|method|syl_hir::model::HirPackage::new|fn(id: PackageId, path: Vec<String>, span: Span) -> Self
 syl_hir|method|syl_hir::model::HirTypeRef::definition|fn(self: &Self) -> Option<DefId>
 syl_hir|method|syl_hir::model::HirTypeRef::new|fn(owner: DefId, ty: MirTypeRef) -> Self
+syl_hir|method|syl_hir::model::body::HirCallArg::span|fn(self: &Self) -> Span
 syl_hir|method|syl_hir::model::body::HirExpr::id|fn(self: &Self) -> ExprId
 syl_hir|method|syl_hir::model::body::HirExpr::span|fn(self: &Self) -> Span
-syl_hir|method|syl_hir::model::body::HirInstArg::span|fn(self: &Self) -> Span
 syl_hir|method|syl_hir::model::body::HirStmt::span|fn(self: &Self) -> Span
 syl_hir|method|syl_hir::model::callable::HirCallable::callable_item|fn(self: &Self) -> Option<&HirCallableItem>
 syl_hir|method|syl_hir::model::callable::HirCallable::params|fn(self: &Self) -> &[HirSignatureParam]
@@ -406,8 +406,8 @@ syl_hir|struct|syl_hir::model::HirMemberDecl|public
 syl_hir|struct|syl_hir::model::HirPackage|public
 syl_hir|struct|syl_hir::model::HirTypeRef|public
 syl_hir|struct|syl_hir::model::body::HirBlock|public
+syl_hir|struct|syl_hir::model::body::HirCallArg|public
 syl_hir|struct|syl_hir::model::body::HirExpr|public
-syl_hir|struct|syl_hir::model::body::HirInstArg|public
 syl_hir|struct|syl_hir::model::body::HirMatchArm|public
 syl_hir|struct|syl_hir::model::body::HirNamedExpr|public
 syl_hir|struct|syl_hir::model::body::HirRegReset|public
@@ -445,6 +445,8 @@ syl_hir|use|HirBodyExpr|named|source=body::HirExpr
 syl_hir|use|HirBodyExpr|named|source=model::HirBodyExpr
 syl_hir|use|HirBundleItem|named|source=item::HirBundleItem
 syl_hir|use|HirBundleItem|named|source=model::HirBundleItem
+syl_hir|use|HirCallArg|named|source=body::HirCallArg
+syl_hir|use|HirCallArg|named|source=model::HirCallArg
 syl_hir|use|HirCallableItem|named|source=item::HirCallableItem
 syl_hir|use|HirCallableItem|named|source=model::HirCallableItem
 syl_hir|use|HirCallable|named|source=callable::HirCallable
@@ -473,8 +475,6 @@ syl_hir|use|HirFieldDecl|named|source=model::HirFieldDecl
 syl_hir|use|HirFnItem|named|source=item::HirFnItem
 syl_hir|use|HirFnItem|named|source=model::HirFnItem
 syl_hir|use|HirImport|named|source=model::HirImport
-syl_hir|use|HirInstArg|named|source=body::HirInstArg
-syl_hir|use|HirInstArg|named|source=model::HirInstArg
 syl_hir|use|HirInterfaceItem|named|source=item::HirInterfaceItem
 syl_hir|use|HirInterfaceItem|named|source=model::HirInterfaceItem
 syl_hir|use|HirLocalKind|named|source=model::HirLocalKind
@@ -536,7 +536,6 @@ syl_hir|variant|syl_hir::model::HirDefKind::Fn|unit
 syl_hir|variant|syl_hir::model::HirDefKind::Interface|unit
 syl_hir|variant|syl_hir::model::HirDefKind::Map|unit
 syl_hir|variant|syl_hir::model::HirDefKind::Module|unit
-syl_hir|variant|syl_hir::model::HirLocalKind::Alias|unit
 syl_hir|variant|syl_hir::model::HirLocalKind::Const|unit
 syl_hir|variant|syl_hir::model::HirLocalKind::Generic|unit
 syl_hir|variant|syl_hir::model::HirLocalKind::Instance|unit
@@ -554,28 +553,27 @@ syl_hir|variant|syl_hir::model::body::HirExprNode::Aggregate|{ ty: Box<super::Mi
 syl_hir|variant|syl_hir::model::body::HirExprNode::Binary|{ op: syl_syntax::BinaryOp, left: Box<HirExpr>, right: Box<HirExpr> }
 syl_hir|variant|syl_hir::model::body::HirExprNode::Block|(HirBlock)
 syl_hir|variant|syl_hir::model::body::HirExprNode::Bool|(bool)
-syl_hir|variant|syl_hir::model::body::HirExprNode::Call|{ callee: Box<HirExpr>, args: Vec<HirInstArg> }
+syl_hir|variant|syl_hir::model::body::HirExprNode::Call|{ callee: Box<HirExpr>, args: Vec<HirCallArg> }
 syl_hir|variant|syl_hir::model::body::HirExprNode::CompileError|{ message: Box<HirExpr> }
 syl_hir|variant|syl_hir::model::body::HirExprNode::Field|{ base: Box<HirExpr>, field: String }
+syl_hir|variant|syl_hir::model::body::HirExprNode::For|{ id: Option<crate::LocalId>, name: String, range: Box<HirExpr>, body: HirBlock }
 syl_hir|variant|syl_hir::model::body::HirExprNode::GenericApp|{ callee: Box<HirExpr>, args: Vec<super::MirTypeRef> }
 syl_hir|variant|syl_hir::model::body::HirExprNode::Group|(Box<HirExpr>)
 syl_hir|variant|syl_hir::model::body::HirExprNode::Ident|(String)
 syl_hir|variant|syl_hir::model::body::HirExprNode::Index|{ base: Box<HirExpr>, index: Box<HirExpr> }
-syl_hir|variant|syl_hir::model::body::HirExprNode::Inst|{ callee: Box<HirExpr>, args: Vec<HirInstArg> }
 syl_hir|variant|syl_hir::model::body::HirExprNode::Int|(u64)
 syl_hir|variant|syl_hir::model::body::HirExprNode::Match|{ expr: Box<HirExpr>, arms: Vec<HirMatchArm> }
+syl_hir|variant|syl_hir::model::body::HirExprNode::Place|{ callee: Box<HirExpr>, args: Vec<HirCallArg> }
 syl_hir|variant|syl_hir::model::body::HirExprNode::Range|{ start: Box<HirExpr>, end: Box<HirExpr> }
 syl_hir|variant|syl_hir::model::body::HirExprNode::Select|{ mode: super::MirSelectMode, arms: Vec<HirSelectArm> }
 syl_hir|variant|syl_hir::model::body::HirExprNode::Str|(String)
 syl_hir|variant|syl_hir::model::body::HirExprNode::Unary|{ op: syl_syntax::UnaryOp, expr: Box<HirExpr> }
 syl_hir|variant|syl_hir::model::body::HirExprNode::Unsupported|unit
-syl_hir|variant|syl_hir::model::body::HirStmt::Alias|{ id: Option<crate::LocalId>, name: String, value: HirExpr, span: syl_span::Span }
 syl_hir|variant|syl_hir::model::body::HirStmt::Const|{ id: Option<crate::LocalId>, name: String, ty: Option<super::MirTypeRef>, value: HirExpr, span: syl_span::Span }
 syl_hir|variant|syl_hir::model::body::HirStmt::ElabFor|{ id: Option<crate::LocalId>, name: String, range: HirExpr, body: HirBlock, span: syl_span::Span }
 syl_hir|variant|syl_hir::model::body::HirStmt::ElabIf|{ cond: HirExpr, then_block: HirBlock, else_block: Option<HirBlock>, span: syl_span::Span }
 syl_hir|variant|syl_hir::model::body::HirStmt::Error|{ span: syl_span::Span }
 syl_hir|variant|syl_hir::model::body::HirStmt::Expr|(HirExpr)
-syl_hir|variant|syl_hir::model::body::HirStmt::Inst|{ id: Option<crate::LocalId>, name: HirExpr, callee: HirExpr, span: syl_span::Span }
 syl_hir|variant|syl_hir::model::body::HirStmt::Let|{ id: Option<crate::LocalId>, name: String, ty: Option<super::MirTypeRef>, value: Option<HirExpr>, span: syl_span::Span }
 syl_hir|variant|syl_hir::model::body::HirStmt::Next|{ name: String, value: HirExpr, span: syl_span::Span }
 syl_hir|variant|syl_hir::model::body::HirStmt::Reg|{ id: Option<crate::LocalId>, name: String, ty: Option<super::MirTypeRef>, reset: Option<HirRegReset>, span: syl_span::Span }
@@ -1603,7 +1601,6 @@ syl_sema|variant|syl_sema::cell_summary::CellSummaryStatus::Available|unit
 syl_sema|variant|syl_sema::cell_summary::CellSummaryStatus::Missing|unit
 syl_sema|variant|syl_sema::cell_summary::CellSummaryStatus::UnsafeAssumed|unit
 syl_sema|variant|syl_sema::cell_summary::HwPlace::Ident|(String)
-syl_sema|variant|syl_sema::completion::CompletionKind::Alias|unit
 syl_sema|variant|syl_sema::completion::CompletionKind::Bundle|unit
 syl_sema|variant|syl_sema::completion::CompletionKind::Cell|unit
 syl_sema|variant|syl_sema::completion::CompletionKind::Const|unit
@@ -2234,6 +2231,9 @@ syl_syntax|field|syl_syntax::ast::BundleItem::fields|Vec<FieldDecl>
 syl_syntax|field|syl_syntax::ast::BundleItem::generics|Vec<GenericParam>
 syl_syntax|field|syl_syntax::ast::BundleItem::name|String
 syl_syntax|field|syl_syntax::ast::BundleItem::span|syl_span::Span
+syl_syntax|field|syl_syntax::ast::CallArg::name|Option<String>
+syl_syntax|field|syl_syntax::ast::CallArg::span|syl_span::Span
+syl_syntax|field|syl_syntax::ast::CallArg::value|Expr
 syl_syntax|field|syl_syntax::ast::CallableItem::body|Block
 syl_syntax|field|syl_syntax::ast::CallableItem::generics|Vec<GenericParam>
 syl_syntax|field|syl_syntax::ast::CallableItem::name|String
@@ -2269,9 +2269,6 @@ syl_syntax|field|syl_syntax::ast::GenericParam::default|Option<Expr>
 syl_syntax|field|syl_syntax::ast::GenericParam::kind|Option<TypeExpr>
 syl_syntax|field|syl_syntax::ast::GenericParam::name|String
 syl_syntax|field|syl_syntax::ast::GenericParam::span|syl_span::Span
-syl_syntax|field|syl_syntax::ast::InstArg::name|Option<String>
-syl_syntax|field|syl_syntax::ast::InstArg::span|syl_span::Span
-syl_syntax|field|syl_syntax::ast::InstArg::value|Expr
 syl_syntax|field|syl_syntax::ast::InterfaceItem::fields|Vec<FieldDecl>
 syl_syntax|field|syl_syntax::ast::InterfaceItem::generics|Vec<GenericParam>
 syl_syntax|field|syl_syntax::ast::InterfaceItem::name|String
@@ -2338,6 +2335,7 @@ syl_syntax|method|syl_syntax::ast::AstFile::new|fn(items: Vec<crate::Item>) -> S
 syl_syntax|method|syl_syntax::ast::Attribute::new|fn(name: String, args: Vec<Expr>, span: Span) -> Self
 syl_syntax|method|syl_syntax::ast::Block::new|fn(stmts: Vec<crate::Stmt>, tail: Option<Box<Expr>>, span: Span) -> Self
 syl_syntax|method|syl_syntax::ast::BundleItem::builder|fn(name: String) -> BundleItemBuilder
+syl_syntax|method|syl_syntax::ast::CallArg::new|fn(name: Option<String>, value: Expr, span: Span) -> Self
 syl_syntax|method|syl_syntax::ast::CallableItem::builder|fn(name: String, body: Block) -> CallableItemBuilder
 syl_syntax|method|syl_syntax::ast::ConstItem::new|fn(name: String, ty: Option<TypeExpr>, value: Expr, span: Span) -> Self
 syl_syntax|method|syl_syntax::ast::DriveCapability::can_read|fn(self: &Self) -> bool
@@ -2350,7 +2348,6 @@ syl_syntax|method|syl_syntax::ast::ExternModuleItem::builder|fn(name: String) ->
 syl_syntax|method|syl_syntax::ast::FieldDecl::new|fn(name: String, ty: TypeExpr, span: Span) -> Self
 syl_syntax|method|syl_syntax::ast::FnItem::builder|fn(name: String, body: Block) -> FnItemBuilder
 syl_syntax|method|syl_syntax::ast::GenericParam::new|fn(name: String, kind: Option<TypeExpr>, default: Option<Expr>, span: Span) -> Self
-syl_syntax|method|syl_syntax::ast::InstArg::new|fn(name: Option<String>, value: Expr, span: Span) -> Self
 syl_syntax|method|syl_syntax::ast::InterfaceItem::builder|fn(name: String) -> InterfaceItemBuilder
 syl_syntax|method|syl_syntax::ast::Item::lossless_kind|fn(self: &Self) -> LosslessItemKind
 syl_syntax|method|syl_syntax::ast::Item::span|fn(self: &Self) -> Span
@@ -2424,6 +2421,7 @@ syl_syntax|struct|syl_syntax::ast::AstFile|public
 syl_syntax|struct|syl_syntax::ast::Attribute|public
 syl_syntax|struct|syl_syntax::ast::Block|public
 syl_syntax|struct|syl_syntax::ast::BundleItem|public
+syl_syntax|struct|syl_syntax::ast::CallArg|public
 syl_syntax|struct|syl_syntax::ast::CallableItem|public
 syl_syntax|struct|syl_syntax::ast::ConstItem|public
 syl_syntax|struct|syl_syntax::ast::EnumItem|public
@@ -2433,7 +2431,6 @@ syl_syntax|struct|syl_syntax::ast::ExternModuleItem|public
 syl_syntax|struct|syl_syntax::ast::FieldDecl|public
 syl_syntax|struct|syl_syntax::ast::FnItem|public
 syl_syntax|struct|syl_syntax::ast::GenericParam|public
-syl_syntax|struct|syl_syntax::ast::InstArg|public
 syl_syntax|struct|syl_syntax::ast::InterfaceItem|public
 syl_syntax|struct|syl_syntax::ast::MapItem|public
 syl_syntax|struct|syl_syntax::ast::MatchArm|public
@@ -2480,6 +2477,7 @@ syl_syntax|use|Attribute|named|source=ast::Attribute
 syl_syntax|use|BinaryOp|named|source=ast::BinaryOp
 syl_syntax|use|Block|named|source=ast::Block
 syl_syntax|use|BundleItem|named|source=ast::BundleItem
+syl_syntax|use|CallArg|named|source=ast::CallArg
 syl_syntax|use|CallableItem|named|source=ast::CallableItem
 syl_syntax|use|ConstItem|named|source=ast::ConstItem
 syl_syntax|use|DriveCapability|named|source=ast::DriveCapability
@@ -2491,7 +2489,6 @@ syl_syntax|use|ExternModuleItem|named|source=ast::ExternModuleItem
 syl_syntax|use|FieldDecl|named|source=ast::FieldDecl
 syl_syntax|use|FnItem|named|source=ast::FnItem
 syl_syntax|use|GenericParam|named|source=ast::GenericParam
-syl_syntax|use|InstArg|named|source=ast::InstArg
 syl_syntax|use|InterfaceItem|named|source=ast::InterfaceItem
 syl_syntax|use|Item|named|source=ast::Item
 syl_syntax|use|LosslessItemKind|named|source=lossless::LosslessItemKind
@@ -2551,16 +2548,17 @@ syl_syntax|variant|syl_syntax::ast::Expr::Aggregate|{ ty: Box<TypeExpr>, fields:
 syl_syntax|variant|syl_syntax::ast::Expr::Binary|{ op: BinaryOp, left: Box<Expr>, right: Box<Expr>, span: syl_span::Span }
 syl_syntax|variant|syl_syntax::ast::Expr::Block|(Block)
 syl_syntax|variant|syl_syntax::ast::Expr::Bool|(bool, syl_span::Span)
-syl_syntax|variant|syl_syntax::ast::Expr::Call|{ callee: Box<Expr>, args: Vec<InstArg>, span: syl_span::Span }
+syl_syntax|variant|syl_syntax::ast::Expr::Call|{ callee: Box<Expr>, args: Vec<CallArg>, span: syl_span::Span }
 syl_syntax|variant|syl_syntax::ast::Expr::CompileError|{ message: Box<Expr>, span: syl_span::Span }
 syl_syntax|variant|syl_syntax::ast::Expr::Field|{ base: Box<Expr>, field: String, span: syl_span::Span }
+syl_syntax|variant|syl_syntax::ast::Expr::For|{ name: String, range: Box<Expr>, body: Block, span: syl_span::Span }
 syl_syntax|variant|syl_syntax::ast::Expr::GenericApp|{ callee: Box<Expr>, args: Vec<TypeExpr>, span: syl_span::Span }
 syl_syntax|variant|syl_syntax::ast::Expr::Group|(Box<Expr>, syl_span::Span)
 syl_syntax|variant|syl_syntax::ast::Expr::Ident|(String, syl_span::Span)
 syl_syntax|variant|syl_syntax::ast::Expr::Index|{ base: Box<Expr>, index: Box<Expr>, span: syl_span::Span }
-syl_syntax|variant|syl_syntax::ast::Expr::Inst|{ callee: Box<Expr>, args: Vec<InstArg>, span: syl_span::Span }
 syl_syntax|variant|syl_syntax::ast::Expr::Int|(u64, syl_span::Span)
 syl_syntax|variant|syl_syntax::ast::Expr::Match|{ expr: Box<Expr>, arms: Vec<MatchArm>, span: syl_span::Span }
+syl_syntax|variant|syl_syntax::ast::Expr::Place|{ callee: Box<Expr>, args: Vec<CallArg>, span: syl_span::Span }
 syl_syntax|variant|syl_syntax::ast::Expr::Range|{ start: Box<Expr>, end: Box<Expr>, span: syl_span::Span }
 syl_syntax|variant|syl_syntax::ast::Expr::Select|{ mode: SelectMode, arms: Vec<SelectArm>, span: syl_span::Span }
 syl_syntax|variant|syl_syntax::ast::Expr::Str|(String, syl_span::Span)
@@ -2587,13 +2585,11 @@ syl_syntax|variant|syl_syntax::ast::Pattern::Path|(Vec<String>, syl_span::Span)
 syl_syntax|variant|syl_syntax::ast::Pattern::Wildcard|(syl_span::Span)
 syl_syntax|variant|syl_syntax::ast::SelectMode::Priority|unit
 syl_syntax|variant|syl_syntax::ast::SelectMode::Unique|unit
-syl_syntax|variant|syl_syntax::ast::Stmt::Alias|{ name: String, value: Expr, span: syl_span::Span }
 syl_syntax|variant|syl_syntax::ast::Stmt::Const|{ name: String, ty: Option<TypeExpr>, value: Expr, span: syl_span::Span }
 syl_syntax|variant|syl_syntax::ast::Stmt::ElabFor|{ name: String, range: Expr, body: Block, span: syl_span::Span }
 syl_syntax|variant|syl_syntax::ast::Stmt::ElabIf|{ cond: Expr, then_block: Block, else_block: Option<Block>, span: syl_span::Span }
 syl_syntax|variant|syl_syntax::ast::Stmt::Error|{ span: syl_span::Span }
 syl_syntax|variant|syl_syntax::ast::Stmt::Expr|(Expr)
-syl_syntax|variant|syl_syntax::ast::Stmt::Inst|{ name: Expr, callee: Expr, span: syl_span::Span }
 syl_syntax|variant|syl_syntax::ast::Stmt::Let|{ name: String, ty: Option<TypeExpr>, value: Option<Expr>, span: syl_span::Span }
 syl_syntax|variant|syl_syntax::ast::Stmt::Next|{ name: String, value: Expr, span: syl_span::Span }
 syl_syntax|variant|syl_syntax::ast::Stmt::Reg|{ name: String, ty: Option<TypeExpr>, reset: Option<RegReset>, span: syl_span::Span }
@@ -2642,7 +2638,6 @@ syl_syntax|variant|syl_syntax::lossless::LosslessTokenKind::Str|unit
 syl_syntax|variant|syl_syntax::lossless::LosslessTokenKind::Unknown|unit
 syl_syntax|variant|syl_syntax::lossless::LosslessTokenKind::Whitespace|unit
 syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::AggregateExpr|unit
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::AliasStmt|unit
 syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::ArrayType|unit
 syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::Attribute|unit
 syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::BinaryExpr|unit
@@ -2651,6 +2646,7 @@ syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::Block|unit
 syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::BoolExpr|unit
 syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::BoolPattern|unit
 syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::BundleItem|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::CallArg|unit
 syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::CallExpr|unit
 syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::CellItem|unit
 syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::CompileErrorExpr|unit
@@ -2668,6 +2664,7 @@ syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::FieldDecl|unit
 syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::FieldExpr|unit
 syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::File|unit
 syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::FnItem|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::ForExpr|unit
 syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::GenericAppExpr|unit
 syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::GenericParam|unit
 syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::GenericType|unit
@@ -2675,9 +2672,6 @@ syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::GroupExpr|unit
 syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::IdentExpr|unit
 syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::IdentPattern|unit
 syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::IndexExpr|unit
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::InstArg|unit
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::InstExpr|unit
-syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::InstStmt|unit
 syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::IntExpr|unit
 syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::IntPattern|unit
 syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::InterfaceItem|unit
@@ -2692,6 +2686,7 @@ syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::PackageItem|unit
 syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::Param|unit
 syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::PathPattern|unit
 syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::PathType|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::PlaceExpr|unit
 syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::PortDecl|unit
 syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::RangeExpr|unit
 syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::RegReset|unit
@@ -2728,7 +2723,6 @@ syl_syntax|variant|syl_syntax::token::TokenKind::GtEq|unit
 syl_syntax|variant|syl_syntax::token::TokenKind::Gt|unit
 syl_syntax|variant|syl_syntax::token::TokenKind::Ident|(String)
 syl_syntax|variant|syl_syntax::token::TokenKind::Int|(u64)
-syl_syntax|variant|syl_syntax::token::TokenKind::KwAlias|unit
 syl_syntax|variant|syl_syntax::token::TokenKind::KwAnd|unit
 syl_syntax|variant|syl_syntax::token::TokenKind::KwBundle|unit
 syl_syntax|variant|syl_syntax::token::TokenKind::KwCell|unit
@@ -2741,7 +2735,6 @@ syl_syntax|variant|syl_syntax::token::TokenKind::KwFn|unit
 syl_syntax|variant|syl_syntax::token::TokenKind::KwFor|unit
 syl_syntax|variant|syl_syntax::token::TokenKind::KwIf|unit
 syl_syntax|variant|syl_syntax::token::TokenKind::KwInOut|unit
-syl_syntax|variant|syl_syntax::token::TokenKind::KwInst|unit
 syl_syntax|variant|syl_syntax::token::TokenKind::KwInterface|unit
 syl_syntax|variant|syl_syntax::token::TokenKind::KwIn|unit
 syl_syntax|variant|syl_syntax::token::TokenKind::KwLet|unit
@@ -2753,6 +2746,7 @@ syl_syntax|variant|syl_syntax::token::TokenKind::KwNot|unit
 syl_syntax|variant|syl_syntax::token::TokenKind::KwOr|unit
 syl_syntax|variant|syl_syntax::token::TokenKind::KwOut|unit
 syl_syntax|variant|syl_syntax::token::TokenKind::KwPackage|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::KwPlace|unit
 syl_syntax|variant|syl_syntax::token::TokenKind::KwPriority|unit
 syl_syntax|variant|syl_syntax::token::TokenKind::KwReg|unit
 syl_syntax|variant|syl_syntax::token::TokenKind::KwReturn|unit

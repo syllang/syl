@@ -24,17 +24,17 @@ cell user_marking_stage<W: Nat, D: Domain>(
     rst: in Reset<D>,
     up: in Stream<UserWord<W>>.sink,
 ) -> down: Stream<UserWord<W>>.source {
-    alias input_stage = stage_from_stream<UserWord<W>>(
+    let input_stage = place stage_from_stream<UserWord<W>>(
         stream: up,
     )
 
-    alias registered = stage_link<UserWord<W>, D>(
+    let registered = place stage_link<UserWord<W>, D>(
         clk: clk,
         rst: rst,
         up: input_stage,
     )
 
-    alias output_stream = stage_to_stream<UserWord<W>>(
+    let output_stream = place stage_to_stream<UserWord<W>>(
         stage: registered,
     )
 
@@ -49,7 +49,7 @@ module UserPipeline<W: Nat = 32, D: Domain>(
     up: in Stream<UserWord<W>>.sink,
     down: out Stream<UserWord<W>>.source,
 ) {
-    alias staged = user_marking_stage<W, D>(
+    let staged = place user_marking_stage<W, D>(
         clk: clk,
         rst: rst,
         up: up,

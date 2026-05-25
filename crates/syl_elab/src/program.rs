@@ -9,7 +9,7 @@ mod body;
 mod item;
 
 pub(crate) use body::{
-    ElabBlock, ElabExpr, ElabExprNode, ElabInstArg, ElabMatchArm, ElabNamedExpr, ElabRegReset,
+    ElabBlock, ElabCallArg, ElabExpr, ElabExprNode, ElabMatchArm, ElabNamedExpr, ElabRegReset,
     ElabSelectArm, ElabStmt,
 };
 use item::ElabEnumVariantKey;
@@ -290,7 +290,6 @@ pub(crate) enum ElabLocalKind {
     Const,
     Let,
     Var,
-    Alias,
     Signal,
     Reg,
     Instance,
@@ -307,7 +306,6 @@ impl From<HirLocalKind> for ElabLocalKind {
             HirLocalKind::Const => Self::Const,
             HirLocalKind::Let => Self::Let,
             HirLocalKind::Var => Self::Var,
-            HirLocalKind::Alias => Self::Alias,
             HirLocalKind::Signal => Self::Signal,
             HirLocalKind::Reg => Self::Reg,
             HirLocalKind::Instance => Self::Instance,

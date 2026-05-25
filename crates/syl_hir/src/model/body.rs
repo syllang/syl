@@ -2,7 +2,7 @@ use super::{MirPattern, MirSelectMode, MirTypeRef};
 use crate::{ExprId, LocalId};
 use syl_span::Span;
 use syl_syntax::{
-    BinaryOp, Block, Expr, InstArg, MatchArm, NamedExpr, RegReset, SelectArm, Stmt, UnaryOp,
+    BinaryOp, Block, CallArg, Expr, MatchArm, NamedExpr, RegReset, SelectArm, Stmt, UnaryOp,
 };
 
 #[derive(Clone)]
@@ -46,12 +46,6 @@ pub enum HirStmt {
         value: Option<HirExpr>,
         span: Span,
     },
-    Alias {
-        id: Option<LocalId>,
-        name: String,
-        value: HirExpr,
-        span: Span,
-    },
     Var {
         id: Option<LocalId>,
         name: String,
@@ -76,12 +70,6 @@ pub enum HirStmt {
     Next {
         name: String,
         value: HirExpr,
-        span: Span,
-    },
-    Inst {
-        id: Option<LocalId>,
-        name: HirExpr,
-        callee: HirExpr,
         span: Span,
     },
     While {
@@ -112,12 +100,10 @@ impl HirStmt {
             HirStmt::Error { span }
             | HirStmt::Const { span, .. }
             | HirStmt::Let { span, .. }
-            | HirStmt::Alias { span, .. }
             | HirStmt::Var { span, .. }
             | HirStmt::Signal { span, .. }
             | HirStmt::Reg { span, .. }
             | HirStmt::Next { span, .. }
-            | HirStmt::Inst { span, .. }
             | HirStmt::While { span, .. }
             | HirStmt::ElabIf { span, .. }
             | HirStmt::ElabFor { span, .. }
@@ -151,12 +137,6 @@ impl HirStmt {
                 name: name.clone(),
                 ty: ty.as_ref().map(MirTypeRef::from),
                 value: value.as_ref().map(HirExpr::from_syntax),
-                span: *span,
-            },
-            Stmt::Alias { name, value, span } => HirStmt::Alias {
-                id: None,
-                name: name.clone(),
-                value: HirExpr::from_syntax(value),
                 span: *span,
             },
             Stmt::Var {
@@ -198,12 +178,6 @@ impl HirStmt {
             Stmt::Next { name, value, span } => HirStmt::Next {
                 name: name.clone(),
                 value: HirExpr::from_syntax(value),
-                span: *span,
-            },
-            Stmt::Inst { name, callee, span } => HirStmt::Inst {
-                id: None,
-                name: HirExpr::from_syntax(name),
-                callee: HirExpr::from_syntax(callee),
                 span: *span,
             },
             Stmt::While { cond, body, span } => HirStmt::While {
@@ -294,7 +268,7 @@ impl HirExpr {
             },
             Expr::Call { callee, args, .. } => HirExprNode::Call {
                 callee: Box::new(HirExpr::from_syntax(callee)),
-                args: args.iter().map(HirInstArg::from_syntax).collect(),
+                args: args.iter().map(HirCallArg::from_syntax).collect(),
             },
             Expr::GenericApp { callee, args, .. } => HirExprNode::GenericApp {
                 callee: Box::new(HirExpr::from_syntax(callee)),
@@ -322,9 +296,17 @@ impl HirExpr {
                 mode: MirSelectMode::from(mode),
                 arms: arms.iter().map(HirSelectArm::from_syntax).collect(),
             },
-            Expr::Inst { callee, args, .. } => HirExprNode::Inst {
+            Expr::Place { callee, args, .. } => HirExprNode::Place {
                 callee: Box::new(HirExpr::from_syntax(callee)),
-                args: args.iter().map(HirInstArg::from_syntax).collect(),
+                args: args.iter().map(HirCallArg::from_syntax).collect(),
+            },
+            Expr::For {
+                name, range, body, ..
+            } => HirExprNode::For {
+                id: None,
+                name: name.clone(),
+                range: Box::new(HirExpr::from_syntax(range)),
+                body: HirBlock::from_syntax(body),
             },
             Expr::CompileError { message, .. } => HirExprNode::CompileError {
                 message: Box::new(HirExpr::from_syntax(message)),
@@ -382,7 +364,7 @@ pub enum HirExprNode {
     },
     Call {
         callee: Box<HirExpr>,
-        args: Vec<HirInstArg>,
+        args: Vec<HirCallArg>,
     },
     GenericApp {
         callee: Box<HirExpr>,
@@ -410,9 +392,15 @@ pub enum HirExprNode {
         mode: MirSelectMode,
         arms: Vec<HirSelectArm>,
     },
-    Inst {
+    Place {
         callee: Box<HirExpr>,
-        args: Vec<HirInstArg>,
+        args: Vec<HirCallArg>,
+    },
+    For {
+        id: Option<LocalId>,
+        name: String,
+        range: Box<HirExpr>,
+        body: HirBlock,
     },
     CompileError {
         message: Box<HirExpr>,
@@ -448,7 +436,7 @@ impl HirNamedExpr {
 
 #[derive(Clone)]
 #[non_exhaustive]
-pub struct HirInstArg {
+pub struct HirCallArg {
     pub name: Option<String>,
     pub value: HirExpr,
     #[allow(
@@ -458,8 +446,8 @@ pub struct HirInstArg {
     pub(crate) span: Span,
 }
 
-impl HirInstArg {
-    fn from_syntax(arg: &InstArg) -> Self {
+impl HirCallArg {
+    fn from_syntax(arg: &CallArg) -> Self {
         Self {
             name: arg.name.clone(),
             value: HirExpr::from_syntax(&arg.value),

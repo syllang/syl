@@ -43,7 +43,6 @@ pub enum CompletionKind {
     Result,
     Let,
     Var,
-    Alias,
     Signal,
     Reg,
     Instance,
@@ -100,7 +99,6 @@ impl CompletionKind {
                     | Self::Result
                     | Self::Let
                     | Self::Var
-                    | Self::Alias
                     | Self::Signal
                     | Self::Reg
                     | Self::Instance
@@ -142,7 +140,6 @@ impl From<crate::hir::HirLocalKind> for CompletionKind {
             crate::hir::HirLocalKind::Const => Self::Const,
             crate::hir::HirLocalKind::Let => Self::Let,
             crate::hir::HirLocalKind::Var => Self::Var,
-            crate::hir::HirLocalKind::Alias => Self::Alias,
             crate::hir::HirLocalKind::Signal => Self::Signal,
             crate::hir::HirLocalKind::Reg => Self::Reg,
             crate::hir::HirLocalKind::Instance => Self::Instance,

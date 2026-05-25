@@ -8,8 +8,7 @@
 // - imported interface capability checking per lane
 //
 // Compiler-provided forms used here:
-// - package, use, const, if, for, compile_error, module, alias, signal, inst
-// - Nat, Bit, UInt<W>, Domain, Clock<D>, Reset<D>, [N] T arrays
+// - package, use, const, if, for, compile_error, module, let, signal, place // - Nat, Bit, UInt<W>, Domain, Clock<D>, Reset<D>, [N] T arrays
 
 package examples.mvp.lane_array
 
@@ -39,7 +38,7 @@ module Lane<W: Nat, D: Domain>(
     up: in Stream<LaneWord<W>>.sink,
     down: out Stream<LaneWord<W>>.source,
 ) {
-    alias buffered = stream_skid_buffer<LaneWord<W>, D>(
+    let buffered = place stream_skid_buffer<LaneWord<W>, D>(
         clk: clk,
         rst: rst,
         up: up,
@@ -71,8 +70,8 @@ module LaneArray<
         compile_error("LaneArray requires at least one lane")
     }
 
-    for lane in 0..N {
-        inst lanes[lane] = Lane<W, D>(
+    let lanes = for lane in 0..N {
+        place Lane<W, D>(
             clk: clk,
             rst: rst,
             lane_id: lane_ids[lane],

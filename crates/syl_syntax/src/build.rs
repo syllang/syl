@@ -1,6 +1,6 @@
 use crate::{
-    AstFile, Attribute, Block, BundleItem, CallableItem, ConstItem, DriveCapability, EnumItem,
-    EnumVariant, ErrorItem, Expr, ExternModuleItem, FieldDecl, FnItem, GenericParam, InstArg,
+    AstFile, Attribute, Block, BundleItem, CallArg, CallableItem, ConstItem, DriveCapability,
+    EnumItem, EnumVariant, ErrorItem, Expr, ExternModuleItem, FieldDecl, FnItem, GenericParam,
     InterfaceItem, MapItem, MatchArm, NamedExpr, PackageItem, Param, ParamDirection, PortDecl,
     RegReset, ResultBinding, SelectArm, TypeExpr, UseItem, ViewDecl, ViewDirection, ViewField,
 };
@@ -495,7 +495,7 @@ impl NamedExpr {
     }
 }
 
-impl InstArg {
+impl CallArg {
     pub fn new(name: Option<String>, value: Expr, span: Span) -> Self {
         Self { name, value, span }
     }

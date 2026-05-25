@@ -69,7 +69,7 @@ module Child<N: Nat, W: Nat>(bus: out [N] Bus<UInt<W>>.source) {
 }
 
 module Top<N: Nat, W: Nat>(bus: out [N] Bus<UInt<W>>.source) {
-    inst child = Child<N, W>(
+    let child = place Child<N, W>(
         bus: bus,
     )
 }
@@ -231,7 +231,7 @@ module Top<W: Nat, D: Domain>(
     up: in Stream<Word<W>>.sink,
     down: out Stream<Word<W>>.source,
 ) {
-    alias held = hold<Word<W>, D>(
+    let held = place hold<Word<W>, D>(
         clk: clk,
         rst: rst,
         up: up,
@@ -264,7 +264,7 @@ cell Mix(a: in Bit, b: in Bit, c: in Bit) -> y: Bit {
 }
 
 module Top(x: in Bit, y: out Bit) {
-    alias mixed = Mix(c: x, x, b: x)
+    let mixed = place Mix(c: x, x, b: x)
     y := mixed
 }
 "#,

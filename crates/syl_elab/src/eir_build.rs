@@ -31,7 +31,7 @@ pub(crate) struct Env {
     pub(crate) type_replacements: HashMap<String, MirTypeRef>,
     pub(crate) expansion_stack: Vec<EirExpansion>,
     pub(crate) owner: Option<DefId>,
-    prefix: Option<String>,
+    pub(crate) prefix: Option<String>,
 }
 
 impl Env {
@@ -408,7 +408,10 @@ impl<'a> EirBuilder<'a> {
             ElabExprNode::Group(expr) => self.elab_expr(expr, env),
             ElabExprNode::GenericApp { callee, .. } => self.elab_expr(callee, env),
             ElabExprNode::Call { callee, args } => self.elab_call_expr(callee, args, env),
-            ElabExprNode::Inst { .. } => EirExpr::unsupported("inst is not a value expression"),
+            ElabExprNode::Place { .. } => EirExpr::unsupported("place is not a value expression"),
+            ElabExprNode::For { .. } => {
+                EirExpr::unsupported("for placement is not a value expression")
+            }
             ElabExprNode::Aggregate { ty, fields } => self.elab_aggregate_expr(ty, fields, env),
             ElabExprNode::Match { expr, arms } => self.elab_match_expr(expr, arms, env),
             ElabExprNode::Select { mode, arms } => self.elab_select_expr(*mode, arms, env),

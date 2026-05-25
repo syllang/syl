@@ -12,11 +12,10 @@ use crate::{
 use std::collections::HashMap;
 use syl_span::Span;
 
+mod for_emit;
 mod request;
 
-use request::{
-    AggregateAssignEmit, AliasInstanceEmit, ConstEmit, ForEmit, IfEmit, RegEmit, SignalEmit,
-};
+use request::{AggregateAssignEmit, ConstEmit, ForEmit, IfEmit, LetPlaceEmit, RegEmit, SignalEmit};
 
 impl<'a> EirBuilder<'a> {
     pub(super) fn emit_body(
@@ -53,14 +52,18 @@ impl<'a> EirBuilder<'a> {
                         env,
                     )?);
                 }
-                ElabStmt::Let { span } | ElabStmt::Var { span } => {
+                ElabStmt::Let {
+                    name,
+                    value: Some(value),
+                    ..
+                } => {
+                    items.extend(self.emit_let(name, value, env)?);
+                }
+                ElabStmt::Let { span, .. } | ElabStmt::Var { span } => {
                     return Err(CompileError::lowering_at(
                         EirError::LocalBindingLoweringUnsupported,
                         *span,
                     ));
-                }
-                ElabStmt::Alias { name, value } => {
-                    items.extend(self.emit_alias(name, value, env)?);
                 }
                 ElabStmt::Signal {
                     name,
@@ -91,14 +94,6 @@ impl<'a> EirBuilder<'a> {
                     },
                     env,
                 )?),
-                ElabStmt::Inst { name, callee, span } => {
-                    items.extend(self.emit_instance_expr(
-                        &self.elab_expr(name, env).fact_key(),
-                        callee,
-                        env,
-                        *span,
-                    )?);
-                }
                 ElabStmt::Expr(expr) => {
                     items.extend(self.emit_expr_stmt(expr, env, compile_error_as_sv)?);
                 }
@@ -172,7 +167,7 @@ impl<'a> EirBuilder<'a> {
         ) {
             items.extend(view_items);
             if let Some(value) = request.value {
-                if let ElabExprNode::Inst { callee, args } = &value.node {
+                if let ElabExprNode::Place { callee, args } = &value.node {
                     items.extend(self.emit_instance(InstanceEmitRequest {
                         inst_name: &physical_name,
                         callee,
@@ -201,7 +196,7 @@ impl<'a> EirBuilder<'a> {
         });
         env.insert(request.name, EirExpr::ident(&physical_name), ty);
         if let Some(value) = request.value {
-            if let ElabExprNode::Inst { callee, args } = &value.node {
+            if let ElabExprNode::Place { callee, args } = &value.node {
                 items.extend(self.emit_instance(InstanceEmitRequest {
                     inst_name: &physical_name,
                     callee,
@@ -464,15 +459,15 @@ impl<'a> EirBuilder<'a> {
         self.emit_body_impl(&filtered, env, true)
     }
 
-    fn emit_alias(
+    fn emit_let(
         &self,
         name: &str,
         value: &ElabExpr,
         env: &mut Env,
     ) -> Result<Vec<EirItem>, CompileError> {
         match &value.node {
-            ElabExprNode::Inst { callee, args } => self.emit_alias_instance(
-                AliasInstanceEmit {
+            ElabExprNode::Place { callee, args } => self.emit_let_place(
+                LetPlaceEmit {
                     name,
                     callee,
                     args,
@@ -480,32 +475,59 @@ impl<'a> EirBuilder<'a> {
                 },
                 env,
             ),
-            ElabExprNode::Call { callee, args } if self.is_elab_callable_callee(callee, env) => {
-                self.emit_alias_instance(
-                    AliasInstanceEmit {
-                        name,
-                        callee,
-                        args,
-                        value,
-                    },
-                    env,
-                )
-            }
-            _ => Ok(self.bind_alias_expr(name, value, env)),
+            ElabExprNode::For {
+                name: loop_name,
+                range,
+                body,
+            } => self.emit_for_let(name, loop_name, range, body, value.span(), env),
+            _ => Ok(self.bind_let_expr(name, value, env)),
         }
     }
 
-    fn emit_alias_instance(
+    fn emit_for_let(
         &self,
-        request: AliasInstanceEmit<'_>,
+        binding_name: &str,
+        loop_name: &str,
+        range: &ElabExpr,
+        body: &ElabBlock,
+        span: Span,
         env: &mut Env,
     ) -> Result<Vec<EirItem>, CompileError> {
-        let result_ty = self
-            .callable_result_type_from_elab(request.callee, env)
-            .unwrap_or_else(|| {
-                MirTypeRef::path_type(vec!["Bit".to_string()], request.callee.span())
-            });
+        let local_name = env.local_name(binding_name);
+        env.insert(
+            binding_name,
+            EirExpr::ident(&local_name),
+            MirTypeRef::path_type(vec!["Bit".to_string()], span),
+        );
+        let mut loop_env = env.clone();
+        loop_env.prefix = Some(format!("{local_name}[{loop_name}]"));
+        self.emit_for(
+            ForEmit {
+                name: loop_name,
+                range_expr: range,
+                body,
+                span,
+            },
+            &loop_env,
+        )
+    }
+
+    fn emit_let_place(
+        &self,
+        request: LetPlaceEmit<'_>,
+        env: &mut Env,
+    ) -> Result<Vec<EirItem>, CompileError> {
         let physical_name = env.local_name(request.name);
+        let Some(result_ty) = self.callable_result_type_from_elab(request.callee, env) else {
+            let items = self.emit_instance(InstanceEmitRequest {
+                inst_name: &physical_name,
+                callee: request.callee,
+                args: request.args,
+                env,
+                span: request.value.span(),
+            })?;
+            return Ok(items);
+        };
         env.insert(
             request.name,
             EirExpr::ident(&physical_name),
@@ -523,7 +545,7 @@ impl<'a> EirBuilder<'a> {
         Ok(items)
     }
 
-    fn bind_alias_expr(&self, name: &str, value: &ElabExpr, env: &mut Env) -> Vec<EirItem> {
+    fn bind_let_expr(&self, name: &str, value: &ElabExpr, env: &mut Env) -> Vec<EirItem> {
         env.insert(
             name,
             self.elab_expr(value, env),
@@ -612,49 +634,5 @@ impl<'a> EirBuilder<'a> {
         EirPlace::try_from(&lowered).map_err(|_| {
             CompileError::lowering_at(EirError::UnsupportedHardwareValueExpression, expr.span())
         })
-    }
-
-    fn emit_for(&self, request: ForEmit<'_>, env: &Env) -> Result<Vec<EirItem>, CompileError> {
-        let ElabExprNode::Range { start, end } = &request.range_expr.node else {
-            return Err(CompileError::lowering_at(
-                EirError::InvalidElaborationExpression,
-                request.range_expr.span(),
-            ));
-        };
-        let start_value = self.elab_require_const_nat(start, env, "for range start")?;
-        let end_value = self.elab_require_const_nat(end, env, "for range end")?;
-        let (start_int, end_int) = match (start_value, end_value) {
-            (ConstValue::Nat(start), ConstValue::Nat(end)) if start >= end => return Ok(Vec::new()),
-            (ConstValue::Nat(start), ConstValue::Nat(end)) => (Some(start), Some(end)),
-            _ => (None, None),
-        };
-        if let (Some(start), Some(end)) = (start_int, end_int) {
-            let mut items = Vec::new();
-            for value in start..end {
-                let mut loop_env = env.clone();
-                loop_env.insert(
-                    request.name,
-                    EirExpr::Int(value),
-                    MirTypeRef::path_type(vec!["Nat".to_string()], request.range_expr.span()),
-                );
-                items.extend(self.emit_body_impl(request.body, &mut loop_env, false)?);
-            }
-            return Ok(items);
-        }
-        let index = env.unique_label(request.name, request.span);
-        let mut loop_env = env.clone();
-        loop_env.insert(
-            request.name,
-            EirExpr::ident(&index),
-            MirTypeRef::path_type(vec!["Nat".to_string()], request.range_expr.span()),
-        );
-        Ok(vec![EirItem::SymbolicStaticFor {
-            index,
-            start: self.elab_expr(start, env),
-            end: self.elab_expr(end, env),
-            label: env.unique_label(&format!("gen_{}", request.name), request.span),
-            items: self.emit_body_impl(request.body, &mut loop_env, true)?,
-            origin: env.origin(request.span),
-        }])
     }
 }

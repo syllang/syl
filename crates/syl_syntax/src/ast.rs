@@ -331,11 +331,6 @@ pub enum Stmt {
         value: Option<Expr>,
         span: Span,
     },
-    Alias {
-        name: String,
-        value: Expr,
-        span: Span,
-    },
     Var {
         name: String,
         ty: Option<TypeExpr>,
@@ -357,11 +352,6 @@ pub enum Stmt {
     Next {
         name: String,
         value: Expr,
-        span: Span,
-    },
-    Inst {
-        name: Expr,
-        callee: Expr,
         span: Span,
     },
     While {
@@ -413,7 +403,7 @@ pub enum Expr {
     },
     Call {
         callee: Box<Expr>,
-        args: Vec<InstArg>,
+        args: Vec<CallArg>,
         span: Span,
     },
     GenericApp {
@@ -448,9 +438,15 @@ pub enum Expr {
         arms: Vec<SelectArm>,
         span: Span,
     },
-    Inst {
+    Place {
         callee: Box<Expr>,
-        args: Vec<InstArg>,
+        args: Vec<CallArg>,
+        span: Span,
+    },
+    For {
+        name: String,
+        range: Box<Expr>,
+        body: Block,
         span: Span,
     },
     CompileError {
@@ -474,7 +470,7 @@ pub struct NamedExpr {
 
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
-pub struct InstArg {
+pub struct CallArg {
     pub name: Option<String>,
     pub value: Expr,
     pub span: Span,
@@ -497,7 +493,8 @@ impl Expr {
             | Expr::Index { span, .. }
             | Expr::Match { span, .. }
             | Expr::Select { span, .. }
-            | Expr::Inst { span, .. }
+            | Expr::Place { span, .. }
+            | Expr::For { span, .. }
             | Expr::CompileError { span, .. }
             | Expr::Range { span, .. } => *span,
             Expr::Block(block) => block.span,
@@ -511,12 +508,10 @@ impl Stmt {
             Self::Error { span }
             | Self::Const { span, .. }
             | Self::Let { span, .. }
-            | Self::Alias { span, .. }
             | Self::Var { span, .. }
             | Self::Signal { span, .. }
             | Self::Reg { span, .. }
             | Self::Next { span, .. }
-            | Self::Inst { span, .. }
             | Self::While { span, .. }
             | Self::ElabIf { span, .. }
             | Self::ElabFor { span, .. } => *span,

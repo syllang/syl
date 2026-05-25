@@ -59,15 +59,6 @@ impl Parser {
         })
     }
 
-    pub(super) fn parse_alias_stmt(&mut self) -> Result<Stmt, Vec<Diagnostic>> {
-        let start = self.expect(TokenKind::KwAlias)?.span;
-        let name = self.expect_ident()?;
-        self.expect(TokenKind::Eq)?;
-        let value = self.parse_expr(0)?;
-        let span = start.join(value.span());
-        Ok(Stmt::Alias { name, value, span })
-    }
-
     pub(super) fn parse_type_prefix(&mut self) -> Result<TypeExpr, Vec<Diagnostic>> {
         if let Some(start) = self.consume(&TokenKind::LBracket).map(|token| token.span) {
             let len = self.parse_expr(0)?;
@@ -249,24 +240,6 @@ impl Parser {
         Ok(Stmt::Next {
             name,
             value,
-            span: start.join(end),
-        })
-    }
-
-    pub(super) fn parse_inst_stmt(&mut self) -> Result<Stmt, Vec<Diagnostic>> {
-        let start = self.expect(TokenKind::KwInst)?.span;
-        let name = self.parse_expr(1)?;
-        if self.consume(&TokenKind::Eq).is_none() && self.consume(&TokenKind::ColonEq).is_none() {
-            self.expect(TokenKind::Eq)?;
-        }
-        let callee = self.parse_expr(0)?;
-        let end = self
-            .consume(&TokenKind::Semi)
-            .map(|tok| tok.span)
-            .unwrap_or_else(|| callee.span());
-        Ok(Stmt::Inst {
-            name,
-            callee,
             span: start.join(end),
         })
     }

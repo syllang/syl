@@ -1,6 +1,6 @@
 use crate::{
     hir::{
-        HirBodyExpr, HirConstItem, HirExprNode, HirFnItem, HirInstArg, HirSignatureGenericParam,
+        HirBodyExpr, HirCallArg, HirConstItem, HirExprNode, HirFnItem, HirSignatureGenericParam,
     },
     hir_resolve::HirResolution,
     hir_view::HirDesignViewExt,
@@ -82,7 +82,8 @@ impl TirConstEnv {
             | HirExprNode::Str(_)
             | HirExprNode::Field { .. }
             | HirExprNode::Index { .. }
-            | HirExprNode::Inst { .. }
+            | HirExprNode::Place { .. }
+            | HirExprNode::For { .. }
             | HirExprNode::Aggregate { .. }
             | HirExprNode::Match { .. }
             | HirExprNode::Select { .. }
@@ -261,7 +262,7 @@ impl TirConstEnv {
     fn call_kind(
         &self,
         callee: &HirBodyExpr,
-        args: &[HirInstArg],
+        args: &[HirCallArg],
         checker: &TypePhaseChecker,
     ) -> Option<TirConstKind> {
         let item = self.fn_item(callee, checker)?;

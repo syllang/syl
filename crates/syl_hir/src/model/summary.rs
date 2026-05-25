@@ -135,11 +135,10 @@ impl HirLocalKind {
             Self::Const => 4,
             Self::Let => 5,
             Self::Var => 6,
-            Self::Alias => 7,
-            Self::Signal => 8,
-            Self::Reg => 9,
-            Self::Instance => 10,
-            Self::Loop => 11,
+            Self::Signal => 7,
+            Self::Reg => 8,
+            Self::Instance => 9,
+            Self::Loop => 10,
         }
     }
 }

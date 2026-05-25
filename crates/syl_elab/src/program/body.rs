@@ -1,7 +1,7 @@
 use crate::{
     mir::{MirBinaryOp, MirPattern, MirSelectMode, MirTypeRef, MirUnaryOp},
     source::{
-        HirBlock, HirBodyExpr, HirExprNode, HirInstArg, HirMatchArm, HirNamedExpr, HirRegReset,
+        HirBlock, HirBodyExpr, HirCallArg, HirExprNode, HirMatchArm, HirNamedExpr, HirRegReset,
         HirSelectArm, HirStmt,
     },
 };
@@ -40,14 +40,12 @@ pub(crate) enum ElabStmt {
         span: Span,
     },
     Let {
+        name: String,
+        value: Option<ElabExpr>,
         span: Span,
     },
     Var {
         span: Span,
-    },
-    Alias {
-        name: String,
-        value: ElabExpr,
     },
     Signal {
         name: String,
@@ -64,11 +62,6 @@ pub(crate) enum ElabStmt {
     Next {
         name: String,
         value: ElabExpr,
-        span: Span,
-    },
-    Inst {
-        name: ElabExpr,
-        callee: ElabExpr,
         span: Span,
     },
     While {
@@ -106,12 +99,18 @@ impl From<&HirStmt> for ElabStmt {
                 value: ElabExpr::from(value),
                 span: *span,
             },
-            HirStmt::Let { span, .. } => Self::Let { span: *span },
-            HirStmt::Var { span, .. } => Self::Var { span: *span },
-            HirStmt::Alias { name, value, .. } => Self::Alias {
+            HirStmt::Let {
+                name,
+                ty: _,
+                value,
+                span,
+                ..
+            } => Self::Let {
                 name: name.clone(),
-                value: ElabExpr::from(value),
+                value: value.as_ref().map(ElabExpr::from),
+                span: *span,
             },
+            HirStmt::Var { span, .. } => Self::Var { span: *span },
             HirStmt::Signal {
                 name,
                 ty,
@@ -139,13 +138,6 @@ impl From<&HirStmt> for ElabStmt {
             HirStmt::Next { name, value, span } => Self::Next {
                 name: name.clone(),
                 value: ElabExpr::from(value),
-                span: *span,
-            },
-            HirStmt::Inst {
-                name, callee, span, ..
-            } => Self::Inst {
-                name: ElabExpr::from(name),
-                callee: ElabExpr::from(callee),
                 span: *span,
             },
             HirStmt::While { span, .. } => Self::While { span: *span },
@@ -233,7 +225,7 @@ impl From<&HirBodyExpr> for ElabExpr {
             },
             HirExprNode::Call { callee, args } => ElabExprNode::Call {
                 callee: Box::new(ElabExpr::from(callee.as_ref())),
-                args: args.iter().map(ElabInstArg::from).collect(),
+                args: args.iter().map(ElabCallArg::from).collect(),
             },
             HirExprNode::GenericApp { callee, args } => ElabExprNode::GenericApp {
                 callee: Box::new(ElabExpr::from(callee.as_ref())),
@@ -263,9 +255,9 @@ impl From<&HirBodyExpr> for ElabExpr {
                 mode: *mode,
                 arms: arms.iter().map(ElabSelectArm::from).collect(),
             },
-            HirExprNode::Inst { callee, args } => ElabExprNode::Inst {
+            HirExprNode::Place { callee, args } => ElabExprNode::Place {
                 callee: Box::new(ElabExpr::from(callee.as_ref())),
-                args: args.iter().map(ElabInstArg::from).collect(),
+                args: args.iter().map(ElabCallArg::from).collect(),
             },
             HirExprNode::CompileError { message } => ElabExprNode::CompileError {
                 message: Box::new(ElabExpr::from(message.as_ref())),
@@ -273,6 +265,13 @@ impl From<&HirBodyExpr> for ElabExpr {
             HirExprNode::Range { start, end } => ElabExprNode::Range {
                 start: Box::new(ElabExpr::from(start.as_ref())),
                 end: Box::new(ElabExpr::from(end.as_ref())),
+            },
+            HirExprNode::For {
+                name, range, body, ..
+            } => ElabExprNode::For {
+                name: name.clone(),
+                range: Box::new(ElabExpr::from(range.as_ref())),
+                body: ElabBlock::from(body),
             },
             HirExprNode::Unsupported => ElabExprNode::Unsupported,
             _ => ElabExprNode::Unsupported,
@@ -303,7 +302,7 @@ pub(crate) enum ElabExprNode {
     },
     Call {
         callee: Box<ElabExpr>,
-        args: Vec<ElabInstArg>,
+        args: Vec<ElabCallArg>,
     },
     GenericApp {
         callee: Box<ElabExpr>,
@@ -331,9 +330,14 @@ pub(crate) enum ElabExprNode {
         mode: MirSelectMode,
         arms: Vec<ElabSelectArm>,
     },
-    Inst {
+    Place {
         callee: Box<ElabExpr>,
-        args: Vec<ElabInstArg>,
+        args: Vec<ElabCallArg>,
+    },
+    For {
+        name: String,
+        range: Box<ElabExpr>,
+        body: ElabBlock,
     },
     CompileError {
         message: Box<ElabExpr>,
@@ -363,14 +367,14 @@ impl From<&HirNamedExpr> for ElabNamedExpr {
 
 #[derive(Clone)]
 #[non_exhaustive]
-pub(crate) struct ElabInstArg {
+pub(crate) struct ElabCallArg {
     pub(crate) name: Option<String>,
     pub(crate) value: ElabExpr,
     pub(crate) span: Span,
 }
 
-impl From<&HirInstArg> for ElabInstArg {
-    fn from(value: &HirInstArg) -> Self {
+impl From<&HirCallArg> for ElabCallArg {
+    fn from(value: &HirCallArg) -> Self {
         Self {
             name: value.name.clone(),
             value: ElabExpr::from(&value.value),

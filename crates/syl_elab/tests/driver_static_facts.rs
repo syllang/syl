@@ -49,7 +49,7 @@ fn instance_input_expression_read_fact_uses_object_place() {
 extern module UseBit(x: in Bit)
 
 module Top(a: in Bit, y: out Bit) {
-    inst use_bit = UseBit(x: a and 1)
+    let use_bit = place UseBit(x: a and 1)
     y := 0
 }
 "#,
@@ -85,7 +85,7 @@ fn extern_module_out_port_records_driver_fact() {
 extern module DriveBit(y: out Bit)
 
 module Top(y: out Bit) {
-    inst drive_bit = DriveBit(y: y)
+    let drive_bit = place DriveBit(y: y)
 }
 "#,
         )
@@ -144,7 +144,7 @@ fn trusted_precompiled_summary_overrides_boundary_metadata() {
 extern module VendorDrive(y: out Bit)
 
 module Top(y: out Bit) {
-    inst vendor = VendorDrive(y: y)
+    let vendor = place VendorDrive(y: y)
 }
 "#,
         )
@@ -187,7 +187,7 @@ cell MakePair() -> y: Pair {
 }
 
 module Top(y: out Pair) {
-    alias made = MakePair()
+    let made = place MakePair()
     y := made
 }
 "#,

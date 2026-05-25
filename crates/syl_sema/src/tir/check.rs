@@ -381,9 +381,10 @@ mod tests {
                             else_block: None,
                             span: Span::new(20, 34),
                         },
-                        Stmt::Alias {
+                        Stmt::Let {
                             name: "ok".to_string(),
-                            value: Expr::Int(7, valid_span),
+                            ty: None,
+                            value: Some(Expr::Int(7, valid_span)),
                             span: Span::new(50, 70),
                         },
                     ],
@@ -406,7 +407,7 @@ mod tests {
             .expect("same-item recovery should keep partial TIR facts");
         let hover = stage
             .hover_at(valid_span)
-            .expect("later valid alias expression should still have typed hover");
+            .expect("later valid let expression should still have typed hover");
 
         assert_eq!(hover.text(), "Hardware Nat");
     }

@@ -7,7 +7,7 @@
 // Compiler-provided syntax forms and keywords used here:
 // - package, const, fn, var, while, return, enum, bundle, interface
 // - view, map, cell, module, extern
-// - Domain kind parameters, in, out, alias, reg, signal, inst, reset
+// - Domain kind parameters, in, out, let, reg, signal, place, reset
 // - if, for, next, select, priority, unique, match
 // - @name(args...) declaration metadata syntax, demonstrated by @layout(packed)
 // - package path components are namespace declarations, not external names
@@ -18,7 +18,7 @@
 // - Item<Args> generic application, .Variant enum shorthand
 // - Stream<T>.source/sink interface view selection syntax
 // - Type { field: value } aggregate literal and call(name: value) named args
-// - module result values and `inst Module(...)` as a driver expression
+// - module result values and `place Module(...)` as a driver expression
 //
 // Compiler-provided literals, operators, and intrinsics used here:
 // - true/false proposition literals, target-typed numeric literals, string literals
@@ -33,7 +33,7 @@
 // - A domainless combinational extern module is domain-agnostic at the call site.
 // - `if` conditions are const/proposition Bool expressions, not hardware Bit.
 // - `for` ranges are elaboration-time finite ranges.
-// - `alias x = rhs` only binds a name; it does not create a driver.
+// - `let x = rhs` only binds a name; it does not create a driver.
 // - `signal x: T := expr` is a local continuous driver.
 // - `target := expr` is a compiler-owned continuous driver.
 // - `next reg := expr` is a register next-state definition.
@@ -159,14 +159,14 @@ module Lane<W: Nat, D: Domain>(
         compile_error("Lane width must require at least one index bit")
     }
 
-    alias buffered = skid_buffer<Packet<W>, D>(
+    let buffered = place skid_buffer<Packet<W>, D>(
         clk: clk,
         rst: rst,
         in_stream: in_stream,
     )
 
     signal xor_data: UInt<W> :=
-        inst VendorXor<W>(
+        place VendorXor<W>(
             a: buffered.payload.data,
             b: 1,
         )
@@ -205,8 +205,8 @@ module MiniTop<
         compile_error("MiniTop requires at least one lane")
     }
 
-    for lane in 0..N {
-        inst lanes[lane] = Lane<W, D>(
+    let lanes = for lane in 0..N {
+        place Lane<W, D>(
             clk: clk,
             rst: rst,
             in_stream: in_streams[lane],

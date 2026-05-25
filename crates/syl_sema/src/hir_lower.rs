@@ -1,11 +1,11 @@
 use crate::{
     CompileError, HirError,
     hir::{
-        HirBlock, HirBundleItem, HirCallable, HirCallableItem, HirConstItem, HirDef, HirDefKind,
-        HirDesign, HirEnumItem, HirEnumVariant, HirEnumVariantKey, HirExprNode, HirFieldDecl,
-        HirFnItem, HirImport, HirInterfaceItem, HirLocal, HirLocalKind, HirMapItem, HirMemberDecl,
-        HirMemberKind, HirPackage, HirSignatureGenericParam, HirSignatureParam, HirStmt,
-        HirViewDecl, HirViewField,
+        HirBlock, HirBodyExpr, HirBundleItem, HirCallable, HirCallableItem, HirConstItem, HirDef,
+        HirDefKind, HirDesign, HirEnumItem, HirEnumVariant, HirEnumVariantKey, HirExprNode,
+        HirFieldDecl, HirFnItem, HirImport, HirInterfaceItem, HirLocal, HirLocalKind, HirMapItem,
+        HirMemberDecl, HirMemberKind, HirPackage, HirSignatureGenericParam, HirSignatureParam,
+        HirStmt, HirViewDecl, HirViewField,
     },
     hir_resolve::HirNameResolver,
 };
@@ -407,32 +407,26 @@ impl<'files> HirResolver<'files> {
                 HirStmt::Const { id, name, span, .. } => {
                     *id = Some(self.register_local(owner, name, HirLocalKind::Const, *span));
                 }
-                HirStmt::Let { id, name, span, .. } => {
+                HirStmt::Let {
+                    id,
+                    name,
+                    value,
+                    span,
+                    ..
+                } => {
                     *id = Some(self.register_local(owner, name, HirLocalKind::Let, *span));
+                    if let Some(value) = value {
+                        self.register_expr_locals(owner, value);
+                    }
                 }
                 HirStmt::Var { id, name, span, .. } => {
                     *id = Some(self.register_local(owner, name, HirLocalKind::Var, *span));
-                }
-                HirStmt::Alias { id, name, span, .. } => {
-                    *id = Some(self.register_local(owner, name, HirLocalKind::Alias, *span));
                 }
                 HirStmt::Signal { id, name, span, .. } => {
                     *id = Some(self.register_local(owner, name, HirLocalKind::Signal, *span));
                 }
                 HirStmt::Reg { id, name, span, .. } => {
                     *id = Some(self.register_local(owner, name, HirLocalKind::Reg, *span));
-                }
-                HirStmt::Inst { id, name, span, .. } => {
-                    let display_name = match &name.node {
-                        HirExprNode::Ident(name) => name.clone(),
-                        _ => format!("inst@{}", span.start),
-                    };
-                    *id = Some(self.register_local(
-                        owner,
-                        &display_name,
-                        HirLocalKind::Instance,
-                        *span,
-                    ));
                 }
                 HirStmt::ElabIf {
                     then_block,
@@ -455,12 +449,82 @@ impl<'files> HirResolver<'files> {
                     self.register_block_locals(owner, body);
                 }
                 HirStmt::While { body, .. } => self.register_block_locals(owner, body),
-                HirStmt::Expr(_)
-                | HirStmt::Next { .. }
-                | HirStmt::Return(_, _)
-                | HirStmt::Error { .. } => {}
+                HirStmt::Expr(expr) | HirStmt::Next { value: expr, .. } => {
+                    self.register_expr_locals(owner, expr);
+                }
+                HirStmt::Return(Some(expr), _) => {
+                    self.register_expr_locals(owner, expr);
+                }
+                HirStmt::Return(None, _) | HirStmt::Error { .. } => {}
                 _ => {}
             }
+        }
+        if let Some(tail) = body.tail.as_deref_mut() {
+            self.register_expr_locals(owner, tail);
+        }
+    }
+
+    fn register_expr_locals(&mut self, owner: DefId, expr: &mut HirBodyExpr) {
+        let expr_span = expr.span();
+        match &mut expr.node {
+            HirExprNode::Unary { expr, .. } | HirExprNode::Group(expr) => {
+                self.register_expr_locals(owner, expr);
+            }
+            HirExprNode::Binary { left, right, .. } => {
+                self.register_expr_locals(owner, left);
+                self.register_expr_locals(owner, right);
+            }
+            HirExprNode::Call { callee, args } | HirExprNode::Place { callee, args } => {
+                self.register_expr_locals(owner, callee);
+                for arg in args {
+                    self.register_expr_locals(owner, &mut arg.value);
+                }
+            }
+            HirExprNode::GenericApp { callee, .. } => self.register_expr_locals(owner, callee),
+            HirExprNode::Aggregate { fields, .. } => {
+                for field in fields {
+                    self.register_expr_locals(owner, &mut field.value);
+                }
+            }
+            HirExprNode::Field { base, .. } => self.register_expr_locals(owner, base),
+            HirExprNode::Index { base, index } => {
+                self.register_expr_locals(owner, base);
+                self.register_expr_locals(owner, index);
+            }
+            HirExprNode::Block(block) => self.register_block_locals(owner, block),
+            HirExprNode::Match { expr, arms } => {
+                self.register_expr_locals(owner, expr);
+                for arm in arms {
+                    self.register_expr_locals(owner, &mut arm.value);
+                }
+            }
+            HirExprNode::Select { arms, .. } => {
+                for arm in arms {
+                    self.register_expr_locals(owner, &mut arm.pattern);
+                    self.register_expr_locals(owner, &mut arm.value);
+                }
+            }
+            HirExprNode::CompileError { message } => self.register_expr_locals(owner, message),
+            HirExprNode::Range { start, end } => {
+                self.register_expr_locals(owner, start);
+                self.register_expr_locals(owner, end);
+            }
+            HirExprNode::For {
+                id,
+                name,
+                range,
+                body,
+            } => {
+                self.register_expr_locals(owner, range);
+                *id = Some(self.register_local(owner, name, HirLocalKind::Loop, expr_span));
+                self.register_block_locals(owner, body);
+            }
+            HirExprNode::Ident(_)
+            | HirExprNode::Int(_)
+            | HirExprNode::Str(_)
+            | HirExprNode::Bool(_)
+            | HirExprNode::Unsupported => {}
+            _ => {}
         }
     }
 

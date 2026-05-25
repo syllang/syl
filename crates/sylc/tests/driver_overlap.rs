@@ -433,8 +433,8 @@ use a.A
 use b.B
 
 module Top<X: Bool, Z: Bool>(y: out Bit) {
-    alias first = A<X>(y: y)
-    alias second = B<Z>(y: y)
+    let first = place A<X>(y: y)
+    let second = place B<Z>(y: y)
 }
 "#,
         ])
@@ -500,9 +500,12 @@ module Good(done: out Bit) {
     signal y: [2] UInt<8>
     y[0][0] := 1
     y[0][1] := 0
-    for bit in 2..8 {
-        y[0][bit] := 0
-    }
+    y[0][2] := 0
+    y[0][3] := 0
+    y[0][4] := 0
+    y[0][5] := 0
+    y[0][6] := 0
+    y[0][7] := 0
     y[1] := 0
     done := 1
 }
@@ -603,9 +606,10 @@ fn allows_deep_statically_distinct_projection_drivers() {
             r#"
 module Good(done: out Bit) {
     signal y: [2] UInt<4>
-    for bit in 0..4 {
-        y[0][bit] := 0
-    }
+    y[0][0] := 0
+    y[0][1] := 0
+    y[0][2] := 0
+    y[0][3] := 0
     y[1] := 1
     done := 1
 }

@@ -40,7 +40,7 @@ module CounterPair<W: Nat = 16, D: Domain>(
     clear: in Bit,
 ) -> sum: UInt<W> {
     signal left: UInt<W> :=
-        inst Counter<W, D>(
+        place Counter<W, D>(
             clk: clk,
             rst: rst,
             enable: enable_left,
@@ -48,7 +48,7 @@ module CounterPair<W: Nat = 16, D: Domain>(
         )
 
     signal right: UInt<W> :=
-        inst Counter<W, D>(
+        place Counter<W, D>(
             clk: clk,
             rst: rst,
             enable: enable_right,

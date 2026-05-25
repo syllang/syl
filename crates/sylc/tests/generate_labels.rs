@@ -46,8 +46,8 @@ cell Maybe<E: Bool>() -> y: Bit {
 }
 
 module Top<A: Bool, B: Bool>(a: out Bit, b: out Bit) {
-    alias u = Maybe<A>()
-    alias v = Maybe<B>()
+    let u = place Maybe<A>()
+    let v = place Maybe<B>()
     a := u
     b := v
 }

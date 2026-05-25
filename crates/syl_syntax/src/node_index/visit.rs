@@ -1,6 +1,6 @@
 use super::{AstNodeIndexBuilder, NodeHandle, binary_op_label, select_mode_label, unary_op_label};
 use crate::{
-    Block, Expr, InstArg, MatchArm, NamedExpr, Pattern, RegReset, SelectArm, Stmt, TypeExpr,
+    Block, CallArg, Expr, MatchArm, NamedExpr, Pattern, RegReset, SelectArm, Stmt, TypeExpr,
 };
 
 impl<'a> AstNodeIndexBuilder<'a> {
@@ -44,10 +44,6 @@ impl<'a> AstNodeIndexBuilder<'a> {
                 if let Some(value) = value {
                     self.visit_expr(value, id);
                 }
-            }
-            Stmt::Alias { name, value, span } => {
-                let id = self.push_name(super::AstNodeKind::AliasStmt, *span, Some(parent), name);
-                self.visit_expr(value, id);
             }
             Stmt::Var {
                 name,
@@ -94,13 +90,6 @@ impl<'a> AstNodeIndexBuilder<'a> {
             Stmt::Next { name, value, span } => {
                 let id = self.push_name(super::AstNodeKind::NextStmt, *span, Some(parent), name);
                 self.visit_expr(value, id);
-            }
-            Stmt::Inst {
-                name, callee, span, ..
-            } => {
-                let id = self.push_kind(super::AstNodeKind::InstStmt, *span, Some(parent));
-                self.visit_expr(name, id);
-                self.visit_expr(callee, id);
             }
             Stmt::While { cond, body, span } => {
                 let id = self.push_kind(super::AstNodeKind::WhileStmt, *span, Some(parent));
@@ -193,7 +182,7 @@ impl<'a> AstNodeIndexBuilder<'a> {
                 let id = self.push_kind(super::AstNodeKind::CallExpr, *span, Some(parent));
                 self.visit_expr(callee, id);
                 for arg in args {
-                    self.visit_inst_arg(arg, id);
+                    self.visit_call_arg(arg, id);
                 }
             }
             Expr::GenericApp { callee, args, span } => {
@@ -245,12 +234,22 @@ impl<'a> AstNodeIndexBuilder<'a> {
                     self.visit_select_arm(arm, id);
                 }
             }
-            Expr::Inst { callee, args, span } => {
-                let id = self.push_kind(super::AstNodeKind::InstExpr, *span, Some(parent));
+            Expr::Place { callee, args, span } => {
+                let id = self.push_kind(super::AstNodeKind::PlaceExpr, *span, Some(parent));
                 self.visit_expr(callee, id);
                 for arg in args {
-                    self.visit_inst_arg(arg, id);
+                    self.visit_call_arg(arg, id);
                 }
+            }
+            Expr::For {
+                name,
+                range,
+                body,
+                span,
+            } => {
+                let id = self.push_name(super::AstNodeKind::ForExpr, *span, Some(parent), name);
+                self.visit_expr(range, id);
+                self.visit_block(body, id);
             }
             Expr::CompileError { message, span } => {
                 let id = self.push_kind(super::AstNodeKind::CompileErrorExpr, *span, Some(parent));
@@ -274,13 +273,13 @@ impl<'a> AstNodeIndexBuilder<'a> {
         self.visit_expr(&item.value, id);
     }
 
-    pub(super) fn visit_inst_arg(&mut self, item: &InstArg, parent: NodeHandle) {
+    pub(super) fn visit_call_arg(&mut self, item: &CallArg, parent: NodeHandle) {
         let id = match item.name.as_deref() {
             Some(name) => {
-                self.push_name(super::AstNodeKind::InstArg, item.span, Some(parent), name)
+                self.push_name(super::AstNodeKind::CallArg, item.span, Some(parent), name)
             }
             None => self.push_tag(
-                super::AstNodeKind::InstArg,
+                super::AstNodeKind::CallArg,
                 item.span,
                 Some(parent),
                 "positional",

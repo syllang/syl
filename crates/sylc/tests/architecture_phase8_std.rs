@@ -151,7 +151,7 @@ use std.stage.stage_from_stream
 cell BadUserCell<T>(
     up: in Stream<T>.sink,
 ) -> down: Stream<T>.source {
-    alias staged = stage_from_stream<T>(
+    let staged = place stage_from_stream<T>(
         stream: up,
     )
 

@@ -139,12 +139,10 @@ impl Parser {
             kind,
             TokenKind::KwLet
                 | TokenKind::KwConst
-                | TokenKind::KwAlias
                 | TokenKind::KwVar
                 | TokenKind::KwSignal
                 | TokenKind::KwReg
                 | TokenKind::KwNext
-                | TokenKind::KwInst
                 | TokenKind::KwWhile
                 | TokenKind::KwFor
                 | TokenKind::KwIf
@@ -166,7 +164,7 @@ impl Parser {
                 | TokenKind::LBrace
                 | TokenKind::KwMatch
                 | TokenKind::KwSelect
-                | TokenKind::KwInst
+                | TokenKind::KwPlace
         )
     }
 }

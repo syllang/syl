@@ -160,7 +160,7 @@ extern module VendorBox(y: in Bit)
 
 module Top(y: out Bit) {
     signal tmp: Bit := 0
-    inst vendor = VendorBox(y: tmp)
+    let vendor = place VendorBox(y: tmp)
     y := tmp
 }
     "#;
@@ -267,7 +267,7 @@ fn architecture_phase5_extern_out_auto_drive_summary_enters_metadata() {
 extern module DriveBit(y: out Bit)
 
 module Top(y: out Bit) {
-    inst drive = DriveBit(y: y)
+    let drive = place DriveBit(y: y)
 }
 "#,
         )])
@@ -307,7 +307,7 @@ extern module VendorLatch(y: in Bit)
 
 module Top(y: out Bit) {
     signal tmp: Bit := 0
-    inst vendor = VendorLatch(y: tmp)
+    let vendor = place VendorLatch(y: tmp)
     y := tmp
 }
 "#;
@@ -378,7 +378,7 @@ fn architecture_phase5_trust_boundaries_are_structured_and_assertable() {
 extern module VendorBox(y: out Bit)
 
 module Top(y: out Bit) {
-    inst vendor = VendorBox(y: y)
+    let vendor = place VendorBox(y: y)
 }
 "#,
         )])

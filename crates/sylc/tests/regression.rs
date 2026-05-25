@@ -345,7 +345,7 @@ module Child(a: in Bit, b: in Bit) {
 }
 
 module Top(x: in Bit) {
-    inst u = Child(a: x, a: x)
+    let u = place Child(a: x, a: x)
 }
 "#,
         )
@@ -363,7 +363,7 @@ module Child(a: in Bit, b: in Bit, c: in Bit) {
 }
 
 module Top(x: in Bit) {
-    inst u = Child(c: x, x, b: x)
+    let u = place Child(c: x, x, b: x)
 }
 "#,
         )
@@ -408,7 +408,7 @@ fn treats_extern_out_connection_as_driver_fact() {
 extern module Child(y: out Bit)
 
 module Top(y: out Bit) {
-    inst child = Child(y: y)
+    let child = place Child(y: y)
 }
 "#,
         )
@@ -650,7 +650,7 @@ module Child(up: in Stream<Bit>.sink) {
 }
 
 module Top(up: out Stream<Bit>.source) {
-    inst child = Child(up: up)
+    let child = place Child(up: up)
 }
 "#,
         )

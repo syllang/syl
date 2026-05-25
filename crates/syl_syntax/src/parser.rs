@@ -63,7 +63,6 @@ impl<'a> SourceParser<'a> {
                     | TokenKind::KwConst
                     | TokenKind::KwFn
                     | TokenKind::KwLet
-                    | TokenKind::KwAlias
                     | TokenKind::KwReturn
                     | TokenKind::KwVar
                     | TokenKind::KwFor
@@ -84,7 +83,7 @@ impl<'a> SourceParser<'a> {
                     | TokenKind::KwExtern
                     | TokenKind::KwSignal
                     | TokenKind::KwReg
-                    | TokenKind::KwInst
+                    | TokenKind::KwPlace
                     | TokenKind::KwNext
                     | TokenKind::KwIn
                     | TokenKind::KwInOut
@@ -502,9 +501,6 @@ impl Parser {
         if self.check(&TokenKind::KwConst) {
             return self.parse_const_stmt().map(BlockEntry::Stmt);
         }
-        if self.check(&TokenKind::KwAlias) {
-            return self.parse_alias_stmt().map(BlockEntry::Stmt);
-        }
         if self.check(&TokenKind::KwVar) {
             return self.parse_var_stmt().map(BlockEntry::Stmt);
         }
@@ -516,9 +512,6 @@ impl Parser {
         }
         if self.check(&TokenKind::KwNext) {
             return self.parse_next_stmt().map(BlockEntry::Stmt);
-        }
-        if self.check(&TokenKind::KwInst) {
-            return self.parse_inst_stmt().map(BlockEntry::Stmt);
         }
         if self.check(&TokenKind::KwWhile) {
             return self.parse_while_stmt().map(BlockEntry::Stmt);

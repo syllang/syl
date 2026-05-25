@@ -215,7 +215,7 @@ cell DoubleDrive() -> y: Bit {
 }
 
 module Top(z: out Bit) {
-    alias v = DoubleDrive()
+    let v = place DoubleDrive()
     z := v
 }
 "#;
@@ -232,8 +232,8 @@ module Top(z: out Bit) {
         .find(|diagnostic| diagnostic.code.as_deref() == Some("E_MIDDLE_DUPLICATE_HARDWARE_DRIVER"))
         .expect("duplicate hardware driver diagnostic must exist");
     let call_start = source
-        .find("alias v = DoubleDrive()")
-        .map(|start| start + "alias v = ".len())
+        .find("let v = place DoubleDrive()")
+        .map(|start| start + "let v = place ".len())
         .expect("fixture must contain inline cell callsite");
 
     assert!(
@@ -300,7 +300,7 @@ cell MakeBit() -> y: Bit {
 }
 
 module Top(y: out Bit) {
-    alias made = MakeBit()
+    let made = place MakeBit()
     y := made
 }
 "#
@@ -318,8 +318,8 @@ module Child(x: in Bit, y: out Bit) {
 }
 
 module Top(y: out Bit) {
-    alias made = MakeBit()
-    inst child_inst = Child(x: made, y: y)
+    let made = place MakeBit()
+    let child_inst = place Child(x: made, y: y)
 }
 "#
 }

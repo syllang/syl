@@ -41,12 +41,12 @@ map choose(x: Bit) -> Bit =
     x
 
 module Top(x: in Bit, y: out Bit) {
-    alias selected = choose(x)
+    let selected = choose(x)
     y := selected
 }
 "#,
         )
-        .expect("alias of a map call must lower as an expression alias");
+        .expect("let of a map call must lower as an expression let");
 
     assert!(verilog.contains("assign y = x;"));
     assert!(!verilog.contains("choose_inst"));

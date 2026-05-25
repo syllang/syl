@@ -222,7 +222,7 @@ pub enum EirError {
     AssignmentInMap,
     #[error("map expressions cannot call hardware generator {name}")]
     HardwareGeneratorCallInMap { name: String },
-    #[error("hardware value expressions cannot call generator {name}; use inst or alias")]
+    #[error("hardware value expressions cannot call generator {name}; use place")]
     HardwareGeneratorCallInExpression { name: String },
     #[error("hardware value expressions cannot call unknown function {name}")]
     UnknownHardwareValueCall { name: String },
