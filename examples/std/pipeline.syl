@@ -39,10 +39,10 @@ interface Stage<T> {
     }
 }
 
-map stage_fire<T>(stage: Stage<T>.tap) -> Bit =
+map fire<T>(this stage: Stage<T>.tap) -> Bit =
     stage.valid and stage.ready and not stage.cancel
 
-map stage_moving<T>(stage: Stage<T>.tap) -> Bit =
+map moving<T>(this stage: Stage<T>.tap) -> Bit =
     stage.valid and (stage.ready or stage.cancel)
 
 cell stage_from_stream<T>(

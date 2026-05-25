@@ -366,6 +366,31 @@ impl<'a> MapIrBuilder<'a> {
         callee: &HirBodyExpr,
         args: &[HirCallArg],
     ) -> Result<MapExpr, CompileError> {
+        if let Some(call) = self.tir.extension_method_call(owner, callee) {
+            let mut lowered_args = vec![MapArg::new(
+                None,
+                self.lower_expr(owner, call.receiver)?,
+            )];
+            lowered_args.extend(
+                args.iter()
+                    .map(|arg| {
+                        Ok(MapArg::new(
+                            arg.name.clone(),
+                            self.lower_expr(owner, &arg.value)?,
+                        ))
+                    })
+                    .collect::<Result<Vec<_>, CompileError>>()?,
+            );
+            let mut generic_args = self.generic_args(callee);
+            if generic_args.is_empty() {
+                generic_args = call.inferred_args.iter().map(MapGenericArg::from).collect();
+            }
+            return Ok(MapExpr::Call {
+                callee: call.method,
+                generic_args,
+                args: lowered_args,
+            });
+        }
         let generic_args = self.generic_args(callee);
         match BuiltinResolver::new(self.tir.hir(), Some(owner)).resolve_call_callee(callee) {
             Some(BuiltinIntrinsic::HighZ) => return Ok(MapExpr::BuiltinHighZ),

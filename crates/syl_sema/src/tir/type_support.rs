@@ -184,6 +184,14 @@ impl TirType {
         }
     }
 
+    pub fn generic_args(&self) -> &[TirGenericArg] {
+        match self {
+            Self::Named { args, .. } => args,
+            Self::View { base, .. } => base.generic_args(),
+            _ => &[],
+        }
+    }
+
     fn selected_view(&self) -> Option<&str> {
         match self {
             Self::View { view, .. } => Some(view.as_str()),
@@ -474,7 +482,11 @@ impl TypePhaseChecker {
     }
 
     fn infer_call_type(&self, owner: DefId, callee: &HirBodyExpr) -> TirType {
-        let Some(map_def) = self.map_callee_def(owner, callee) else {
+        let Some(map_def) = self.map_callee_def(owner, callee).or_else(|| {
+            self.extension_method_call(owner, callee)
+                .filter(|call| self.hir.def_kind(call.method) == Some(HirDefKind::Map))
+                .map(|call| call.method)
+        }) else {
             return self.infer_expr_type(owner, callee);
         };
         super::return_type::MapReturnTypeResolver::new(self, owner, map_def, callee)

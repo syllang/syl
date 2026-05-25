@@ -19,3 +19,8 @@ query, LSP, CLI, fuzz smoke harness, and quality-gate tests. New optional featur
 
 Publishable crates must keep package description, license, readme, repository or documentation URL,
 and workspace MSRV metadata. Private quality crates must set `publish = false`.
+
+## Design Notes
+
+- [Technical debt notes](technical-debt.md)
+- [Cell support plan](cell-support-plan.md)

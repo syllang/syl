@@ -38,10 +38,27 @@ impl<'checker, 'callee> MapReturnTypeResolver<'checker, 'callee> {
     }
 
     fn generic_bindings(&self) -> Result<Vec<TirGenericBinding>, CompileError> {
-        let Some(args) = self.callee_generic_args() else {
+        let Some(map) = self.checker.hir.maps.get(&self.map_def) else {
             return Ok(Vec::new());
         };
-        let Some(map) = self.checker.hir.maps.get(&self.map_def) else {
+        let inferred_args = self
+            .checker
+            .extension_method_call(self.call_owner, self.callee)
+            .filter(|call| call.method == self.map_def)
+            .map(|call| call.inferred_args)
+            .unwrap_or_default();
+        let explicit_args = self.callee_generic_args();
+        if explicit_args.is_none() && !inferred_args.is_empty() {
+            return Ok(inferred_args
+                .into_iter()
+                .zip(&map.generics)
+                .map(|(arg, generic)| TirGenericBinding {
+                    name: generic.name.clone(),
+                    arg,
+                })
+                .collect());
+        }
+        let Some(args) = explicit_args else {
             return Ok(Vec::new());
         };
         args.iter()

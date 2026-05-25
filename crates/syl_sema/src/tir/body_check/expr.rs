@@ -206,19 +206,26 @@ impl TypePhaseChecker {
                 callee.span(),
             ));
         } else {
+            self.check_generator_args(args, errors)?;
+            if let Some(call) = Self::record_recoverable(
+                errors,
+                self.checked_extension_method_call(self.current_owner()?, callee),
+            )
+            .flatten()
+            {
+                if self.hir.def_kind(call.method) == Some(HirDefKind::Map) {
+                    return Ok(());
+                }
+            }
             let Some(name) = self.expr_name(callee) else {
                 errors.push(CompileError::lowering_at(
                     EirError::UnsupportedHardwareValueExpression,
                     callee.span(),
                 ));
-                for arg in args {
-                    self.check_hardware_value_expr(&arg.value, errors)?;
-                }
                 return Ok(());
             };
             let builtin =
                 BuiltinResolver::new(&self.hir, self.current_owner).resolve_call_callee(callee);
-            self.check_generator_args(args, errors)?;
             if matches!(
                 builtin,
                 Some(BuiltinIntrinsic::HighZ | BuiltinIntrinsic::Zero)
@@ -261,6 +268,19 @@ impl TypePhaseChecker {
             };
             let builtin =
                 BuiltinResolver::new(&self.hir, self.current_owner).resolve_call_callee(callee);
+            if let Some(call) = Self::record_recoverable(
+                errors,
+                self.checked_extension_method_call(self.current_owner()?, callee),
+            )
+            .flatten()
+            {
+                if self.hir.def_kind(call.method) == Some(HirDefKind::Map) {
+                    for arg in args {
+                        self.check_map_expr(&arg.value, errors)?;
+                    }
+                    return Ok(());
+                }
+            }
             if !matches!(
                 builtin,
                 Some(BuiltinIntrinsic::HighZ | BuiltinIntrinsic::Zero)

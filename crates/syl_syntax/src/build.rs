@@ -427,6 +427,17 @@ impl Param {
             name,
             dir,
             ty,
+            receiver: false,
+            span,
+        }
+    }
+
+    pub(crate) fn receiver(name: String, ty: TypeExpr, span: Span) -> Self {
+        Self {
+            name,
+            dir: None,
+            ty,
+            receiver: true,
             span,
         }
     }

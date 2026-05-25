@@ -63,6 +63,7 @@ impl<'a> SourceParser<'a> {
                     | TokenKind::KwFn
                     | TokenKind::KwLet
                     | TokenKind::KwReturn
+                    | TokenKind::KwThis
                     | TokenKind::KwVar
                     | TokenKind::KwFor
                     | TokenKind::KwWhile
@@ -412,6 +413,10 @@ impl Parser {
     ) -> Result<Vec<PortDecl>, Vec<Diagnostic>> {
         let mut ports = Vec::new();
         for param in params {
+            if param.receiver {
+                self.error(param.span, "module and cell ports cannot use `this` receiver");
+                return Err(std::mem::take(&mut self.diagnostics));
+            }
             let Some(dir) = param.dir.clone() else {
                 self.error(
                     param.span,

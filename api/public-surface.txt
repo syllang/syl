@@ -183,6 +183,7 @@ syl_hir|field|syl_hir::model::HirDesign::enum_variants|std::collections::BTreeMa
 syl_hir|field|syl_hir::model::HirDesign::enums|std::collections::BTreeMap<crate::DefId, HirEnumItem>
 syl_hir|field|syl_hir::model::HirDesign::expr_resolutions|std::collections::BTreeMap<crate::ExprId, crate::resolution::HirResolution>
 syl_hir|field|syl_hir::model::HirDesign::exprs|Vec<HirExpr>
+syl_hir|field|syl_hir::model::HirDesign::extension_methods|std::collections::BTreeMap<crate::DefId, std::collections::BTreeMap<String, Vec<crate::DefId>>>
 syl_hir|field|syl_hir::model::HirDesign::field_accesses|Vec<HirFieldAccess>
 syl_hir|field|syl_hir::model::HirDesign::fns|std::collections::BTreeMap<crate::DefId, HirFnItem>
 syl_hir|field|syl_hir::model::HirDesign::imports|Vec<HirImport>
@@ -303,6 +304,7 @@ syl_hir|field|syl_hir::model::item::HirSignatureGenericParam::span|syl_span::Spa
 syl_hir|field|syl_hir::model::item::HirSignatureParam::direction|HirPortDirection
 syl_hir|field|syl_hir::model::item::HirSignatureParam::id|Option<crate::LocalId>
 syl_hir|field|syl_hir::model::item::HirSignatureParam::name|String
+syl_hir|field|syl_hir::model::item::HirSignatureParam::receiver|bool
 syl_hir|field|syl_hir::model::item::HirSignatureParam::span|syl_span::Span
 syl_hir|field|syl_hir::model::item::HirSignatureParam::ty|super::MirTypeRef
 syl_hir|field|syl_hir::model::item::HirSignatureResultBinding::drive|HirDriveCapability
@@ -328,13 +330,17 @@ syl_hir|method|syl_hir::model::HirDef::new|fn(id: DefId, name: String, canonical
 syl_hir|method|syl_hir::model::HirDesign::debug_dump|fn(self: &Self) -> String
 syl_hir|method|syl_hir::model::HirDesign::def_name|fn(self: &Self, id: DefId) -> Option<&str>
 syl_hir|method|syl_hir::model::HirDesign::empty|fn() -> Self
+syl_hir|method|syl_hir::model::HirDesign::extension_methods_for|fn(self: &Self, receiver: DefId, name: &str) -> &[DefId]
 syl_hir|method|syl_hir::model::HirDesign::import_def_at|fn(self: &Self, span: Span) -> Option<DefId>
 syl_hir|method|syl_hir::model::HirDesign::member_completion_fields_at|fn(self: &Self, owner: DefId, _span: Span) -> Vec<&HirMemberDecl>
 syl_hir|method|syl_hir::model::HirDesign::member_decl_definition_at|fn(self: &Self, span: Span) -> Option<&HirMemberDecl>
 syl_hir|method|syl_hir::model::HirDesign::member_field_def_at|fn(self: &Self, owner: DefId, span: Span) -> Option<&HirMemberDecl>
+syl_hir|method|syl_hir::model::HirDesign::package_path_for_def|fn(self: &Self, owner: DefId) -> Option<HirPath>
+syl_hir|method|syl_hir::model::HirDesign::register_extension_method|fn(self: &mut Self, receiver: DefId, name: String, method: DefId)
 syl_hir|method|syl_hir::model::HirDesign::resolved_type_def_for_ref|fn(self: &Self, type_ref: &HirTypeRef) -> Option<DefId>
 syl_hir|method|syl_hir::model::HirDesign::semantic_summary_count|fn(self: &Self) -> usize
 syl_hir|method|syl_hir::model::HirDesign::source_def_ids|fn(self: &Self, source: syl_span::SourceId) -> Vec<DefId>
+syl_hir|method|syl_hir::model::HirDesign::type_def_for_mir_type|fn(self: &Self, _owner: DefId, ty: &MirTypeRef) -> Option<DefId>
 syl_hir|method|syl_hir::model::HirDesign::type_ref_at|fn(self: &Self, owner: DefId, span: Span) -> Option<&HirTypeRef>
 syl_hir|method|syl_hir::model::HirDesign::view_def_for_type_ref|fn(self: &Self, owner: DefId, ty: &MirTypeRef, span: Span) -> Option<&HirMemberDecl>
 syl_hir|method|syl_hir::model::HirDesign::visible_def_ids|fn(self: &Self, owner: DefId) -> Vec<DefId>
@@ -1388,6 +1394,7 @@ syl_sema|method|syl_sema::tir::TypePhaseChecker::check_output|fn(self: Self) -> 
 syl_sema|method|syl_sema::tir::TypePhaseChecker::check|fn(self: Self) -> Result<TirDesign, CompileError>
 syl_sema|method|syl_sema::tir::TypePhaseChecker::new|fn(hir: Arc<HirDesign>) -> Self
 syl_sema|method|syl_sema::tir::type_support::TirType::definition|fn(self: &Self) -> Option<DefId>
+syl_sema|method|syl_sema::tir::type_support::TirType::generic_args|fn(self: &Self) -> &[TirGenericArg]
 syl_sema|method|syl_sema::tir::type_support::TirType::label|fn(self: &Self) -> String
 syl_sema|method|syl_sema::tir::type_support::const_term::TirConstTerm::label|fn(self: &Self) -> String
 syl_sema|method|syl_sema::tir::type_support::type_table::TirTypeTable::get|fn(self: &Self, id: TypeId) -> Option<&TirType>
@@ -1586,6 +1593,7 @@ syl_sema|use|TirAnalysis|named|source=analysis::TirAnalysis
 syl_sema|use|TirConstTerm|named|source=const_term::TirConstTerm
 syl_sema|use|TirConstTerm|named|source=type_support::TirConstTerm
 syl_sema|use|TirError|named|source=error::TirError
+syl_sema|use|TirGenericArg|named|source=type_support::TirGenericArg
 syl_sema|use|TirTypeTable|named|source=type_support::TirTypeTable
 syl_sema|use|TirTypeTable|named|source=type_table::TirTypeTable
 syl_sema|use|TirType|named|source=type_support::TirType
@@ -1725,6 +1733,7 @@ syl_sema|variant|syl_sema::error::LoweringError::Eir|(EirError)
 syl_sema|variant|syl_sema::error::LoweringError::Hir|(HirError)
 syl_sema|variant|syl_sema::error::LoweringError::Hwir|(HwirError)
 syl_sema|variant|syl_sema::error::LoweringError::Tir|(TirError)
+syl_sema|variant|syl_sema::error::TirError::AmbiguousMethod|{ receiver: String, method: String, candidates: String }
 syl_sema|variant|syl_sema::error::TirError::BoolInHardwareValue|unit
 syl_sema|variant|syl_sema::error::TirError::ElaborationIfRequiresBool|unit
 syl_sema|variant|syl_sema::error::TirError::InvalidElaborationExpression|unit
@@ -1734,6 +1743,7 @@ syl_sema|variant|syl_sema::error::TirError::RequiresNatExpression|{ context: Str
 syl_sema|variant|syl_sema::error::TirError::SelectRequiresDefault|unit
 syl_sema|variant|syl_sema::error::TirError::SoftwareOperatorInHardware|{ op: String }
 syl_sema|variant|syl_sema::error::TirError::UnknownAggregateField|{ ty: String, field: String }
+syl_sema|variant|syl_sema::error::TirError::UnknownMethod|{ receiver: String, method: String }
 syl_sema|variant|syl_sema::error::TirError::UnknownType|{ name: String }
 syl_sema|variant|syl_sema::facts::capability::CapabilityKind::Clock|{ domain: DomainFact }
 syl_sema|variant|syl_sema::facts::capability::CapabilityKind::Domain|unit
@@ -2297,6 +2307,7 @@ syl_syntax|field|syl_syntax::ast::NamedExpr::span|syl_span::Span
 syl_syntax|field|syl_syntax::ast::NamedExpr::value|Expr
 syl_syntax|field|syl_syntax::ast::Param::dir|Option<ParamDirection>
 syl_syntax|field|syl_syntax::ast::Param::name|String
+syl_syntax|field|syl_syntax::ast::Param::receiver|bool
 syl_syntax|field|syl_syntax::ast::Param::span|syl_span::Span
 syl_syntax|field|syl_syntax::ast::Param::ty|TypeExpr
 syl_syntax|field|syl_syntax::ast::PortDecl::dir|ParamDirection
@@ -2752,6 +2763,7 @@ syl_syntax|variant|syl_syntax::token::TokenKind::KwReg|unit
 syl_syntax|variant|syl_syntax::token::TokenKind::KwReturn|unit
 syl_syntax|variant|syl_syntax::token::TokenKind::KwSelect|unit
 syl_syntax|variant|syl_syntax::token::TokenKind::KwSignal|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::KwThis|unit
 syl_syntax|variant|syl_syntax::token::TokenKind::KwUnique|unit
 syl_syntax|variant|syl_syntax::token::TokenKind::KwUse|unit
 syl_syntax|variant|syl_syntax::token::TokenKind::KwVar|unit

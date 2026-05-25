@@ -359,6 +359,7 @@ impl<'a> Lexer<'a> {
             "fn" => TokenKind::KwFn,
             "let" => TokenKind::KwLet,
             "return" => TokenKind::KwReturn,
+            "this" => TokenKind::KwThis,
             "var" => TokenKind::KwVar,
             "for" => TokenKind::KwFor,
             "while" => TokenKind::KwWhile,

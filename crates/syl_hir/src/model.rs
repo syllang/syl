@@ -40,6 +40,7 @@ pub struct HirDesign {
     pub type_refs: Vec<HirTypeRef>,
     pub member_decls: Vec<HirMemberDecl>,
     pub expr_resolutions: BTreeMap<ExprId, HirResolution>,
+    pub extension_methods: BTreeMap<DefId, BTreeMap<String, Vec<DefId>>>,
     pub consts: BTreeMap<DefId, HirConstItem>,
     pub fns: BTreeMap<DefId, HirFnItem>,
     pub enums: BTreeMap<DefId, HirEnumItem>,
@@ -64,6 +65,7 @@ impl HirDesign {
             type_refs: Vec::new(),
             member_decls: Vec::new(),
             expr_resolutions: BTreeMap::new(),
+            extension_methods: BTreeMap::new(),
             consts: BTreeMap::new(),
             fns: BTreeMap::new(),
             enums: BTreeMap::new(),
@@ -143,6 +145,23 @@ impl HirDesign {
             .min_by_key(|type_ref| span_width(type_ref.span))
     }
 
+    pub fn extension_methods_for(&self, receiver: DefId, name: &str) -> &[DefId] {
+        self.extension_methods
+            .get(&receiver)
+            .and_then(|methods| methods.get(name))
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
+    }
+
+    pub fn register_extension_method(&mut self, receiver: DefId, name: String, method: DefId) {
+        self.extension_methods
+            .entry(receiver)
+            .or_default()
+            .entry(name)
+            .or_default()
+            .push(method);
+    }
+
     pub fn view_def_for_type_ref(
         &self,
         owner: DefId,
@@ -172,7 +191,7 @@ impl HirDesign {
             .collect()
     }
 
-    fn type_def_for_mir_type(&self, _owner: DefId, ty: &MirTypeRef) -> Option<DefId> {
+    pub fn type_def_for_mir_type(&self, _owner: DefId, ty: &MirTypeRef) -> Option<DefId> {
         if let Some(path) = ty.path() {
             if path.len() == 1 {
                 return self
@@ -198,7 +217,7 @@ impl HirDesign {
         None
     }
 
-    fn package_path_for_def(&self, owner: DefId) -> Option<HirPath> {
+    pub fn package_path_for_def(&self, owner: DefId) -> Option<HirPath> {
         self.defs
             .get(owner.get())
             .map(|def| def.canonical_path.parent())

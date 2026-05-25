@@ -217,6 +217,7 @@ pub struct Param {
     pub name: String,
     pub dir: Option<ParamDirection>,
     pub ty: TypeExpr,
+    pub receiver: bool,
     pub span: Span,
 }
 

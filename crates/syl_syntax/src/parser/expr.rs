@@ -63,6 +63,11 @@ impl Parser {
         self.expect(TokenKind::LParen)?;
         if !self.check(&TokenKind::RParen) {
             loop {
+                let receiver = self.consume(&TokenKind::KwThis).is_some();
+                if receiver && !params.is_empty() {
+                    self.error(self.prev_span(), "`this` receiver must be the first parameter");
+                    return Err(std::mem::take(&mut self.diagnostics));
+                }
                 let name = self.expect_ident()?;
                 let start = self.prev_span();
                 self.expect(TokenKind::Colon)?;
@@ -77,7 +82,15 @@ impl Parser {
                 };
                 let ty = self.parse_type_expr()?;
                 let span = start.join(ty.span());
-                params.push(Param::new(name, dir, ty, span));
+                if receiver {
+                    if dir.is_some() {
+                        self.error(span, "`this` receiver cannot have an in/out direction");
+                        return Err(std::mem::take(&mut self.diagnostics));
+                    }
+                    params.push(Param::receiver(name, ty, span));
+                } else {
+                    params.push(Param::new(name, dir, ty, span));
+                }
                 if self.consume(&TokenKind::Comma).is_none() {
                     break;
                 }

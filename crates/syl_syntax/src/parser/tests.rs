@@ -96,6 +96,47 @@ extern module PadCell(
 }
 
 #[test]
+fn parses_this_receiver_on_map_and_fn() {
+    let source = r#"
+map fire<T>(this stage: Stage<T>.tap) -> Bit =
+    stage.valid and stage.ready
+
+fn width(this word: Word) -> Nat {
+    return 1
+}
+"#;
+    let file = SourceParser::new(source).parse_file().unwrap();
+
+    match &file.items[0] {
+        Item::Map(item) => {
+            assert_eq!(item.name, "fire");
+            assert!(item.params[0].receiver);
+        }
+        other => panic!("unexpected map item: {other:?}"),
+    }
+    match &file.items[1] {
+        Item::Fn(item) => {
+            assert_eq!(item.name, "width");
+            assert!(item.params[0].receiver);
+        }
+        other => panic!("unexpected fn item: {other:?}"),
+    }
+}
+
+#[test]
+fn rejects_this_receiver_on_cell_port() {
+    let errors = SourceParser::new("cell Bad(this x: Bit) {}\n")
+        .parse_file()
+        .expect_err("cell ports cannot be receivers");
+
+    assert!(
+        errors
+            .iter()
+            .any(|error| error.message == "module and cell ports cannot use `this` receiver")
+    );
+}
+
+#[test]
 fn path_segments_accept_contextual_keywords() {
     let file = SourceParser::new("use std.bundle.ReadyValidWord\n")
         .parse_file()

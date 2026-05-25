@@ -117,6 +117,14 @@ impl<'a> ExprLowerer<'a> {
                 .with_origin(expr.id())
             }
             HirExprNode::Call { callee, args } => {
+                if let Some(call) = self.tir.extension_method_call(self.owner, callee)
+                    && self.tir.hir().fns.contains_key(&call.method)
+                {
+                    let mut lowered_args = vec![self.lower_expr(call.receiver)];
+                    lowered_args.extend(args.iter().map(|arg| self.lower_expr(&arg.value)));
+                    return ConstExpr::call(call.method, lowered_args, expr.span())
+                        .with_origin(expr.id());
+                }
                 let Some(root) = self.callee_root(callee) else {
                     return self.unsupported_expr(expr.span(), expr.id());
                 };

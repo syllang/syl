@@ -86,6 +86,34 @@ impl<'a> EirBuilder<'a> {
         self.map_expr(map.body(), &map_env)
     }
 
+    pub(super) fn map_extension_call_expr(
+        &self,
+        callee: DefId,
+        generic_args: &[MapGenericArg],
+        args: &[ElabCallArg],
+        env: &Env,
+    ) -> EirExpr {
+        let Some(map) = self.map_ir.get(callee) else {
+            let name = self.program.def_name(callee).unwrap_or("<unknown>");
+            return EirExpr::call(
+                name,
+                args.iter()
+                    .map(|arg| self.elab_expr(&arg.value, env))
+                    .collect(),
+            );
+        };
+        let mut map_env = Env::with_owner(callee);
+        let replacements = self.map_generic_replacements(map, generic_args);
+        self.bind_map_elab_args(MapElabArgBinding {
+            map,
+            args,
+            caller_env: env,
+            map_env: &mut map_env,
+            replacements: &replacements,
+        });
+        self.map_expr(map.body(), &map_env)
+    }
+
     pub(super) fn map_callee_from_elab(
         &self,
         callee: &ElabExpr,
@@ -184,7 +212,7 @@ impl<'a> EirBuilder<'a> {
         replacements
     }
 
-    fn elab_generic_type_args(&self, expr: &ElabExpr) -> Vec<MapGenericArg> {
+    pub(super) fn elab_generic_type_args(&self, expr: &ElabExpr) -> Vec<MapGenericArg> {
         let mut current = expr;
         loop {
             match &current.node {
@@ -268,7 +296,18 @@ impl<'a> EirBuilder<'a> {
         let base_key = base_code.fact_key();
         if let MapExpr::Ident(local) = base
             && let Some(var) = env.vars.get(local.name())
+            && let Some(expr) = self.view_field_ref(&var.code, &var.ty, field)
+        {
+            return expr;
+        }
+        if let MapExpr::Ident(local) = base
+            && let Some(var) = env.vars.get(local.name())
             && let Some(expr) = self.bundle_field_ref(env.owner, &var.code, &var.ty, field)
+        {
+            return expr;
+        }
+        if let Some(var) = env.vars.get(&base_key)
+            && let Some(expr) = self.view_field_ref(&var.code, &var.ty, field)
         {
             return expr;
         }

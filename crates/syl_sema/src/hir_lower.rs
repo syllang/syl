@@ -82,6 +82,7 @@ impl<'files> HirResolver<'files> {
             }
         }
         self.validate_imports()?;
+        self.register_extension_methods();
         Ok(())
     }
 
@@ -99,6 +100,7 @@ impl<'files> HirResolver<'files> {
             }
         }
         errors.extend(self.validate_imports_collect());
+        self.register_extension_methods();
         errors
     }
 
@@ -410,6 +412,36 @@ impl<'files> HirResolver<'files> {
         for param in params {
             param.id =
                 Some(self.register_local(owner, &param.name, HirLocalKind::Param, param.span));
+        }
+    }
+
+    fn register_extension_methods(&mut self) {
+        let maps = self
+            .design
+            .maps
+            .iter()
+            .filter_map(|(owner, item)| {
+                item.params
+                    .first()
+                    .filter(|param| param.receiver)
+                    .map(|param| (*owner, item.name.clone(), param.ty.clone()))
+            })
+            .collect::<Vec<_>>();
+        let fns = self
+            .design
+            .fns
+            .iter()
+            .filter_map(|(owner, item)| {
+                item.params
+                    .first()
+                    .filter(|param| param.receiver)
+                    .map(|param| (*owner, item.name.clone(), param.ty.clone()))
+            })
+            .collect::<Vec<_>>();
+        for (owner, name, ty) in maps.into_iter().chain(fns) {
+            if let Some(receiver) = self.design.type_def_for_mir_type(owner, &ty) {
+                self.design.register_extension_method(receiver, name, owner);
+            }
         }
     }
 

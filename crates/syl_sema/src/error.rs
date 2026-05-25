@@ -87,6 +87,14 @@ pub enum TirError {
     MissingAggregateField { ty: String, field: String },
     #[error("aggregate field {field} does not exist on {ty}")]
     UnknownAggregateField { ty: String, field: String },
+    #[error("unknown method {method} for {receiver}")]
+    UnknownMethod { receiver: String, method: String },
+    #[error("ambiguous method {method} for {receiver}; candidates: {candidates}")]
+    AmbiguousMethod {
+        receiver: String,
+        method: String,
+        candidates: String,
+    },
 }
 
 impl TirError {
@@ -102,6 +110,8 @@ impl TirError {
             Self::MatchRequiresArm => "E_MIDDLE_MATCH_REQUIRES_ARM",
             Self::MissingAggregateField { .. } => "E_MIDDLE_MISSING_AGGREGATE_FIELD",
             Self::UnknownAggregateField { .. } => "E_MIDDLE_UNKNOWN_AGGREGATE_FIELD",
+            Self::UnknownMethod { .. } => "E_MIDDLE_UNKNOWN_METHOD",
+            Self::AmbiguousMethod { .. } => "E_MIDDLE_AMBIGUOUS_METHOD",
         }
     }
 }

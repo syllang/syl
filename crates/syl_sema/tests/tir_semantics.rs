@@ -47,6 +47,38 @@ module Bad(x: in Missing) {
 }
 
 #[test]
+fn extension_map_method_lowers_as_receiver_call() {
+    let sv = SemanticHarness::new()
+        .compile(
+            r#"
+interface Stage<T> {
+    payload: T
+    valid: Bit
+    ready: Bit
+    cancel: Bit
+
+    view tap {
+        in payload
+        in valid
+        in ready
+        in cancel
+    }
+}
+
+map fire<T>(this stage: Stage<T>.tap) -> Bit =
+    stage.valid and stage.ready and not stage.cancel
+
+module Top(stage: in Stage<Bit>.tap, y: out Bit) {
+    y := stage.fire()
+}
+"#,
+        )
+        .expect("extension map method must compile");
+
+    assert!(sv.contains("assign y ="));
+}
+
+#[test]
 fn rejects_unknown_bundle_field_type_before_width_lowering() {
     let err = SemanticHarness::new()
         .compile(

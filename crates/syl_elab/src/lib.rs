@@ -17,6 +17,7 @@ mod eir_const;
 mod eir_expr;
 mod eir_guard;
 mod eir_map;
+mod eir_method;
 mod eir_origin;
 mod eir_place;
 mod eir_type;

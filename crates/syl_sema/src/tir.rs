@@ -15,11 +15,12 @@ use syl_span::Span;
 
 mod body_check;
 mod check;
+mod extension_method;
 mod return_type;
 #[cfg(test)]
 mod type_identity_tests;
 mod type_support;
-pub use type_support::{TirConstTerm, TirType, TirTypeTable};
+pub use type_support::{TirConstTerm, TirGenericArg, TirType, TirTypeTable};
 
 #[non_exhaustive]
 pub struct TirDesign {

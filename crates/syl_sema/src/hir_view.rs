@@ -2,7 +2,6 @@ use crate::{
     hir::{HirCallable, HirConstItem, HirDefKind, HirDesign},
     hir_resolve::HirResolution,
     mir::MirTypeRef,
-    mir_type_resolve::MirTypeDefinitionResolver,
 };
 use syl_hir::{DefId, ExprId, name::HirPath};
 
@@ -22,8 +21,6 @@ pub(crate) trait HirDesignViewExt {
     fn callable_by_def(&self, id: DefId) -> Option<&HirCallable>;
 
     fn const_by_def(&self, id: DefId) -> Option<&HirConstItem>;
-
-    fn type_def_for_mir_type(&self, owner: DefId, ty: &MirTypeRef) -> Option<DefId>;
 
     fn member_field_type(
         &self,
@@ -87,10 +84,6 @@ impl HirDesignViewExt for HirDesign {
 
     fn const_by_def(&self, id: DefId) -> Option<&HirConstItem> {
         self.consts.get(&id)
-    }
-
-    fn type_def_for_mir_type(&self, owner: DefId, ty: &MirTypeRef) -> Option<DefId> {
-        MirTypeDefinitionResolver::new(self).def_id(owner, ty)
     }
 
     fn member_field_type(

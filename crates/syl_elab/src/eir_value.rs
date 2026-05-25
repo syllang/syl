@@ -102,7 +102,9 @@ impl<'a> EirBuilder<'a> {
                 self.collect_elab_read_places(right, env, reads);
             }
             ElabExprNode::Call { callee, args } | ElabExprNode::Place { callee, args } => {
-                self.collect_elab_read_places(callee, env, reads);
+                if self.method_callee(callee).is_none() {
+                    self.collect_elab_read_places(callee, env, reads);
+                }
                 for arg in args {
                     self.collect_elab_read_places(&arg.value, env, reads);
                 }
@@ -161,12 +163,15 @@ impl<'a> EirBuilder<'a> {
             Some(EirBuiltinIntrinsic::Zero) => return EirExpr::zero(),
             _ => {}
         }
-        let Some(name) = self.elab_expr_name(callee) else {
-            return EirExpr::unsupported("call callee is not a name");
-        };
         if self.map_callee_from_elab(callee, env).is_some() {
             return self.map_call_expr_from_elab(callee, args, env);
         }
+        if let Some(expr) = self.extension_map_call_expr(callee, args, env) {
+            return expr;
+        }
+        let Some(name) = self.elab_expr_name(callee) else {
+            return EirExpr::unsupported("call callee is not a name");
+        };
         EirExpr::call(
             name,
             args.iter()

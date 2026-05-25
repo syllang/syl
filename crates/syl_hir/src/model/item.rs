@@ -100,6 +100,7 @@ pub struct HirSignatureParam {
     pub name: String,
     pub direction: HirPortDirection,
     pub ty: MirTypeRef,
+    pub receiver: bool,
     pub span: Span,
 }
 
@@ -110,6 +111,7 @@ impl From<&Param> for HirSignatureParam {
             name: param.name.clone(),
             direction: HirPortDirection::from(param.dir.as_ref()),
             ty: MirTypeRef::from(&param.ty),
+            receiver: param.receiver,
             span: param.span,
         }
     }

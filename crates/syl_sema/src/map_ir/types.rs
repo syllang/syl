@@ -1,6 +1,7 @@
 use crate::mir::{
     MirBinaryOp, MirConstExpr, MirConstExprFacts, MirPattern, MirSelectMode, MirTypeRef, MirUnaryOp,
 };
+use crate::tir::{TirGenericArg, TirType};
 use std::collections::HashMap;
 use syl_span::Span;
 use syl_syntax::{BinaryOp, UnaryOp};
@@ -142,6 +143,53 @@ pub struct MapTypeRef {
 }
 
 impl MapTypeRef {
+    pub(crate) fn from_tir_type(ty: &TirType) -> Self {
+        match ty {
+            TirType::Named { name, args, .. } => {
+                let base = Self {
+                    kind: MapTypeKind::Path(vec![name.clone()]),
+                    span: Span::default(),
+                };
+                if args.is_empty() {
+                    base
+                } else {
+                    Self {
+                        kind: MapTypeKind::Generic {
+                            base: Box::new(base),
+                            args: args.iter().map(Self::from_tir_generic_arg).collect(),
+                        },
+                        span: Span::default(),
+                    }
+                }
+            }
+            TirType::View { base, view } => Self {
+                kind: MapTypeKind::ViewSelect {
+                    base: Box::new(Self::from_tir_type(base)),
+                    view: view.clone(),
+                },
+                span: Span::default(),
+            },
+            _ => Self {
+                kind: MapTypeKind::Path(vec![ty.label()]),
+                span: Span::default(),
+            },
+        }
+    }
+
+    pub(crate) fn from_const_label(label: String) -> Self {
+        Self {
+            kind: MapTypeKind::Path(vec![label]),
+            span: Span::default(),
+        }
+    }
+
+    fn from_tir_generic_arg(arg: &TirGenericArg) -> Self {
+        match arg {
+            TirGenericArg::Type(ty) => Self::from_tir_type(ty),
+            TirGenericArg::Const(term) => Self::from_const_label(term.label()),
+        }
+    }
+
     pub fn span(&self) -> Span {
         self.span
     }
@@ -507,6 +555,16 @@ impl From<&MirTypeRef> for MapGenericArg {
         Self {
             ty: MapTypeRef::from(ty),
         }
+    }
+}
+
+impl From<&TirGenericArg> for MapGenericArg {
+    fn from(arg: &TirGenericArg) -> Self {
+        let ty = match arg {
+            TirGenericArg::Type(ty) => MapTypeRef::from_tir_type(ty),
+            TirGenericArg::Const(term) => MapTypeRef::from_const_label(term.label()),
+        };
+        Self { ty }
     }
 }
 
