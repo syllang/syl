@@ -20,6 +20,7 @@ mod eir_map;
 mod eir_method;
 mod eir_origin;
 mod eir_place;
+mod eir_read;
 mod eir_type;
 mod eir_value;
 mod hardware_metadata;

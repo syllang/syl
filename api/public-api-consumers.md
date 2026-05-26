@@ -227,6 +227,7 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_hir|enum|syl_hir::model::body::HirStmt|public` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|enum|syl_hir::model::callable::HirCallable|public` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|enum|syl_hir::model::item::HirDriveCapability|public` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
+- `syl_hir|enum|syl_hir::model::item::HirParamRole|public` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|enum|syl_hir::model::item::HirPortDirection|public` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|enum|syl_hir::model::item::HirViewDirection|public` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|enum|syl_hir::model::type_ref::MirBinaryOp|public` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
@@ -253,7 +254,7 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_hir|field|syl_hir::model::HirDesign::enums|std::collections::BTreeMap<crate::DefId, HirEnumItem>` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|field|syl_hir::model::HirDesign::expr_resolutions|std::collections::BTreeMap<crate::ExprId, crate::resolution::HirResolution>` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|field|syl_hir::model::HirDesign::exprs|Vec<HirExpr>` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
-- `syl_hir|field|syl_hir::model::HirDesign::extension_methods|std::collections::BTreeMap<crate::DefId, std::collections::BTreeMap<String, Vec<crate::DefId>>>` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
+- `syl_hir|field|syl_hir::model::HirDesign::extension_methods|HirExtensionMethodIndex` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|field|syl_hir::model::HirDesign::field_accesses|Vec<HirFieldAccess>` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|field|syl_hir::model::HirDesign::fns|std::collections::BTreeMap<crate::DefId, HirFnItem>` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|field|syl_hir::model::HirDesign::imports|Vec<HirImport>` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
@@ -374,7 +375,7 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_hir|field|syl_hir::model::item::HirSignatureParam::direction|HirPortDirection` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|field|syl_hir::model::item::HirSignatureParam::id|Option<crate::LocalId>` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|field|syl_hir::model::item::HirSignatureParam::name|String` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
-- `syl_hir|field|syl_hir::model::item::HirSignatureParam::receiver|bool` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
+- `syl_hir|field|syl_hir::model::item::HirSignatureParam::role|HirParamRole` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|field|syl_hir::model::item::HirSignatureParam::span|syl_span::Span` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|field|syl_hir::model::item::HirSignatureParam::ty|super::MirTypeRef` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|field|syl_hir::model::item::HirSignatureResultBinding::drive|HirDriveCapability` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
@@ -415,6 +416,9 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_hir|method|syl_hir::model::HirDesign::view_def_for_type_ref|fn(self: &Self, owner: DefId, ty: &MirTypeRef, span: Span) -> Option<&HirMemberDecl>` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|method|syl_hir::model::HirDesign::visible_def_ids|fn(self: &Self, owner: DefId) -> Vec<DefId>` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|method|syl_hir::model::HirExpr::new|fn(id: ExprId, owner: DefId, span: Span) -> Self` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
+- `syl_hir|method|syl_hir::model::HirExtensionMethodIndex::methods_for|fn(self: &Self, receiver: DefId, name: &str) -> &[DefId]` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
+- `syl_hir|method|syl_hir::model::HirExtensionMethodIndex::new|fn() -> Self` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
+- `syl_hir|method|syl_hir::model::HirExtensionMethodIndex::register|fn(self: &mut Self, receiver: DefId, name: String, method: DefId)` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|method|syl_hir::model::HirFieldAccess::new|fn(owner: DefId, base: HirBodyExpr, field: String, span: Span) -> Self` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|method|syl_hir::model::HirImport::new|fn(path: Vec<String>, package_path: HirPath, span: Span) -> Self` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|method|syl_hir::model::HirLocal::new|fn(id: LocalId, owner: DefId, name: String, kind: HirLocalKind, span: Span) -> Self` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
@@ -432,6 +436,7 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_hir|method|syl_hir::model::callable::HirCallable::result|fn(self: &Self) -> Option<&HirSignatureResultBinding>` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|method|syl_hir::model::enum_variant::HirEnumVariant::new|fn(enum_def: DefId, name: impl Into<String>, value: u64, span: Span) -> Self` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|method|syl_hir::model::enum_variant::HirEnumVariantKey::new|fn(enum_def: DefId, name: impl Into<String>) -> Self` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
+- `syl_hir|method|syl_hir::model::item::HirSignatureParam::is_receiver|fn(self: &Self) -> bool` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|method|syl_hir::model::type_ref::MirConstExpr::binary_expr|fn(op: MirBinaryOp, left: MirConstExpr, right: MirConstExpr, span: Span) -> Self` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|method|syl_hir::model::type_ref::MirConstExpr::binary|fn(self: &Self) -> Option<(MirBinaryOp, &MirConstExpr, &MirConstExpr)>` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|method|syl_hir::model::type_ref::MirConstExpr::bool_value_expr|fn(value: bool, span: Span) -> Self` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
@@ -475,6 +480,7 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_hir|struct|syl_hir::model::HirDef|public` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|struct|syl_hir::model::HirDesign|public` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|struct|syl_hir::model::HirExpr|public` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
+- `syl_hir|struct|syl_hir::model::HirExtensionMethodIndex|public` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|struct|syl_hir::model::HirFieldAccess|public` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|struct|syl_hir::model::HirImport|public` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|struct|syl_hir::model::HirLocal|public` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
@@ -543,6 +549,7 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_hir|use|HirExprNode|named|source=body::HirExprNode` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|use|HirExprNode|named|source=model::HirExprNode` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|use|HirExpr|named|source=model::HirExpr` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
+- `syl_hir|use|HirExtensionMethodIndex|named|source=model::HirExtensionMethodIndex` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|use|HirExternModuleItem|named|source=item::HirExternModuleItem` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|use|HirExternModuleItem|named|source=model::HirExternModuleItem` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|use|HirFieldAccess|named|source=model::HirFieldAccess` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
@@ -564,6 +571,8 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_hir|use|HirNamedExpr|named|source=body::HirNamedExpr` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|use|HirNamedExpr|named|source=model::HirNamedExpr` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|use|HirPackage|named|source=model::HirPackage` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
+- `syl_hir|use|HirParamRole|named|source=item::HirParamRole` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
+- `syl_hir|use|HirParamRole|named|source=model::HirParamRole` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|use|HirPath|named|source=name::HirPath` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|use|HirPortDecl|named|source=item::HirPortDecl` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|use|HirPortDecl|named|source=model::HirPortDecl` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
@@ -663,6 +672,8 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_hir|variant|syl_hir::model::item::HirDriveCapability::ReadOnly|unit` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|variant|syl_hir::model::item::HirDriveCapability::ReadWrite|unit` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|variant|syl_hir::model::item::HirDriveCapability::WriteOnly|unit` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
+- `syl_hir|variant|syl_hir::model::item::HirParamRole::Ordinary|unit` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
+- `syl_hir|variant|syl_hir::model::item::HirParamRole::Receiver|unit` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|variant|syl_hir::model::item::HirPortDirection::InOut|unit` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|variant|syl_hir::model::item::HirPortDirection::In|unit` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|variant|syl_hir::model::item::HirPortDirection::Out|unit` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
@@ -2295,6 +2306,7 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_syntax|enum|syl_syntax::ast::Expr|public` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|enum|syl_syntax::ast::Item|public` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|enum|syl_syntax::ast::ParamDirection|public` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
+- `syl_syntax|enum|syl_syntax::ast::ParamRole|public` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|enum|syl_syntax::ast::Pattern|public` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|enum|syl_syntax::ast::SelectMode|public` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|enum|syl_syntax::ast::Stmt|public` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
@@ -2377,7 +2389,7 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_syntax|field|syl_syntax::ast::NamedExpr::value|Expr` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|field|syl_syntax::ast::Param::dir|Option<ParamDirection>` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|field|syl_syntax::ast::Param::name|String` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
-- `syl_syntax|field|syl_syntax::ast::Param::receiver|bool` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
+- `syl_syntax|field|syl_syntax::ast::Param::role|ParamRole` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|field|syl_syntax::ast::Param::span|syl_span::Span` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|field|syl_syntax::ast::Param::ty|TypeExpr` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|field|syl_syntax::ast::PortDecl::dir|ParamDirection` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
@@ -2442,6 +2454,7 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_syntax|method|syl_syntax::ast::MapItem::builder|fn(name: String, body: Expr) -> MapItemBuilder` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|method|syl_syntax::ast::MatchArm::new|fn(pattern: crate::Pattern, value: Expr, span: Span) -> Self` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|method|syl_syntax::ast::NamedExpr::new|fn(name: String, value: Expr, span: Span) -> Self` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
+- `syl_syntax|method|syl_syntax::ast::Param::is_receiver|fn(self: &Self) -> bool` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|method|syl_syntax::ast::Param::new|fn(name: String, dir: Option<ParamDirection>, ty: TypeExpr, span: Span) -> Self` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|method|syl_syntax::ast::ParamDirection::is_in|fn(self: &Self) -> bool` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|method|syl_syntax::ast::ParamDirection::is_out|fn(self: &Self) -> bool` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
@@ -2588,6 +2601,7 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_syntax|use|MatchArm|named|source=ast::MatchArm` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|use|NamedExpr|named|source=ast::NamedExpr` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|use|ParamDirection|named|source=ast::ParamDirection` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
+- `syl_syntax|use|ParamRole|named|source=ast::ParamRole` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|use|Param|named|source=ast::Param` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|use|ParseOutput|named|source=parser::ParseOutput` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|use|Pattern|named|source=ast::Pattern` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
@@ -2662,6 +2676,8 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_syntax|variant|syl_syntax::ast::ParamDirection::InOut|unit` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|variant|syl_syntax::ast::ParamDirection::In|unit` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|variant|syl_syntax::ast::ParamDirection::Out|unit` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
+- `syl_syntax|variant|syl_syntax::ast::ParamRole::Ordinary|unit` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
+- `syl_syntax|variant|syl_syntax::ast::ParamRole::Receiver|unit` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|variant|syl_syntax::ast::Pattern::Bool|(bool, syl_span::Span)` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|variant|syl_syntax::ast::Pattern::Ident|(String, syl_span::Span)` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|variant|syl_syntax::ast::Pattern::Int|(u64, syl_span::Span)` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.

@@ -1,8 +1,8 @@
 use crate::{
     AstFile, Attribute, Block, BundleItem, CallArg, CallableItem, ConstItem, DriveCapability,
     EnumItem, EnumVariant, ErrorItem, Expr, ExternModuleItem, FieldDecl, FnItem, GenericParam,
-    InterfaceItem, MapItem, MatchArm, NamedExpr, Param, ParamDirection, PortDecl, RegReset,
-    ResultBinding, SelectArm, TypeExpr, UseItem, ViewDecl, ViewDirection, ViewField,
+    InterfaceItem, MapItem, MatchArm, NamedExpr, Param, ParamDirection, ParamRole, PortDecl,
+    RegReset, ResultBinding, SelectArm, TypeExpr, UseItem, ViewDecl, ViewDirection, ViewField,
 };
 use syl_span::Span;
 
@@ -427,7 +427,7 @@ impl Param {
             name,
             dir,
             ty,
-            receiver: false,
+            role: ParamRole::Ordinary,
             span,
         }
     }
@@ -437,7 +437,7 @@ impl Param {
             name,
             dir: None,
             ty,
-            receiver: true,
+            role: ParamRole::Receiver,
             span,
         }
     }

@@ -413,8 +413,11 @@ impl Parser {
     ) -> Result<Vec<PortDecl>, Vec<Diagnostic>> {
         let mut ports = Vec::new();
         for param in params {
-            if param.receiver {
-                self.error(param.span, "module and cell ports cannot use `this` receiver");
+            if param.is_receiver() {
+                self.error(
+                    param.span,
+                    "module and cell ports cannot use `this` receiver",
+                );
                 return Err(std::mem::take(&mut self.diagnostics));
             }
             let Some(dir) = param.dir.clone() else {

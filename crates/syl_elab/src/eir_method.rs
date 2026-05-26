@@ -60,7 +60,13 @@ impl<'a> EirBuilder<'a> {
     }
 
     fn receiver_type(&self, owner: DefId, receiver: &ElabExpr) -> Option<&crate::tir::TirType> {
+        if let Some(ty) = self.program.expr_type(owner, receiver) {
+            return Some(ty);
+        }
         match &receiver.node {
+            ElabExprNode::GenericApp { callee, .. } | ElabExprNode::Group(callee) => {
+                self.receiver_type(owner, callee)
+            }
             ElabExprNode::Ident(_) => {
                 let ElabResolution::Local(local) = self.program.expr_resolution(owner, receiver)?
                 else {

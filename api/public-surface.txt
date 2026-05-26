@@ -157,6 +157,7 @@ syl_hir|enum|syl_hir::model::body::HirExprNode|public
 syl_hir|enum|syl_hir::model::body::HirStmt|public
 syl_hir|enum|syl_hir::model::callable::HirCallable|public
 syl_hir|enum|syl_hir::model::item::HirDriveCapability|public
+syl_hir|enum|syl_hir::model::item::HirParamRole|public
 syl_hir|enum|syl_hir::model::item::HirPortDirection|public
 syl_hir|enum|syl_hir::model::item::HirViewDirection|public
 syl_hir|enum|syl_hir::model::type_ref::MirBinaryOp|public
@@ -183,7 +184,7 @@ syl_hir|field|syl_hir::model::HirDesign::enum_variants|std::collections::BTreeMa
 syl_hir|field|syl_hir::model::HirDesign::enums|std::collections::BTreeMap<crate::DefId, HirEnumItem>
 syl_hir|field|syl_hir::model::HirDesign::expr_resolutions|std::collections::BTreeMap<crate::ExprId, crate::resolution::HirResolution>
 syl_hir|field|syl_hir::model::HirDesign::exprs|Vec<HirExpr>
-syl_hir|field|syl_hir::model::HirDesign::extension_methods|std::collections::BTreeMap<crate::DefId, std::collections::BTreeMap<String, Vec<crate::DefId>>>
+syl_hir|field|syl_hir::model::HirDesign::extension_methods|HirExtensionMethodIndex
 syl_hir|field|syl_hir::model::HirDesign::field_accesses|Vec<HirFieldAccess>
 syl_hir|field|syl_hir::model::HirDesign::fns|std::collections::BTreeMap<crate::DefId, HirFnItem>
 syl_hir|field|syl_hir::model::HirDesign::imports|Vec<HirImport>
@@ -304,7 +305,7 @@ syl_hir|field|syl_hir::model::item::HirSignatureGenericParam::span|syl_span::Spa
 syl_hir|field|syl_hir::model::item::HirSignatureParam::direction|HirPortDirection
 syl_hir|field|syl_hir::model::item::HirSignatureParam::id|Option<crate::LocalId>
 syl_hir|field|syl_hir::model::item::HirSignatureParam::name|String
-syl_hir|field|syl_hir::model::item::HirSignatureParam::receiver|bool
+syl_hir|field|syl_hir::model::item::HirSignatureParam::role|HirParamRole
 syl_hir|field|syl_hir::model::item::HirSignatureParam::span|syl_span::Span
 syl_hir|field|syl_hir::model::item::HirSignatureParam::ty|super::MirTypeRef
 syl_hir|field|syl_hir::model::item::HirSignatureResultBinding::drive|HirDriveCapability
@@ -345,6 +346,9 @@ syl_hir|method|syl_hir::model::HirDesign::type_ref_at|fn(self: &Self, owner: Def
 syl_hir|method|syl_hir::model::HirDesign::view_def_for_type_ref|fn(self: &Self, owner: DefId, ty: &MirTypeRef, span: Span) -> Option<&HirMemberDecl>
 syl_hir|method|syl_hir::model::HirDesign::visible_def_ids|fn(self: &Self, owner: DefId) -> Vec<DefId>
 syl_hir|method|syl_hir::model::HirExpr::new|fn(id: ExprId, owner: DefId, span: Span) -> Self
+syl_hir|method|syl_hir::model::HirExtensionMethodIndex::methods_for|fn(self: &Self, receiver: DefId, name: &str) -> &[DefId]
+syl_hir|method|syl_hir::model::HirExtensionMethodIndex::new|fn() -> Self
+syl_hir|method|syl_hir::model::HirExtensionMethodIndex::register|fn(self: &mut Self, receiver: DefId, name: String, method: DefId)
 syl_hir|method|syl_hir::model::HirFieldAccess::new|fn(owner: DefId, base: HirBodyExpr, field: String, span: Span) -> Self
 syl_hir|method|syl_hir::model::HirImport::new|fn(path: Vec<String>, package_path: HirPath, span: Span) -> Self
 syl_hir|method|syl_hir::model::HirLocal::new|fn(id: LocalId, owner: DefId, name: String, kind: HirLocalKind, span: Span) -> Self
@@ -362,6 +366,7 @@ syl_hir|method|syl_hir::model::callable::HirCallable::params|fn(self: &Self) -> 
 syl_hir|method|syl_hir::model::callable::HirCallable::result|fn(self: &Self) -> Option<&HirSignatureResultBinding>
 syl_hir|method|syl_hir::model::enum_variant::HirEnumVariant::new|fn(enum_def: DefId, name: impl Into<String>, value: u64, span: Span) -> Self
 syl_hir|method|syl_hir::model::enum_variant::HirEnumVariantKey::new|fn(enum_def: DefId, name: impl Into<String>) -> Self
+syl_hir|method|syl_hir::model::item::HirSignatureParam::is_receiver|fn(self: &Self) -> bool
 syl_hir|method|syl_hir::model::type_ref::MirConstExpr::binary_expr|fn(op: MirBinaryOp, left: MirConstExpr, right: MirConstExpr, span: Span) -> Self
 syl_hir|method|syl_hir::model::type_ref::MirConstExpr::binary|fn(self: &Self) -> Option<(MirBinaryOp, &MirConstExpr, &MirConstExpr)>
 syl_hir|method|syl_hir::model::type_ref::MirConstExpr::bool_value_expr|fn(value: bool, span: Span) -> Self
@@ -405,6 +410,7 @@ syl_hir|struct|syl_hir::ids::PackageId|public
 syl_hir|struct|syl_hir::model::HirDef|public
 syl_hir|struct|syl_hir::model::HirDesign|public
 syl_hir|struct|syl_hir::model::HirExpr|public
+syl_hir|struct|syl_hir::model::HirExtensionMethodIndex|public
 syl_hir|struct|syl_hir::model::HirFieldAccess|public
 syl_hir|struct|syl_hir::model::HirImport|public
 syl_hir|struct|syl_hir::model::HirLocal|public
@@ -473,6 +479,7 @@ syl_hir|use|HirEnumVariant|named|source=model::HirEnumVariant
 syl_hir|use|HirExprNode|named|source=body::HirExprNode
 syl_hir|use|HirExprNode|named|source=model::HirExprNode
 syl_hir|use|HirExpr|named|source=model::HirExpr
+syl_hir|use|HirExtensionMethodIndex|named|source=model::HirExtensionMethodIndex
 syl_hir|use|HirExternModuleItem|named|source=item::HirExternModuleItem
 syl_hir|use|HirExternModuleItem|named|source=model::HirExternModuleItem
 syl_hir|use|HirFieldAccess|named|source=model::HirFieldAccess
@@ -494,6 +501,8 @@ syl_hir|use|HirMemberKind|named|source=model::HirMemberKind
 syl_hir|use|HirNamedExpr|named|source=body::HirNamedExpr
 syl_hir|use|HirNamedExpr|named|source=model::HirNamedExpr
 syl_hir|use|HirPackage|named|source=model::HirPackage
+syl_hir|use|HirParamRole|named|source=item::HirParamRole
+syl_hir|use|HirParamRole|named|source=model::HirParamRole
 syl_hir|use|HirPath|named|source=name::HirPath
 syl_hir|use|HirPortDecl|named|source=item::HirPortDecl
 syl_hir|use|HirPortDecl|named|source=model::HirPortDecl
@@ -593,6 +602,8 @@ syl_hir|variant|syl_hir::model::callable::HirCallable::Module|(super::HirCallabl
 syl_hir|variant|syl_hir::model::item::HirDriveCapability::ReadOnly|unit
 syl_hir|variant|syl_hir::model::item::HirDriveCapability::ReadWrite|unit
 syl_hir|variant|syl_hir::model::item::HirDriveCapability::WriteOnly|unit
+syl_hir|variant|syl_hir::model::item::HirParamRole::Ordinary|unit
+syl_hir|variant|syl_hir::model::item::HirParamRole::Receiver|unit
 syl_hir|variant|syl_hir::model::item::HirPortDirection::InOut|unit
 syl_hir|variant|syl_hir::model::item::HirPortDirection::In|unit
 syl_hir|variant|syl_hir::model::item::HirPortDirection::Out|unit
@@ -2225,6 +2236,7 @@ syl_syntax|enum|syl_syntax::ast::DriveCapability|public
 syl_syntax|enum|syl_syntax::ast::Expr|public
 syl_syntax|enum|syl_syntax::ast::Item|public
 syl_syntax|enum|syl_syntax::ast::ParamDirection|public
+syl_syntax|enum|syl_syntax::ast::ParamRole|public
 syl_syntax|enum|syl_syntax::ast::Pattern|public
 syl_syntax|enum|syl_syntax::ast::SelectMode|public
 syl_syntax|enum|syl_syntax::ast::Stmt|public
@@ -2307,7 +2319,7 @@ syl_syntax|field|syl_syntax::ast::NamedExpr::span|syl_span::Span
 syl_syntax|field|syl_syntax::ast::NamedExpr::value|Expr
 syl_syntax|field|syl_syntax::ast::Param::dir|Option<ParamDirection>
 syl_syntax|field|syl_syntax::ast::Param::name|String
-syl_syntax|field|syl_syntax::ast::Param::receiver|bool
+syl_syntax|field|syl_syntax::ast::Param::role|ParamRole
 syl_syntax|field|syl_syntax::ast::Param::span|syl_span::Span
 syl_syntax|field|syl_syntax::ast::Param::ty|TypeExpr
 syl_syntax|field|syl_syntax::ast::PortDecl::dir|ParamDirection
@@ -2372,6 +2384,7 @@ syl_syntax|method|syl_syntax::ast::Item::span|fn(self: &Self) -> Span
 syl_syntax|method|syl_syntax::ast::MapItem::builder|fn(name: String, body: Expr) -> MapItemBuilder
 syl_syntax|method|syl_syntax::ast::MatchArm::new|fn(pattern: crate::Pattern, value: Expr, span: Span) -> Self
 syl_syntax|method|syl_syntax::ast::NamedExpr::new|fn(name: String, value: Expr, span: Span) -> Self
+syl_syntax|method|syl_syntax::ast::Param::is_receiver|fn(self: &Self) -> bool
 syl_syntax|method|syl_syntax::ast::Param::new|fn(name: String, dir: Option<ParamDirection>, ty: TypeExpr, span: Span) -> Self
 syl_syntax|method|syl_syntax::ast::ParamDirection::is_in|fn(self: &Self) -> bool
 syl_syntax|method|syl_syntax::ast::ParamDirection::is_out|fn(self: &Self) -> bool
@@ -2518,6 +2531,7 @@ syl_syntax|use|MapItem|named|source=ast::MapItem
 syl_syntax|use|MatchArm|named|source=ast::MatchArm
 syl_syntax|use|NamedExpr|named|source=ast::NamedExpr
 syl_syntax|use|ParamDirection|named|source=ast::ParamDirection
+syl_syntax|use|ParamRole|named|source=ast::ParamRole
 syl_syntax|use|Param|named|source=ast::Param
 syl_syntax|use|ParseOutput|named|source=parser::ParseOutput
 syl_syntax|use|Pattern|named|source=ast::Pattern
@@ -2592,6 +2606,8 @@ syl_syntax|variant|syl_syntax::ast::Item::Use|(UseItem)
 syl_syntax|variant|syl_syntax::ast::ParamDirection::InOut|unit
 syl_syntax|variant|syl_syntax::ast::ParamDirection::In|unit
 syl_syntax|variant|syl_syntax::ast::ParamDirection::Out|unit
+syl_syntax|variant|syl_syntax::ast::ParamRole::Ordinary|unit
+syl_syntax|variant|syl_syntax::ast::ParamRole::Receiver|unit
 syl_syntax|variant|syl_syntax::ast::Pattern::Bool|(bool, syl_span::Span)
 syl_syntax|variant|syl_syntax::ast::Pattern::Ident|(String, syl_span::Span)
 syl_syntax|variant|syl_syntax::ast::Pattern::Int|(u64, syl_span::Span)

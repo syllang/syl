@@ -3,7 +3,7 @@ use crate::{
     tir::{BindingRef, TirDesign, TirType},
 };
 use std::collections::BTreeMap;
-use syl_hir::{DefId, ExprId, HirPath, HirResolution, LocalId};
+use syl_hir::{DefId, ExprId, HirExtensionMethodIndex, HirPath, HirResolution, LocalId};
 
 mod body;
 mod item;
@@ -25,7 +25,8 @@ pub(crate) struct ElabProgram {
     visible_defs: BTreeMap<(DefId, String), DefId>,
     canonical_defs: BTreeMap<HirPath, DefId>,
     expr_resolutions_by_id: BTreeMap<(DefId, ExprId), ElabResolution>,
-    extension_methods: BTreeMap<DefId, BTreeMap<String, Vec<DefId>>>,
+    extension_methods: HirExtensionMethodIndex,
+    expr_types: BTreeMap<(DefId, ExprId), TirType>,
     local_types: BTreeMap<LocalId, TirType>,
     local_kinds: BTreeMap<LocalId, ElabLocalKind>,
     consts: BTreeMap<DefId, ElabConstItem>,
@@ -94,11 +95,11 @@ impl ElabProgram {
     }
 
     pub(crate) fn extension_methods_for(&self, receiver: DefId, name: &str) -> &[DefId] {
-        self.extension_methods
-            .get(&receiver)
-            .and_then(|methods| methods.get(name))
-            .map(Vec::as_slice)
-            .unwrap_or(&[])
+        self.extension_methods.methods_for(receiver, name)
+    }
+
+    pub(crate) fn expr_type(&self, owner: DefId, expr: &ElabExpr) -> Option<&TirType> {
+        self.expr_types.get(&(owner, expr.id()))
     }
 
     pub(crate) fn local_type(&self, local: LocalId) -> Option<&TirType> {
@@ -195,6 +196,18 @@ impl<'a> ElabProgramBuilder<'a> {
                     .map(|ty| (*local, ty))
             })
             .collect();
+        let expr_types = hir
+            .exprs
+            .iter()
+            .filter_map(|expr| {
+                self.tir
+                    .expr_types()
+                    .get(&expr.id)
+                    .and_then(|ty| self.tir.type_table().get(*ty))
+                    .cloned()
+                    .map(|ty| ((expr.owner, expr.id), ty))
+            })
+            .collect();
         ElabProgram {
             defs: hir
                 .defs
@@ -210,6 +223,7 @@ impl<'a> ElabProgramBuilder<'a> {
             canonical_defs: hir.canonical_def_names.clone(),
             expr_resolutions_by_id,
             extension_methods: hir.extension_methods.clone(),
+            expr_types,
             local_types,
             local_kinds: hir
                 .locals

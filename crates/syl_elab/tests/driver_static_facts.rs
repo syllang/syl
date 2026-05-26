@@ -78,6 +78,48 @@ module Top(a: in Bit, y: out Bit) {
 }
 
 #[test]
+fn extension_map_read_facts_use_expanded_receiver_fields() {
+    let output = StaticFactHarness::new()
+        .compile_output(
+            r#"
+interface Stage<T> {
+    payload: T
+    valid: Bit
+    ready: Bit
+
+    view tap {
+        in payload
+        in valid
+        in ready
+    }
+}
+
+map fire<T>(this stage: Stage<T>.tap) -> Bit =
+    stage.valid and stage.ready
+
+module Top(stage: in Stage<Bit>.tap, y: out Bit) {
+    y := stage.fire()
+}
+"#,
+        )
+        .expect("extension map read facts should compile");
+    let metadata = output
+        .metadata()
+        .expect("successful elaboration must expose hardware metadata");
+
+    let top_reads = metadata
+        .read_facts()
+        .iter()
+        .filter(|fact| fact.module() == "Top")
+        .map(|fact| fact.source_place().display())
+        .collect::<Vec<_>>();
+
+    assert!(top_reads.iter().any(|read| read == "stage_valid"));
+    assert!(top_reads.iter().any(|read| read == "stage_ready"));
+    assert!(!top_reads.iter().any(|read| read == "stage"));
+}
+
+#[test]
 fn extern_module_out_port_records_driver_fact() {
     let output = StaticFactHarness::new()
         .compile_output(

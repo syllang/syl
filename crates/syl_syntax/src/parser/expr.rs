@@ -65,7 +65,10 @@ impl Parser {
             loop {
                 let receiver = self.consume(&TokenKind::KwThis).is_some();
                 if receiver && !params.is_empty() {
-                    self.error(self.prev_span(), "`this` receiver must be the first parameter");
+                    self.error(
+                        self.prev_span(),
+                        "`this` receiver must be the first parameter",
+                    );
                     return Err(std::mem::take(&mut self.diagnostics));
                 }
                 let name = self.expect_ident()?;

@@ -13,60 +13,56 @@ map fire<T>(this stage: Stage<T>.tap) -> Bit = ...
 signal active: Bit := stage.fire()
 ```
 
-The supported path is intentionally narrow:
+The supported path is still intentionally narrow:
 
 - Extension `map` dot calls compile through semantic analysis, EIR, and backend lowering.
-- Extension `fn` dot calls are wired in const MIR lowering, but still need an integration test.
+- Exten  complete generic constraint solver.
+- Directional receivers such as `this: in`, `this: out`, or `this: inout` are not modeled yet.
+sion `fn` dot calls lower into const MIR and have regression coverage.
 - `cell` and `module` receivers are intentionally rejected for now.
 - Receiver generic inference covers the current `Stage<T>.tap` style use case, but is not a
-  complete generic constraint solver.
-- Directional receivers such as `this: in`, `this: out`, or `this: inout` are not modeled yet.
 
 ## Method Lookup
 
-Method lookup currently works, but the shape is not the desired long-term architecture:
+Method lookup is no longer spread across each call site:
 
 - Visibility is based on type package and import-path checks.
-- Ambiguous-method diagnostics exist, but need dedicated regression tests.
-- Extension method tables are exposed from `HirDesign`; this should eventually move behind a
-  dedicated resolver/query boundary.
+- Unknown-method diagnostics have integration coverage.
+- Ambiguous-method candidate selection has resolver-level regression coverage.
+- `HirDesign` now exposes an extension-method index model instead of a raw nested table.
+- Import and visibility behavior still needs broader integration coverage.
 
 ## EIR Method Lowering
 
-EIR lowering supports simple local receiver calls such as:
+EIR lowering supports local and grouped receiver calls such as:
 
 ```syl
 stage.fire()
+(stage).fire()
 ```
 
-It does not yet support complex receiver expressions such as:
+More complex receiver expressions still need dedicated support:
 
 ```syl
-(foo.bar).method()
 array[i].method()
 ```
 
-Read-place facts for extension calls are also incomplete. The current implementation avoids fake
-reads of the callee or receiver binding, but it does not yet preserve field-level reads inside an
-extension map with the same precision as direct source expressions.
+Read-place facts for map and extension-map calls now use lowered EIR value expressions, so field
+reads inside extension methods are recorded as concrete read places instead of fake callee reads.
 
 ## Test Gaps
 
 The following tests should be added before treating extension methods as stable:
 
-- Extension `fn` integration.
-- Ambiguous method diagnostic.
-- Unknown method diagnostic.
 - Import and visibility behavior.
-- Bundle and interface receiver coverage beyond the current `Stage<Bit>.tap` test.
-- Parser negative tests for non-leading `this`.
-- Parser negative tests for `this` combined with port directions.
+- Indexed receiver expressions such as `array[i].method()`.
+- Full bundle receiver coverage beyond resolver/lowering smoke tests.
 
 ## Public API Shape
 
-`Param::receiver` and `HirSignatureParam::receiver` are currently boolean markers. That is
-acceptable for the current syntax, but if receiver metadata grows to include direction, capability,
-or mutability, this should become a dedicated receiver model instead of accumulating boolean fields.
+`Param::receiver` and `HirSignatureParam::receiver` have been replaced with explicit receiver role
+models. If receiver metadata grows to include direction, capability, or mutability, extend those role
+models rather than adding boolean fields.
 
 ## Existing Unsupported Lowering
 

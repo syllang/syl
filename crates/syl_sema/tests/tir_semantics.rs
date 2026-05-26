@@ -79,6 +79,55 @@ module Top(stage: in Stage<Bit>.tap, y: out Bit) {
 }
 
 #[test]
+fn extension_map_method_lowers_grouped_receiver_call() {
+    let sv = SemanticHarness::new()
+        .compile(
+            r#"
+interface Stage<T> {
+    payload: T
+    valid: Bit
+    ready: Bit
+
+    view tap {
+        in payload
+        in valid
+        in ready
+    }
+}
+
+map fire<T>(this stage: Stage<T>.tap) -> Bit =
+    stage.valid and stage.ready
+
+module Top(stage: in Stage<Bit>.tap, y: out Bit) {
+    y := (stage).fire()
+}
+"#,
+        )
+        .expect("extension map method must compile for grouped receivers");
+
+    assert!(sv.contains("assign y ="));
+}
+
+#[test]
+fn rejects_unknown_extension_method() {
+    let err = SemanticHarness::new()
+        .compile(
+            r#"
+bundle Word {
+    value: Bit
+}
+
+module Top(x: in Word, y: out Bit) {
+    y := x.missing()
+}
+"#,
+        )
+        .expect_err("unknown methods must be diagnosed in TIR");
+
+    assert!(err.contains("unknown method missing for Word"));
+}
+
+#[test]
 fn rejects_unknown_bundle_field_type_before_width_lowering() {
     let err = SemanticHarness::new()
         .compile(

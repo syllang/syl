@@ -367,10 +367,7 @@ impl<'a> MapIrBuilder<'a> {
         args: &[HirCallArg],
     ) -> Result<MapExpr, CompileError> {
         if let Some(call) = self.tir.extension_method_call(owner, callee) {
-            let mut lowered_args = vec![MapArg::new(
-                None,
-                self.lower_expr(owner, call.receiver)?,
-            )];
+            let mut lowered_args = vec![MapArg::new(None, self.lower_expr(owner, call.receiver)?)];
             lowered_args.extend(
                 args.iter()
                     .map(|arg| {

@@ -110,14 +110,14 @@ fn width(this word: Word) -> Nat {
     match &file.items[0] {
         Item::Map(item) => {
             assert_eq!(item.name, "fire");
-            assert!(item.params[0].receiver);
+            assert!(item.params[0].is_receiver());
         }
         other => panic!("unexpected map item: {other:?}"),
     }
     match &file.items[1] {
         Item::Fn(item) => {
             assert_eq!(item.name, "width");
-            assert!(item.params[0].receiver);
+            assert!(item.params[0].is_receiver());
         }
         other => panic!("unexpected fn item: {other:?}"),
     }
@@ -133,6 +133,32 @@ fn rejects_this_receiver_on_cell_port() {
         errors
             .iter()
             .any(|error| error.message == "module and cell ports cannot use `this` receiver")
+    );
+}
+
+#[test]
+fn rejects_non_leading_this_receiver() {
+    let errors = SourceParser::new("map bad(x: Bit, this y: Bit) -> Bit = y\n")
+        .parse_file()
+        .expect_err("receiver must be first");
+
+    assert!(
+        errors
+            .iter()
+            .any(|error| error.message == "`this` receiver must be the first parameter")
+    );
+}
+
+#[test]
+fn rejects_directed_this_receiver() {
+    let errors = SourceParser::new("map bad(this x: in Bit) -> Bit = x\n")
+        .parse_file()
+        .expect_err("receiver cannot have a port direction");
+
+    assert!(
+        errors
+            .iter()
+            .any(|error| error.message == "`this` receiver cannot have an in/out direction")
     );
 }
 

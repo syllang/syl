@@ -100,8 +100,31 @@ pub struct HirSignatureParam {
     pub name: String,
     pub direction: HirPortDirection,
     pub ty: MirTypeRef,
-    pub receiver: bool,
+    pub role: HirParamRole,
     pub span: Span,
+}
+
+impl HirSignatureParam {
+    pub fn is_receiver(&self) -> bool {
+        matches!(self.role, HirParamRole::Receiver)
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum HirParamRole {
+    Ordinary,
+    Receiver,
+}
+
+impl From<&Param> for HirParamRole {
+    fn from(param: &Param) -> Self {
+        if param.is_receiver() {
+            Self::Receiver
+        } else {
+            Self::Ordinary
+        }
+    }
 }
 
 impl From<&Param> for HirSignatureParam {
@@ -111,7 +134,7 @@ impl From<&Param> for HirSignatureParam {
             name: param.name.clone(),
             direction: HirPortDirection::from(param.dir.as_ref()),
             ty: MirTypeRef::from(&param.ty),
-            receiver: param.receiver,
+            role: HirParamRole::from(param),
             span: param.span,
         }
     }

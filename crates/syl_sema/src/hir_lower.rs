@@ -423,7 +423,7 @@ impl<'files> HirResolver<'files> {
             .filter_map(|(owner, item)| {
                 item.params
                     .first()
-                    .filter(|param| param.receiver)
+                    .filter(|param| param.is_receiver())
                     .map(|param| (*owner, item.name.clone(), param.ty.clone()))
             })
             .collect::<Vec<_>>();
@@ -434,7 +434,7 @@ impl<'files> HirResolver<'files> {
             .filter_map(|(owner, item)| {
                 item.params
                     .first()
-                    .filter(|param| param.receiver)
+                    .filter(|param| param.is_receiver())
                     .map(|param| (*owner, item.name.clone(), param.ty.clone()))
             })
             .collect::<Vec<_>>();

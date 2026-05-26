@@ -373,6 +373,44 @@ module Top(y: out UInt<WIDTH>) {
 }
 
 #[test]
+fn extension_fn_method_lowers_into_const_mir() {
+    let source = r#"
+enum Op {
+    Add,
+}
+
+fn rank(this op: Op) -> Nat {
+    return 1
+}
+
+fn use_rank(op: Op) -> Nat {
+    return op.rank()
+}
+
+module Top(y: out UInt<1>) {
+}
+"#;
+    let file = SourceParser::new_in(source, SourceId::new(0))
+        .parse_file()
+        .expect("extension fn fixture must parse");
+    let files = [file];
+    let output = SemanticCompiler::new().session(&files).check();
+    let tir = output
+        .tir()
+        .expect("extension fn fixture must type-check into TIR");
+    let hir = tir.design().hir();
+    let use_rank = def_id(hir, "use_rank");
+    let program = ConstMirBuilder::new(tir.design())
+        .build()
+        .expect("extension fn call must lower into const MIR");
+    let function = program
+        .function(use_rank)
+        .expect("use_rank const MIR function must exist");
+
+    assert!(!function.is_unsupported());
+}
+
+#[test]
 fn const_evaluator_reports_structured_step_limit_for_long_running_const_fn() {
     let source = r#"
 fn burn_steps(limit: Nat) -> Nat {

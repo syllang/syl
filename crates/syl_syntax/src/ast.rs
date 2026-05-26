@@ -217,8 +217,21 @@ pub struct Param {
     pub name: String,
     pub dir: Option<ParamDirection>,
     pub ty: TypeExpr,
-    pub receiver: bool,
+    pub role: ParamRole,
     pub span: Span,
+}
+
+impl Param {
+    pub fn is_receiver(&self) -> bool {
+        matches!(self.role, ParamRole::Receiver)
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum ParamRole {
+    Ordinary,
+    Receiver,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

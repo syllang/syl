@@ -22,9 +22,9 @@ pub use callable::HirCallable;
 pub use enum_variant::{HirEnumVariant, HirEnumVariantKey};
 pub use item::{
     HirAttribute, HirBundleItem, HirCallableItem, HirConstItem, HirDriveCapability, HirEnumItem,
-    HirExternModuleItem, HirFieldDecl, HirFnItem, HirInterfaceItem, HirMapItem, HirPortDecl,
-    HirPortDirection, HirSignatureGenericParam, HirSignatureParam, HirSignatureResultBinding,
-    HirViewDecl, HirViewDirection, HirViewField,
+    HirExternModuleItem, HirFieldDecl, HirFnItem, HirInterfaceItem, HirMapItem, HirParamRole,
+    HirPortDecl, HirPortDirection, HirSignatureGenericParam, HirSignatureParam,
+    HirSignatureResultBinding, HirViewDecl, HirViewDirection, HirViewField,
 };
 
 #[non_exhaustive]
@@ -40,7 +40,7 @@ pub struct HirDesign {
     pub type_refs: Vec<HirTypeRef>,
     pub member_decls: Vec<HirMemberDecl>,
     pub expr_resolutions: BTreeMap<ExprId, HirResolution>,
-    pub extension_methods: BTreeMap<DefId, BTreeMap<String, Vec<DefId>>>,
+    pub extension_methods: HirExtensionMethodIndex,
     pub consts: BTreeMap<DefId, HirConstItem>,
     pub fns: BTreeMap<DefId, HirFnItem>,
     pub enums: BTreeMap<DefId, HirEnumItem>,
@@ -65,7 +65,7 @@ impl HirDesign {
             type_refs: Vec::new(),
             member_decls: Vec::new(),
             expr_resolutions: BTreeMap::new(),
-            extension_methods: BTreeMap::new(),
+            extension_methods: HirExtensionMethodIndex::new(),
             consts: BTreeMap::new(),
             fns: BTreeMap::new(),
             enums: BTreeMap::new(),
@@ -146,20 +146,11 @@ impl HirDesign {
     }
 
     pub fn extension_methods_for(&self, receiver: DefId, name: &str) -> &[DefId] {
-        self.extension_methods
-            .get(&receiver)
-            .and_then(|methods| methods.get(name))
-            .map(Vec::as_slice)
-            .unwrap_or(&[])
+        self.extension_methods.methods_for(receiver, name)
     }
 
     pub fn register_extension_method(&mut self, receiver: DefId, name: String, method: DefId) {
-        self.extension_methods
-            .entry(receiver)
-            .or_default()
-            .entry(name)
-            .or_default()
-            .push(method);
+        self.extension_methods.register(receiver, name, method);
     }
 
     pub fn view_def_for_type_ref(
@@ -232,6 +223,35 @@ fn contains_span(container: Span, cursor: Span) -> bool {
 
 fn span_width(span: Span) -> usize {
     span.end.saturating_sub(span.start)
+}
+
+#[derive(Clone, Default)]
+#[non_exhaustive]
+pub struct HirExtensionMethodIndex {
+    methods: BTreeMap<DefId, BTreeMap<String, Vec<DefId>>>,
+}
+
+impl HirExtensionMethodIndex {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn methods_for(&self, receiver: DefId, name: &str) -> &[DefId] {
+        self.methods
+            .get(&receiver)
+            .and_then(|methods| methods.get(name))
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
+    }
+
+    pub fn register(&mut self, receiver: DefId, name: String, method: DefId) {
+        self.methods
+            .entry(receiver)
+            .or_default()
+            .entry(name)
+            .or_default()
+            .push(method);
+    }
 }
 
 #[derive(Clone)]
