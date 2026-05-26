@@ -33,3 +33,38 @@ jobs:
 
       - name: Quality gate
         run: scripts/quality_gate.sh
+
+  commits:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Validate PR title for squash merge
+        if: github.event_name == 'pull_request'
+        run: |
+          tmp_file="$(mktemp)"
+          printf '%s\n' "${{ github.event.pull_request.title }}" > "$tmp_file"
+          python3 scripts/validate_commit_scope.py --repo "$PWD" subject "$tmp_file" --rev-range "${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
+
+      - name: Validate commit messages in pull request
+        if: github.event_name == 'pull_request'
+        run: |
+          for commit in $(git rev-list --reverse "${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"); do
+            python3 scripts/validate_commit_scope.py --repo "$PWD" commit "$commit"
+          done
+
+      - name: Validate commit messages in push
+        if: github.event_name == 'push'
+        run: |
+          range="${{ github.event.before }}..${{ github.sha }}"
+          if [ "${{ github.event.before }}" = "0000000000000000000000000000000000000000" ]; then
+            range="${{ github.sha }}"
+          fi
+          for commit in $(git rev-list --reverse "$range"); do
+            python3 scripts/validate_commit_scope.py --repo "$PWD" commit "$commit"
+          done

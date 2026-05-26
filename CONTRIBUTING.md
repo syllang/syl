@@ -33,6 +33,44 @@ Before opening a pull request:
 Prefer small, reviewable commits with clear commit messages. If a change needs
 multiple steps, make each step independently understandable.
 
+Commit headers must follow Conventional Commits with an explicit scope:
+
+- `type(scope): subject`
+- `type(scope)!: subject`
+
+This repository enforces scope coverage with [`.commit-scope.json`](/home/midori/syllang/syl/.commit-scope.json).
+The scope must be the narrowest valid responsibility boundary that covers the
+staged paths.
+
+Allowed scope forms:
+
+- a single atomic scope such as `syl_syntax`, `docs`, or `workspace-config`
+- a scope expression with `+`, such as `syl_query+syl_lsp`
+- a configured composite scope such as `frontend`, `ide`, or `toolchain`
+
+The following broad escape-hatch scopes are forbidden:
+
+- `.`
+- `workspace`
+- `repo`
+- `all`
+- `misc`
+- `multi`
+- `cross`
+
+Additional rules:
+
+- use the narrowest covering scope; if `syl_syntax` covers the change, do not use `frontend`
+- use at most three scope members in a `+` expression
+- if no valid scope cleanly covers the change, split the commit instead of widening the scope
+
+Examples:
+
+- `feat(syl_syntax): tighten parser recovery around match arms`
+- `fix(syl_query+syl_lsp): suppress invalid assignment completions`
+- `chore(toolchain): enforce commit scope policy in CI`
+- `chore(workspace-config): add repository scope policy`
+
 ## Review
 
 Review focuses on correctness, maintainability, diagnostics, and long-term

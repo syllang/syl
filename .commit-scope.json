@@ -1,0 +1,245 @@
+{
+  "version": 1,
+  "forbidden_scopes": [
+    ".",
+    "workspace",
+    "repo",
+    "all",
+    "misc",
+    "multi",
+    "cross"
+  ],
+  "scope_expression": {
+    "separator": "+",
+    "max_members": 3,
+    "deduplicate_members": true
+  },
+  "selection_policy": {
+    "prefer_atomic_over_composite": true,
+    "prefer_explicit_combinations_when_member_count_lte": 3,
+    "reject_broader_covering_scope_when_narrower_exists": true
+  },
+  "atomic_scopes": {
+    "syl": {
+      "kind": "crate",
+      "paths": [
+        "crates/syl"
+      ]
+    },
+    "syl_syntax": {
+      "kind": "crate",
+      "paths": [
+        "crates/syl_syntax"
+      ]
+    },
+    "syl_span": {
+      "kind": "crate",
+      "paths": [
+        "crates/syl_span"
+      ]
+    },
+    "syl_hir": {
+      "kind": "crate",
+      "paths": [
+        "crates/syl_hir"
+      ]
+    },
+    "syl_sema": {
+      "kind": "crate",
+      "paths": [
+        "crates/syl_sema"
+      ]
+    },
+    "syl_hw": {
+      "kind": "crate",
+      "paths": [
+        "crates/syl_hw"
+      ]
+    },
+    "syl_elab": {
+      "kind": "crate",
+      "paths": [
+        "crates/syl_elab"
+      ]
+    },
+    "syl_emit": {
+      "kind": "crate",
+      "paths": [
+        "crates/syl_emit"
+      ]
+    },
+    "syl_session": {
+      "kind": "crate",
+      "paths": [
+        "crates/syl_session"
+      ]
+    },
+    "syl_query": {
+      "kind": "crate",
+      "paths": [
+        "crates/syl_query"
+      ]
+    },
+    "syl_lsp": {
+      "kind": "crate",
+      "paths": [
+        "crates/syl_lsp"
+      ]
+    },
+    "sylc": {
+      "kind": "crate",
+      "paths": [
+        "crates/sylc"
+      ]
+    },
+    "syl_fuzz": {
+      "kind": "crate",
+      "paths": [
+        "crates/syl_fuzz"
+      ]
+    },
+    "api": {
+      "kind": "path",
+      "paths": [
+        "api"
+      ]
+    },
+    "conformance": {
+      "kind": "path",
+      "paths": [
+        "conformance"
+      ]
+    },
+    "docs": {
+      "kind": "path",
+      "paths": [
+        "docs"
+      ]
+    },
+    "examples": {
+      "kind": "path",
+      "paths": [
+        "examples"
+      ]
+    },
+    "fuzz": {
+      "kind": "path",
+      "paths": [
+        "fuzz"
+      ]
+    },
+    "scripts": {
+      "kind": "path",
+      "paths": [
+        "scripts"
+      ]
+    },
+    ".github": {
+      "kind": "path",
+      "paths": [
+        ".github"
+      ]
+    },
+    ".githooks": {
+      "kind": "path",
+      "paths": [
+        ".githooks"
+      ]
+    },
+    "project": {
+      "kind": "path-set",
+      "paths": [
+        "AGENTS.md",
+        "CHANGELOG.md",
+        "CONTRIBUTING.md",
+        "LICENSE",
+        "README.md"
+      ]
+    },
+    "workspace-config": {
+      "kind": "path-set",
+      "paths": [
+        ".gitattributes",
+        ".gitignore",
+        ".commit-scope.json",
+        ".reasonix",
+        "Cargo.lock",
+        "Cargo.toml",
+        "clippy.toml",
+        "release-plz.toml",
+        "rust-toolchain.toml"
+      ]
+    }
+  },
+  "composite_scopes": {
+    "frontend": {
+      "kind": "domain",
+      "tier": "tight",
+      "members": [
+        "syl_span",
+        "syl_syntax",
+        "syl_hir",
+        "syl_sema",
+        "syl_elab"
+      ]
+    },
+    "backend": {
+      "kind": "domain",
+      "tier": "tight",
+      "members": [
+        "syl_hw",
+        "syl_emit"
+      ]
+    },
+    "ide": {
+      "kind": "domain",
+      "tier": "tight",
+      "members": [
+        "syl_session",
+        "syl_query",
+        "syl_lsp"
+      ]
+    },
+    "cli": {
+      "kind": "domain",
+      "tier": "tight",
+      "members": [
+        "syl",
+        "sylc"
+      ]
+    },
+    "quality": {
+      "kind": "domain",
+      "tier": "tight",
+      "members": [
+        "syl_fuzz",
+        "fuzz",
+        "conformance"
+      ]
+    },
+    "toolchain": {
+      "kind": "domain",
+      "tier": "tight",
+      "members": [
+        "api",
+        "scripts",
+        ".github",
+        ".githooks",
+        "project",
+        "workspace-config"
+      ]
+    },
+    "language": {
+      "kind": "domain",
+      "tier": "broad",
+      "members": [
+        "frontend",
+        "backend",
+        "ide",
+        "docs",
+        "examples",
+        "conformance"
+      ]
+    }
+  }
+}
