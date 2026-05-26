@@ -254,7 +254,7 @@ impl Parser {
             Some(TokenKind::KwUse) => Item::Use(self.parse_use_item()?),
             Some(TokenKind::KwConst) => Item::Const(self.parse_const_item()?),
             Some(TokenKind::KwFn) => Item::Fn(self.parse_fn_item()?),
-            Some(TokenKind::KwEnum) => Item::Enum(self.parse_enum_item()?),
+            Some(TokenKind::KwEnum) => Item::Enum(self.parse_enum_item(attrs)?),
             Some(TokenKind::KwBundle) => Item::Bundle(self.parse_bundle_item(attrs)?),
             Some(TokenKind::KwInterface) => Item::Interface(self.parse_interface_item()?),
             Some(TokenKind::KwMap) => Item::Map(self.parse_map_item()?),
@@ -302,21 +302,36 @@ impl Parser {
         Ok(ConstItem::new(name, ty, value, start.join(end)))
     }
 
-    fn parse_enum_item(&mut self) -> Result<EnumItem, Vec<Diagnostic>> {
+    fn parse_enum_item(&mut self, attrs: Vec<Attribute>) -> Result<EnumItem, Vec<Diagnostic>> {
         let start = self.expect(TokenKind::KwEnum)?.span;
         let name = self.expect_ident()?;
+        let width = if self.consume(&TokenKind::Colon).is_some() {
+            Some(self.parse_type_expr()?)
+        } else {
+            None
+        };
+        let layout = self.enum_layout_from_attrs(&attrs)?;
         if self.peek_kind() == Some(&TokenKind::LBrace) {
             self.expect(TokenKind::LBrace)?;
         }
         let mut variants = Vec::new();
         while !self.check(&TokenKind::RBrace) && !self.is_eof() {
             let vname = self.expect_ident()?;
-            let span = self.prev_span();
-            variants.push(EnumVariant::new(vname, span));
+            let name_span = self.prev_span();
+            let value = if self.consume(&TokenKind::Eq).is_some() {
+                Some(self.parse_expr(0)?)
+            } else {
+                None
+            };
+            let end = value
+                .as_ref()
+                .map(Expr::span)
+                .unwrap_or(name_span);
+            variants.push(EnumVariant::new(vname, value, name_span.join(end)));
             self.consume(&TokenKind::Comma);
         }
         let end = self.expect(TokenKind::RBrace)?.span;
-        Ok(EnumItem::new(name, variants, start.join(end)))
+        Ok(EnumItem::new(name, width, layout, variants, start.join(end)))
     }
 
     fn parse_bundle_item(&mut self, attrs: Vec<Attribute>) -> Result<BundleItem, Vec<Diagnostic>> {
@@ -591,6 +606,44 @@ impl Parser {
             }
             None => {
                 self.error(self.eof_span(), "unexpected end of source");
+                Err(std::mem::take(&mut self.diagnostics))
+            }
+        }
+    }
+
+    fn enum_layout_from_attrs(&mut self, attrs: &[Attribute]) -> Result<EnumLayout, Vec<Diagnostic>> {
+        let mut layout = EnumLayout::Ordinal;
+        let mut seen_layout = false;
+        for attr in attrs {
+            if attr.name != "layout" {
+                self.error(attr.span, format!("unknown enum attribute `@{}`", attr.name));
+                return Err(std::mem::take(&mut self.diagnostics));
+            }
+            if seen_layout {
+                self.error(attr.span, "duplicate enum layout attribute");
+                return Err(std::mem::take(&mut self.diagnostics));
+            }
+            seen_layout = true;
+            layout = self.parse_enum_layout_attr(attr)?;
+        }
+        Ok(layout)
+    }
+
+    fn parse_enum_layout_attr(&mut self, attr: &Attribute) -> Result<EnumLayout, Vec<Diagnostic>> {
+        let [arg] = attr.args.as_slice() else {
+            self.error(attr.span, "expected `@layout(name)`");
+            return Err(std::mem::take(&mut self.diagnostics));
+        };
+        let Expr::Ident(name, _) = arg else {
+            self.error(arg.span(), "enum layout must be an identifier");
+            return Err(std::mem::take(&mut self.diagnostics));
+        };
+        match name.as_str() {
+            "ordinal" => Ok(EnumLayout::Ordinal),
+            "flags" => Ok(EnumLayout::Flags),
+            "onehot" => Ok(EnumLayout::OneHot),
+            other => {
+                self.error(arg.span(), format!("unknown enum layout `{other}`"));
                 Err(std::mem::take(&mut self.diagnostics))
             }
         }

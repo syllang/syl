@@ -110,6 +110,12 @@ impl<'a> SvRange<'a> {
     fn prefix(&self) -> String {
         if self.width == "1" {
             String::new()
+        } else if let Ok(width) = self.width.parse::<u64>() {
+            if width <= 1 {
+                String::new()
+            } else {
+                format!("[{}:0] ", width - 1)
+            }
         } else {
             format!("[({})-1:0] ", self.width)
         }

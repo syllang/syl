@@ -3,12 +3,13 @@ use crate::{
     CompileError, StageOutput,
     capability::CapabilityChecker,
     hir::{
-        HirBundleItem, HirCallable, HirCallableItem, HirConstItem, HirExternCellItem, HirFnItem,
-        HirInterfaceItem, HirMapItem, HirSignatureGenericParam, HirSignatureParam,
+        HirBundleItem, HirCallable, HirCallableItem, HirConstItem, HirEnumItem, HirExternCellItem,
+        HirFnItem, HirInterfaceItem, HirMapItem, HirSignatureGenericParam, HirSignatureParam,
         HirSignatureResultBinding,
     },
     tir_const::TirConstEnv,
 };
+use super::enum_layout;
 use syl_hir::DefId;
 use syl_span::Diagnostic;
 
@@ -48,6 +49,13 @@ impl TypePhaseChecker {
             self.current_owner = Some(*owner);
             self.current_owner_span = hir.defs.get(owner.get()).map(|def| def.span);
             if let Err(error) = self.check_fn(*owner, item, &mut errors) {
+                errors.push(error);
+            }
+        }
+        for (owner, item) in &hir.enums {
+            self.current_owner = Some(*owner);
+            self.current_owner_span = hir.defs.get(owner.get()).map(|def| def.span);
+            if let Err(error) = self.check_enum(*owner, item) {
                 errors.push(error);
             }
         }
@@ -93,6 +101,7 @@ impl TypePhaseChecker {
         let mut design = TirDesign {
             hir: self.hir,
             type_table: self.type_table,
+            enum_variant_values: self.enum_variant_values,
             expr_phases: self.expr_phases,
             expr_types: self.expr_types,
             binding_kinds: self.binding_kinds,
@@ -152,6 +161,12 @@ impl TypePhaseChecker {
         for field in &item.fields {
             Self::record_recoverable(errors, self.type_from_mir_type_ref(owner, &field.ty));
         }
+        Ok(())
+    }
+
+    fn check_enum(&mut self, owner: DefId, item: &HirEnumItem) -> Result<(), CompileError> {
+        let values = enum_layout::resolve_enum_values(self, owner, item)?;
+        self.enum_variant_values.extend(values);
         Ok(())
     }
 

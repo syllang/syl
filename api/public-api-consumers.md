@@ -332,9 +332,12 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_hir|field|syl_hir::model::item::HirConstItem::ty|Option<super::MirTypeRef>` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|field|syl_hir::model::item::HirConstItem::value|super::HirBodyExpr` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|field|syl_hir::model::item::HirEnumItem::name|String` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
+- `syl_hir|field|syl_hir::model::item::HirEnumItem::layout|HirEnumLayout` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|field|syl_hir::model::item::HirEnumItem::span|syl_span::Span` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
+- `syl_hir|field|syl_hir::model::item::HirEnumItem::width|Option<super::MirTypeRef>` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|field|syl_hir::model::item::HirEnumItem::variants|Vec<HirEnumVariantDecl>` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|field|syl_hir::model::item::HirEnumVariantDecl::name|String` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
+- `syl_hir|field|syl_hir::model::item::HirEnumVariantDecl::value|Option<super::HirBodyExpr>` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|field|syl_hir::model::item::HirEnumVariantDecl::span|syl_span::Span` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|field|syl_hir::model::item::HirExternModuleItem::generics|Vec<HirSignatureGenericParam>` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|field|syl_hir::model::item::HirExternModuleItem::name|String` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
@@ -494,6 +497,7 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_hir|struct|syl_hir::model::body::HirNamedExpr|public` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|struct|syl_hir::model::body::HirRegReset|public` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|struct|syl_hir::model::body::HirSelectArm|public` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
+- `syl_hir|enum|syl_hir::model::item::HirEnumLayout|public` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|struct|syl_hir::model::enum_variant::HirEnumVariantKey|public` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|struct|syl_hir::model::enum_variant::HirEnumVariant|public` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|struct|syl_hir::model::item::HirAttribute|public` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
@@ -542,10 +546,14 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_hir|use|HirDriveCapability|named|source=model::HirDriveCapability` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|use|HirEnumItem|named|source=item::HirEnumItem` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|use|HirEnumItem|named|source=model::HirEnumItem` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
+- `syl_hir|use|HirEnumLayout|named|source=item::HirEnumLayout` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
+- `syl_hir|use|HirEnumLayout|named|source=model::HirEnumLayout` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|use|HirEnumVariantKey|named|source=enum_variant::HirEnumVariantKey` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|use|HirEnumVariantKey|named|source=model::HirEnumVariantKey` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|use|HirEnumVariant|named|source=enum_variant::HirEnumVariant` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|use|HirEnumVariant|named|source=model::HirEnumVariant` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
+- `syl_hir|use|HirEnumVariantDecl|named|source=item::HirEnumVariantDecl` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
+- `syl_hir|use|HirEnumVariantDecl|named|source=model::HirEnumVariantDecl` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|use|HirExprNode|named|source=body::HirExprNode` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|use|HirExprNode|named|source=model::HirExprNode` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|use|HirExpr|named|source=model::HirExpr` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
@@ -2347,9 +2355,12 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_syntax|field|syl_syntax::ast::ConstItem::ty|Option<TypeExpr>` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|field|syl_syntax::ast::ConstItem::value|Expr` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|field|syl_syntax::ast::EnumItem::name|String` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
+- `syl_syntax|field|syl_syntax::ast::EnumItem::layout|EnumLayout` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|field|syl_syntax::ast::EnumItem::span|syl_span::Span` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
+- `syl_syntax|field|syl_syntax::ast::EnumItem::width|Option<TypeExpr>` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|field|syl_syntax::ast::EnumItem::variants|Vec<EnumVariant>` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|field|syl_syntax::ast::EnumVariant::name|String` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
+- `syl_syntax|field|syl_syntax::ast::EnumVariant::value|Option<Expr>` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|field|syl_syntax::ast::EnumVariant::span|syl_span::Span` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|field|syl_syntax::ast::ErrorItem::span|syl_span::Span` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|field|syl_syntax::ast::ExternModuleItem::generics|Vec<GenericParam>` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
@@ -2525,6 +2536,7 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_syntax|struct|syl_syntax::ast::CallableItem|public` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|struct|syl_syntax::ast::ConstItem|public` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|struct|syl_syntax::ast::EnumItem|public` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
+- `syl_syntax|enum|syl_syntax::ast::EnumLayout|public` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|struct|syl_syntax::ast::EnumVariant|public` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|struct|syl_syntax::ast::ErrorItem|public` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|struct|syl_syntax::ast::ExternModuleItem|public` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
@@ -2581,6 +2593,7 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_syntax|use|ConstItem|named|source=ast::ConstItem` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|use|DriveCapability|named|source=ast::DriveCapability` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|use|EnumItem|named|source=ast::EnumItem` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
+- `syl_syntax|use|EnumLayout|named|source=ast::EnumLayout` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|use|EnumVariant|named|source=ast::EnumVariant` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|use|ErrorItem|named|source=ast::ErrorItem` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|use|Expr|named|source=ast::Expr` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.

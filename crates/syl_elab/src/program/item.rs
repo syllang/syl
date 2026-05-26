@@ -2,9 +2,10 @@ use super::{ElabPortDirection, ElabViewDirection, body::ElabBlock, body::ElabExp
 use crate::{
     mir::MirTypeRef,
     source::{
-        HirBundleItem, HirCallable, HirCallableItem, HirConstItem, HirEnumItem, HirEnumVariantKey,
-        HirExternCellItem, HirFieldDecl, HirInterfaceItem, HirSignatureGenericParam,
-        HirSignatureParam, HirSignatureResultBinding, HirViewDecl, HirViewField,
+        HirBundleItem, HirCallable, HirCallableItem, HirConstItem, HirEnumItem,
+        HirEnumVariantKey, HirExternCellItem, HirFieldDecl, HirInterfaceItem,
+        HirSignatureGenericParam, HirSignatureParam, HirSignatureResultBinding, HirViewDecl,
+        HirViewField,
     },
 };
 use syl_hir::DefId;
@@ -83,13 +84,15 @@ impl From<&HirConstItem> for ElabConstItem {
 #[derive(Clone)]
 #[non_exhaustive]
 pub(crate) struct ElabEnumItem {
-    pub(crate) variants: usize,
+    pub(crate) width: Option<MirTypeRef>,
+    pub(crate) max_value: u64,
 }
 
-impl From<&HirEnumItem> for ElabEnumItem {
-    fn from(value: &HirEnumItem) -> Self {
+impl ElabEnumItem {
+    pub(crate) fn new(value: &HirEnumItem, max_value: u64) -> Self {
         Self {
-            variants: value.variants.len(),
+            width: value.width.clone(),
+            max_value,
         }
     }
 }

@@ -271,9 +271,17 @@ impl MatchArm {
 }
 
 impl EnumItem {
-    pub fn new(name: String, variants: Vec<EnumVariant>, span: Span) -> Self {
+    pub fn new(
+        name: String,
+        width: Option<TypeExpr>,
+        layout: crate::EnumLayout,
+        variants: Vec<EnumVariant>,
+        span: Span,
+    ) -> Self {
         Self {
             name,
+            width,
+            layout,
             variants,
             span,
         }
@@ -281,8 +289,8 @@ impl EnumItem {
 }
 
 impl EnumVariant {
-    pub fn new(name: String, span: Span) -> Self {
-        Self { name, span }
+    pub fn new(name: String, value: Option<Expr>, span: Span) -> Self {
+        Self { name, value, span }
     }
 }
 

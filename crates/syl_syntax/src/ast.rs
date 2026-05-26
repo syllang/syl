@@ -96,6 +96,8 @@ pub struct FnItem {
 #[non_exhaustive]
 pub struct EnumItem {
     pub name: String,
+    pub width: Option<TypeExpr>,
+    pub layout: EnumLayout,
     pub variants: Vec<EnumVariant>,
     pub span: Span,
 }
@@ -104,7 +106,19 @@ pub struct EnumItem {
 #[non_exhaustive]
 pub struct EnumVariant {
     pub name: String,
+    pub value: Option<Expr>,
     pub span: Span,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, IntoStaticStr)]
+#[non_exhaustive]
+pub enum EnumLayout {
+    #[strum(serialize = "ordinal")]
+    Ordinal,
+    #[strum(serialize = "flags")]
+    Flags,
+    #[strum(serialize = "onehot")]
+    OneHot,
 }
 
 #[derive(Clone, Debug, PartialEq, Builder)]

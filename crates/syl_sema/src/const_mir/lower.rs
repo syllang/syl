@@ -189,11 +189,9 @@ impl<'a> ExprLowerer<'a> {
         let (enum_def, variant) = self.tir.hir().enum_variant_expr(expr)?;
         let value = self
             .tir
-            .hir()
-            .enum_variants
-            .get(&crate::hir::HirEnumVariantKey::new(enum_def, variant))?
-            .value;
-        Some(ConstExpr::nat(value, expr.span()).with_origin(expr.id()))
+            .enum_variant_values()
+            .get(&crate::hir::HirEnumVariantKey::new(enum_def, variant))?;
+        Some(ConstExpr::nat(*value, expr.span()).with_origin(expr.id()))
     }
 
     fn callee_root<'b>(&self, expr: &'b HirBodyExpr) -> Option<&'b HirBodyExpr> {

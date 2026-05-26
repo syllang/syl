@@ -23,9 +23,10 @@ pub use callable::HirCallable;
 pub use enum_variant::{HirEnumVariant, HirEnumVariantKey};
 pub use item::{
     HirAttribute, HirBundleItem, HirCallableItem, HirConstItem, HirDriveCapability, HirEnumItem,
-    HirExternCellItem, HirFieldDecl, HirFnItem, HirInterfaceItem, HirMapItem, HirParamRole,
-    HirPortDecl, HirPortDirection, HirSignatureGenericParam, HirSignatureParam,
-    HirSignatureResultBinding, HirViewDecl, HirViewDirection, HirViewField,
+    HirEnumLayout, HirEnumVariantDecl, HirExternCellItem, HirFieldDecl, HirFnItem,
+    HirInterfaceItem, HirMapItem, HirParamRole, HirPortDecl, HirPortDirection,
+    HirSignatureGenericParam, HirSignatureParam, HirSignatureResultBinding, HirViewDecl,
+    HirViewDirection, HirViewField,
 };
 
 #[non_exhaustive]

@@ -158,3 +158,115 @@ cell Top(x: in State, y: out Bit) {
 
     assert!(err.contains("unresolved name IDLE"), "{err}");
 }
+
+#[test]
+fn enum_width_uses_max_discriminant_value() {
+    let verilog = ConstResolutionHarness::new()
+        .compile_sources(&[r#"
+enum State {
+    Idle = 1,
+    Busy = 4,
+    Done = 7,
+}
+
+map is_done(x: State) -> Bit =
+    x eq State.Done
+
+cell Top(x: in State, y: out Bit) {
+    y := is_done(x)
+}
+"#])
+        .expect("enum width should follow the highest discriminant value");
+
+    assert!(verilog.contains("input [2:0] x"));
+    assert!(verilog.contains("assign y = (x == 7);"));
+}
+
+#[test]
+fn flags_layout_uses_one_hot_values() {
+    let verilog = ConstResolutionHarness::new()
+        .compile_sources(&[r#"
+@layout(flags)
+enum Access {
+    Read,
+    Write,
+    Exec,
+    Admin,
+}
+
+map has_admin(x: Access) -> Bit =
+    x eq Access.Admin
+
+cell Top(x: in Access, y: out Bit) {
+    y := has_admin(x)
+}
+"#])
+        .expect("flags layout should emit one-hot discriminants and width");
+
+    assert!(verilog.contains("input [3:0] x"));
+    assert!(verilog.contains("assign y = (x == 8);"));
+}
+
+#[test]
+fn flags_layout_allows_zero_discriminant() {
+    let verilog = ConstResolutionHarness::new()
+        .compile_sources(&[r#"
+@layout(flags)
+enum Access {
+    None = 0,
+    Read,
+}
+
+map is_none(x: Access) -> Bit =
+    x eq Access.None
+
+cell Top(x: in Access, y: out Bit) {
+    y := is_none(x)
+}
+"#])
+        .expect("flags layout should allow the empty-set discriminant");
+
+    assert!(verilog.contains("assign y = (x == 0);"));
+}
+
+#[test]
+fn onehot_layout_rejects_zero_discriminant() {
+    let err = ConstResolutionHarness::new()
+        .compile_sources(&[r#"
+@layout(onehot)
+enum State {
+    Idle = 0,
+}
+"#])
+        .expect_err("onehot layout must reject zero discriminants");
+
+    assert!(err.contains("is not one-hot"), "{err}");
+}
+
+#[test]
+fn rejects_duplicate_enum_discriminants() {
+    let err = ConstResolutionHarness::new()
+        .compile_sources(&[r#"
+enum State {
+    Idle = 1,
+    Busy = 1,
+}
+"#])
+        .expect_err("duplicate discriminants must be rejected");
+
+    assert!(err.contains("duplicate enum discriminant 1"), "{err}");
+}
+
+#[test]
+fn rejects_invalid_flags_discriminants() {
+    let err = ConstResolutionHarness::new()
+        .compile_sources(&[r#"
+@layout(flags)
+enum Access {
+    Read = 3,
+}
+"#])
+        .expect_err("flags discriminants must stay one-hot");
+
+    assert!(err.contains("is not one-hot"), "{err}");
+}

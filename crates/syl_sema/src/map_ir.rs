@@ -438,10 +438,9 @@ impl<'a> MapIrBuilder<'a> {
     fn enum_variant_value(&self, expr: &HirBodyExpr) -> Option<u64> {
         let (enum_def, variant) = self.tir.hir().enum_variant_expr(expr)?;
         self.tir
-            .hir()
-            .enum_variants
+            .enum_variant_values()
             .get(&crate::hir::HirEnumVariantKey::new(enum_def, variant))
-            .map(|item| item.value)
+            .copied()
     }
 
     fn lower_named_exprs(

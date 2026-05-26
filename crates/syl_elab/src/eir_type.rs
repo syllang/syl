@@ -316,7 +316,7 @@ impl<'a> EirBuilder<'a> {
             Some("Nat") => "32".to_string(),
             Some(name) => {
                 if let Some(enm) = self.enum_for_type(owner, ty) {
-                    self.enum_width(enm.variants).to_string()
+                    self.enum_width(owner, enm)
                 } else if self.bundle_for_type(owner, ty).is_some() {
                     self.bundle_width(owner, ty)
                 } else {
@@ -333,7 +333,7 @@ impl<'a> EirBuilder<'a> {
             Some("Nat") => EirExpr::Int(32),
             Some(name) => {
                 if let Some(enm) = self.enum_for_type(owner, ty) {
-                    EirExpr::Int(self.enum_width(enm.variants).try_into().unwrap_or(u64::MAX))
+                    self.enum_width_expr(owner, enm)
                 } else if self.bundle_for_type(owner, ty).is_some() {
                     self.bundle_width_expr(owner, ty)
                 } else {

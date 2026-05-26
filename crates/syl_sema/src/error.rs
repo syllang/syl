@@ -13,6 +13,8 @@ pub enum HirError {
     DuplicateEnum { name: String },
     #[error("duplicate enum variant {name}")]
     DuplicateEnumVariant { name: String },
+    #[error("empty enum {name}")]
+    EmptyEnum { name: String },
     #[error("duplicate bundle {name}")]
     DuplicateBundle { name: String },
     #[error("duplicate interface {name}")]
@@ -50,6 +52,7 @@ impl HirError {
             Self::DuplicateFn { .. } => "E_MIDDLE_DUPLICATE_FN",
             Self::DuplicateEnum { .. } => "E_MIDDLE_DUPLICATE_ENUM",
             Self::DuplicateEnumVariant { .. } => "E_MIDDLE_DUPLICATE_ENUM_VARIANT",
+            Self::EmptyEnum { .. } => "E_MIDDLE_EMPTY_ENUM",
             Self::DuplicateBundle { .. } => "E_MIDDLE_DUPLICATE_BUNDLE",
             Self::DuplicateInterface { .. } => "E_MIDDLE_DUPLICATE_INTERFACE",
             Self::DuplicateMap { .. } => "E_MIDDLE_DUPLICATE_MAP",
@@ -71,6 +74,21 @@ pub enum TirError {
     ElaborationIfRequiresBool,
     #[error("{context} requires Nat expression")]
     RequiresNatExpression { context: String },
+    #[error("duplicate enum discriminant {value} in {enum_name}")]
+    DuplicateEnumDiscriminant { enum_name: String, value: u64 },
+    #[error("enum discriminant {variant}={value} does not fit width {width} in {enum_name}")]
+    EnumDiscriminantOutOfRange {
+        enum_name: String,
+        variant: String,
+        value: u64,
+        width: u64,
+    },
+    #[error("enum discriminant {variant}={value} is not one-hot in {enum_name}")]
+    EnumDiscriminantNotOneHot {
+        enum_name: String,
+        variant: String,
+        value: u64,
+    },
     #[error("unknown type {name}")]
     UnknownType { name: String },
     #[error("expression is not valid in elaboration context")]
@@ -102,6 +120,9 @@ impl TirError {
         match self {
             Self::ElaborationIfRequiresBool => "E_MIDDLE_ELAB_IF_REQUIRES_BOOL",
             Self::RequiresNatExpression { .. } => "E_MIDDLE_REQUIRES_NAT",
+            Self::DuplicateEnumDiscriminant { .. } => "E_MIDDLE_DUPLICATE_ENUM_DISCRIMINANT",
+            Self::EnumDiscriminantOutOfRange { .. } => "E_MIDDLE_ENUM_DISCRIMINANT_OUT_OF_RANGE",
+            Self::EnumDiscriminantNotOneHot { .. } => "E_MIDDLE_ENUM_DISCRIMINANT_NOT_ONEHOT",
             Self::UnknownType { .. } => "E_MIDDLE_UNKNOWN_TYPE",
             Self::InvalidElaborationExpression => "E_MIDDLE_INVALID_ELAB_EXPR",
             Self::BoolInHardwareValue => "E_MIDDLE_BOOL_IN_HARDWARE_VALUE",

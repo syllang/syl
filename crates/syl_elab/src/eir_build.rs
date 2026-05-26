@@ -8,7 +8,7 @@ use crate::{
     map_ir::MapIrProgram,
     mir::MirTypeRef,
     program::{
-        ElabCallable, ElabCallableItem, ElabExpr, ElabExprNode, ElabExternCellItem,
+        ElabCallable, ElabCallableItem, ElabEnumItem, ElabExpr, ElabExprNode, ElabExternCellItem,
         ElabPortDirection, ElabProgram, ElabSignatureGenericParam,
     },
 };
@@ -487,14 +487,33 @@ impl<'a> EirBuilder<'a> {
             .collect()
     }
 
-    pub(crate) fn enum_width(&self, count: usize) -> usize {
-        let mut width = 1usize;
-        let mut capacity = 2usize;
-        while capacity < count {
-            capacity *= 2;
-            width += 1;
+    pub(crate) fn enum_width(&self, owner: Option<DefId>, item: &ElabEnumItem) -> String {
+        item.width
+            .as_ref()
+            .map(|width| self.type_value(owner, width))
+            .unwrap_or_else(|| self.enum_value_width(item.max_value).to_string())
+    }
+
+    pub(crate) fn enum_width_expr(&self, owner: Option<DefId>, item: &ElabEnumItem) -> EirExpr {
+        item.width
+            .as_ref()
+            .map(|width| {
+                let value = self.type_value(owner, width);
+                value
+                    .parse::<u64>()
+                    .map(EirExpr::Int)
+                    .unwrap_or_else(|_| self.type_value_expr(owner, width))
+            })
+            .unwrap_or_else(|| EirExpr::Int(self.enum_value_width(item.max_value).try_into().unwrap_or(u64::MAX)))
+    }
+
+    fn enum_value_width(&self, value: u64) -> usize {
+        if value == 0 {
+            1
+        } else {
+            let bits = u64::from(u64::BITS) - u64::from(value.leading_zeros());
+            usize::try_from(bits).unwrap_or(usize::MAX)
         }
-        width
     }
 }
 

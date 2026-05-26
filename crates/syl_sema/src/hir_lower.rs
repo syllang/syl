@@ -212,6 +212,14 @@ impl<'files> HirResolver<'files> {
         self.reject_duplicate(package, &item.name, item.span, |name| {
             HirError::DuplicateEnum { name }
         })?;
+        if item.variants.is_empty() {
+            return Err(CompileError::lowering_at(
+                HirError::EmptyEnum {
+                    name: item.name.clone(),
+                },
+                item.span,
+            ));
+        }
         let owner = self.register_def(package, &item.name, HirDefKind::Enum, item.span);
         let mut seen = BTreeSet::new();
         for (idx, variant) in item.variants.iter().enumerate() {

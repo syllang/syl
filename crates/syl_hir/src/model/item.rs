@@ -3,8 +3,9 @@ use crate::LocalId;
 use strum_macros::IntoStaticStr;
 use syl_span::Span;
 use syl_syntax::{
-    BundleItem, ConstItem, DriveCapability, EnumItem, ExternCellItem, FieldDecl, FnItem,
-    GenericParam, InterfaceItem, MapItem, Param, ParamDirection, PortDecl, TypeExpr, ViewDirection,
+    BundleItem, ConstItem, DriveCapability, EnumItem, EnumLayout as SyntaxEnumLayout, ExternCellItem,
+    FieldDecl, FnItem, GenericParam, InterfaceItem, MapItem, Param, ParamDirection, PortDecl,
+    TypeExpr, ViewDirection,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, IntoStaticStr)]
@@ -205,10 +206,43 @@ impl From<&ViewDirection> for HirViewDirection {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, IntoStaticStr)]
+#[non_exhaustive]
+pub enum HirEnumLayout {
+    #[strum(serialize = "ordinal")]
+    Ordinal,
+    #[strum(serialize = "flags")]
+    Flags,
+    #[strum(serialize = "onehot")]
+    OneHot,
+}
+
+impl From<&SyntaxEnumLayout> for HirEnumLayout {
+    fn from(layout: &SyntaxEnumLayout) -> Self {
+        match layout {
+            SyntaxEnumLayout::Flags => Self::Flags,
+            SyntaxEnumLayout::OneHot => Self::OneHot,
+            SyntaxEnumLayout::Ordinal => Self::Ordinal,
+            _ => Self::Ordinal,
+        }
+    }
+}
+
+impl HirEnumLayout {
+    fn summary_count(self) -> usize {
+        match self {
+            Self::Ordinal => 1,
+            Self::Flags => 2,
+            Self::OneHot => 3,
+        }
+    }
+}
+
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct HirEnumVariantDecl {
     pub name: String,
+    pub value: Option<HirBodyExpr>,
     pub span: Span,
 }
 
@@ -216,6 +250,7 @@ impl From<&syl_syntax::EnumVariant> for HirEnumVariantDecl {
     fn from(variant: &syl_syntax::EnumVariant) -> Self {
         Self {
             name: variant.name.clone(),
+            value: variant.value.as_ref().map(HirBodyExpr::from_syntax),
             span: variant.span,
         }
     }
@@ -223,7 +258,12 @@ impl From<&syl_syntax::EnumVariant> for HirEnumVariantDecl {
 
 impl HirEnumVariantDecl {
     fn summary_count(&self) -> usize {
-        self.name.len() + self.span.start
+        self.name.len()
+            + self
+                .value
+                .as_ref()
+                .map_or(0, |value| value.span().start)
+            + self.span.start
     }
 }
 
@@ -417,6 +457,8 @@ impl HirFnItem {
 #[non_exhaustive]
 pub struct HirEnumItem {
     pub name: String,
+    pub width: Option<MirTypeRef>,
+    pub layout: HirEnumLayout,
     pub variants: Vec<HirEnumVariantDecl>,
     pub span: Span,
 }
@@ -425,6 +467,8 @@ impl From<&EnumItem> for HirEnumItem {
     fn from(item: &EnumItem) -> Self {
         Self {
             name: item.name.clone(),
+            width: item.width.as_ref().map(MirTypeRef::from),
+            layout: HirEnumLayout::from(&item.layout),
             variants: item.variants.iter().map(HirEnumVariantDecl::from).collect(),
             span: item.span,
         }
@@ -434,6 +478,8 @@ impl From<&EnumItem> for HirEnumItem {
 impl HirEnumItem {
     pub(crate) fn summary_count(&self) -> usize {
         self.name.len()
+            + self.width.as_ref().map_or(0, |width| width.span().start)
+            + self.layout.summary_count()
             + self
                 .variants
                 .iter()

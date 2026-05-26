@@ -262,9 +262,12 @@ syl_hir|field|syl_hir::model::item::HirConstItem::span|syl_span::Span
 syl_hir|field|syl_hir::model::item::HirConstItem::ty|Option<super::MirTypeRef>
 syl_hir|field|syl_hir::model::item::HirConstItem::value|super::HirBodyExpr
 syl_hir|field|syl_hir::model::item::HirEnumItem::name|String
+syl_hir|field|syl_hir::model::item::HirEnumItem::layout|HirEnumLayout
 syl_hir|field|syl_hir::model::item::HirEnumItem::span|syl_span::Span
+syl_hir|field|syl_hir::model::item::HirEnumItem::width|Option<super::MirTypeRef>
 syl_hir|field|syl_hir::model::item::HirEnumItem::variants|Vec<HirEnumVariantDecl>
 syl_hir|field|syl_hir::model::item::HirEnumVariantDecl::name|String
+syl_hir|field|syl_hir::model::item::HirEnumVariantDecl::value|Option<super::HirBodyExpr>
 syl_hir|field|syl_hir::model::item::HirEnumVariantDecl::span|syl_span::Span
 syl_hir|field|syl_hir::model::item::HirExternModuleItem::generics|Vec<HirSignatureGenericParam>
 syl_hir|field|syl_hir::model::item::HirExternModuleItem::name|String
@@ -424,6 +427,7 @@ syl_hir|struct|syl_hir::model::body::HirMatchArm|public
 syl_hir|struct|syl_hir::model::body::HirNamedExpr|public
 syl_hir|struct|syl_hir::model::body::HirRegReset|public
 syl_hir|struct|syl_hir::model::body::HirSelectArm|public
+syl_hir|enum|syl_hir::model::item::HirEnumLayout|public
 syl_hir|struct|syl_hir::model::enum_variant::HirEnumVariantKey|public
 syl_hir|struct|syl_hir::model::enum_variant::HirEnumVariant|public
 syl_hir|struct|syl_hir::model::item::HirAttribute|public
@@ -472,10 +476,14 @@ syl_hir|use|HirDriveCapability|named|source=item::HirDriveCapability
 syl_hir|use|HirDriveCapability|named|source=model::HirDriveCapability
 syl_hir|use|HirEnumItem|named|source=item::HirEnumItem
 syl_hir|use|HirEnumItem|named|source=model::HirEnumItem
+syl_hir|use|HirEnumLayout|named|source=item::HirEnumLayout
+syl_hir|use|HirEnumLayout|named|source=model::HirEnumLayout
 syl_hir|use|HirEnumVariantKey|named|source=enum_variant::HirEnumVariantKey
 syl_hir|use|HirEnumVariantKey|named|source=model::HirEnumVariantKey
 syl_hir|use|HirEnumVariant|named|source=enum_variant::HirEnumVariant
 syl_hir|use|HirEnumVariant|named|source=model::HirEnumVariant
+syl_hir|use|HirEnumVariantDecl|named|source=item::HirEnumVariantDecl
+syl_hir|use|HirEnumVariantDecl|named|source=model::HirEnumVariantDecl
 syl_hir|use|HirExprNode|named|source=body::HirExprNode
 syl_hir|use|HirExprNode|named|source=model::HirExprNode
 syl_hir|use|HirExpr|named|source=model::HirExpr
@@ -2235,6 +2243,7 @@ syl_syntax|enum|syl_syntax::ast::BinaryOp|public
 syl_syntax|enum|syl_syntax::ast::DriveCapability|public
 syl_syntax|enum|syl_syntax::ast::Expr|public
 syl_syntax|enum|syl_syntax::ast::Item|public
+syl_syntax|enum|syl_syntax::ast::EnumLayout|public
 syl_syntax|enum|syl_syntax::ast::ParamDirection|public
 syl_syntax|enum|syl_syntax::ast::ParamRole|public
 syl_syntax|enum|syl_syntax::ast::Pattern|public
@@ -2277,9 +2286,12 @@ syl_syntax|field|syl_syntax::ast::ConstItem::span|syl_span::Span
 syl_syntax|field|syl_syntax::ast::ConstItem::ty|Option<TypeExpr>
 syl_syntax|field|syl_syntax::ast::ConstItem::value|Expr
 syl_syntax|field|syl_syntax::ast::EnumItem::name|String
+syl_syntax|field|syl_syntax::ast::EnumItem::layout|EnumLayout
 syl_syntax|field|syl_syntax::ast::EnumItem::span|syl_span::Span
+syl_syntax|field|syl_syntax::ast::EnumItem::width|Option<TypeExpr>
 syl_syntax|field|syl_syntax::ast::EnumItem::variants|Vec<EnumVariant>
 syl_syntax|field|syl_syntax::ast::EnumVariant::name|String
+syl_syntax|field|syl_syntax::ast::EnumVariant::value|Option<Expr>
 syl_syntax|field|syl_syntax::ast::EnumVariant::span|syl_span::Span
 syl_syntax|field|syl_syntax::ast::ErrorItem::span|syl_span::Span
 syl_syntax|field|syl_syntax::ast::ExternModuleItem::generics|Vec<GenericParam>
@@ -2511,6 +2523,7 @@ syl_syntax|use|CallableItem|named|source=ast::CallableItem
 syl_syntax|use|ConstItem|named|source=ast::ConstItem
 syl_syntax|use|DriveCapability|named|source=ast::DriveCapability
 syl_syntax|use|EnumItem|named|source=ast::EnumItem
+syl_syntax|use|EnumLayout|named|source=ast::EnumLayout
 syl_syntax|use|EnumVariant|named|source=ast::EnumVariant
 syl_syntax|use|ErrorItem|named|source=ast::ErrorItem
 syl_syntax|use|Expr|named|source=ast::Expr

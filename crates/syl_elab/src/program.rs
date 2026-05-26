@@ -114,12 +114,12 @@ impl ElabProgram {
         let (variant, enum_path) = path.split_last()?;
         let enum_def = if enum_path.is_empty() {
             self.resolve_def_id(owner, variant)
+        } else if enum_path.len() == 1 {
+            self.resolve_def_id(owner, &enum_path[0])
         } else {
             self.canonical_def_id(enum_path)
         };
-        enum_def
-            .and_then(|def| self.variant_value(def, variant))
-            .or_else(|| self.variant_value_for_visible_enum(owner, variant))
+        enum_def.and_then(|def| self.variant_value(def, variant))
     }
 
     pub(crate) fn enum_variant_value_by_name(
@@ -127,7 +127,9 @@ impl ElabProgram {
         owner: Option<DefId>,
         name: &str,
     ) -> Option<u64> {
-        self.variant_value_for_visible_enum(owner?, name)
+        let owner = owner?;
+        self.resolve_def_id(owner, name)
+            .and_then(|def| self.variant_value(def, name))
     }
 
     pub(crate) fn enum_variant_field_value(
@@ -161,19 +163,6 @@ impl ElabProgram {
         (self.def_kind(def) == Some(ElabDefKind::Enum)).then_some(def)
     }
 
-    fn variant_value_for_visible_enum(&self, owner: DefId, name: &str) -> Option<u64> {
-        self.enums
-            .keys()
-            .find(|enum_def| {
-                self.visible_defs
-                    .iter()
-                    .any(|((visible_owner, _), visible)| {
-                        *visible_owner == owner && visible == *enum_def
-                    })
-                    && self.variant_value(**enum_def, name).is_some()
-            })
-            .and_then(|enum_def| self.variant_value(*enum_def, name))
-    }
 }
 
 #[non_exhaustive]
@@ -188,6 +177,21 @@ impl<'a> ElabProgramBuilder<'a> {
 
     fn build(&self) -> ElabProgram {
         let hir = self.tir.hir();
+        let enum_max_values = self
+            .tir
+            .enum_variant_values()
+            .iter()
+            .fold(BTreeMap::new(), |mut max_values, (key, value)| {
+                max_values
+                    .entry(key.enum_def)
+                    .and_modify(|current| {
+                        if *current < *value {
+                            *current = *value;
+                        }
+                    })
+                    .or_insert(*value);
+                max_values
+            });
         let mut visible_defs = BTreeMap::new();
         for owner in &hir.defs {
             for def in hir.visible_def_ids(owner.id) {
@@ -263,12 +267,21 @@ impl<'a> ElabProgramBuilder<'a> {
             enums: hir
                 .enums
                 .iter()
-                .map(|(def, item)| (*def, ElabEnumItem::from(item)))
+                .map(|(def, item)| {
+                    (
+                        *def,
+                        ElabEnumItem::new(
+                            item,
+                            enum_max_values.get(def).copied().unwrap_or(0),
+                        ),
+                    )
+                })
                 .collect(),
-            enum_variants: hir
-                .enum_variants
+            enum_variants: self
+                .tir
+                .enum_variant_values()
                 .iter()
-                .map(|(key, variant)| (ElabEnumVariantKey::from(key), variant.value))
+                .map(|(key, variant)| (ElabEnumVariantKey::from(key), *variant))
                 .collect(),
             bundles: hir
                 .bundles

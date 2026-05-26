@@ -65,6 +65,25 @@ fn parses_source_from_lexer() {
 }
 
 #[test]
+fn parses_enum_layout_width_and_explicit_values() {
+    let file = SourceParser::new(
+        "@layout(flags) enum Access: Bits<4> { Read, Write = 4, Exec }",
+    )
+    .parse_file()
+    .unwrap();
+
+    match &file.items[0] {
+        Item::Enum(item) => {
+            assert!(matches!(item.layout, EnumLayout::Flags));
+            assert!(item.width.is_some());
+            assert_eq!(item.variants.len(), 3);
+            assert!(item.variants[1].value.is_some());
+        }
+        other => panic!("unexpected enum item: {other:?}"),
+    }
+}
+
+#[test]
 fn parses_inout_ports_and_view_fields() {
     let source = r#"
 interface Pad {

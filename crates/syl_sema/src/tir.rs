@@ -10,10 +10,11 @@ use crate::{
     tir_const::{TirConstEnv, TirConstKind},
 };
 use std::{collections::BTreeMap, sync::Arc};
-use syl_hir::{DefId, ExprId, LocalId};
+use syl_hir::{DefId, ExprId, HirEnumVariantKey, LocalId};
 use syl_span::Span;
 
 mod body_check;
+mod enum_layout;
 mod check;
 mod extension_method;
 mod return_type;
@@ -26,6 +27,7 @@ pub use type_support::{TirConstTerm, TirGenericArg, TirType, TirTypeTable};
 pub struct TirDesign {
     hir: Arc<HirDesign>,
     type_table: TirTypeTable,
+    enum_variant_values: BTreeMap<HirEnumVariantKey, u64>,
     expr_phases: BTreeMap<ExprId, Phase>,
     expr_types: BTreeMap<ExprId, TypeId>,
     binding_kinds: BTreeMap<BindingRef, BindingKind>,
@@ -40,9 +42,10 @@ impl TirDesign {
 
     pub fn debug_dump(&self) -> String {
         format!(
-            "tir hir_defs={} hir_locals={} expr_phases={} expr_types={} bindings={} binding_types={}",
+            "tir hir_defs={} hir_locals={} enum_values={} expr_phases={} expr_types={} bindings={} binding_types={}",
             self.hir.defs.len(),
             self.hir.locals.len(),
+            self.enum_variant_values.len(),
             self.expr_phases.len(),
             self.expr_types.len(),
             self.binding_kinds.len(),
@@ -60,6 +63,10 @@ impl TirDesign {
 
     pub fn type_table(&self) -> &TirTypeTable {
         &self.type_table
+    }
+
+    pub fn enum_variant_values(&self) -> &BTreeMap<HirEnumVariantKey, u64> {
+        &self.enum_variant_values
     }
 
     pub fn expr_types(&self) -> &BTreeMap<ExprId, TypeId> {
@@ -207,6 +214,7 @@ pub struct TypePhaseChecker {
     current_owner: Option<DefId>,
     current_owner_span: Option<Span>,
     type_table: TirTypeTable,
+    enum_variant_values: BTreeMap<HirEnumVariantKey, u64>,
     expr_phases: BTreeMap<ExprId, Phase>,
     expr_types: BTreeMap<ExprId, TypeId>,
     binding_kinds: BTreeMap<BindingRef, BindingKind>,
@@ -222,6 +230,7 @@ impl TypePhaseChecker {
             current_owner: None,
             current_owner_span: None,
             type_table: TirTypeTable::new(),
+            enum_variant_values: BTreeMap::new(),
             expr_phases: BTreeMap::new(),
             expr_types: BTreeMap::new(),
             binding_kinds: BTreeMap::new(),
