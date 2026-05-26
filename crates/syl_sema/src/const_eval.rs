@@ -330,6 +330,20 @@ impl<'program> ConstEvaluator<'program> {
             }
             ConstExprKind::Binary { op, left, right } => {
                 let lhs = self.mir_expr_value(left, env)?;
+                // Short-circuit &&: LHS = false
+                if *op == MirBinaryOp::AndAnd && matches!(lhs, ConstValue::Bool(false)) {
+                    if let Some(origin) = expr.origin() {
+                        self.expr_values.insert(origin, lhs);
+                    }
+                    return Ok(lhs);
+                }
+                // Short-circuit ||: LHS = true
+                if *op == MirBinaryOp::OrOr && matches!(lhs, ConstValue::Bool(true)) {
+                    if let Some(origin) = expr.origin() {
+                        self.expr_values.insert(origin, lhs);
+                    }
+                    return Ok(lhs);
+                }
                 let rhs = self.mir_expr_value(right, env)?;
                 self.binary_result(*op, lhs, rhs, expr.span())
             }
