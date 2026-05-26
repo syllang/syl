@@ -43,13 +43,13 @@ cell MakePair() -> y: Bit {
     y := tmp
 }
 
-module Top(y: out Bit) {
-    let made = place MakePair()
+cell Top(y: out Bit) {
+    let made = inplace MakePair()
     y := made
 }
 "#,
         )
-        .expect("cell expansion must compile into parent module");
+        .expect("inplace cell expansion must compile into parent module");
     let metadata = output
         .metadata()
         .expect("successful elaboration must expose hardware metadata");

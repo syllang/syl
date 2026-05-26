@@ -252,7 +252,12 @@ impl<'a> AstNodeIndexBuilder<'a> {
                     self.visit_select_arm(arm, id);
                 }
             }
-            Expr::Place { callee, args, span } => {
+            Expr::Place {
+                callee,
+                args,
+                span,
+                inplace: _, // 暂不计入 node index
+            } => {
                 let id = self.push_kind(super::AstNodeKind::PlaceExpr, *span, Some(parent));
                 self.visit_expr(callee, id);
                 for arg in args {

@@ -45,15 +45,15 @@ cell Maybe<E: Bool>() -> y: Bit {
     }
 }
 
-module Top<A: Bool, B: Bool>(a: out Bit, b: out Bit) {
-    let u = place Maybe<A>()
-    let v = place Maybe<B>()
+cell Top<A: Bool, B: Bool>(a: out Bit, b: out Bit) {
+    let u = inplace Maybe<A>()
+    let v = inplace Maybe<B>()
     a := u
     b := v
 }
 "#,
         )
-        .expect("repeated inlined symbolic generators must produce legal SV labels");
+        .expect("repeated inplace symbolic generators must produce legal SV labels");
 
     assert!(verilog.contains("begin : gen_if_u_"));
     assert!(verilog.contains("begin : gen_if_v_"));
@@ -64,6 +64,6 @@ module Top<A: Bool, B: Bool>(a: out Bit, b: out Bit) {
         .filter_map(|line| line.split_once("begin : ").map(|(_, label)| label.trim()))
         .collect::<Vec<_>>();
 
-    assert_eq!(labels.len(), 2);
+    assert_eq!(labels.len(), 3);
     assert_ne!(labels[0], labels[1]);
 }

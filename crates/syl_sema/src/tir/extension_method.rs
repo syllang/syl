@@ -199,7 +199,7 @@ mod tests {
             def(receiver, "Word", "pkg.Word", HirDefKind::Bundle),
             def(first, "flag", "pkg.flag_a", HirDefKind::Map),
             def(second, "flag", "pkg.flag_b", HirDefKind::Map),
-            def(owner, "Top", "pkg.Top", HirDefKind::Module),
+            def(owner, "Top", "pkg.Top", HirDefKind::Cell),
         ];
         hir.register_extension_method(receiver, "flag".to_string(), first);
         hir.register_extension_method(receiver, "flag".to_string(), second);

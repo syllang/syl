@@ -18,12 +18,12 @@ fn architecture_phase7_session_owns_workspace_and_package_scoped_cache_invalidat
     let mut host = AnalysisHost::new();
     host.open_document(
         first_uri.clone(),
-        "module First(y: out Bit) {\n    y := 1\n}\n".to_string(),
+        "cell First(y: out Bit) {\n    y := 1\n}\n".to_string(),
         DocumentVersion::new(1),
     );
     host.open_document(
         second_uri.clone(),
-        "module Second(y: out Bit) {\n    y := 0\n}\n".to_string(),
+        "cell Second(y: out Bit) {\n    y := 0\n}\n".to_string(),
         DocumentVersion::new(1),
     );
     let baseline = host
@@ -38,7 +38,7 @@ fn architecture_phase7_session_owns_workspace_and_package_scoped_cache_invalidat
 
     host.update_document_at_version(
         &second_uri,
-        "module Second(y: out Bit) {\n    y := 1\n}\n".to_string(),
+        "cell Second(y: out Bit) {\n    y := 1\n}\n".to_string(),
         DocumentVersion::new(2),
     )
     .expect("phase7 second package update must succeed");
@@ -72,9 +72,9 @@ fn architecture_phase7_session_owns_workspace_and_package_scoped_cache_invalidat
 
 #[test]
 fn architecture_phase7_navigation_uses_target_package_semantic_shard() {
-    let alpha_source = "module Alpha(x: in Bit, y: out Bit) {\n    y := x\n}\n";
-    let beta_source = "module Beta(y: out Bit) {\n    y := 0\n}\n";
-    let beta_updated_source = "module Beta(y: out Bit) {\n    y := 1\n}\n";
+    let alpha_source = "cell Alpha(x: in Bit, y: out Bit) {\n    y := x\n}\n";
+    let beta_source = "cell Beta(y: out Bit) {\n    y := 0\n}\n";
+    let beta_updated_source = "cell Beta(y: out Bit) {\n    y := 1\n}\n";
     let alpha_uri = DocumentUri::new("untitled:syl/alpha");
     let beta_uri = DocumentUri::new("untitled:syl/beta");
     let mut host = AnalysisHost::new();
@@ -202,17 +202,17 @@ fn architecture_phase7_grouped_diagnostics_and_partial_failure_stages_stay_disti
     let mut host = AnalysisHost::new();
     host.open_document(
         parse_uri.clone(),
-        "module Broken(".to_string(),
+        "cell Broken(".to_string(),
         DocumentVersion::new(1),
     );
     host.open_document(
         tir_uri.clone(),
-        "module Bad(x: in Missing) {}\n".to_string(),
+        "cell Bad(x: in Missing) {}\n".to_string(),
         DocumentVersion::new(1),
     );
     host.open_document(
         elab_uri.clone(),
-        "extern module VendorLatch(y: in Bit)\n\nmodule Top(y: out Bit) {\n    signal tmp: Bit := 0\n    let vendor = place VendorLatch(y: tmp)\n    y := tmp\n}\n".to_string(),
+        "extern cell VendorLatch(y: in Bit)\n\ncell Top(y: out Bit) {\n    signal tmp: Bit := 0\n    let vendor = place VendorLatch(y: tmp)\n    y := tmp\n}\n".to_string(),
         DocumentVersion::new(1),
     );
     host.register_opaque_summary(trusted_vendor_summary());
@@ -230,7 +230,7 @@ fn architecture_phase7_grouped_diagnostics_and_partial_failure_stages_stay_disti
 
 #[test]
 fn architecture_phase7_hover_and_completion_do_not_emit_and_respect_cancellation() {
-    let source = "module Top(x: in Bit, y: out Bit) {\n    y := x\n}\n";
+    let source = "cell Top(x: in Bit, y: out Bit) {\n    y := x\n}\n";
     let uri = DocumentUri::new("untitled:syl/app");
     let mut query_host = AnalysisHost::new();
     query_host.open_document(uri.clone(), source.to_string(), DocumentVersion::new(1));

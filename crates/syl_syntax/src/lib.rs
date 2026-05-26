@@ -18,7 +18,7 @@ pub mod token;
 
 pub use ast::{
     AstFile, Attribute, BinaryOp, Block, BundleItem, CallArg, CallableItem, ConstItem,
-    DriveCapability, EnumItem, EnumVariant, ErrorItem, Expr, ExternModuleItem, FieldDecl, FnItem,
+    DriveCapability, EnumItem, EnumVariant, ErrorItem, Expr, ExternCellItem, FieldDecl, FnItem,
     GenericParam, InterfaceItem, Item, MapItem, MatchArm, NamedExpr, Param, ParamDirection,
     ParamRole, Pattern, PortDecl, RegReset, ResultBinding, SelectArm, SelectMode, Stmt, TypeExpr,
     UnaryOp, UseItem, ViewDecl, ViewDirection, ViewField,

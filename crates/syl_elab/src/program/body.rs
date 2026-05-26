@@ -269,9 +269,14 @@ impl From<&HirBodyExpr> for ElabExpr {
                 mode: *mode,
                 arms: arms.iter().map(ElabSelectArm::from).collect(),
             },
-            HirExprNode::Place { callee, args } => ElabExprNode::Place {
+            HirExprNode::Place {
+                callee,
+                args,
+                inplace,
+            } => ElabExprNode::Place {
                 callee: Box::new(ElabExpr::from(callee.as_ref())),
                 args: args.iter().map(ElabCallArg::from).collect(),
+                inplace: *inplace,
             },
             HirExprNode::CompileError { message } => ElabExprNode::CompileError {
                 message: Box::new(ElabExpr::from(message.as_ref())),
@@ -347,6 +352,7 @@ pub(crate) enum ElabExprNode {
     Place {
         callee: Box<ElabExpr>,
         args: Vec<ElabCallArg>,
+        inplace: bool,
     },
     For {
         name: String,

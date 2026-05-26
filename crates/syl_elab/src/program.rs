@@ -15,7 +15,7 @@ pub(crate) use body::{
 use item::ElabEnumVariantKey;
 pub(crate) use item::{
     ElabBundleItem, ElabCallable, ElabCallableItem, ElabConstItem, ElabEnumItem,
-    ElabExternModuleItem, ElabInterfaceItem, ElabSignatureGenericParam, ElabSignatureResultBinding,
+    ElabExternCellItem, ElabInterfaceItem, ElabSignatureGenericParam, ElabSignatureResultBinding,
 };
 
 #[non_exhaustive]
@@ -311,8 +311,7 @@ pub(crate) enum ElabDefKind {
     Interface,
     Map,
     Cell,
-    Module,
-    ExternModule,
+    ExternCell,
     Unsupported,
 }
 
@@ -326,8 +325,7 @@ impl From<HirDefKind> for ElabDefKind {
             HirDefKind::Interface => Self::Interface,
             HirDefKind::Map => Self::Map,
             HirDefKind::Cell => Self::Cell,
-            HirDefKind::Module => Self::Module,
-            HirDefKind::ExternModule => Self::ExternModule,
+            HirDefKind::ExternCell => Self::ExternCell,
             _ => Self::Unsupported,
         }
     }

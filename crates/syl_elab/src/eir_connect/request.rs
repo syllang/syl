@@ -38,6 +38,7 @@ pub(crate) struct InstanceEmitRequest<'a> {
     pub(crate) callee: &'a ElabExpr,
     pub(crate) args: &'a [ElabCallArg],
     pub(crate) env: &'a Env,
+    pub(crate) inplace: bool,
     pub(crate) span: Span,
 }
 

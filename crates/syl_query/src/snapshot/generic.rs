@@ -1,6 +1,6 @@
 use syl_span::Span;
 use syl_syntax::{
-    AstFile, CallableItem, Expr, ExternModuleItem, GenericParam, Item, Param, TypeExpr,
+    AstFile, CallableItem, Expr, ExternCellItem, GenericParam, Item, Param, TypeExpr,
 };
 
 #[non_exhaustive]
@@ -36,10 +36,10 @@ impl GenericDefinitionResolver {
                 .resolve_generic_decl(&item.generics)
                 .or_else(|| self.resolve_param_types(&item.generics, &item.params))
                 .or_else(|| self.resolve_optional_type(&item.generics, item.ret_ty.as_ref())),
-            Item::Cell(item) | Item::Module(item) => self
+            Item::Cell(item) => self
                 .resolve_generic_decl(&item.generics)
                 .or_else(|| self.resolve_callable(item)),
-            Item::ExternModule(item) => self
+            Item::ExternCell(item) => self
                 .resolve_generic_decl(&item.generics)
                 .or_else(|| self.resolve_extern_module(item)),
             Item::Use(_) | Item::Const(_) | Item::Fn(_) | Item::Enum(_) => None,
@@ -67,7 +67,7 @@ impl GenericDefinitionResolver {
             })
     }
 
-    fn resolve_extern_module<'a>(&self, item: &'a ExternModuleItem) -> Option<&'a GenericParam> {
+    fn resolve_extern_module<'a>(&self, item: &'a ExternCellItem) -> Option<&'a GenericParam> {
         self.resolve_param_types(&item.generics, &item.params)
             .or_else(|| {
                 item.ports
@@ -144,8 +144,8 @@ impl GenericDefinitionResolver {
             Item::Bundle(item) => Some(item.span),
             Item::Interface(item) => Some(item.span),
             Item::Map(item) => Some(item.span),
-            Item::Cell(item) | Item::Module(item) => Some(item.span),
-            Item::ExternModule(item) => Some(item.span),
+            Item::Cell(item) => Some(item.span),
+            Item::ExternCell(item) => Some(item.span),
             Item::Error(item) => Some(item.span),
             _ => None,
         }

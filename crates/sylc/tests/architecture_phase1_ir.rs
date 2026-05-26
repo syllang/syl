@@ -170,7 +170,7 @@ fn architecture_phase1_ir_boundaries_expose_debug_dumps() {
         });
     let ast_dump = file.debug_dump();
     assert!(ast_dump.contains("ast "));
-    assert!(ast_dump.contains("module Top"));
+    assert!(ast_dump.contains("cell Top"));
 
     let files = [file];
     let semantic = syl_sema::SemanticCompiler::new();
@@ -183,7 +183,7 @@ fn architecture_phase1_ir_boundaries_expose_debug_dumps() {
         .expect("phase1 architecture source must resolve HIR");
     let hir_dump = hir.debug_dump();
     assert!(hir_dump.contains("hir "));
-    assert!(hir_dump.contains("module Top"));
+    assert!(hir_dump.contains("cell Top"));
 
     let tir = hir
         .check_tir()
@@ -244,7 +244,7 @@ fn one() -> Nat {
 map passthrough<W: Nat>(value: UInt<W>) -> UInt<W> =
     value
 
-module Top<W: Nat>(
+cell Top<W: Nat>(
     x: in UInt<W>,
     y: out UInt<W>,
 ) {

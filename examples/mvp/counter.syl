@@ -11,7 +11,7 @@
 // - package, module, reg, signal, reset, next, select, priority
 // - Nat, Bit, UInt<W>, Domain, Clock<D>, Reset<D>
 
-module Counter<W: Nat, D: Domain>(
+cell Counter<W: Nat, D: Domain>(
     clk: in Clock<D>,
     rst: in Reset<D>,
     enable: in Bit,
@@ -30,7 +30,7 @@ module Counter<W: Nat, D: Domain>(
     value := count
 }
 
-module CounterPair<W: Nat = 16, D: Domain>(
+cell CounterPair<W: Nat = 16, D: Domain>(
     clk: in Clock<D>,
     rst: in Reset<D>,
     enable_left: in Bit,

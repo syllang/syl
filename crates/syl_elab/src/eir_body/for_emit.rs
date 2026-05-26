@@ -96,7 +96,11 @@ impl<'a> EirBuilder<'a> {
         let tail = filtered.tail.take();
         let mut items = self.emit_body_impl(&filtered, env, false)?;
         if let Some(tail) = tail
-            && let ElabExprNode::Place { callee, args } = &tail.node
+            && let ElabExprNode::Place {
+                callee,
+                args,
+                inplace,
+            } = &tail.node
         {
             let inst_name = env
                 .prefix
@@ -108,6 +112,7 @@ impl<'a> EirBuilder<'a> {
                 callee,
                 args,
                 env,
+                inplace: *inplace,
                 span: tail.span(),
             })?);
         }
@@ -125,7 +130,11 @@ impl<'a> EirBuilder<'a> {
         let tail = filtered.tail.take();
         let mut items = self.emit_body_impl(&filtered, env, true)?;
         if let Some(tail) = tail
-            && let ElabExprNode::Place { callee, args } = &tail.node
+            && let ElabExprNode::Place {
+                callee,
+                args,
+                inplace,
+            } = &tail.node
         {
             let inst_name = env
                 .prefix
@@ -137,6 +146,7 @@ impl<'a> EirBuilder<'a> {
                 callee,
                 args,
                 env,
+                inplace: *inplace,
                 span: tail.span(),
             })?);
         }

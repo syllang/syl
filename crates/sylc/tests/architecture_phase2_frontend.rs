@@ -73,12 +73,12 @@ fn architecture_phase2_frontend_examples_parse_without_diagnostics() {
 fn architecture_phase2_frontend_recovery_keeps_ast_usable() {
     let output = SourceParser::new(
         r#"
-module Top(x: in Bit, y: out Bit) {
+cell Top(x: in Bit, y: out Bit) {
     signal broken: Bit := compile_error()
     y := x
 }
 
-module Tail(a: in Bit, b: out Bit) {
+cell Tail(a: in Bit, b: out Bit) {
     b := a
 }
 "#,
@@ -92,7 +92,7 @@ module Tail(a: in Bit, b: out Bit) {
     assert_eq!(output.file.items.len(), 2);
 
     match &output.file.items[0] {
-        Item::Module(item) => {
+        Item::Cell(item) => {
             assert!(matches!(item.body.stmts.first(), Some(Stmt::Error { .. })));
             let recovered_drive = item
                 .body
@@ -104,7 +104,7 @@ module Tail(a: in Bit, b: out Bit) {
         other => panic!("unexpected first item after recovery: {other:?}"),
     }
     match &output.file.items[1] {
-        Item::Module(item) => assert_eq!(item.name, "Tail"),
+        Item::Cell(item) => assert_eq!(item.name, "Tail"),
         other => panic!("unexpected second item after recovery: {other:?}"),
     }
 }
@@ -199,7 +199,7 @@ fn architecture_phase2_frontend_ast_dump_stays_stable() {
         "}\n",
         "map keep(x: Bit) -> Bit =\n",
         "    x\n",
-        "module Top(x: in Bit, y: out Bit) {\n",
+        "cell Top(x: in Bit, y: out Bit) {\n",
         "    y := x\n",
         "}\n",
     );
@@ -213,7 +213,7 @@ fn architecture_phase2_frontend_ast_dump_stays_stable() {
         });
 
     let expected = format!(
-        "ast items=6 [const WIDTH@{}..{}, fn id@{}..{}, bundle Pair@{}..{}, interface Stream@{}..{}, map keep@{}..{}, module Top@{}..{}]",
+        "ast items=6 [const WIDTH@{}..{}, fn id@{}..{}, bundle Pair@{}..{}, interface Stream@{}..{}, map keep@{}..{}, cell Top@{}..{}]",
         span_of(source, "const WIDTH = 8;").0,
         span_of(source, "const WIDTH = 8;").1,
         span_of(source, "fn id(x: UInt<8>) -> UInt<8> { return x; }").0,
@@ -234,12 +234,12 @@ fn architecture_phase2_frontend_ast_dump_stays_stable() {
         span_of(source, "map keep(x: Bit) -> Bit =\n    x").1,
         span_of(
             source,
-            "module Top(x: in Bit, y: out Bit) {\n    y := x\n}",
+            "cell Top(x: in Bit, y: out Bit) {\n    y := x\n}",
         )
         .0,
         span_of(
             source,
-            "module Top(x: in Bit, y: out Bit) {\n    y := x\n}",
+            "cell Top(x: in Bit, y: out Bit) {\n    y := x\n}",
         )
         .1,
     );

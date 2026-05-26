@@ -378,12 +378,18 @@ impl HirExpr {
                     .map(|arm| HirSelectArm::from_syntax_with_context(arm, context))
                     .collect(),
             },
-            Expr::Place { callee, args, .. } => HirExprNode::Place {
+            Expr::Place {
+                callee,
+                args,
+                inplace,
+                ..
+            } => HirExprNode::Place {
                 callee: Box::new(HirExpr::from_syntax_with_context(callee, context)),
                 args: args
                     .iter()
                     .map(|arg| HirCallArg::from_syntax_with_context(arg, context))
                     .collect(),
+                inplace: *inplace,
             },
             Expr::For {
                 name, range, body, ..
@@ -480,6 +486,7 @@ pub enum HirExprNode {
     Place {
         callee: Box<HirExpr>,
         args: Vec<HirCallArg>,
+        inplace: bool,
     },
     For {
         id: Option<LocalId>,

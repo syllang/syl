@@ -40,7 +40,7 @@ fn alias_map_call_binds_expression_not_instance() {
 map choose(x: Bit) -> Bit =
     x
 
-module Top(x: in Bit, y: out Bit) {
+cell Top(x: in Bit, y: out Bit) {
     let selected = choose(x)
     y := selected
 }
@@ -61,7 +61,7 @@ fn user_map_named_zero_shadows_builtin_zero() {
 map zero() -> Bit =
     1
 
-module Top(y: out Bit) {
+cell Top(y: out Bit) {
     y := zero()
 }
 "#,

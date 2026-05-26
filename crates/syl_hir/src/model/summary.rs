@@ -110,8 +110,7 @@ impl HirDefKind {
             Self::Interface => 5,
             Self::Map => 6,
             Self::Cell => 7,
-            Self::Module => 8,
-            Self::ExternModule => 9,
+            Self::ExternCell => 9,
         }
     }
 }

@@ -6,7 +6,7 @@ use crate::CompletionItemKind;
 use syl_sema::completion::CompletionKind;
 use syl_span::Span;
 use syl_syntax::{
-    AstFile, Block, CallArg, CallableItem, ConstItem, Expr, ExternModuleItem, FieldDecl, FnItem,
+    AstFile, Block, CallArg, CallableItem, ConstItem, Expr, ExternCellItem, FieldDecl, FnItem,
     GenericParam, InterfaceItem, Item, MapItem, MatchArm, NamedExpr, Param, PortDecl, RegReset,
     ResultBinding, SelectArm, Stmt, TypeExpr,
 };
@@ -99,7 +99,7 @@ impl SourceItemContext {
             .find_map(|item| {
                 Self::contains(item.span(), span).then_some(match item {
                     Item::Fn(_) => Self::Function,
-                    Item::Cell(_) | Item::Module(_) => Self::Callable,
+                    Item::Cell(_) => Self::Callable,
                     _ => Self::Other,
                 })
             })
@@ -139,8 +139,8 @@ impl CompletionContextInspector {
             Item::Bundle(item) => self.inspect_bundle_item(&item.generics, &item.fields),
             Item::Interface(item) => self.inspect_interface_item(item),
             Item::Map(item) => self.inspect_map_item(item),
-            Item::Cell(item) | Item::Module(item) => self.inspect_callable_item(item),
-            Item::ExternModule(item) => self.inspect_extern_module_item(item),
+            Item::Cell(item) => self.inspect_callable_item(item),
+            Item::ExternCell(item) => self.inspect_extern_module_item(item),
             Item::Use(_) | Item::Enum(_) | Item::Error(_) => None,
             _ => None,
         }
@@ -186,7 +186,7 @@ impl CompletionContextInspector {
             .or_else(|| self.inspect_block(&item.body))
     }
 
-    fn inspect_extern_module_item(&self, item: &ExternModuleItem) -> Option<CompletionContext> {
+    fn inspect_extern_module_item(&self, item: &ExternCellItem) -> Option<CompletionContext> {
         self.inspect_generics(&item.generics)
             .or_else(|| self.inspect_params(&item.params))
             .or_else(|| self.inspect_ports(&item.ports))

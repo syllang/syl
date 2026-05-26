@@ -111,8 +111,7 @@ pub enum LosslessItemKind {
     Interface,
     Map,
     Cell,
-    Module,
-    ExternModule,
+    ExternCell,
     Error,
 }
 

@@ -316,7 +316,7 @@ impl TypePhaseChecker {
         errors: &mut Vec<CompileError>,
     ) -> Result<(), CompileError> {
         match &expr.node {
-            HirExprNode::Place { callee, args } => {
+            HirExprNode::Place { callee, args, .. } => {
                 self.check_generator_args(args, errors)?;
                 if self.hardware_generator_name(callee).is_some() {
                     Self::record_recoverable(errors, self.record_phase(callee, Phase::Hardware));
@@ -367,7 +367,7 @@ impl TypePhaseChecker {
         let tail = body.tail.take();
         self.check_hardware_block(&body, &loop_env, HardwareBlockMode::Normal, errors)?;
         match tail.as_deref().map(|expr| &expr.node) {
-            Some(HirExprNode::Place { callee, args }) => {
+            Some(HirExprNode::Place { callee, args, .. }) => {
                 self.check_generator_args(args, errors)?;
                 if self.hardware_generator_name(callee).is_some() {
                     Self::record_recoverable(errors, self.record_phase(callee, Phase::Hardware));
@@ -391,7 +391,7 @@ impl TypePhaseChecker {
         errors: &mut Vec<CompileError>,
     ) -> Result<(), CompileError> {
         match &expr.node {
-            HirExprNode::Place { callee, args } => {
+            HirExprNode::Place { callee, args, .. } => {
                 self.check_generator_args(args, errors)?;
                 if self.hardware_generator_name(callee).is_some() {
                     Self::record_recoverable(errors, self.record_phase(callee, Phase::Hardware));

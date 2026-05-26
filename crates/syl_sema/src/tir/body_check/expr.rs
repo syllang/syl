@@ -483,7 +483,7 @@ impl TypePhaseChecker {
     fn is_generator_def(&self, def: DefId) -> bool {
         matches!(
             self.hir.def_kind(def),
-            Some(HirDefKind::Cell | HirDefKind::Module | HirDefKind::ExternModule)
+            Some(HirDefKind::Cell | HirDefKind::ExternCell)
         )
     }
 

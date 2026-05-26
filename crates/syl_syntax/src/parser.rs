@@ -85,11 +85,11 @@ impl<'a> SourceParser<'a> {
                     | TokenKind::KwView
                     | TokenKind::KwMap
                     | TokenKind::KwCell
-                    | TokenKind::KwModule
                     | TokenKind::KwExtern
                     | TokenKind::KwSignal
                     | TokenKind::KwReg
                     | TokenKind::KwPlace
+                    | TokenKind::KwInplace
                     | TokenKind::KwNext
                     | TokenKind::KwIn
                     | TokenKind::KwInOut
@@ -259,13 +259,10 @@ impl Parser {
             Some(TokenKind::KwInterface) => Item::Interface(self.parse_interface_item()?),
             Some(TokenKind::KwMap) => Item::Map(self.parse_map_item()?),
             Some(TokenKind::KwCell) => Item::Cell(self.parse_callable_item(TokenKind::KwCell)?),
-            Some(TokenKind::KwModule) => {
-                Item::Module(self.parse_callable_item(TokenKind::KwModule)?)
-            }
             Some(TokenKind::KwExtern) => {
                 self.expect(TokenKind::KwExtern)?;
-                self.expect(TokenKind::KwModule)?;
-                Item::ExternModule(self.parse_extern_module_item()?)
+                self.expect(TokenKind::KwCell)?;
+                Item::ExternCell(self.parse_extern_cell_item()?)
             }
             Some(_) => {
                 let span = self.peek().map(|t| t.span).unwrap_or_default();
@@ -391,7 +388,7 @@ impl Parser {
             .build())
     }
 
-    fn parse_extern_module_item(&mut self) -> Result<ExternModuleItem, Vec<Diagnostic>> {
+    fn parse_extern_cell_item(&mut self) -> Result<ExternCellItem, Vec<Diagnostic>> {
         let start = self.prev_span();
         let name = self.expect_ident()?;
         let generics = self.parse_generic_params()?;
@@ -406,7 +403,7 @@ impl Parser {
             .as_ref()
             .map(|result| result.span)
             .unwrap_or_else(|| self.prev_span());
-        Ok(ExternModuleItem::builder(name)
+        Ok(ExternCellItem::builder(name)
             .generics(generics)
             .params(params)
             .ports(ports)
@@ -424,7 +421,7 @@ impl Parser {
             if param.is_receiver() {
                 self.error(
                     param.span,
-                    "module and cell ports cannot use `this` receiver",
+                    "cell ports cannot use `this` receiver",
                 );
                 return Err(std::mem::take(&mut self.diagnostics));
             }

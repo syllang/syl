@@ -3,7 +3,7 @@
 // Extern declarations are ordinary public Syl declarations. Their summaries are
 // collected by sema and can be overlaid by trusted opaque-library metadata.
 
-extern module VendorReadyValidSlice<W: Nat, D: Domain>(
+extern cell VendorReadyValidSlice<W: Nat, D: Domain>(
     clk: in Clock<D>,
     rst: in Reset<D>,
     in_payload: in UInt<W>,
@@ -14,7 +14,7 @@ extern module VendorReadyValidSlice<W: Nat, D: Domain>(
     out_ready: in Bit,
 )
 
-extern module VendorAssertBit<D: Domain>(
+extern cell VendorAssertBit<D: Domain>(
     clk: in Clock<D>,
     rst: in Reset<D>,
     condition: in Bit,

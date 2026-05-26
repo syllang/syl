@@ -87,7 +87,6 @@ impl OpaqueSummaryTable {
                         item,
                     ));
                 }
-                crate::hir::HirCallable::Module(_) => {}
                 _ => {}
             }
         }

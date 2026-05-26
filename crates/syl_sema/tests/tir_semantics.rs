@@ -37,7 +37,7 @@ fn rejects_unknown_port_type_before_backend_lowering() {
     let err = SemanticHarness::new()
         .compile(
             r#"
-module Bad(x: in Missing) {
+cell Bad(x: in Missing) {
 }
 "#,
         )
@@ -68,7 +68,7 @@ interface Stage<T> {
 map fire<T>(this stage: Stage<T>.tap) -> Bit =
     stage.valid and stage.ready and not stage.cancel
 
-module Top(stage: in Stage<Bit>.tap, y: out Bit) {
+cell Top(stage: in Stage<Bit>.tap, y: out Bit) {
     y := stage.fire()
 }
 "#,
@@ -98,7 +98,7 @@ interface Stage<T> {
 map fire<T>(this stage: Stage<T>.tap) -> Bit =
     stage.valid and stage.ready
 
-module Top(stage: in Stage<Bit>.tap, y: out Bit) {
+cell Top(stage: in Stage<Bit>.tap, y: out Bit) {
     y := (stage).fire()
 }
 "#,
@@ -117,7 +117,7 @@ bundle Word {
     value: Bit
 }
 
-module Top(x: in Word, y: out Bit) {
+cell Top(x: in Word, y: out Bit) {
     y := x.missing()
 }
 "#,
@@ -136,7 +136,7 @@ bundle BadBundle {
     payload: Missing
 }
 
-module Bad(y: out BadBundle) {
+cell Bad(y: out BadBundle) {
     y.payload := 0
 }
 "#,
@@ -151,7 +151,7 @@ fn rejects_direct_reg_drive_before_driver_lowering() {
     let err = SemanticHarness::new()
         .compile(
             r#"
-module Bad(clk: in Clock) {
+cell Bad(clk: in Clock) {
     reg state: Bit
     state := 0
 }
@@ -172,7 +172,7 @@ bundle Pair {
     hi: Bit,
 }
 
-module Bad(clk: in Clock) {
+cell Bad(clk: in Clock) {
     reg state: Pair
     state.lo := 0
 }
@@ -188,7 +188,7 @@ fn next_remains_the_register_write_entrypoint() {
     let sv = SemanticHarness::new()
         .compile(
             r#"
-module Top(clk: in Clock) {
+cell Top(clk: in Clock) {
     reg state: Bit
     next state := 1
 }
@@ -204,7 +204,7 @@ fn rejects_bool_literal_in_hardware_value_expr() {
     let err = SemanticHarness::new()
         .compile(
             r#"
-module Bad(y: out Bit) {
+cell Bad(y: out Bit) {
     y := true
 }
 "#,
@@ -219,7 +219,7 @@ fn rejects_proposition_operators_in_hardware_value_expr() {
     let err = SemanticHarness::new()
         .compile(
             r#"
-module Bad(x: in Bit, y: out Bit) {
+cell Bad(x: in Bit, y: out Bit) {
     y := !x == 0
 }
 "#,
@@ -234,7 +234,7 @@ fn rejects_select_without_default_before_eir_lowering() {
     let err = SemanticHarness::new()
         .compile(
             r#"
-module Bad(sel: in Bit, y: out Bit) {
+cell Bad(sel: in Bit, y: out Bit) {
     y := select priority {
         sel => 1,
     }
@@ -256,7 +256,7 @@ bundle Pair {
     b: Bit,
 }
 
-module Bad(y: out Pair) {
+cell Bad(y: out Pair) {
     y := Pair { a: 1 }
 }
 "#,
@@ -275,7 +275,7 @@ bundle Single {
     a: Bit,
 }
 
-module Bad(y: out Single) {
+cell Bad(y: out Single) {
     y := Single { a: 1, b: 0 }
 }
 "#,
@@ -290,7 +290,7 @@ fn rejects_empty_match_before_eir_lowering() {
     let err = SemanticHarness::new()
         .compile(
             r#"
-module Bad(sel: in Bit, y: out Bit) {
+cell Bad(sel: in Bit, y: out Bit) {
     y := match sel {}
 }
 "#,
@@ -308,7 +308,7 @@ fn rejects_empty_match_in_map_before_eir_lowering() {
 map bad(sel: Bit) -> Bit =
     match sel {}
 
-module Bad(sel: in Bit, y: out Bit) {
+cell Bad(sel: in Bit, y: out Bit) {
     y := bad(sel)
 }
 "#,
@@ -323,7 +323,7 @@ fn rejects_bool_match_pattern_before_eir_lowering() {
     let err = SemanticHarness::new()
         .compile(
             r#"
-module Bad(sel: in Bit, y: out Bit) {
+cell Bad(sel: in Bit, y: out Bit) {
     y := match sel {
         true => 1,
         default => 0,
@@ -348,7 +348,7 @@ map choose(sel: UInt<2>) -> UInt<4> =
         default => 3,
     }
 
-module Good(sel: in UInt<2>, y: out UInt<4>) {
+cell Good(sel: in UInt<2>, y: out UInt<4>) {
     y := choose(sel)
 }
 "#,
@@ -364,7 +364,7 @@ fn preserves_unique_select_mode_through_backend_ir() {
     let verilog = SemanticHarness::new()
         .compile(
             r#"
-module Good(sel: in Bit, y: out Bit) {
+cell Good(sel: in Bit, y: out Bit) {
     y := select unique {
         sel => 1,
         default => 0,

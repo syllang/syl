@@ -42,7 +42,7 @@ fn elaboration_const_uses_owner_scope_not_global_leaf_name() {
             r#"
 const ENABLE: Bool = true
 
-module LibTop(y: out Bit) {
+cell LibTop(y: out Bit) {
     if ENABLE {
         y := 1
     } else {
@@ -69,7 +69,7 @@ fn choose(x: Nat) -> Bool {
     return x == 1
 }
 
-module LibTop(y: out Bit) {
+cell LibTop(y: out Bit) {
     if choose(1) {
         y := 1
     } else {
@@ -108,7 +108,7 @@ map is_left_same(x: Left) -> Bit =
         default => 0,
     }
 
-module Top(x: in Left, y: out Bit) {
+cell Top(x: in Left, y: out Bit) {
     y := is_left_same(x)
 }
 "#])
@@ -130,7 +130,7 @@ enum State {
 map is_idle(x: State) -> Bit =
     x eq State.IDLE
 
-module Top(x: in State, y: out Bit) {
+cell Top(x: in State, y: out Bit) {
     y := is_idle(x)
 }
 "#])
@@ -150,7 +150,7 @@ enum State {
 map is_idle(x: State) -> Bit =
     x eq IDLE
 
-module Top(x: in State, y: out Bit) {
+cell Top(x: in State, y: out Bit) {
     y := is_idle(x)
 }
 "#])

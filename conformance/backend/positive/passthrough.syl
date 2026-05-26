@@ -1,8 +1,8 @@
-module Child(x: in Bit, y: out Bit) {
+cell Child(x: in Bit, y: out Bit) {
     y := x
 }
 
-module Top(x: in Bit, y: out Bit) {
+cell Top(x: in Bit, y: out Bit) {
     signal tmp: Bit
     let child = place Child(x: x, y: tmp)
     y := tmp

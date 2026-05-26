@@ -275,6 +275,18 @@ impl Parser {
     }
 
     pub(super) fn parse_place_expr(&mut self, start: Span) -> Result<Expr, Vec<Diagnostic>> {
+        self.parse_place_expr_with_inplace(start, false)
+    }
+
+    pub(super) fn parse_inplace_expr(&mut self, start: Span) -> Result<Expr, Vec<Diagnostic>> {
+        self.parse_place_expr_with_inplace(start, true)
+    }
+
+    fn parse_place_expr_with_inplace(
+        &mut self,
+        start: Span,
+        inplace: bool,
+    ) -> Result<Expr, Vec<Diagnostic>> {
         let mut callee = self.parse_prefix()?;
         while self.peek_kind() == Some(&TokenKind::Lt) && self.looks_like_generic_app() {
             self.bump();
@@ -328,6 +340,7 @@ impl Parser {
         Ok(Expr::Place {
             callee: Box::new(callee),
             args,
+            inplace,
             span,
         })
     }
@@ -656,6 +669,11 @@ impl Parser {
                 span,
                 ..
             }) => self.parse_place_expr(span),
+            Some(Token {
+                kind: TokenKind::KwInplace,
+                span,
+                ..
+            }) => self.parse_inplace_expr(span),
             Some(Token {
                 kind: TokenKind::KwFor,
                 span,

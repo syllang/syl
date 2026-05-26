@@ -63,10 +63,10 @@ impl<'files> HirResolver<'files> {
         self.index_block(owner, &mut item.body);
     }
 
-    pub(super) fn index_extern_module(
+    pub(super) fn index_extern_cell(
         &mut self,
         owner: DefId,
-        item: &mut crate::hir::HirExternModuleItem,
+        item: &mut crate::hir::HirExternCellItem,
     ) {
         self.index_generics(owner, &mut item.generics);
         self.index_params(owner, &item.params);
@@ -192,7 +192,7 @@ impl<'files> HirResolver<'files> {
                 self.index_expr(owner, left);
                 self.index_expr(owner, right);
             }
-            HirExprNode::Call { callee, args } | HirExprNode::Place { callee, args } => {
+            HirExprNode::Call { callee, args } | HirExprNode::Place { callee, args, .. } => {
                 self.index_expr(owner, callee);
                 for arg in args {
                     self.index_expr(owner, &mut arg.value);

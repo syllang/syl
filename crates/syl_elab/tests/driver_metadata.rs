@@ -41,12 +41,12 @@ cell MakeBit() -> y: Bit {
     y := 1
 }
 
-module Top(y: out Bit) {
-    let made = place MakeBit()
+cell Top(y: out Bit) {
+    let made = inplace MakeBit()
     y := made
 }
 "#])
-        .expect("inline cell expansion must still compile");
+        .expect("inplace cell expansion must still compile");
     let metadata = output
         .metadata()
         .expect("successful elaboration must expose hardware metadata");
@@ -79,8 +79,8 @@ cell MakeBit() -> y: Bit {
     y := tmp
 }
 
-module Top(y: out Bit) {
-    let made = place MakeBit()
+cell Top(y: out Bit) {
+    let made = inplace MakeBit()
     y := made
 }
 "#])
@@ -117,7 +117,7 @@ module Top(y: out Bit) {
 fn exposes_driver_metadata_on_hwir() {
     let output = DriverMetadataHarness::new()
         .compile_output(&[r#"
-module Top(y: out Bit) {
+cell Top(y: out Bit) {
     signal tmp: Bit := 1
     y := tmp
 }
@@ -161,7 +161,7 @@ module Top(y: out Bit) {
 fn exposes_structured_driver_guards_on_hwir() {
     let output = DriverMetadataHarness::new()
         .compile_output(&[r#"
-module Top<ENABLE: Bool>(y: out Bit) {
+cell Top<ENABLE: Bool>(y: out Bit) {
     if ENABLE {
         y := 0
     } else {

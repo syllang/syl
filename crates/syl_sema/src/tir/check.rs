@@ -3,7 +3,7 @@ use crate::{
     CompileError, StageOutput,
     capability::CapabilityChecker,
     hir::{
-        HirBundleItem, HirCallable, HirCallableItem, HirConstItem, HirExternModuleItem, HirFnItem,
+        HirBundleItem, HirCallable, HirCallableItem, HirConstItem, HirExternCellItem, HirFnItem,
         HirInterfaceItem, HirMapItem, HirSignatureGenericParam, HirSignatureParam,
         HirSignatureResultBinding,
     },
@@ -175,7 +175,7 @@ impl TypePhaseChecker {
         errors: &mut Vec<CompileError>,
     ) -> Result<(), CompileError> {
         match callable {
-            HirCallable::Cell(item) | HirCallable::Module(item) => {
+            HirCallable::Cell(item) => {
                 self.check_callable_item(item, errors)
             }
             HirCallable::Extern(item) => self.check_extern_module(owner, item, errors),
@@ -201,7 +201,7 @@ impl TypePhaseChecker {
     fn check_extern_module(
         &mut self,
         owner: DefId,
-        item: &HirExternModuleItem,
+        item: &HirExternCellItem,
         errors: &mut Vec<CompileError>,
     ) -> Result<(), CompileError> {
         self.check_generics(owner, &item.generics, errors)?;

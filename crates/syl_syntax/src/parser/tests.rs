@@ -74,7 +74,7 @@ interface Pad {
     }
 }
 
-extern module PadCell(
+extern cell PadCell(
     pad: inout Pad.pad,
 )
 "#;
@@ -87,11 +87,11 @@ extern module PadCell(
         other => panic!("unexpected interface item: {other:?}"),
     }
     match &file.items[1] {
-        Item::ExternModule(item) => {
+        Item::ExternCell(item) => {
             assert_eq!(item.ports[0].dir, ParamDirection::InOut);
             assert_eq!(item.ports[0].drive, DriveCapability::ReadWrite);
         }
-        other => panic!("unexpected extern module item: {other:?}"),
+        other => panic!("unexpected extern cell item: {other:?}"),
     }
 }
 
@@ -132,7 +132,7 @@ fn rejects_this_receiver_on_cell_port() {
     assert!(
         errors
             .iter()
-            .any(|error| error.message == "module and cell ports cannot use `this` receiver")
+            .any(|error| error.message == "cell ports cannot use `this` receiver")
     );
 }
 
@@ -365,7 +365,7 @@ const B = 1;
 
 #[test]
 fn eof_diagnostics_keep_the_source_id() {
-    let source = "module Top(x: in Bit) {";
+    let source = "cell Top(x: in Bit) {";
     let source_id = SourceId::new(7);
     let output = SourceParser::new_in(source, source_id).parse_file_partial();
     let diagnostic = output
@@ -382,12 +382,12 @@ fn eof_diagnostics_keep_the_source_id() {
 fn partial_parse_recovers_after_invalid_stmt_inside_block() {
     let output = SourceParser::new(
         r#"
-module Top(x: in Bit, y: out Bit) {
+cell Top(x: in Bit, y: out Bit) {
     signal broken: Bit := compile_error()
     y := x
 }
 
-module Tail(a: in Bit, b: out Bit) {
+cell Tail(a: in Bit, b: out Bit) {
     b := a
 }
 "#,
@@ -398,7 +398,7 @@ module Tail(a: in Bit, b: out Bit) {
     assert_eq!(output.file.items.len(), 2);
 
     match &output.file.items[0] {
-        Item::Module(item) => {
+        Item::Cell(item) => {
             assert!(matches!(item.body.stmts.first(), Some(Stmt::Error { .. })));
             let recovered_drive = item
                 .body
@@ -411,7 +411,7 @@ module Tail(a: in Bit, b: out Bit) {
     }
 
     match &output.file.items[1] {
-        Item::Module(item) => assert_eq!(item.name, "Tail"),
+        Item::Cell(item) => assert_eq!(item.name, "Tail"),
         other => panic!("unexpected recovered item: {other:?}"),
     }
 }
@@ -425,7 +425,7 @@ fn update(x: Bit) -> Bit {
     y
 }
 
-module Top(x: in Bit, y: out Bit) {
+cell Top(x: in Bit, y: out Bit) {
     signal ready: Bit := x
     y := ready
     next state := x
@@ -441,12 +441,12 @@ module Top(x: in Bit, y: out Bit) {
         other => panic!("unexpected fn item: {other:?}"),
     }
     match &file.items[1] {
-        Item::Module(item) => {
+        Item::Cell(item) => {
             assert!(matches!(item.body.stmts[0], Stmt::Signal { .. }));
             assert!(matches!(item.body.stmts[1], Stmt::Drive { .. }));
             assert!(matches!(item.body.stmts[2], Stmt::Next { .. }));
         }
-        other => panic!("unexpected module item: {other:?}"),
+        other => panic!("unexpected cell item: {other:?}"),
     }
 }
 
@@ -460,7 +460,7 @@ fn bad() {
     b := a
 }
 
-module Top(x: in Bit, y: out Bit) {
+cell Top(x: in Bit, y: out Bit) {
     signal ready: Bit = x
     next state = x
     y = x
@@ -490,7 +490,7 @@ bundle Pair {
     left: Bit,
 }
 
-module Top(x: in Bit, y: out Pair) {
+cell Top(x: in Bit, y: out Pair) {
     signal pair: Pair := Pair {
         left: x,
     }
@@ -510,12 +510,12 @@ module Top(x: in Bit, y: out Pair) {
         other => panic!("unexpected first item: {other:?}"),
     };
     let module = match &output.file.items[1] {
-        Item::Module(item) => item,
+        Item::Cell(item) => item,
         other => panic!("unexpected second item: {other:?}"),
     };
 
     let field = bundle.fields.first().expect("bundle field should exist");
-    let param = module.params.first().expect("module param should exist");
+    let param = module.params.first().expect("cell param should exist");
     let signal_field = match module.body.stmts.first() {
         Some(Stmt::Signal {
             value: Some(Expr::Aggregate { fields, .. }),

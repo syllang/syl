@@ -133,10 +133,9 @@ fn compiles_std_and_mvp_examples() {
             "missing module {module}"
         );
     }
-    assert!(!verilog.contains("module stream_skid_buffer"));
+    // stream_skid_buffer is a cell that now produces a standalone module.
+    assert!(verilog.contains("module stream_skid_buffer"));
     assert!(verilog.contains("in_streams_payload"));
-    assert!(verilog.contains("buffered_data"));
-    assert!(verilog.contains("buffered_full"));
     assert!(!verilog.contains("ignored expression"));
     assert!(!verilog.contains("compile-time condition failed"));
     assert!(!verilog.contains(".up(up)"));
@@ -148,7 +147,7 @@ fn rejects_nat_generic_as_if_condition() {
     let err = TestCompiler::new()
         .compile(
             r#"
-module Bad<W: Nat>() {
+cell Bad<W: Nat>() {
     if W {
     }
 }
@@ -164,7 +163,7 @@ fn rejects_bool_generic_as_for_bound() {
     let err = TestCompiler::new()
         .compile(
             r#"
-module Bad<B: Bool>() {
+cell Bad<B: Bool>() {
     for i in 0..B {
     }
 }
@@ -180,7 +179,7 @@ fn skips_compile_error_in_known_zero_trip_for() {
     let verilog = TestCompiler::new()
         .compile(
             r#"
-module ZeroTrip() {
+cell ZeroTrip() {
     for i in 0..0 {
         compile_error("unreachable")
     }
@@ -202,7 +201,7 @@ fn is_one(x: Nat) -> Bool {
     return x == 1
 }
 
-module Top(y: out Bit) {
+cell Top(y: out Bit) {
     if is_one(1) {
         y := 1
     } else {
@@ -243,7 +242,7 @@ fn choose(x: Nat) -> Nat {
     return x
 }
 
-module Top(y: out Bit) {
+cell Top(y: out Bit) {
     if clog2(17) == choose(5) {
         y := 1
     } else {
@@ -264,7 +263,7 @@ fn elaborates_loop_local_const_conditions() {
     let verilog = TestCompiler::new()
         .compile(
             r#"
-module Top(y0: out Bit, y1: out Bit) {
+cell Top(y0: out Bit, y1: out Bit) {
     for i in 0..2 {
         if i == 0 {
             y0 := 1
@@ -291,7 +290,7 @@ fn is_one(x: Nat) -> Bool {
     return x == 1
 }
 
-module Top(y: out Bit) {
+cell Top(y: out Bit) {
     const ENABLE: Bool = is_one(1)
     if ENABLE {
         y := 1
@@ -313,10 +312,10 @@ fn rejects_duplicate_instance_arguments() {
     let err = TestCompiler::new()
         .compile(
             r#"
-module Child(a: in Bit, b: in Bit) {
+cell Child(a: in Bit, b: in Bit) {
 }
 
-module Top(x: in Bit) {
+cell Top(x: in Bit) {
     let u = place Child(a: x, a: x)
 }
 "#,
@@ -331,10 +330,10 @@ fn accepts_mixed_named_and_positional_instance_arguments() {
     TestCompiler::new()
         .compile(
             r#"
-module Child(a: in Bit, b: in Bit, c: in Bit) {
+cell Child(a: in Bit, b: in Bit, c: in Bit) {
 }
 
-module Top(x: in Bit) {
+cell Top(x: in Bit) {
     let u = place Child(c: x, x, b: x)
 }
 "#,
@@ -347,7 +346,7 @@ fn rejects_duplicate_hardware_drivers() {
     let err = TestCompiler::new()
         .compile(
             r#"
-module Bad(y: out Bit) {
+cell Bad(y: out Bit) {
     y := 0
     y := 1
 }
@@ -363,7 +362,7 @@ fn rejects_undriven_out_port() {
     let err = TestCompiler::new()
         .compile(
             r#"
-module Bad(y: out Bit) {
+cell Bad(y: out Bit) {
 }
 "#,
         )
@@ -377,9 +376,9 @@ fn treats_extern_out_connection_as_driver_fact() {
     let verilog = TestCompiler::new()
         .compile(
             r#"
-extern module Child(y: out Bit)
+extern cell Child(y: out Bit)
 
-module Top(y: out Bit) {
+cell Top(y: out Bit) {
     let child = place Child(y: y)
 }
 "#,
@@ -394,11 +393,11 @@ fn allows_same_local_driver_names_in_different_modules() {
     let verilog = TestCompiler::new()
         .compile(
             r#"
-module A(y: out Bit) {
+cell A(y: out Bit) {
     y := 0
 }
 
-module B(y: out Bit) {
+cell B(y: out Bit) {
     y := 1
 }
 "#,
@@ -414,7 +413,7 @@ fn rejects_driving_in_scalar_port() {
     let err = TestCompiler::new()
         .compile(
             r#"
-module Bad(x: in Bit) {
+cell Bad(x: in Bit) {
     x := 1
 }
 "#,
@@ -441,7 +440,7 @@ interface Stream<T> {
     }
 }
 
-module Bad(up: in Stream<Bit>.sink) {
+cell Bad(up: in Stream<Bit>.sink) {
     up.valid := 1
 }
 "#,
@@ -468,7 +467,7 @@ interface Stream<T> {
     }
 }
 
-module Bad(up: in Stream<Bit>.sink, y: out Bit) {
+cell Bad(up: in Stream<Bit>.sink, y: out Bit) {
     y := up.ready
 }
 "#,
@@ -483,7 +482,7 @@ fn rejects_reading_write_only_out_port() {
     let err = TestCompiler::new()
         .compile(
             r#"
-module Bad(y: out Bit) {
+cell Bad(y: out Bit) {
     signal tmp: Bit := y
 }
 "#,
@@ -501,7 +500,7 @@ fn rejects_assignment_inside_map() {
 map Bad(x: Bit) -> Bit =
     x := 1
 
-module Top(y: out Bit) {
+cell Top(y: out Bit) {
     y := 0
 }
 "#,
@@ -523,12 +522,12 @@ cell MakeBit() -> y: Bit {
 map Bad() -> Bit =
     MakeBit()
 
-module Top(y: out Bit) {
+cell Top(y: out Bit) {
     y := 0
 }
 "#,
         )
-        .expect_err("map must not call cell/module generators");
+        .expect_err("map must not call cell generators");
 
     assert!(err.contains("map expressions cannot call hardware generator MakeBit"));
 }
@@ -545,7 +544,7 @@ fn choose(x: Nat) -> Nat {
 map Bad(x: UInt<8>) -> UInt<8> =
     choose(1)
 
-module Top(y: out UInt<8>) {
+cell Top(y: out UInt<8>) {
     y := 0
 }
 "#,
@@ -564,7 +563,7 @@ cell MakeBit() -> y: Bit {
     y := 1
 }
 
-module Top(y: out Bit) {
+cell Top(y: out Bit) {
     signal tmp: Bit := MakeBit()
     y := tmp
 }
@@ -580,16 +579,16 @@ fn rejects_plain_module_call_in_hardware_value_expr() {
     let err = TestCompiler::new()
         .compile(
             r#"
-module Child() -> y: Bit {
+cell Child() -> y: Bit {
     y := 1
 }
 
-module Top(y: out Bit) {
+cell Top(y: out Bit) {
     y := Child()
 }
 "#,
         )
-        .expect_err("module calls in value expressions must not become SV function calls");
+        .expect_err("cell calls in value expressions must not become SV function calls");
 
     assert!(err.contains("hardware value expressions cannot call generator Child"));
 }
@@ -617,11 +616,11 @@ interface Stream<T> {
     }
 }
 
-module Child(up: in Stream<Bit>.sink) {
+cell Child(up: in Stream<Bit>.sink) {
     up.ready := 1
 }
 
-module Top(up: out Stream<Bit>.source) {
+cell Top(up: out Stream<Bit>.source) {
     let child = place Child(up: up)
 }
 "#,
@@ -636,7 +635,7 @@ fn rejects_overlapping_guarded_multi_driver_without_proof() {
     let err = TestCompiler::new()
         .compile(
             r#"
-module Bad<ENABLE_A: Bool, ENABLE_B: Bool>(y: out Bit) {
+cell Bad<ENABLE_A: Bool, ENABLE_B: Bool>(y: out Bit) {
     if ENABLE_A {
         y := 0
     }
@@ -658,7 +657,7 @@ fn rejects_unknown_import_paths_in_hir() {
             r#"
 use examples.missing.Symbol
 
-module Top(y: out Bit) {
+cell Top(y: out Bit) {
     y := 0
 }
 "#,

@@ -243,7 +243,18 @@ impl<'a> EirBuilder<'a> {
     ) -> Result<Vec<EirItem>, CompileError> {
         let (callable_def, callable_name, callable) =
             self.callable_from_elab(request.callee, request.env)?;
-        if let ElabCallable::Cell(item) = callable {
+        if request.inplace {
+            let item = match callable {
+                ElabCallable::Cell(item) => item,
+                ElabCallable::Extern(_) => {
+                    return Err(CompileError::lowering_at(
+                        crate::EirError::InplaceOnExternCell {
+                            name: callable_name.to_string(),
+                        },
+                        request.span,
+                    ));
+                }
+            };
             return self.emit_cell_inline(CellInlineRequest {
                 callable_def,
                 inst_name: request.inst_name,

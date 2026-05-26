@@ -23,9 +23,8 @@ fn debug_item(item: &Item) -> String {
         Item::Interface(item) => format!("interface {}@{}", item.name, debug_span(item.span)),
         Item::Map(item) => format!("map {}@{}", item.name, debug_span(item.span)),
         Item::Cell(item) => format!("cell {}@{}", item.name, debug_span(item.span)),
-        Item::Module(item) => format!("module {}@{}", item.name, debug_span(item.span)),
-        Item::ExternModule(item) => {
-            format!("extern module {}@{}", item.name, debug_span(item.span))
+        Item::ExternCell(item) => {
+            format!("extern cell {}@{}", item.name, debug_span(item.span))
         }
     }
 }

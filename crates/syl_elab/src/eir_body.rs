@@ -172,12 +172,13 @@ impl<'a> EirBuilder<'a> {
         ) {
             items.extend(view_items);
             if let Some(value) = request.value {
-                if let ElabExprNode::Place { callee, args } = &value.node {
+                if let ElabExprNode::Place { callee, args, inplace } = &value.node {
                     items.extend(self.emit_instance(InstanceEmitRequest {
                         inst_name: &physical_name,
                         callee,
                         args,
                         env,
+                        inplace: *inplace,
                         span: value.span(),
                     })?);
                 } else {
@@ -201,12 +202,13 @@ impl<'a> EirBuilder<'a> {
         });
         env.insert(request.name, EirExpr::ident(&physical_name), ty);
         if let Some(value) = request.value {
-            if let ElabExprNode::Place { callee, args } = &value.node {
+            if let ElabExprNode::Place { callee, args, inplace } = &value.node {
                 items.extend(self.emit_instance(InstanceEmitRequest {
                     inst_name: &physical_name,
                     callee,
                     args,
                     env,
+                    inplace: *inplace,
                     span: value.span(),
                 })?);
             } else {
@@ -471,11 +473,12 @@ impl<'a> EirBuilder<'a> {
         env: &mut Env,
     ) -> Result<Vec<EirItem>, CompileError> {
         match &value.node {
-            ElabExprNode::Place { callee, args } => self.emit_let_place(
+            ElabExprNode::Place { callee, args, inplace } => self.emit_let_place(
                 LetPlaceEmit {
                     name,
                     callee,
                     args,
+                    inplace: *inplace,
                     value,
                 },
                 env,
@@ -530,6 +533,7 @@ impl<'a> EirBuilder<'a> {
                 callee: request.callee,
                 args: request.args,
                 env,
+                inplace: request.inplace,
                 span: request.value.span(),
             })?;
             return Ok(items);
@@ -546,6 +550,7 @@ impl<'a> EirBuilder<'a> {
             callee: request.callee,
             args: request.args,
             env,
+            inplace: request.inplace,
             span: request.value.span(),
         })?);
         Ok(items)

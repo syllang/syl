@@ -13,7 +13,7 @@ use std::collections::BTreeSet;
 use syl_hir::{DefId, LocalId, PackageId, name::HirPath};
 use syl_span::Span;
 use syl_syntax::{
-    BundleItem, ConstItem, EnumItem, ExternModuleItem, FnItem, InterfaceItem, Item, MapItem,
+    BundleItem, ConstItem, EnumItem, ExternCellItem, FnItem, InterfaceItem, Item, MapItem,
 };
 
 mod index;
@@ -174,12 +174,7 @@ impl<'files> HirResolver<'files> {
                 HirCallable::Cell(HirCallableItem::from(item)),
                 package,
             ),
-            Item::Module(item) => self.insert_callable(
-                &item.name,
-                HirCallable::Module(HirCallableItem::from(item)),
-                package,
-            ),
-            Item::ExternModule(item) => self.insert_extern_module(item, package),
+            Item::ExternCell(item) => self.insert_extern_cell(item, package),
             Item::Error(_) | Item::Use(_) => Ok(()),
             _ => Ok(()),
         }
@@ -286,14 +281,14 @@ impl<'files> HirResolver<'files> {
         Ok(())
     }
 
-    fn insert_extern_module(
+    fn insert_extern_cell(
         &mut self,
-        item: &ExternModuleItem,
+        item: &ExternCellItem,
         package: &PackageScope,
     ) -> Result<(), CompileError> {
         self.insert_callable(
             &item.name,
-            HirCallable::Extern(crate::hir::HirExternModuleItem::from(item)),
+            HirCallable::Extern(crate::hir::HirExternCellItem::from(item)),
             package,
         )
     }
@@ -305,7 +300,7 @@ impl<'files> HirResolver<'files> {
         package: &PackageScope,
     ) -> Result<(), CompileError> {
         let span = match &callable {
-            HirCallable::Cell(item) | HirCallable::Module(item) => item.span,
+            HirCallable::Cell(item) => item.span,
             HirCallable::Extern(item) => item.span,
             _ => unreachable!("HirResolver only constructs current callable variants"),
         };
@@ -314,13 +309,12 @@ impl<'files> HirResolver<'files> {
         })?;
         let kind = match &callable {
             HirCallable::Cell(_) => HirDefKind::Cell,
-            HirCallable::Module(_) => HirDefKind::Module,
-            HirCallable::Extern(_) => HirDefKind::ExternModule,
+            HirCallable::Extern(_) => HirDefKind::ExternCell,
             _ => unreachable!("HirResolver only constructs current callable variants"),
         };
         let owner = self.register_def(package, name, kind, span);
         match &mut callable {
-            HirCallable::Cell(item) | HirCallable::Module(item) => {
+            HirCallable::Cell(item) => {
                 self.register_callable_locals(owner, item);
                 self.index_callable(owner, item);
             }
@@ -335,7 +329,7 @@ impl<'files> HirResolver<'files> {
                         result.span,
                     ));
                 }
-                self.index_extern_module(owner, item);
+                self.index_extern_cell(owner, item);
             }
             _ => unreachable!("HirResolver only constructs current callable variants"),
         }
@@ -523,7 +517,7 @@ impl<'files> HirResolver<'files> {
                 self.register_expr_locals(owner, left);
                 self.register_expr_locals(owner, right);
             }
-            HirExprNode::Call { callee, args } | HirExprNode::Place { callee, args } => {
+            HirExprNode::Call { callee, args } | HirExprNode::Place { callee, args, .. } => {
                 self.register_expr_locals(owner, callee);
                 for arg in args {
                     self.register_expr_locals(owner, &mut arg.value);

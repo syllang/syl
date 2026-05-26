@@ -70,7 +70,7 @@ map execute_rsp<W: Nat>(cmd: Decoded<W>) -> AluRsp<W> =
         last: cmd.last,
     }
 
-module PipelinedAlu<W: Nat = DATA_W, D: Domain>(
+cell PipelinedAlu<W: Nat = DATA_W, D: Domain>(
     clk: in Clock<D>,
     rst: in Reset<D>,
     stall_decode: in Bit,

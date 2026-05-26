@@ -48,7 +48,7 @@ bundle Pair {
 map high(pair: Pair) -> Bit =
     pair.hi
 
-module LibTop(x: in Bit, y: out Bit) {
+cell LibTop(x: in Bit, y: out Bit) {
     signal pair: Pair := Pair {
         hi: x,
         lo: 0,

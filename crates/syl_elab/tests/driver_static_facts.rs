@@ -46,9 +46,9 @@ fn instance_input_expression_read_fact_uses_object_place() {
     let output = StaticFactHarness::new()
         .compile_output(
             r#"
-extern module UseBit(x: in Bit)
+extern cell UseBit(x: in Bit)
 
-module Top(a: in Bit, y: out Bit) {
+cell Top(a: in Bit, y: out Bit) {
     let use_bit = place UseBit(x: a and 1)
     y := 0
 }
@@ -97,7 +97,7 @@ interface Stage<T> {
 map fire<T>(this stage: Stage<T>.tap) -> Bit =
     stage.valid and stage.ready
 
-module Top(stage: in Stage<Bit>.tap, y: out Bit) {
+cell Top(stage: in Stage<Bit>.tap, y: out Bit) {
     y := stage.fire()
 }
 "#,
@@ -124,14 +124,14 @@ fn extern_module_out_port_records_driver_fact() {
     let output = StaticFactHarness::new()
         .compile_output(
             r#"
-extern module DriveBit(y: out Bit)
+extern cell DriveBit(y: out Bit)
 
-module Top(y: out Bit) {
+cell Top(y: out Bit) {
     let drive_bit = place DriveBit(y: y)
 }
 "#,
         )
-        .expect("extern module out port should be represented by port-direction facts");
+        .expect("extern cell out port should be represented by port-direction facts");
     let metadata = output
         .metadata()
         .expect("successful elaboration must expose hardware metadata");
@@ -145,8 +145,8 @@ module Top(y: out Bit) {
     let summary = metadata
         .opaque_summaries()
         .get("DriveBit")
-        .expect("extern module summary must be exported into compilation metadata");
-    assert!(matches!(summary.kind(), OpaqueItemKind::ExternModule));
+        .expect("extern cell summary must be exported into compilation metadata");
+    assert!(matches!(summary.kind(), OpaqueItemKind::ExternCell));
     assert!(matches!(
         summary.trust_boundary(),
         TrustBoundary::SourceDerived
@@ -183,9 +183,9 @@ fn trusted_precompiled_summary_overrides_boundary_metadata() {
     let output = StaticFactHarness::with_opaque_summaries(table)
         .compile_output(
             r#"
-extern module VendorDrive(y: out Bit)
+extern cell VendorDrive(y: out Bit)
 
-module Top(y: out Bit) {
+cell Top(y: out Bit) {
     let vendor = place VendorDrive(y: y)
 }
 "#,
@@ -228,7 +228,7 @@ cell MakePair() -> y: Pair {
     }
 }
 
-module Top(y: out Pair) {
+cell Top(y: out Pair) {
     let made = place MakePair()
     y := made
 }
@@ -247,7 +247,7 @@ module Top(y: out Pair) {
 #[test]
 fn duplicate_driver_diagnostic_has_primary_and_related_origins() {
     let source = r#"
-module Bad(y: out Bit) {
+cell Bad(y: out Bit) {
     y := 0
     y := 1
 }

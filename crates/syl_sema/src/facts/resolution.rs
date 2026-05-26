@@ -13,8 +13,7 @@ pub enum DefinitionKind {
     Interface,
     Map,
     Cell,
-    Module,
-    ExternModule,
+    ExternCell,
 }
 
 impl From<HirDefKind> for DefinitionKind {
@@ -27,8 +26,7 @@ impl From<HirDefKind> for DefinitionKind {
             HirDefKind::Interface => Self::Interface,
             HirDefKind::Map => Self::Map,
             HirDefKind::Cell => Self::Cell,
-            HirDefKind::Module => Self::Module,
-            HirDefKind::ExternModule => Self::ExternModule,
+            HirDefKind::ExternCell => Self::ExternCell,
             _ => unreachable!("unsupported HIR definition kind in semantic facts"),
         }
     }
@@ -309,7 +307,7 @@ impl ResolutionGraph {
                     .entry(package)
                     .or_insert_with(Vec::new)
                     .push(def);
-                if matches!(hir_def.kind, HirDefKind::Module | HirDefKind::ExternModule) {
+                if matches!(hir_def.kind, HirDefKind::Cell | HirDefKind::ExternCell) {
                     modules.push(def);
                     package_modules
                         .entry(package)

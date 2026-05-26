@@ -109,7 +109,7 @@ impl<'a> EirBuilder<'a> {
                     self.collect_elab_read_places(&arg.value, env, reads);
                 }
             }
-            ElabExprNode::Place { callee, args } => {
+            ElabExprNode::Place { callee, args, .. } => {
                 self.collect_elab_read_places(callee, env, reads);
                 for arg in args {
                     self.collect_elab_read_places(&arg.value, env, reads);

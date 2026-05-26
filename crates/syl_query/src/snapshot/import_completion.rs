@@ -2,7 +2,7 @@ use crate::{CompletionItem, CompletionItemKind, CompletionResult};
 use std::collections::BTreeMap;
 use syl_session::{AnalysisFile, AnalysisSnapshot, DocumentUri};
 use syl_span::Span;
-use syl_syntax::{AstFile, CallableItem, ExternModuleItem, Item};
+use syl_syntax::{AstFile, CallableItem, ExternCellItem, Item};
 
 #[non_exhaustive]
 pub(super) struct ImportPathCompletion<'a> {
@@ -169,8 +169,8 @@ impl ImportDefinition {
             Item::Bundle(item) => Some((item.name.clone(), CompletionItemKind::Type)),
             Item::Interface(item) => Some((item.name.clone(), CompletionItemKind::Type)),
             Item::Map(item) => Some((item.name.clone(), CompletionItemKind::Function)),
-            Item::Cell(item) | Item::Module(item) => Some(Self::callable_name_kind(item)),
-            Item::ExternModule(item) => Some(Self::extern_name_kind(item)),
+            Item::Cell(item) => Some(Self::callable_name_kind(item)),
+            Item::ExternCell(item) => Some(Self::extern_name_kind(item)),
             Item::Use(_) | Item::Error(_) => None,
             _ => None,
         }
@@ -180,7 +180,7 @@ impl ImportDefinition {
         (item.name.clone(), CompletionItemKind::Module)
     }
 
-    fn extern_name_kind(item: &ExternModuleItem) -> (String, CompletionItemKind) {
+    fn extern_name_kind(item: &ExternCellItem) -> (String, CompletionItemKind) {
         (item.name.clone(), CompletionItemKind::Module)
     }
 }

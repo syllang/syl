@@ -195,11 +195,11 @@ fn architecture_phase6_verilator_smoke_covers_example_and_integration_designs() 
 
 fn inline_passthrough_source() -> &'static str {
     r#"
-module Child(x: in Bit, y: out Bit) {
+cell Child(x: in Bit, y: out Bit) {
     y := x
 }
 
-module Top(x: in Bit, y: out Bit) {
+cell Top(x: in Bit, y: out Bit) {
     signal tmp: Bit
     let child = place Child(x: x, y: tmp)
     y := tmp

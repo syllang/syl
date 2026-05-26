@@ -1,4 +1,4 @@
-module DuplicateDriver(x: in Bit, y: out Bit) {
+cell DuplicateDriver(x: in Bit, y: out Bit) {
     y := x
     y := x
 }

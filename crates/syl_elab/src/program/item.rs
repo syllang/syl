@@ -3,7 +3,7 @@ use crate::{
     mir::MirTypeRef,
     source::{
         HirBundleItem, HirCallable, HirCallableItem, HirConstItem, HirEnumItem, HirEnumVariantKey,
-        HirExternModuleItem, HirFieldDecl, HirInterfaceItem, HirSignatureGenericParam,
+        HirExternCellItem, HirFieldDecl, HirInterfaceItem, HirSignatureGenericParam,
         HirSignatureParam, HirSignatureResultBinding, HirViewDecl, HirViewField,
     },
 };
@@ -210,28 +210,27 @@ impl From<&HirInterfaceItem> for ElabInterfaceItem {
 #[non_exhaustive]
 pub(crate) enum ElabCallable {
     Cell(ElabCallableItem),
-    Module(ElabCallableItem),
-    Extern(ElabExternModuleItem),
+    Extern(ElabExternCellItem),
 }
 
 impl ElabCallable {
     pub(crate) fn generics(&self) -> &[ElabSignatureGenericParam] {
         match self {
-            Self::Cell(item) | Self::Module(item) => &item.generics,
+            Self::Cell(item) => &item.generics,
             Self::Extern(item) => &item.generics,
         }
     }
 
     pub(crate) fn params(&self) -> &[ElabSignatureParam] {
         match self {
-            Self::Cell(item) | Self::Module(item) => &item.params,
+            Self::Cell(item) => &item.params,
             Self::Extern(item) => &item.params,
         }
     }
 
     pub(crate) fn result(&self) -> Option<&ElabSignatureResultBinding> {
         match self {
-            Self::Cell(item) | Self::Module(item) => item.result.as_ref(),
+            Self::Cell(item) => item.result.as_ref(),
             Self::Extern(item) => item.result.as_ref(),
         }
     }
@@ -241,8 +240,7 @@ impl From<&HirCallable> for ElabCallable {
     fn from(value: &HirCallable) -> Self {
         match value {
             HirCallable::Cell(item) => Self::Cell(ElabCallableItem::from(item)),
-            HirCallable::Module(item) => Self::Module(ElabCallableItem::from(item)),
-            HirCallable::Extern(item) => Self::Extern(ElabExternModuleItem::from(item)),
+            HirCallable::Extern(item) => Self::Extern(ElabExternCellItem::from(item)),
             _ => unreachable!("unknown HIR callable reached elaboration IR"),
         }
     }
@@ -276,15 +274,15 @@ impl From<&HirCallableItem> for ElabCallableItem {
 
 #[derive(Clone)]
 #[non_exhaustive]
-pub(crate) struct ElabExternModuleItem {
+pub(crate) struct ElabExternCellItem {
     pub(crate) name: String,
     pub(crate) generics: Vec<ElabSignatureGenericParam>,
     pub(crate) params: Vec<ElabSignatureParam>,
     pub(crate) result: Option<ElabSignatureResultBinding>,
 }
 
-impl From<&HirExternModuleItem> for ElabExternModuleItem {
-    fn from(value: &HirExternModuleItem) -> Self {
+impl From<&HirExternCellItem> for ElabExternCellItem {
+    fn from(value: &HirExternCellItem) -> Self {
         Self {
             name: value.name.clone(),
             generics: value

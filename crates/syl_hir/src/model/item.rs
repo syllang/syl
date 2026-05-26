@@ -3,7 +3,7 @@ use crate::LocalId;
 use strum_macros::IntoStaticStr;
 use syl_span::Span;
 use syl_syntax::{
-    BundleItem, ConstItem, DriveCapability, EnumItem, ExternModuleItem, FieldDecl, FnItem,
+    BundleItem, ConstItem, DriveCapability, EnumItem, ExternCellItem, FieldDecl, FnItem,
     GenericParam, InterfaceItem, MapItem, Param, ParamDirection, PortDecl, TypeExpr, ViewDirection,
 };
 
@@ -609,7 +609,7 @@ impl HirCallableItem {
 
 #[derive(Clone)]
 #[non_exhaustive]
-pub struct HirExternModuleItem {
+pub struct HirExternCellItem {
     pub name: String,
     pub generics: Vec<HirSignatureGenericParam>,
     pub params: Vec<HirSignatureParam>,
@@ -618,8 +618,8 @@ pub struct HirExternModuleItem {
     pub span: Span,
 }
 
-impl From<&ExternModuleItem> for HirExternModuleItem {
-    fn from(item: &ExternModuleItem) -> Self {
+impl From<&ExternCellItem> for HirExternCellItem {
+    fn from(item: &ExternCellItem) -> Self {
         Self {
             name: item.name.clone(),
             generics: item
@@ -635,7 +635,7 @@ impl From<&ExternModuleItem> for HirExternModuleItem {
     }
 }
 
-impl HirExternModuleItem {
+impl HirExternCellItem {
     pub(crate) fn summary_count(&self) -> usize {
         self.name.len()
             + self.generics.len()

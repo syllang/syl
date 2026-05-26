@@ -29,7 +29,7 @@ map tag_lane<W: Nat>(word: LaneWord<W>, lane_id: UInt<8>) -> LaneWord<W> =
         last: word.last,
     }
 
-module Lane<W: Nat, D: Domain>(
+cell Lane<W: Nat, D: Domain>(
     clk: in Clock<D>,
     rst: in Reset<D>,
     lane_id: in UInt<8>,
@@ -53,7 +53,7 @@ module Lane<W: Nat, D: Domain>(
     buffered.ready := down.ready
 }
 
-module LaneArray<
+cell LaneArray<
     W: Nat = DEFAULT_W,
     N: Nat = DEFAULT_LANES,
     D: Domain,

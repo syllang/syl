@@ -36,8 +36,7 @@ pub enum CompletionKind {
     Interface,
     Map,
     Cell,
-    Module,
-    ExternModule,
+    ExternCell,
     Generic,
     Param,
     Result,
@@ -84,8 +83,7 @@ impl CompletionKind {
                 | Self::Interface
                 | Self::Map
                 | Self::Cell
-                | Self::Module
-                | Self::ExternModule
+                | Self::ExternCell
         )
     }
 
@@ -109,7 +107,7 @@ impl CompletionKind {
     pub fn is_callable(self) -> bool {
         matches!(
             self,
-            Self::Fn | Self::Map | Self::Cell | Self::Module | Self::ExternModule
+            Self::Fn | Self::Map | Self::Cell | Self::ExternCell
         )
     }
 }
@@ -124,8 +122,7 @@ impl From<crate::hir::HirDefKind> for CompletionKind {
             crate::hir::HirDefKind::Interface => Self::Interface,
             crate::hir::HirDefKind::Map => Self::Map,
             crate::hir::HirDefKind::Cell => Self::Cell,
-            crate::hir::HirDefKind::Module => Self::Module,
-            crate::hir::HirDefKind::ExternModule => Self::ExternModule,
+            crate::hir::HirDefKind::ExternCell => Self::ExternCell,
             _ => Self::Unknown,
         }
     }

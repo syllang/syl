@@ -42,6 +42,7 @@ pub(super) struct LetPlaceEmit<'a> {
     pub(super) name: &'a str,
     pub(super) callee: &'a ElabExpr,
     pub(super) args: &'a [ElabCallArg],
+    pub(super) inplace: bool,
     pub(super) value: &'a ElabExpr,
 }
 

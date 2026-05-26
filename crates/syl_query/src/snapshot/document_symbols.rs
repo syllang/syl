@@ -2,7 +2,7 @@ use crate::{DocumentSymbolKind, DocumentSymbolResult};
 use syl_session::{AnalysisFile, AnalysisSnapshot};
 use syl_span::Span;
 use syl_syntax::{
-    Block, BundleItem, CallableItem, EnumItem, ExternModuleItem, FieldDecl, FnItem, GenericParam,
+    Block, BundleItem, CallableItem, EnumItem, ExternCellItem, FieldDecl, FnItem, GenericParam,
     InterfaceItem, Item, MapItem, Param, PortDecl, ResultBinding, Stmt, ViewDecl,
 };
 
@@ -44,8 +44,8 @@ impl<'a> DocumentSymbolCollector<'a> {
             Item::Enum(item) => self.enum_symbol(item),
             Item::Bundle(item) => self.bundle_symbol(item),
             Item::Interface(item) => self.interface_symbol(item),
-            Item::Cell(item) | Item::Module(item) => self.callable_symbol(item),
-            Item::ExternModule(item) => self.extern_module_symbol(item),
+            Item::Cell(item) => self.callable_symbol(item),
+            Item::ExternCell(item) => self.extern_module_symbol(item),
             _ => None,
         }
     }
@@ -134,7 +134,7 @@ impl<'a> DocumentSymbolCollector<'a> {
         )
     }
 
-    fn extern_module_symbol(&self, item: &ExternModuleItem) -> Option<DocumentSymbolResult> {
+    fn extern_module_symbol(&self, item: &ExternCellItem) -> Option<DocumentSymbolResult> {
         let mut children = self.generic_symbols(&item.generics);
         children.extend(self.param_symbols(&item.params));
         children.extend(self.port_symbols(&item.ports));

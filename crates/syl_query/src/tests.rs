@@ -14,17 +14,17 @@ fn grouped_diagnostics_track_package_document_and_stage_boundaries() {
     let mut host = AnalysisHost::new();
     host.open_document(
         parse_uri.clone(),
-        "module Broken(".to_string(),
+        "cell Broken(".to_string(),
         DocumentVersion::new(1),
     );
     host.open_document(
         tir_uri.clone(),
-        "module Bad(x: in Missing) {}\n".to_string(),
+        "cell Bad(x: in Missing) {}\n".to_string(),
         DocumentVersion::new(1),
     );
     host.open_document(
         elab_uri.clone(),
-        "extern module VendorLatch(y: in Bit)\n\nmodule Top(y: out Bit) {\n    signal tmp: Bit := 0\n    let vendor = place VendorLatch(y: tmp)\n    y := tmp\n}\n".to_string(),
+        "extern cell VendorLatch(y: in Bit)\n\ncell Top(y: out Bit) {\n    signal tmp: Bit := 0\n    let vendor = place VendorLatch(y: tmp)\n    y := tmp\n}\n".to_string(),
         DocumentVersion::new(1),
     );
     host.register_opaque_summary(trusted_vendor_summary());
@@ -42,7 +42,7 @@ fn grouped_diagnostics_track_package_document_and_stage_boundaries() {
 
 #[test]
 fn hover_and_completion_do_not_trigger_elaboration() {
-    let source = "module Top(x: in Bit, y: out Bit) {\n    y := x\n}\n";
+    let source = "cell Top(x: in Bit, y: out Bit) {\n    y := x\n}\n";
     let uri = DocumentUri::new("untitled:syl/app");
     let mut host = AnalysisHost::new();
     host.open_document(uri.clone(), source.to_string(), DocumentVersion::new(1));
@@ -74,9 +74,9 @@ fn hover_and_completion_do_not_trigger_elaboration() {
 
 #[test]
 fn navigation_queries_use_target_package_semantic_shard() {
-    let alpha_source = "module Alpha(x: in Bit, y: out Bit) {\n    y := x\n}\n";
-    let beta_source = "module Beta(y: out Bit) {\n    y := 0\n}\n";
-    let beta_updated_source = "module Beta(y: out Bit) {\n    y := 1\n}\n";
+    let alpha_source = "cell Alpha(x: in Bit, y: out Bit) {\n    y := x\n}\n";
+    let beta_source = "cell Beta(y: out Bit) {\n    y := 0\n}\n";
+    let beta_updated_source = "cell Beta(y: out Bit) {\n    y := 1\n}\n";
     let alpha_uri = DocumentUri::new("untitled:syl/alpha");
     let beta_uri = DocumentUri::new("untitled:syl/beta");
     let mut host = AnalysisHost::new();
@@ -150,7 +150,7 @@ fn cancelled_grouped_diagnostics_do_not_start_semantic_stages() {
     let mut host = AnalysisHost::new();
     host.open_document(
         uri,
-        "module Top(y: out Bit) {\n    y := 1\n}\n".to_string(),
+        "cell Top(y: out Bit) {\n    y := 1\n}\n".to_string(),
         DocumentVersion::new(1),
     );
     let snapshot = host
@@ -177,12 +177,12 @@ fn cancelled_grouped_diagnostics_stop_before_later_package_semantics() {
         let mut host = AnalysisHost::new();
         host.open_document(
             alpha_uri,
-            "module Alpha(y: out Bit) { y := 1 }\n".to_string(),
+            "cell Alpha(y: out Bit) { y := 1 }\n".to_string(),
             DocumentVersion::new(1),
         );
         host.open_document(
             beta_uri,
-            "module Beta(y: out Bit) { y := 1 }\n".to_string(),
+            "cell Beta(y: out Bit) { y := 1 }\n".to_string(),
             DocumentVersion::new(1),
         );
         let snapshot = host
@@ -213,7 +213,7 @@ fn cancelled_grouped_diagnostics_stop_before_later_package_semantics() {
 
 #[test]
 fn cancelled_hover_after_hir_cache_does_not_start_tir() {
-    let source = "module Top(x: in Bit, y: out Bit) {\n    y := x\n}\n";
+    let source = "cell Top(x: in Bit, y: out Bit) {\n    y := x\n}\n";
     let uri = DocumentUri::new("untitled:syl/app");
     let mut host = AnalysisHost::new();
     host.open_document(uri.clone(), source.to_string(), DocumentVersion::new(1));
@@ -249,17 +249,17 @@ fn completion_suppresses_invalid_assignment_cleanup_contexts() {
     let cases = [
         (
             "untitled:syl/next_eq",
-            "module Top(x: in Bit) {\n    next state = x\n}\n",
+            "cell Top(x: in Bit) {\n    next state = x\n}\n",
             "state = x",
         ),
         (
             "untitled:syl/signal_eq",
-            "module Top(x: in Bit) {\n    signal state: Bit = x\n}\n",
+            "cell Top(x: in Bit) {\n    signal state: Bit = x\n}\n",
             "Bit = x",
         ),
         (
             "untitled:syl/let_drive",
-            "module Top(x: in Bit) {\n    let state := x\n}\n",
+            "cell Top(x: in Bit) {\n    let state := x\n}\n",
             "state := x",
         ),
     ];

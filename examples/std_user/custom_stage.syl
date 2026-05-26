@@ -41,7 +41,7 @@ cell user_marking_stage<W: Nat, D: Domain>(
     output_stream.ready := down.ready
 }
 
-module UserPipeline<W: Nat = 32, D: Domain>(
+cell UserPipeline<W: Nat = 32, D: Domain>(
     clk: in Clock<D>,
     rst: in Reset<D>,
     up: in Stream<UserWord<W>>.sink,

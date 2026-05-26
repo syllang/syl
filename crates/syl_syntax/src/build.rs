@@ -1,10 +1,10 @@
 use crate::ast::{
-    BundleItemBuilder, CallableItemBuilder, ExternModuleItemBuilder, FnItemBuilder,
+    BundleItemBuilder, CallableItemBuilder, ExternCellItemBuilder, FnItemBuilder,
     InterfaceItemBuilder, MapItemBuilder,
 };
 use crate::{
     AstFile, Attribute, Block, BundleItem, CallArg, CallableItem, ConstItem, EnumItem, EnumVariant,
-    ErrorItem, Expr, ExternModuleItem, FieldDecl, FnItem, GenericParam, InterfaceItem, MapItem,
+    ErrorItem, Expr, ExternCellItem, FieldDecl, FnItem, GenericParam, InterfaceItem, MapItem,
     MatchArm, NamedExpr, Param, ParamDirection, ParamRole, PortDecl, RegReset, ResultBinding,
     SelectArm, SelectMode, Stmt, TypeExpr, UseItem, ViewDecl, ViewDirection, ViewField,
 };
@@ -104,14 +104,14 @@ impl CallableItemBuilder {
     }
 }
 
-impl ExternModuleItem {
-    pub fn builder(name: String) -> ExternModuleItemBuilder {
-        ExternModuleItemBuilder::default().name(name)
+impl ExternCellItem {
+    pub fn builder(name: String) -> ExternCellItemBuilder {
+        ExternCellItemBuilder::default().name(name)
     }
 }
 
-impl ExternModuleItemBuilder {
-    pub fn build(self) -> ExternModuleItem {
+impl ExternCellItemBuilder {
+    pub fn build(self) -> ExternCellItem {
         self.try_build()
             .expect("ExternModuleItemBuilder must be initialized with name")
     }

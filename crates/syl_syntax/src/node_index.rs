@@ -5,7 +5,7 @@ mod visit;
 pub use model::{AstNodeId, AstNodeIndex, AstNodeKind, AstNodeRecord};
 
 use crate::{
-    AstFile, Attribute, BinaryOp, BundleItem, CallableItem, EnumItem, ErrorItem, ExternModuleItem,
+    AstFile, Attribute, BinaryOp, BundleItem, CallableItem, EnumItem, ErrorItem, ExternCellItem,
     FieldDecl, FnItem, GenericParam, InterfaceItem, Item, MapItem, Param, ParamDirection, PortDecl,
     ResultBinding, SelectMode, UnaryOp, UseItem, ViewDecl, ViewDirection, ViewField,
 };
@@ -192,11 +192,8 @@ impl<'a> AstNodeIndexBuilder<'a> {
             Item::Cell(item) => {
                 self.visit_callable_item(item, parent, AstNodeKind::CellItem);
             }
-            Item::Module(item) => {
-                self.visit_callable_item(item, parent, AstNodeKind::ModuleItem);
-            }
-            Item::ExternModule(item) => {
-                self.visit_extern_module_item(item, parent);
+            Item::ExternCell(item) => {
+                self.visit_extern_cell_item(item, parent);
             }
         }
     }
@@ -294,9 +291,9 @@ impl<'a> AstNodeIndexBuilder<'a> {
         self.visit_block(&item.body, id);
     }
 
-    fn visit_extern_module_item(&mut self, item: &ExternModuleItem, parent: NodeHandle) {
+    fn visit_extern_cell_item(&mut self, item: &ExternCellItem, parent: NodeHandle) {
         let id = self.push_name(
-            AstNodeKind::ExternModuleItem,
+            AstNodeKind::ExternCellItem,
             item.span,
             Some(parent),
             &item.name,

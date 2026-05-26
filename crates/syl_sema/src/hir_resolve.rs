@@ -2,7 +2,7 @@ use crate::{
     CompileError, HirError,
     hir::{
         HirBlock, HirBodyExpr, HirCallArg, HirCallable, HirCallableItem, HirConstItem, HirDefKind,
-        HirDesign, HirEnumVariantKey, HirExprNode, HirExternModuleItem, HirFnItem,
+        HirDesign, HirEnumVariantKey, HirExprNode, HirExternCellItem, HirFnItem,
         HirInterfaceItem, HirMapItem, HirMatchArm, HirNamedExpr, HirSelectArm,
         HirSignatureGenericParam, HirSignatureParam, HirStmt,
     },
@@ -147,7 +147,7 @@ impl<'a> HirNameResolver<'a> {
 
     fn resolve_callable_ref(&mut self, owner: DefId, callable: &HirCallable) {
         match callable {
-            HirCallable::Cell(item) | HirCallable::Module(item) => {
+            HirCallable::Cell(item) => {
                 self.resolve_callable(owner, item);
             }
             HirCallable::Extern(item) => self.resolve_extern(owner, item),
@@ -166,7 +166,7 @@ impl<'a> HirNameResolver<'a> {
         });
     }
 
-    fn resolve_extern(&mut self, owner: DefId, item: &HirExternModuleItem) {
+    fn resolve_extern(&mut self, owner: DefId, item: &HirExternCellItem) {
         self.with_scope(owner, |this| {
             this.push_generics(owner, &item.generics);
             this.push_params(owner, &item.params);
@@ -316,7 +316,7 @@ impl<'a> HirNameResolver<'a> {
                 self.resolve_call_callee(owner, callee);
                 self.resolve_args(owner, args);
             }
-            HirExprNode::Place { callee, args } => {
+            HirExprNode::Place { callee, args, .. } => {
                 self.resolve_expr(owner, callee);
                 self.resolve_args(owner, args);
             }

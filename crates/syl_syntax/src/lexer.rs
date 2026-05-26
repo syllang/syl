@@ -376,7 +376,7 @@ impl<'a> Lexer<'a> {
             "unique" => TokenKind::KwUnique,
             "map" => TokenKind::KwMap,
             "cell" => TokenKind::KwCell,
-            "module" => TokenKind::KwModule,
+            "inplace" => TokenKind::KwInplace,
             "extern" => TokenKind::KwExtern,
             "signal" => TokenKind::KwSignal,
             "reg" => TokenKind::KwReg,

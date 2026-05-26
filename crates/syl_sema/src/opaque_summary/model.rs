@@ -9,7 +9,7 @@ use derive_builder::Builder;
 #[non_exhaustive]
 pub enum OpaqueItemKind {
     SourceCell,
-    ExternModule,
+    ExternCell,
     PrecompiledCell,
 }
 

@@ -38,7 +38,7 @@ cell MakeBit() -> y: Bit {
     y := 1
 }
 
-module Top(MakeBit: in Bit, y: out Bit) {
+cell Top(MakeBit: in Bit, y: out Bit) {
     signal tmp: Bit := MakeBit()
     y := tmp
 }
@@ -53,7 +53,7 @@ module Top(MakeBit: in Bit, y: out Bit) {
 #[test]
 fn staged_middle_api_serves_definition_and_tir_hover() {
     let source = r#"
-module Top(x: in Bit, y: out Bit) {
+cell Top(x: in Bit, y: out Bit) {
     y := x
 }
 "#;
@@ -88,7 +88,7 @@ bundle Word {
     lo: UInt<4>,
 }
 
-module Top(pkt: in Word, arr: in [2] Bit, y: out Bit) {
+cell Top(pkt: in Word, arr: in [2] Bit, y: out Bit) {
     y := pkt.lo[0]
     y := arr[0]
 }
@@ -132,7 +132,7 @@ bundle Word<W: Nat> {
 map low<W: Nat>(pkt: Word<W>) -> UInt<W> =
     pkt.lo
 
-module Top(pkt: in Word<4>, y: out Bit) {
+cell Top(pkt: in Word<4>, y: out Bit) {
     y := low<4>(pkt)[0]
 }
 "#;
@@ -170,7 +170,7 @@ cell MakeBit() -> y: Bit {
     .expect("library source must parse");
     let top = SourceParser::new(
         r#"
-module Top(y: out Bit) {
+cell Top(y: out Bit) {
     let tmp = place MakeBit()
     y := tmp
 }
@@ -200,7 +200,7 @@ fn unresolved_expr_name_is_diagnosed_in_hir() {
     let err = TestCompiler::new()
         .check(
             r#"
-module Top(y: out Bit) {
+cell Top(y: out Bit) {
     y := missing
 }
 "#,
@@ -213,7 +213,7 @@ module Top(y: out Bit) {
 #[test]
 fn diagnostics_collects_multiple_unresolved_expr_names_in_hir() {
     let source = r#"
-module Top(y: out Bit) {
+cell Top(y: out Bit) {
     y := first_missing
     y := second_missing
 }
@@ -258,7 +258,7 @@ module Top(y: out Bit) {
 #[test]
 fn check_collects_multiple_unresolved_expr_names_in_hir() {
     let source = r#"
-module Top(y: out Bit) {
+cell Top(y: out Bit) {
     y := first_missing
     y := second_missing
 }
@@ -294,7 +294,7 @@ const WIDTH: Nat = 16
 const DEPTH: Nat = 2
 const DEPTH: Nat = 4
 
-module Top(y: out Bit) {
+cell Top(y: out Bit) {
     y := 0
 }
 "#;
@@ -326,7 +326,7 @@ fn diagnostics_collects_multiple_unknown_imports_in_hir_index() {
 use missing.First
 use missing.Second
 
-module Top(y: out Bit) {
+cell Top(y: out Bit) {
     y := 0
 }
 "#;
@@ -357,7 +357,7 @@ fn builtin_zero_call_is_not_reported_as_unresolved_name() {
     TestCompiler::new()
         .check(
             r#"
-module Top(y: out Bit) {
+cell Top(y: out Bit) {
     y := zero()
 }
 "#,
@@ -370,7 +370,7 @@ fn select_default_pattern_is_not_reported_as_unresolved_name() {
     TestCompiler::new()
         .check(
             r#"
-module Top(sel: in Bit, y: out Bit) {
+cell Top(sel: in Bit, y: out Bit) {
     y := select priority {
         sel => 1,
         default => 0,
@@ -386,7 +386,7 @@ fn unknown_drive_target_is_not_treated_as_writable() {
     let err = TestCompiler::new()
         .check(
             r#"
-module Top(y: out Bit) {
+cell Top(y: out Bit) {
     missing := 1
     y := 0
 }
@@ -418,7 +418,7 @@ use lib.Make
 map passthrough(x: Bit) -> Bit =
     0
 
-module Top(x: in Bit, y: out Bit) {
+cell Top(x: in Bit, y: out Bit) {
     let made = place Make(x: x)
     y := made
 }
@@ -439,7 +439,7 @@ module Top(x: in Bit, y: out Bit) {
 fn ambiguous_same_leaf_imports_are_rejected() {
     let first = SourceParser::new(
         r#"
-module Make(y: out Bit) {
+cell Make(y: out Bit) {
     y := 1
 }
 "#,
@@ -448,7 +448,7 @@ module Make(y: out Bit) {
     .expect("first source must parse");
     let second = SourceParser::new(
         r#"
-module Make(y: out Bit) {
+cell Make(y: out Bit) {
     y := 0
 }
 "#,
@@ -460,7 +460,7 @@ module Make(y: out Bit) {
 use first.Make
 use second.Make
 
-module Top(y: out Bit) {
+cell Top(y: out Bit) {
     let u = place Make(y: y)
 }
 "#,

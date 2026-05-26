@@ -62,7 +62,7 @@ interface Stream<T> {
     }
 }
 
-module Bad(up: in [2] Stream<Bit>.sink, y: out Bit) {
+cell Bad(up: in [2] Stream<Bit>.sink, y: out Bit) {
     y := up[0].ready
 }
 "#,
@@ -87,7 +87,7 @@ interface Stream<T> {
     }
 }
 
-module Bad(up: in [2] Stream<Bit>.sink, y: out Bit) {
+cell Bad(up: in [2] Stream<Bit>.sink, y: out Bit) {
     y := up[0].ready
 }
 "#;
@@ -124,7 +124,7 @@ map wrap(x: Bit) -> Wrapped =
         bit: x,
     }
 
-module Bad(leak: out Bit, y: out Bit) {
+cell Bad(leak: out Bit, y: out Bit) {
     signal tmp: Bit := wrap(leak).bit
     y := tmp
 }
@@ -140,7 +140,7 @@ fn rejects_reading_out_port_after_local_drive() {
     let err = CapabilityHarness::new()
         .check(
             r#"
-module Bad(y: out Bit, z: out Bit) {
+cell Bad(y: out Bit, z: out Bit) {
     y := 1
     z := y
 }
@@ -156,7 +156,7 @@ fn rejects_unknown_read_source() {
     let err = CapabilityHarness::new()
         .check(
             r#"
-module Bad(y: out Bit) {
+cell Bad(y: out Bit) {
     y := missing
 }
 "#,
@@ -183,7 +183,7 @@ interface Stream<T> {
     }
 }
 
-module Good(y: out Bit) {
+cell Good(y: out Bit) {
     signal mid: [2] Stream<Bit>.sink
     mid[0].ready := 1
     mid[1].ready := 0
@@ -199,7 +199,7 @@ fn rejects_reading_other_projection_after_local_projection_drive() {
     let err = CapabilityHarness::new()
         .check(
             r#"
-module Bad(y: out [2] Bit, z: out Bit) {
+cell Bad(y: out [2] Bit, z: out Bit) {
     y[0] := 1
     z := y[1]
 }
@@ -227,7 +227,7 @@ interface Stream<T> {
     }
 }
 
-module Bad<ENABLE: Bool>(y: out Bit) {
+cell Bad<ENABLE: Bool>(y: out Bit) {
     signal mid: Stream<Bit>.sink
     if ENABLE {
         signal mid: Stream<Bit>.sink
@@ -245,7 +245,7 @@ module Bad<ENABLE: Bool>(y: out Bit) {
 #[test]
 fn unknown_assignment_target_reports_unknown_identifier_with_target_span() {
     let source = r#"
-module Bad(y: out Bit) {
+cell Bad(y: out Bit) {
     missing := 1
     y := 0
 }

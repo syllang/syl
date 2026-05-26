@@ -275,7 +275,7 @@ impl<'a> CapabilityChecker<'a> {
                 self.check_read_expr(owner, left, scope)?;
                 self.check_read_expr(owner, right, scope)
             }
-            HirExprNode::Call { callee, args } | HirExprNode::Place { callee, args } => {
+            HirExprNode::Call { callee, args } | HirExprNode::Place { callee, args, .. } => {
                 self.check_call_args(owner, callee, args, scope)
             }
             HirExprNode::Aggregate { fields, .. } => {
@@ -564,7 +564,7 @@ impl<'a> CapabilityChecker<'a> {
         let kind = self.hir.def_kind(def)?;
         if !matches!(
             kind,
-            HirDefKind::Cell | HirDefKind::Module | HirDefKind::ExternModule
+            HirDefKind::Cell | HirDefKind::ExternCell
         ) {
             return None;
         }

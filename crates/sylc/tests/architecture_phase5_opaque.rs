@@ -105,7 +105,7 @@ fn architecture_phase5_public_summary_surface_stays_explicit() {
 #[test]
 fn architecture_phase5_session_and_query_read_summary_without_elaboration() {
     let source = r#"
-extern module DriveBit(y: out Bit)
+extern cell DriveBit(y: out Bit)
 "#;
     let uri = DocumentUri::new("untitled:syl/phase5_summary");
     let mut host = AnalysisHost::new();
@@ -128,7 +128,7 @@ extern module DriveBit(y: out Bit)
         summary,
         from_query.get("DriveBit").expect("query view must match")
     );
-    assert!(matches!(summary.kind(), OpaqueItemKind::ExternModule));
+    assert!(matches!(summary.kind(), OpaqueItemKind::ExternCell));
     assert!(matches!(
         summary.trust_boundary(),
         TrustBoundary::SourceDerived
@@ -156,9 +156,9 @@ extern module DriveBit(y: out Bit)
 #[test]
 fn architecture_phase5_host_registered_overlay_is_visible_to_query_and_elab() {
     let source = r#"
-extern module VendorBox(y: in Bit)
+extern cell VendorBox(y: in Bit)
 
-module Top(y: out Bit) {
+cell Top(y: out Bit) {
     signal tmp: Bit := 0
     let vendor = place VendorBox(y: tmp)
     y := tmp
@@ -176,7 +176,7 @@ module Top(y: out Bit) {
         .expect("extern summary must exist before overlay registration");
     assert!(matches!(
         baseline_summary.kind(),
-        OpaqueItemKind::ExternModule
+        OpaqueItemKind::ExternCell
     ));
     assert!(matches!(
         baseline_summary.trust_boundary(),
@@ -264,9 +264,9 @@ fn architecture_phase5_extern_out_auto_drive_summary_enters_metadata() {
     let output = MiddleCompiler::new()
         .output_files(&[parse_file(
             r#"
-extern module DriveBit(y: out Bit)
+extern cell DriveBit(y: out Bit)
 
-module Top(y: out Bit) {
+cell Top(y: out Bit) {
     let drive = place DriveBit(y: y)
 }
 "#,
@@ -278,9 +278,9 @@ module Top(y: out Bit) {
     let summary = metadata
         .opaque_summaries()
         .get("DriveBit")
-        .expect("extern module summary must be preserved in compilation metadata");
+        .expect("extern cell summary must be preserved in compilation metadata");
 
-    assert!(matches!(summary.kind(), OpaqueItemKind::ExternModule));
+    assert!(matches!(summary.kind(), OpaqueItemKind::ExternCell));
     assert!(matches!(
         summary.trust_boundary(),
         TrustBoundary::SourceDerived
@@ -303,9 +303,9 @@ module Top(y: out Bit) {
 #[test]
 fn architecture_phase5_precompiled_summary_without_body_enters_multi_driver_drc() {
     let source = r#"
-extern module VendorLatch(y: in Bit)
+extern cell VendorLatch(y: in Bit)
 
-module Top(y: out Bit) {
+cell Top(y: out Bit) {
     signal tmp: Bit := 0
     let vendor = place VendorLatch(y: tmp)
     y := tmp
@@ -375,9 +375,9 @@ fn architecture_phase5_trust_boundaries_are_structured_and_assertable() {
     let output = MiddleCompiler::with_opaque_summaries(OpaqueSummaryTable::from_iter([summary]))
         .output_files(&[parse_file(
             r#"
-extern module VendorBox(y: out Bit)
+extern cell VendorBox(y: out Bit)
 
-module Top(y: out Bit) {
+cell Top(y: out Bit) {
     let vendor = place VendorBox(y: y)
 }
 "#,

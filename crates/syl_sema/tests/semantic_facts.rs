@@ -30,7 +30,7 @@ interface Stream<D: Domain> {
 use shared.Stream;
 use shared.WIDTH;
 
-module Top<D: Domain>(
+cell Top<D: Domain>(
     clk: in Clock<D>,
     rst: in Reset<D>,
     up: in Stream<D>.sink,
@@ -39,7 +39,7 @@ module Top<D: Domain>(
     y := up.payload
 }
 
-module Direct(
+cell Direct(
     clk: in Clock<Domain>,
     rst: in Reset<Domain>,
 ) {
@@ -287,7 +287,7 @@ module Direct(
 fn semantic_errors_expose_structured_variants() {
     let file = SourceParser::new(
         r#"
-module Bad(x: in Missing) {
+cell Bad(x: in Missing) {
 }
 "#,
     )
@@ -318,7 +318,7 @@ fn add_one(x: Nat) -> Nat {
 const WIDTH: Nat = add_one(4)
 const HEIGHT: Nat = add_one(4)
 
-module Top(y: out UInt<WIDTH>) {
+cell Top(y: out UInt<WIDTH>) {
 }
 "#;
     let file = SourceParser::new_in(source, SourceId::new(0))
@@ -387,7 +387,7 @@ fn use_rank(op: Op) -> Nat {
     return op.rank()
 }
 
-module Top(y: out UInt<1>) {
+cell Top(y: out UInt<1>) {
 }
 "#;
     let file = SourceParser::new_in(source, SourceId::new(0))
@@ -425,7 +425,7 @@ fn burn_steps(limit: Nat) -> Nat {
 
 const WIDTH: Nat = burn_steps(20000)
 
-module Top(y: out UInt<1>) {
+cell Top(y: out UInt<1>) {
 }
 "#;
     let file = SourceParser::new_in(source, SourceId::new(0))

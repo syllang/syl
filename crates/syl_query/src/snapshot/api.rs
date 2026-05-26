@@ -505,9 +505,8 @@ impl<'a> CompletionCollector<'a> {
 
     fn kind_for(&self, kind: CompletionKind) -> CompletionItemKind {
         match kind {
-            CompletionKind::Module
-            | CompletionKind::Cell
-            | CompletionKind::ExternModule
+            CompletionKind::Cell
+            | CompletionKind::ExternCell
             | CompletionKind::Instance => CompletionItemKind::Module,
             CompletionKind::Fn | CompletionKind::Map => CompletionItemKind::Function,
             CompletionKind::Enum | CompletionKind::Bundle | CompletionKind::Interface => {
@@ -585,7 +584,7 @@ impl<'a> CompletionCollector<'a> {
                         kind: CompletionItemKind::Type,
                     })
                 }
-                Item::Cell(item) | Item::Module(item)
+                Item::Cell(item) | Item::Cell(item)
                     if self.context.is_none_or(|context| {
                         context.accepts_item_kind(CompletionItemKind::Module)
                     }) =>
@@ -595,7 +594,7 @@ impl<'a> CompletionCollector<'a> {
                         kind: CompletionItemKind::Module,
                     })
                 }
-                Item::ExternModule(item)
+                Item::ExternCell(item)
                     if self.context.is_none_or(|context| {
                         context.accepts_item_kind(CompletionItemKind::Module)
                     }) =>

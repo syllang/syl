@@ -30,7 +30,7 @@
 // - Generic parameters use `W: Nat`; `const` is only used for value declarations.
 // - `D: Domain` is a generic kind parameter, not a runtime port or named argument.
 // - A declaration with `D: Domain` uses D as the default domain in its body.
-// - A domainless combinational extern module is domain-agnostic at the call site.
+// - A domainless combinational extern cell is domain-agnostic at the call site.
 // - `if` conditions are const/proposition Bool expressions, not hardware Bit.
 // - `for` ranges are elaboration-time finite ranges.
 // - `let x = rhs` only binds a name; it does not create a driver.
@@ -107,7 +107,7 @@ map select_result<W: Nat>(
         .Xor => xor_value,
     }
 
-extern module VendorXor<W: Nat>(
+extern cell VendorXor<W: Nat>(
     a: in UInt<W>,
     b: in UInt<W>,
 ) -> y: UInt<W>
@@ -145,7 +145,7 @@ cell skid_buffer<T, D: Domain>(
         }
 }
 
-module Lane<W: Nat, D: Domain>(
+cell Lane<W: Nat, D: Domain>(
     clk: in Clock<D>,
     rst: in Reset<D>,
     in_stream: in Stream<Packet<W>>.sink,
@@ -189,7 +189,7 @@ module Lane<W: Nat, D: Domain>(
     buffered.ready := out_stream.ready
 }
 
-module MiniTop<
+cell MiniTop<
     W: Nat = DATA_W,
     N: Nat = LANES,
     D: Domain,

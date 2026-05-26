@@ -128,7 +128,6 @@ impl Parser {
                 | TokenKind::KwInterface
                 | TokenKind::KwMap
                 | TokenKind::KwCell
-                | TokenKind::KwModule
                 | TokenKind::KwExtern
         )
     }

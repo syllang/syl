@@ -41,7 +41,7 @@ pub(super) fn collect_extern_summary(
     types: &TypeTable,
     capabilities: &CapabilityTable,
     protocols: &ProtocolFacts,
-    item: &crate::hir::HirExternModuleItem,
+    item: &crate::hir::HirExternCellItem,
 ) -> OpaqueItemSummary {
     let context = SummarySignatureContext::new(tir, types, capabilities, protocols);
     let (endpoints, driven_fields, consumed_fields, domain_behavior) =
@@ -53,7 +53,7 @@ pub(super) fn collect_extern_summary(
         }
     };
 
-    OpaqueItemSummary::builder(OpaqueItemKind::ExternModule, &item.name)
+    OpaqueItemSummary::builder(OpaqueItemKind::ExternCell, &item.name)
         .endpoints(endpoints)
         .driven_fields(driven_fields)
         .consumed_fields(consumed_fields)

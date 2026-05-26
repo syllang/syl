@@ -43,7 +43,7 @@ fn architecture_phase3_readme_and_public_facts_facade_stay_explicit() {
 #[test]
 fn architecture_phase3_hover_and_definition_queries_do_not_trigger_elaboration() {
     let source = r#"
-module Top(x: in Bit, y: out Bit) {
+cell Top(x: in Bit, y: out Bit) {
     y := x
 }
 "#;
@@ -104,7 +104,7 @@ fn architecture_phase3_query_layer_stays_on_snapshot_sema_accessors() {
 fn architecture_phase3_structured_errors_do_not_require_string_matching() {
     let file = SourceParser::new(
         r#"
-module Bad(x: in Missing) {
+cell Bad(x: in Missing) {
 }
 "#,
     )

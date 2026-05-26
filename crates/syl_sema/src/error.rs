@@ -248,6 +248,8 @@ pub enum EirError {
     InvalidElaborationExpression,
     #[error("unknown elaboration identifier {name}")]
     UnknownElaborationIdentifier { name: String },
+    #[error("inplace requires a cell with a visible body, but {name} is declared extern")]
+    InplaceOnExternCell { name: String },
 }
 
 impl EirError {
@@ -277,6 +279,7 @@ impl EirError {
             Self::UnknownAggregateField { .. } => "E_MIDDLE_UNKNOWN_AGGREGATE_FIELD",
             Self::InvalidElaborationExpression => "E_MIDDLE_INVALID_ELAB_EXPR",
             Self::UnknownElaborationIdentifier { .. } => "E_MIDDLE_UNKNOWN_ELAB_IDENTIFIER",
+            Self::InplaceOnExternCell { .. } => "E_MIDDLE_INPLACE_ON_EXTERN_CELL",
         }
     }
 }

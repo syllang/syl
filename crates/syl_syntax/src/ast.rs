@@ -21,8 +21,7 @@ pub enum Item {
     Interface(InterfaceItem),
     Map(MapItem),
     Cell(CallableItem),
-    Module(CallableItem),
-    ExternModule(ExternModuleItem),
+    ExternCell(ExternCellItem),
 }
 
 impl Item {
@@ -37,8 +36,7 @@ impl Item {
             Self::Interface(item) => item.span,
             Self::Map(item) => item.span,
             Self::Cell(item) => item.span,
-            Self::Module(item) => item.span,
-            Self::ExternModule(item) => item.span,
+            Self::ExternCell(item) => item.span,
         }
     }
 
@@ -53,8 +51,7 @@ impl Item {
             Self::Interface(_) => LosslessItemKind::Interface,
             Self::Map(_) => LosslessItemKind::Map,
             Self::Cell(_) => LosslessItemKind::Cell,
-            Self::Module(_) => LosslessItemKind::Module,
-            Self::ExternModule(_) => LosslessItemKind::ExternModule,
+            Self::ExternCell(_) => LosslessItemKind::ExternCell,
         }
     }
 }
@@ -177,7 +174,7 @@ pub struct CallableItem {
 #[derive(Clone, Debug, PartialEq, Builder)]
 #[builder(pattern = "owned", build_fn(name = "try_build"))]
 #[non_exhaustive]
-pub struct ExternModuleItem {
+pub struct ExternCellItem {
     pub name: String,
     #[builder(default)]
     pub generics: Vec<GenericParam>,
@@ -457,6 +454,7 @@ pub enum Expr {
     Place {
         callee: Box<Expr>,
         args: Vec<CallArg>,
+        inplace: bool,
         span: Span,
     },
     For {

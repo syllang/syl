@@ -8,7 +8,7 @@ use crate::{
     map_ir::MapIrProgram,
     mir::MirTypeRef,
     program::{
-        ElabCallable, ElabCallableItem, ElabExpr, ElabExprNode, ElabExternModuleItem,
+        ElabCallable, ElabCallableItem, ElabExpr, ElabExprNode, ElabExternCellItem,
         ElabPortDirection, ElabProgram, ElabSignatureGenericParam,
     },
 };
@@ -206,13 +206,12 @@ impl<'a> EirBuilder<'a> {
         let mut modules = Vec::new();
         for (owner, callable) in self.program.callables() {
             match callable {
-                ElabCallable::Module(item) => {
+                ElabCallable::Cell(item) => {
                     modules.push(self.build_callable(*owner, item)?);
                 }
                 ElabCallable::Extern(item) => {
                     modules.push(self.build_extern(*owner, item)?);
                 }
-                ElabCallable::Cell(_) => {}
             }
         }
         Ok(EirRawDesign::new(modules))
@@ -266,7 +265,7 @@ impl<'a> EirBuilder<'a> {
     fn build_extern(
         &self,
         owner: DefId,
-        item: &ElabExternModuleItem,
+        item: &ElabExternCellItem,
     ) -> Result<EirModule, CompileError> {
         let mut env = Env {
             owner: Some(owner),
