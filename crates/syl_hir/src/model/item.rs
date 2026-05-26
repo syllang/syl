@@ -394,7 +394,7 @@ impl From<&FnItem> for HirFnItem {
             name: item.name.clone(),
             params: item.params.iter().map(HirSignatureParam::from).collect(),
             ret_ty: item.ret_ty.as_ref().map(HirReturnType::from),
-            body: HirBlock::from_syntax(&item.body),
+            body: HirBlock::from_software_syntax(&item.body),
             span: item.span,
         }
     }
@@ -585,7 +585,7 @@ impl From<&syl_syntax::CallableItem> for HirCallableItem {
             params: item.params.iter().map(HirSignatureParam::from).collect(),
             ports: item.ports.iter().map(HirPortDecl::from).collect(),
             result: item.result.as_ref().map(HirSignatureResultBinding::from),
-            body: HirBlock::from_syntax(&item.body),
+            body: HirBlock::from_hardware_syntax(&item.body),
             span: item.span,
         }
     }

@@ -75,7 +75,6 @@ pub enum MirBinaryOp {
 impl From<BinaryOp> for MirBinaryOp {
     fn from(op: BinaryOp) -> Self {
         match op {
-            BinaryOp::Assign => Self::Assign,
             BinaryOp::OrOr => Self::OrOr,
             BinaryOp::AndAnd => Self::AndAnd,
             BinaryOp::EqEq | BinaryOp::EqWord => Self::Eq,

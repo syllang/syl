@@ -59,6 +59,11 @@ pub(crate) enum ElabStmt {
         reset: Option<ElabRegReset>,
         span: Span,
     },
+    Drive {
+        target: ElabExpr,
+        value: ElabExpr,
+        span: Span,
+    },
     Next {
         name: String,
         value: ElabExpr,
@@ -133,6 +138,15 @@ impl From<&HirStmt> for ElabStmt {
                 name: name.clone(),
                 ty: ty.clone(),
                 reset: reset.as_ref().map(ElabRegReset::from),
+                span: *span,
+            },
+            HirStmt::Drive {
+                target,
+                value,
+                span,
+            } => Self::Drive {
+                target: ElabExpr::from(target),
+                value: ElabExpr::from(value),
                 span: *span,
             },
             HirStmt::Next { name, value, span } => Self::Next {

@@ -129,11 +129,9 @@ fn rejects_this_receiver_on_cell_port() {
         .parse_file()
         .expect_err("cell ports cannot be receivers");
 
-    assert!(
-        errors
-            .iter()
-            .any(|error| error.message == "module and cell ports cannot use `this` receiver")
-    );
+    assert!(errors
+        .iter()
+        .any(|error| error.message == "module and cell ports cannot use `this` receiver"));
 }
 
 #[test]
@@ -142,11 +140,9 @@ fn rejects_non_leading_this_receiver() {
         .parse_file()
         .expect_err("receiver must be first");
 
-    assert!(
-        errors
-            .iter()
-            .any(|error| error.message == "`this` receiver must be the first parameter")
-    );
+    assert!(errors
+        .iter()
+        .any(|error| error.message == "`this` receiver must be the first parameter"));
 }
 
 #[test]
@@ -155,11 +151,9 @@ fn rejects_directed_this_receiver() {
         .parse_file()
         .expect_err("receiver cannot have a port direction");
 
-    assert!(
-        errors
-            .iter()
-            .any(|error| error.message == "`this` receiver cannot have an in/out direction")
-    );
+    assert!(errors
+        .iter()
+        .any(|error| error.message == "`this` receiver cannot have an in/out direction"));
 }
 
 #[test]
@@ -400,22 +394,12 @@ module Tail(a: in Bit, b: out Bit) {
     match &output.file.items[0] {
         Item::Module(item) => {
             assert!(matches!(item.body.stmts.first(), Some(Stmt::Error { .. })));
-            let recovered_assign = item.body.stmts.iter().any(|stmt| {
-                matches!(
-                    stmt,
-                    Stmt::Expr(Expr::Binary {
-                        op: BinaryOp::Assign,
-                        ..
-                    })
-                )
-            }) || matches!(
-                item.body.tail.as_deref(),
-                Some(Expr::Binary {
-                    op: BinaryOp::Assign,
-                    ..
-                })
-            );
-            assert!(recovered_assign);
+            let recovered_drive = item
+                .body
+                .stmts
+                .iter()
+                .any(|stmt| matches!(stmt, Stmt::Drive { .. }));
+            assert!(recovered_drive);
         }
         other => panic!("unexpected first item: {other:?}"),
     }
@@ -424,6 +408,73 @@ module Tail(a: in Bit, b: out Bit) {
         Item::Module(item) => assert_eq!(item.name, "Tail"),
         other => panic!("unexpected recovered item: {other:?}"),
     }
+}
+
+#[test]
+fn assignments_are_contextual_statements() {
+    let source = r#"
+fn update(x: Bit) -> Bit {
+    var y: Bit = x
+    y = x
+    y
+}
+
+module Top(x: in Bit, y: out Bit) {
+    signal ready: Bit := x
+    y := ready
+    next state := x
+}
+"#;
+    let file = SourceParser::new(source).parse_file().unwrap();
+
+    match &file.items[0] {
+        Item::Fn(item) => {
+            assert!(matches!(item.body.stmts[1], Stmt::Assign { .. }));
+            assert!(matches!(item.body.tail.as_deref(), Some(Expr::Ident(_, _))));
+        }
+        other => panic!("unexpected fn item: {other:?}"),
+    }
+    match &file.items[1] {
+        Item::Module(item) => {
+            assert!(matches!(item.body.stmts[0], Stmt::Signal { .. }));
+            assert!(matches!(item.body.stmts[1], Stmt::Drive { .. }));
+            assert!(matches!(item.body.stmts[2], Stmt::Next { .. }));
+        }
+        other => panic!("unexpected module item: {other:?}"),
+    }
+}
+
+#[test]
+fn rejects_mixed_assignment_operators_in_parser() {
+    let output = SourceParser::new(
+        r#"
+fn bad() {
+    let a := 0
+    var b := 0
+    b := a
+}
+
+module Top(x: in Bit, y: out Bit) {
+    signal ready: Bit = x
+    next state = x
+    y = x
+}
+"#,
+    )
+    .parse_file_partial();
+
+    let messages: Vec<_> = output
+        .diagnostics
+        .iter()
+        .map(|diagnostic| diagnostic.message.as_str())
+        .collect();
+
+    assert!(messages.contains(&"`let` statements only accept `=`"));
+    assert!(messages.contains(&"`var` statements only accept `=`"));
+    assert!(messages.contains(&"`fn` blocks use `=`; `:=` is only valid in hardware blocks"));
+    assert!(messages.contains(&"`signal` statements only accept `:=`"));
+    assert!(messages.contains(&"`next` statements only accept `:=`"));
+    assert!(messages.contains(&"hardware blocks use `:=`; bare `=` assignment is invalid here"));
 }
 
 #[test]
@@ -487,12 +538,10 @@ module Top(x: in Bit, y: out Pair) {
 
     assert!(output.node_index().find_by_span(field.span).is_some());
     assert!(output.node_index().find_by_span(param.span).is_some());
-    assert!(
-        output
-            .node_index()
-            .find_by_span(signal_field.span)
-            .is_some()
-    );
+    assert!(output
+        .node_index()
+        .find_by_span(signal_field.span)
+        .is_some());
 }
 
 #[test]

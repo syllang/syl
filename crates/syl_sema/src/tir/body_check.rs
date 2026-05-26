@@ -1,12 +1,13 @@
 use super::{BindingKind, HardwareBlockMode, Phase, TirConstKind, TirType, TypePhaseChecker};
 use crate::{
     CompileError, EirError,
-    hir::{HirBlock, HirBodyExpr, HirExprNode, HirStmt},
+    hir::{HirBlock, HirBodyExpr, HirExprNode, HirLocalKind, HirStmt},
+    hir_resolve::HirResolution,
+    hir_view::HirDesignViewExt,
     tir_const::TirConstEnv,
 };
 use syl_hir::LocalId;
 use syl_span::Span;
-use syl_syntax::BinaryOp;
 
 mod expr;
 
@@ -207,6 +208,14 @@ impl TypePhaseChecker {
                     Self::record_recoverable(errors, self.record_phase(value, Phase::Hardware));
                     self.check_hardware_value_expr(value, errors)?;
                 }
+                HirStmt::Drive { target, value, .. } => {
+                    self.check_hardware_drive_target(target, errors)?;
+                    self.check_hardware_value_expr(value, errors)?;
+                }
+                HirStmt::Assign { span, .. } => errors.push(CompileError::lowering_at(
+                    EirError::IllegalHardwareStatement,
+                    *span,
+                )),
                 HirStmt::Expr(expr) => {
                     Self::record_recoverable(errors, self.record_phase(expr, Phase::Hardware));
                     self.check_hardware_stmt_expr(expr, mode, errors)?;
@@ -401,21 +410,49 @@ impl TypePhaseChecker {
         mode: HardwareBlockMode,
         errors: &mut Vec<CompileError>,
     ) -> Result<(), CompileError> {
-        if let HirExprNode::Binary {
-            op: BinaryOp::Assign,
-            left,
-            right,
-        } = &expr.node
-        {
-            self.check_place_expr(left, errors)?;
-            self.check_hardware_value_expr(right, errors)?;
-            return Ok(());
-        }
         if matches!(&expr.node, HirExprNode::CompileError { .. })
             && mode == HardwareBlockMode::Control
         {
             return Ok(());
         }
         self.check_hardware_value_expr(expr, errors)
+    }
+
+    fn check_hardware_drive_target(
+        &mut self,
+        target: &HirBodyExpr,
+        errors: &mut Vec<CompileError>,
+    ) -> Result<(), CompileError> {
+        self.check_place_expr(target, errors)?;
+        if let Some(name) = self.reg_drive_root_name(target) {
+            errors.push(CompileError::lowering_at(
+                EirError::ContinuousDriveTargetIsReg { name },
+                target.span(),
+            ));
+        }
+        Ok(())
+    }
+
+    fn reg_drive_root_name(&self, expr: &HirBodyExpr) -> Option<String> {
+        let owner = self.current_owner?;
+        let mut current = expr;
+        loop {
+            match &current.node {
+                HirExprNode::Ident(name) => {
+                    let Ok(Some(HirResolution::Local(id))) =
+                        self.hir.expr_resolution(owner, current)
+                    else {
+                        return None;
+                    };
+                    let local = self.hir.locals.get(id.get())?;
+                    return matches!(local.kind, HirLocalKind::Reg).then(|| name.clone());
+                }
+                HirExprNode::Field { base, .. } | HirExprNode::Index { base, .. } => {
+                    current = base;
+                }
+                HirExprNode::Group(base) => current = base,
+                _ => return None,
+            }
+        }
     }
 }

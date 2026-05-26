@@ -355,6 +355,16 @@ pub enum Stmt {
         reset: Option<RegReset>,
         span: Span,
     },
+    Assign {
+        target: Expr,
+        value: Expr,
+        span: Span,
+    },
+    Drive {
+        target: Expr,
+        value: Expr,
+        span: Span,
+    },
     Next {
         name: String,
         value: Expr,
@@ -517,6 +527,8 @@ impl Stmt {
             | Self::Var { span, .. }
             | Self::Signal { span, .. }
             | Self::Reg { span, .. }
+            | Self::Assign { span, .. }
+            | Self::Drive { span, .. }
             | Self::Next { span, .. }
             | Self::While { span, .. }
             | Self::ElabIf { span, .. }
@@ -620,8 +632,6 @@ pub enum UnaryOp {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, IntoStaticStr)]
 #[non_exhaustive]
 pub enum BinaryOp {
-    #[strum(serialize = "=")]
-    Assign,
     #[strum(serialize = "||")]
     OrOr,
     #[strum(serialize = "&&")]

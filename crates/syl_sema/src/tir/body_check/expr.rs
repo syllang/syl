@@ -40,17 +40,7 @@ impl TypePhaseChecker {
             HirExprNode::Binary {
                 op, left, right, ..
             } => {
-                if matches!(op, BinaryOp::Assign) {
-                    errors.push(CompileError::lowering_at(
-                        EirError::AssignmentInMap,
-                        expr.span(),
-                    ));
-                } else {
-                    Self::record_recoverable(
-                        errors,
-                        self.check_hardware_binary_op(*op, expr.span()),
-                    );
-                }
+                Self::record_recoverable(errors, self.check_hardware_binary_op(*op, expr.span()));
                 self.check_map_expr(left, errors)?;
                 self.check_map_expr(right, errors)
             }
@@ -125,7 +115,7 @@ impl TypePhaseChecker {
             HirExprNode::Binary {
                 op, left, right, ..
             } => {
-                if matches!(op, BinaryOp::Assign | BinaryOp::Field) {
+                if matches!(op, BinaryOp::Field) {
                     errors.push(CompileError::lowering_at(
                         EirError::UnsupportedHardwareValueExpression,
                         expr.span(),

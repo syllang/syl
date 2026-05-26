@@ -147,6 +147,59 @@ module Bad(y: out BadBundle) {
 }
 
 #[test]
+fn rejects_direct_reg_drive_before_driver_lowering() {
+    let err = SemanticHarness::new()
+        .compile(
+            r#"
+module Bad(clk: in Clock) {
+    reg state: Bit
+    state := 0
+}
+"#,
+        )
+        .expect_err("reg writes must use next, not continuous drive");
+
+    assert!(err.contains("reg state cannot be driven directly"), "{err}");
+}
+
+#[test]
+fn rejects_direct_reg_field_drive_before_driver_lowering() {
+    let err = SemanticHarness::new()
+        .compile(
+            r#"
+bundle Pair {
+    lo: Bit,
+    hi: Bit,
+}
+
+module Bad(clk: in Clock) {
+    reg state: Pair
+    state.lo := 0
+}
+"#,
+        )
+        .expect_err("reg field writes must use next");
+
+    assert!(err.contains("reg state cannot be driven directly"), "{err}");
+}
+
+#[test]
+fn next_remains_the_register_write_entrypoint() {
+    let sv = SemanticHarness::new()
+        .compile(
+            r#"
+module Top(clk: in Clock) {
+    reg state: Bit
+    next state := 1
+}
+"#,
+        )
+        .expect("next state updates must continue to lower");
+
+    assert!(sv.contains("state"));
+}
+
+#[test]
 fn rejects_bool_literal_in_hardware_value_expr() {
     let err = SemanticHarness::new()
         .compile(

@@ -375,6 +375,9 @@ impl<'a> SnapshotQueryEngine<'a> {
             CompletionAnalyzer::new(file.ast(), span, source.text()).analyze()
         });
         if let Some(span) = span {
+            if matches!(context, Some(CompletionContext::Invalid)) {
+                return Ok(CompletionResult::default());
+            }
             let collector = CompletionCollector::new(context.as_ref());
             if matches!(context, Some(CompletionContext::ImportPath)) {
                 return Ok(ImportPathCompletion::new(self.snapshot, uri, span).complete());

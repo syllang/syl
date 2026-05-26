@@ -79,7 +79,6 @@ impl MapTypeLowerer {
         }
         if let Some((op, left, right)) = expr.binary() {
             let op = match op {
-                MapBinaryOp::Assign => MirBinaryOp::Assign,
                 MapBinaryOp::OrOr => MirBinaryOp::OrOr,
                 MapBinaryOp::AndAnd => MirBinaryOp::AndAnd,
                 MapBinaryOp::Eq => MirBinaryOp::Eq,

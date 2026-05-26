@@ -24,3 +24,4 @@ and workspace MSRV metadata. Private quality crates must set `publish = false`.
 
 - [Technical debt notes](technical-debt.md)
 - [Cell support plan](cell-support-plan.md)
+- [Assignment and register update cleanup](assignment-syntax-cleanup.md)

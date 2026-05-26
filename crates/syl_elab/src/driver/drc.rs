@@ -80,6 +80,10 @@ impl<'a> DriverDrcChecker<'a> {
                 self.errors.push(error);
                 continue;
             }
+            if let Some(error) = self.check_continuous_target(drive) {
+                self.errors.push(error);
+                continue;
+            }
             if let Some(error) = self.check_drive_bounds(drive) {
                 self.errors.push(error);
                 continue;
@@ -139,6 +143,17 @@ impl<'a> DriverDrcChecker<'a> {
                 "previous next driver claim",
                 "conflicting next driver claim",
             ),
+        ))
+    }
+
+    fn check_continuous_target(&self, drive: &DriveFact) -> Option<CompileError> {
+        if !matches!(drive.effect(), DriveEffect::Continuous) {
+            return None;
+        }
+        let name = self.storage_root_name(drive.module(), drive.target_place())?;
+        Some(CompileError::driver_error(
+            DriverError::ContinuousDriveTargetIsReg { name },
+            drive.origin().span(),
         ))
     }
 
@@ -215,6 +230,18 @@ impl<'a> DriverDrcChecker<'a> {
                 && create.object_id() == object.id()
                 && matches!(create.kind(), CreateKind::Storage)
         })
+    }
+
+    fn storage_root_name(&self, module: &str, target: &DriverPlace) -> Option<String> {
+        match target {
+            DriverPlace::Object(object) => self
+                .is_storage_target(module, target)
+                .then(|| object.name().to_string()),
+            DriverPlace::Slice { base, .. }
+            | DriverPlace::IndexedPartSelect { base, .. }
+            | DriverPlace::Index { base, .. } => self.storage_root_name(module, base),
+            DriverPlace::Ident(_) | DriverPlace::Expr(_) => None,
+        }
     }
 }
 
@@ -453,5 +480,45 @@ mod tests {
             facts.drives().first().map(DriveFact::guard),
             Some(guard) if *guard == EirGuard::root()
         ));
+    }
+
+    #[test]
+    fn continuous_drive_to_storage_is_rejected_defensively() {
+        let module = EirModule::new(
+            "Top",
+            Vec::new(),
+            Vec::new(),
+            vec![
+                EirItem::Storage {
+                    width: "1".into(),
+                    name: "state".to_string(),
+                    origin: origin(),
+                },
+                EirItem::Drive {
+                    lhs: EirPlace::Ident("state".to_string()),
+                    rhs: EirExpr::Int(0),
+                    reads: Vec::new(),
+                    origin: origin(),
+                },
+            ],
+        );
+        let design = validated_design(vec![module]).expect("test EIR should assemble");
+        let facts = super::super::DriverFactsCollector::new(&design)
+            .collect()
+            .expect("facts pass should succeed");
+        let errors = match DriverDrcChecker::new(&design, &facts).check_collect() {
+            Ok(_) => panic!("continuous drive to storage must fail DRC"),
+            Err(errors) => errors,
+        };
+
+        assert!(errors.iter().any(|error| matches!(
+            error,
+            CompileError::Lowering { kind, .. }
+                if matches!(
+                    kind.as_ref(),
+                    LoweringError::Driver(DriverError::ContinuousDriveTargetIsReg { name })
+                        if name == "state"
+                )
+        )));
     }
 }

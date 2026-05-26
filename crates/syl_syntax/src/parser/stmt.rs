@@ -1,4 +1,4 @@
-use super::Parser;
+use super::{BlockContext, Parser};
 use crate::lexer::{Token, TokenKind};
 use crate::{Expr, NamedExpr, RegReset, Stmt, TypeExpr};
 use syl_span::Diagnostic;
@@ -12,10 +12,12 @@ impl Parser {
         } else {
             None
         };
-        let value = if self.consume(&TokenKind::Eq).is_some()
-            || self.consume(&TokenKind::ColonEq).is_some()
-        {
+        let value = if self.consume(&TokenKind::Eq).is_some() {
             Some(self.parse_expr(0)?)
+        } else if let Some(span) = self.consume(&TokenKind::ColonEq).map(|token| token.span) {
+            self.error(span, "`let` statements only accept `=`");
+            let _ = self.parse_expr(0)?;
+            return Err(std::mem::take(&mut self.diagnostics));
         } else {
             None
         };
@@ -124,10 +126,12 @@ impl Parser {
         } else {
             None
         };
-        let value = if self.consume(&TokenKind::Eq).is_some()
-            || self.consume(&TokenKind::ColonEq).is_some()
-        {
+        let value = if self.consume(&TokenKind::Eq).is_some() {
             Some(self.parse_expr(0)?)
+        } else if let Some(span) = self.consume(&TokenKind::ColonEq).map(|token| token.span) {
+            self.error(span, "`var` statements only accept `=`");
+            let _ = self.parse_expr(0)?;
+            return Err(std::mem::take(&mut self.diagnostics));
         } else {
             None
         };
@@ -157,10 +161,12 @@ impl Parser {
         } else {
             None
         };
-        let value = if self.consume(&TokenKind::Eq).is_some()
-            || self.consume(&TokenKind::ColonEq).is_some()
-        {
+        let value = if self.consume(&TokenKind::ColonEq).is_some() {
             Some(self.parse_expr(0)?)
+        } else if let Some(span) = self.consume(&TokenKind::Eq).map(|token| token.span) {
+            self.error(span, "`signal` statements only accept `:=`");
+            let _ = self.parse_expr(0)?;
+            return Err(std::mem::take(&mut self.diagnostics));
         } else {
             None
         };
@@ -229,8 +235,13 @@ impl Parser {
     pub(super) fn parse_next_stmt(&mut self) -> Result<Stmt, Vec<Diagnostic>> {
         let start = self.expect(TokenKind::KwNext)?.span;
         let name = self.expect_ident()?;
-        if self.consume(&TokenKind::Eq).is_none() && self.consume(&TokenKind::ColonEq).is_none() {
-            self.expect(TokenKind::Eq)?;
+        if self.consume(&TokenKind::ColonEq).is_none() {
+            if let Some(span) = self.consume(&TokenKind::Eq).map(|token| token.span) {
+                self.error(span, "`next` statements only accept `:=`");
+                let _ = self.parse_expr(0)?;
+                return Err(std::mem::take(&mut self.diagnostics));
+            }
+            self.expect(TokenKind::ColonEq)?;
         }
         let value = self.parse_expr(0)?;
         let end = self
@@ -244,10 +255,64 @@ impl Parser {
         })
     }
 
+    pub(super) fn parse_contextual_assignment_stmt(
+        &mut self,
+        target: Expr,
+        context: BlockContext,
+    ) -> Result<Stmt, Vec<Diagnostic>> {
+        let Some(operator) = self.bump() else {
+            self.error(self.eof_span(), "expected assignment operator");
+            return Err(std::mem::take(&mut self.diagnostics));
+        };
+        let is_valid = match (context, operator.kind) {
+            (BlockContext::Function, TokenKind::Eq) => true,
+            (BlockContext::Hardware, TokenKind::ColonEq) => true,
+            (BlockContext::Function, TokenKind::ColonEq) => {
+                self.error(
+                    operator.span,
+                    "`fn` blocks use `=`; `:=` is only valid in hardware blocks",
+                );
+                false
+            }
+            (BlockContext::Hardware, TokenKind::Eq) => {
+                self.error(
+                    operator.span,
+                    "hardware blocks use `:=`; bare `=` assignment is invalid here",
+                );
+                false
+            }
+            _ => {
+                self.error(operator.span, "expected assignment operator");
+                false
+            }
+        };
+        let value = self.parse_expr(0)?;
+        let end = self
+            .consume(&TokenKind::Semi)
+            .map(|tok| tok.span)
+            .unwrap_or_else(|| value.span());
+        let span = target.span().join(end);
+        if !is_valid {
+            return Err(std::mem::take(&mut self.diagnostics));
+        }
+        match context {
+            BlockContext::Function => Ok(Stmt::Assign {
+                target,
+                value,
+                span,
+            }),
+            BlockContext::Hardware => Ok(Stmt::Drive {
+                target,
+                value,
+                span,
+            }),
+        }
+    }
+
     pub(super) fn parse_while_stmt(&mut self) -> Result<Stmt, Vec<Diagnostic>> {
         let start = self.expect(TokenKind::KwWhile)?.span;
         let cond = self.parse_expr(0)?;
-        let body = self.parse_block()?;
+        let body = self.parse_block(self.block_context())?;
         let span = start.join(body.span);
         Ok(Stmt::While { cond, body, span })
     }
@@ -255,10 +320,10 @@ impl Parser {
     pub(super) fn parse_if_stmt(&mut self) -> Result<Stmt, Vec<Diagnostic>> {
         let start = self.expect(TokenKind::KwIf)?.span;
         let cond = self.parse_expr(0)?;
-        let then_block = self.parse_block()?;
+        let then_block = self.parse_block(self.block_context())?;
         let else_block = if self.check(&TokenKind::KwElse) {
             self.expect(TokenKind::KwElse)?;
-            Some(self.parse_block()?)
+            Some(self.parse_block(self.block_context())?)
         } else {
             None
         };
@@ -290,7 +355,7 @@ impl Parser {
             end: Box::new(end_expr),
             span,
         };
-        let body = self.parse_block()?;
+        let body = self.parse_block(self.block_context())?;
         let span = start.join(body.span);
         Ok(Stmt::ElabFor {
             name,

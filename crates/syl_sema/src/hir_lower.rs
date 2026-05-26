@@ -472,6 +472,10 @@ impl<'files> HirResolver<'files> {
                 HirStmt::Reg { id, name, span, .. } => {
                     *id = Some(self.register_local(owner, name, HirLocalKind::Reg, *span));
                 }
+                HirStmt::Assign { target, value, .. } | HirStmt::Drive { target, value, .. } => {
+                    self.register_expr_locals(owner, target);
+                    self.register_expr_locals(owner, value);
+                }
                 HirStmt::ElabIf {
                     then_block,
                     else_block,
@@ -493,8 +497,9 @@ impl<'files> HirResolver<'files> {
                     self.register_block_locals(owner, body);
                 }
                 HirStmt::While { body, .. } => self.register_block_locals(owner, body),
-                HirStmt::Expr(expr) | HirStmt::Next { value: expr, .. } => {
-                    self.register_expr_locals(owner, expr);
+                HirStmt::Expr(expr) => self.register_expr_locals(owner, expr),
+                HirStmt::Next { value, .. } => {
+                    self.register_expr_locals(owner, value);
                 }
                 HirStmt::Return(Some(expr), _) => {
                     self.register_expr_locals(owner, expr);

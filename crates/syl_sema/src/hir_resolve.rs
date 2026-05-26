@@ -260,6 +260,10 @@ impl<'a> HirNameResolver<'a> {
             | HirStmt::Reg { id, name, .. } => {
                 self.push_local_id(name, *id);
             }
+            HirStmt::Assign { target, value, .. } | HirStmt::Drive { target, value, .. } => {
+                self.resolve_expr(owner, target);
+                self.resolve_expr(owner, value);
+            }
             HirStmt::Next { value, .. } => self.resolve_expr(owner, value),
             HirStmt::While { cond, body, .. } => {
                 self.resolve_expr(owner, cond);

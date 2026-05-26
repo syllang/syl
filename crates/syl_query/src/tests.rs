@@ -244,6 +244,49 @@ fn cancelled_hover_after_hir_cache_does_not_start_tir() {
     assert!(!snapshot.is_elaboration_cached());
 }
 
+#[test]
+fn completion_suppresses_invalid_assignment_cleanup_contexts() {
+    let cases = [
+        (
+            "untitled:syl/next_eq",
+            "module Top(x: in Bit) {\n    next state = x\n}\n",
+            "state = x",
+        ),
+        (
+            "untitled:syl/signal_eq",
+            "module Top(x: in Bit) {\n    signal state: Bit = x\n}\n",
+            "Bit = x",
+        ),
+        (
+            "untitled:syl/let_drive",
+            "module Top(x: in Bit) {\n    let state := x\n}\n",
+            "state := x",
+        ),
+    ];
+
+    for (uri, source, marker) in cases {
+        let uri = DocumentUri::new(uri);
+        let mut host = AnalysisHost::new();
+        host.open_document(uri.clone(), source.to_string(), DocumentVersion::new(1));
+        let snapshot = host
+            .snapshot()
+            .expect("invalid completion fixture must snapshot cleanly");
+        let completions = snapshot
+            .completions_at_with_token(
+                &uri,
+                source_position(source, marker),
+                &CancellationToken::new(),
+            )
+            .expect("invalid assignment cleanup context should still query successfully");
+
+        assert!(
+            completions.items.is_empty(),
+            "old assignment syntax should not produce completions for {marker:?}: {:?}",
+            completions.items
+        );
+    }
+}
+
 fn assert_document_has_stage(
     grouped: &crate::GroupedDiagnostics,
     uri: &DocumentUri,

@@ -5,6 +5,12 @@ use syl_syntax::{
     BinaryOp, Block, CallArg, Expr, MatchArm, NamedExpr, RegReset, SelectArm, Stmt, UnaryOp,
 };
 
+#[derive(Clone, Copy)]
+enum HirBlockContext {
+    Hardware,
+    Software,
+}
+
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct HirBlock {
@@ -14,13 +20,25 @@ pub struct HirBlock {
 }
 
 impl HirBlock {
-    pub(crate) fn from_syntax(block: &Block) -> Self {
+    pub(crate) fn from_hardware_syntax(block: &Block) -> Self {
+        Self::from_syntax_with_context(block, HirBlockContext::Hardware)
+    }
+
+    pub(crate) fn from_software_syntax(block: &Block) -> Self {
+        Self::from_syntax_with_context(block, HirBlockContext::Software)
+    }
+
+    fn from_syntax_with_context(block: &Block, context: HirBlockContext) -> Self {
         Self {
-            stmts: block.stmts.iter().map(HirStmt::from_syntax).collect(),
+            stmts: block
+                .stmts
+                .iter()
+                .map(|stmt| HirStmt::from_syntax(stmt, context))
+                .collect(),
             tail: block
                 .tail
                 .as_ref()
-                .map(|expr| Box::new(HirExpr::from_syntax(expr))),
+                .map(|expr| Box::new(HirExpr::from_syntax_with_context(expr, context))),
             span: block.span,
         }
     }
@@ -67,6 +85,16 @@ pub enum HirStmt {
         reset: Option<HirRegReset>,
         span: Span,
     },
+    Assign {
+        target: HirExpr,
+        value: HirExpr,
+        span: Span,
+    },
+    Drive {
+        target: HirExpr,
+        value: HirExpr,
+        span: Span,
+    },
     Next {
         name: String,
         value: HirExpr,
@@ -103,6 +131,8 @@ impl HirStmt {
             | HirStmt::Var { span, .. }
             | HirStmt::Signal { span, .. }
             | HirStmt::Reg { span, .. }
+            | HirStmt::Assign { span, .. }
+            | HirStmt::Drive { span, .. }
             | HirStmt::Next { span, .. }
             | HirStmt::While { span, .. }
             | HirStmt::ElabIf { span, .. }
@@ -112,7 +142,7 @@ impl HirStmt {
         }
     }
 
-    fn from_syntax(stmt: &Stmt) -> Self {
+    fn from_syntax(stmt: &Stmt, context: HirBlockContext) -> Self {
         match stmt {
             Stmt::Error { span } => HirStmt::Error { span: *span },
             Stmt::Const {
@@ -124,7 +154,7 @@ impl HirStmt {
                 id: None,
                 name: name.clone(),
                 ty: ty.as_ref().map(MirTypeRef::from),
-                value: HirExpr::from_syntax(value),
+                value: HirExpr::from_syntax_with_context(value, context),
                 span: *span,
             },
             Stmt::Let {
@@ -136,7 +166,9 @@ impl HirStmt {
                 id: None,
                 name: name.clone(),
                 ty: ty.as_ref().map(MirTypeRef::from),
-                value: value.as_ref().map(HirExpr::from_syntax),
+                value: value
+                    .as_ref()
+                    .map(|expr| HirExpr::from_syntax_with_context(expr, context)),
                 span: *span,
             },
             Stmt::Var {
@@ -148,7 +180,9 @@ impl HirStmt {
                 id: None,
                 name: name.clone(),
                 ty: ty.as_ref().map(MirTypeRef::from),
-                value: value.as_ref().map(HirExpr::from_syntax),
+                value: value
+                    .as_ref()
+                    .map(|expr| HirExpr::from_syntax_with_context(expr, context)),
                 span: *span,
             },
             Stmt::Signal {
@@ -160,7 +194,9 @@ impl HirStmt {
                 id: None,
                 name: name.clone(),
                 ty: ty.as_ref().map(MirTypeRef::from),
-                value: value.as_ref().map(HirExpr::from_syntax),
+                value: value
+                    .as_ref()
+                    .map(|expr| HirExpr::from_syntax_with_context(expr, context)),
                 span: *span,
             },
             Stmt::Reg {
@@ -175,14 +211,32 @@ impl HirStmt {
                 reset: reset.as_ref().map(HirRegReset::from_syntax),
                 span: *span,
             },
+            Stmt::Assign {
+                target,
+                value,
+                span,
+            } => HirStmt::Assign {
+                target: HirExpr::from_syntax_with_context(target, context),
+                value: HirExpr::from_syntax_with_context(value, context),
+                span: *span,
+            },
+            Stmt::Drive {
+                target,
+                value,
+                span,
+            } => HirStmt::Drive {
+                target: HirExpr::from_syntax_with_context(target, context),
+                value: HirExpr::from_syntax_with_context(value, context),
+                span: *span,
+            },
             Stmt::Next { name, value, span } => HirStmt::Next {
                 name: name.clone(),
-                value: HirExpr::from_syntax(value),
+                value: HirExpr::from_syntax_with_context(value, context),
                 span: *span,
             },
             Stmt::While { cond, body, span } => HirStmt::While {
-                cond: HirExpr::from_syntax(cond),
-                body: HirBlock::from_syntax(body),
+                cond: HirExpr::from_syntax_with_context(cond, context),
+                body: HirBlock::from_syntax_with_context(body, context),
                 span: *span,
             },
             Stmt::ElabIf {
@@ -191,9 +245,11 @@ impl HirStmt {
                 else_block,
                 span,
             } => HirStmt::ElabIf {
-                cond: HirExpr::from_syntax(cond),
-                then_block: HirBlock::from_syntax(then_block),
-                else_block: else_block.as_ref().map(HirBlock::from_syntax),
+                cond: HirExpr::from_syntax_with_context(cond, context),
+                then_block: HirBlock::from_syntax_with_context(then_block, context),
+                else_block: else_block
+                    .as_ref()
+                    .map(|block| HirBlock::from_syntax_with_context(block, context)),
                 span: *span,
             },
             Stmt::ElabFor {
@@ -204,13 +260,18 @@ impl HirStmt {
             } => HirStmt::ElabFor {
                 id: None,
                 name: name.clone(),
-                range: HirExpr::from_syntax(range),
-                body: HirBlock::from_syntax(body),
+                range: HirExpr::from_syntax_with_context(range, context),
+                body: HirBlock::from_syntax_with_context(body, context),
                 span: *span,
             },
-            Stmt::Expr(expr) => HirStmt::Expr(HirExpr::from_syntax(expr)),
+            Stmt::Expr(expr) => HirStmt::Expr(HirExpr::from_syntax_with_context(expr, context)),
             Stmt::Return(value, span) => {
-                HirStmt::Return(value.as_ref().map(HirExpr::from_syntax), *span)
+                HirStmt::Return(
+                    value
+                        .as_ref()
+                        .map(|expr| HirExpr::from_syntax_with_context(expr, context)),
+                    *span,
+                )
             }
             _ => HirStmt::Error { span: stmt.span() },
         }
@@ -228,8 +289,11 @@ pub struct HirRegReset {
 impl HirRegReset {
     fn from_syntax(reset: &RegReset) -> Self {
         Self {
-            domain: reset.domain.as_ref().map(HirExpr::from_syntax),
-            value: HirExpr::from_syntax(&reset.value),
+            domain: reset
+                .domain
+                .as_ref()
+                .map(|expr| HirExpr::from_syntax_with_context(expr, HirBlockContext::Hardware)),
+            value: HirExpr::from_syntax_with_context(&reset.value, HirBlockContext::Hardware),
             span: reset.span,
         }
     }
@@ -249,6 +313,10 @@ impl HirExpr {
     }
 
     pub(crate) fn from_syntax(expr: &Expr) -> Self {
+        Self::from_syntax_with_context(expr, HirBlockContext::Software)
+    }
+
+    fn from_syntax_with_context(expr: &Expr, context: HirBlockContext) -> Self {
         let span = expr.span();
         let node = match expr {
             Expr::Ident(name, _) => HirExprNode::Ident(name.clone()),
@@ -257,63 +325,82 @@ impl HirExpr {
             Expr::Bool(value, _) => HirExprNode::Bool(*value),
             Expr::Unary { op, expr, .. } => HirExprNode::Unary {
                 op: *op,
-                expr: Box::new(HirExpr::from_syntax(expr)),
+                expr: Box::new(HirExpr::from_syntax_with_context(expr, context)),
             },
             Expr::Binary {
                 op, left, right, ..
             } => HirExprNode::Binary {
                 op: *op,
-                left: Box::new(HirExpr::from_syntax(left)),
-                right: Box::new(HirExpr::from_syntax(right)),
+                left: Box::new(HirExpr::from_syntax_with_context(left, context)),
+                right: Box::new(HirExpr::from_syntax_with_context(right, context)),
             },
             Expr::Call { callee, args, .. } => HirExprNode::Call {
-                callee: Box::new(HirExpr::from_syntax(callee)),
-                args: args.iter().map(HirCallArg::from_syntax).collect(),
+                callee: Box::new(HirExpr::from_syntax_with_context(callee, context)),
+                args: args
+                    .iter()
+                    .map(|arg| HirCallArg::from_syntax_with_context(arg, context))
+                    .collect(),
             },
             Expr::GenericApp { callee, args, .. } => HirExprNode::GenericApp {
-                callee: Box::new(HirExpr::from_syntax(callee)),
+                callee: Box::new(HirExpr::from_syntax_with_context(callee, context)),
                 args: args.iter().map(MirTypeRef::from).collect(),
             },
             Expr::Aggregate { ty, fields, .. } => HirExprNode::Aggregate {
                 ty: Box::new(MirTypeRef::from(ty.as_ref())),
-                fields: fields.iter().map(HirNamedExpr::from_syntax).collect(),
+                fields: fields
+                    .iter()
+                    .map(|field| HirNamedExpr::from_syntax_with_context(field, context))
+                    .collect(),
             },
             Expr::Field { base, field, .. } => HirExprNode::Field {
-                base: Box::new(HirExpr::from_syntax(base)),
+                base: Box::new(HirExpr::from_syntax_with_context(base, context)),
                 field: field.clone(),
             },
             Expr::Index { base, index, .. } => HirExprNode::Index {
-                base: Box::new(HirExpr::from_syntax(base)),
-                index: Box::new(HirExpr::from_syntax(index)),
+                base: Box::new(HirExpr::from_syntax_with_context(base, context)),
+                index: Box::new(HirExpr::from_syntax_with_context(index, context)),
             },
-            Expr::Group(expr, _) => HirExprNode::Group(Box::new(HirExpr::from_syntax(expr))),
-            Expr::Block(block) => HirExprNode::Block(HirBlock::from_syntax(block)),
+            Expr::Group(expr, _) => {
+                HirExprNode::Group(Box::new(HirExpr::from_syntax_with_context(expr, context)))
+            }
+            Expr::Block(block) => {
+                HirExprNode::Block(HirBlock::from_syntax_with_context(block, context))
+            }
             Expr::Match { expr, arms, .. } => HirExprNode::Match {
-                expr: Box::new(HirExpr::from_syntax(expr)),
-                arms: arms.iter().map(HirMatchArm::from_syntax).collect(),
+                expr: Box::new(HirExpr::from_syntax_with_context(expr, context)),
+                arms: arms
+                    .iter()
+                    .map(|arm| HirMatchArm::from_syntax_with_context(arm, context))
+                    .collect(),
             },
             Expr::Select { mode, arms, .. } => HirExprNode::Select {
                 mode: MirSelectMode::from(*mode),
-                arms: arms.iter().map(HirSelectArm::from_syntax).collect(),
+                arms: arms
+                    .iter()
+                    .map(|arm| HirSelectArm::from_syntax_with_context(arm, context))
+                    .collect(),
             },
             Expr::Place { callee, args, .. } => HirExprNode::Place {
-                callee: Box::new(HirExpr::from_syntax(callee)),
-                args: args.iter().map(HirCallArg::from_syntax).collect(),
+                callee: Box::new(HirExpr::from_syntax_with_context(callee, context)),
+                args: args
+                    .iter()
+                    .map(|arg| HirCallArg::from_syntax_with_context(arg, context))
+                    .collect(),
             },
             Expr::For {
                 name, range, body, ..
             } => HirExprNode::For {
                 id: None,
                 name: name.clone(),
-                range: Box::new(HirExpr::from_syntax(range)),
-                body: HirBlock::from_syntax(body),
+                range: Box::new(HirExpr::from_syntax_with_context(range, context)),
+                body: HirBlock::from_syntax_with_context(body, context),
             },
             Expr::CompileError { message, .. } => HirExprNode::CompileError {
-                message: Box::new(HirExpr::from_syntax(message)),
+                message: Box::new(HirExpr::from_syntax_with_context(message, context)),
             },
             Expr::Range { start, end, .. } => HirExprNode::Range {
-                start: Box::new(HirExpr::from_syntax(start)),
-                end: Box::new(HirExpr::from_syntax(end)),
+                start: Box::new(HirExpr::from_syntax_with_context(start, context)),
+                end: Box::new(HirExpr::from_syntax_with_context(end, context)),
             },
             _ => HirExprNode::Unsupported,
         };
@@ -425,10 +512,10 @@ pub struct HirNamedExpr {
 }
 
 impl HirNamedExpr {
-    fn from_syntax(expr: &NamedExpr) -> Self {
+    fn from_syntax_with_context(expr: &NamedExpr, context: HirBlockContext) -> Self {
         Self {
             name: expr.name.clone(),
-            value: HirExpr::from_syntax(&expr.value),
+            value: HirExpr::from_syntax_with_context(&expr.value, context),
             span: expr.span,
         }
     }
@@ -447,10 +534,10 @@ pub struct HirCallArg {
 }
 
 impl HirCallArg {
-    fn from_syntax(arg: &CallArg) -> Self {
+    fn from_syntax_with_context(arg: &CallArg, context: HirBlockContext) -> Self {
         Self {
             name: arg.name.clone(),
-            value: HirExpr::from_syntax(&arg.value),
+            value: HirExpr::from_syntax_with_context(&arg.value, context),
             span: arg.span,
         }
     }
@@ -473,10 +560,10 @@ pub struct HirMatchArm {
 }
 
 impl HirMatchArm {
-    fn from_syntax(arm: &MatchArm) -> Self {
+    fn from_syntax_with_context(arm: &MatchArm, context: HirBlockContext) -> Self {
         Self {
             pattern: MirPattern::from(&arm.pattern),
-            value: HirExpr::from_syntax(&arm.value),
+            value: HirExpr::from_syntax_with_context(&arm.value, context),
             span: arm.span,
         }
     }
@@ -495,10 +582,10 @@ pub struct HirSelectArm {
 }
 
 impl HirSelectArm {
-    fn from_syntax(arm: &SelectArm) -> Self {
+    fn from_syntax_with_context(arm: &SelectArm, context: HirBlockContext) -> Self {
         Self {
-            pattern: HirExpr::from_syntax(&arm.pattern),
-            value: HirExpr::from_syntax(&arm.value),
+            pattern: HirExpr::from_syntax_with_context(&arm.pattern, context),
+            value: HirExpr::from_syntax_with_context(&arm.value, context),
             span: arm.span,
         }
     }

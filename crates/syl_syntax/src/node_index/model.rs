@@ -47,6 +47,8 @@ pub enum AstNodeKind {
     VarStmt,
     SignalStmt,
     RegStmt,
+    AssignStmt,
+    DriveStmt,
     NextStmt,
     WhileStmt,
     ElabIfStmt,

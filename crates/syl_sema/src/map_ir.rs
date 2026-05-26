@@ -297,12 +297,6 @@ impl<'a> MapIrBuilder<'a> {
                 op, left, right, ..
             } => {
                 let op = MapBinaryOp::from(*op);
-                if matches!(op, MapBinaryOp::Assign) {
-                    return Err(CompileError::lowering_at(
-                        EirError::AssignmentInMap,
-                        expr.span(),
-                    ));
-                }
                 if matches!(op, MapBinaryOp::Unsupported | MapBinaryOp::Field) {
                     return Err(CompileError::lowering_at(
                         TirError::InvalidElaborationExpression,

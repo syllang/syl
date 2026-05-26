@@ -51,20 +51,15 @@ impl<'a> ExprLowerer<'a> {
         }
     }
 
-    pub(super) fn lower_assignment(
+    pub(super) fn lower_local_assignment(
         &mut self,
-        expr: &HirBodyExpr,
+        target: &HirBodyExpr,
+        value: &HirBodyExpr,
     ) -> Option<(ConstLocalRef, ConstExpr)> {
-        let HirExprNode::Binary { op, left, right } = &expr.node else {
+        let HirExprNode::Ident(name) = &target.node else {
             return None;
         };
-        if !matches!(MirBinaryOp::from(*op), MirBinaryOp::Assign) {
-            return None;
-        }
-        let HirExprNode::Ident(name) = &left.node else {
-            return None;
-        };
-        Some((self.local_ref_for_expr(left, name), self.lower_expr(right)))
+        Some((self.local_ref_for_expr(target, name), self.lower_expr(value)))
     }
 
     pub(super) fn lower_expr(&mut self, expr: &HirBodyExpr) -> ConstExpr {

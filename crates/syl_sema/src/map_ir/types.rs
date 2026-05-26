@@ -46,8 +46,6 @@ impl From<MirUnaryOp> for MapUnaryOp {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, IntoStaticStr)]
 #[non_exhaustive]
 pub enum MapBinaryOp {
-    #[strum(serialize = "=")]
-    Assign,
     #[strum(serialize = "||")]
     OrOr,
     #[strum(serialize = "&&")]
@@ -91,7 +89,6 @@ pub enum MapBinaryOp {
 impl From<BinaryOp> for MapBinaryOp {
     fn from(op: BinaryOp) -> Self {
         match op {
-            BinaryOp::Assign => Self::Assign,
             BinaryOp::OrOr => Self::OrOr,
             BinaryOp::AndAnd => Self::AndAnd,
             BinaryOp::EqEq | BinaryOp::EqWord => Self::Eq,
@@ -118,7 +115,6 @@ impl From<BinaryOp> for MapBinaryOp {
 impl From<MirBinaryOp> for MapBinaryOp {
     fn from(op: MirBinaryOp) -> Self {
         match op {
-            MirBinaryOp::Assign => Self::Assign,
             MirBinaryOp::OrOr => Self::OrOr,
             MirBinaryOp::AndAnd => Self::AndAnd,
             MirBinaryOp::Eq => Self::Eq,

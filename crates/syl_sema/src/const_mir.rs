@@ -428,6 +428,18 @@ impl<'a, 'b> FunctionLowerer<'a, 'b> {
                     Terminator::Goto(rest),
                 )
             }
+            HirStmt::Assign { target, value, .. } => {
+                let rest = self.lower_stmt_suffix(stmts, index + 1, next);
+                if let Some((local, value)) = self.exprs.lower_local_assignment(target, value) {
+                    self.push_block(
+                        vec![ConstStmt::Assign { local, value }],
+                        Terminator::Goto(rest),
+                    )
+                } else {
+                    self.exprs.mark_unsupported(target.span());
+                    rest
+                }
+            }
             HirStmt::Let {
                 id,
                 name,
@@ -463,16 +475,8 @@ impl<'a, 'b> FunctionLowerer<'a, 'b> {
                 )
             }
             HirStmt::Expr(expr) => {
-                let rest = self.lower_stmt_suffix(stmts, index + 1, next);
-                if let Some((local, value)) = self.exprs.lower_assignment(expr) {
-                    self.push_block(
-                        vec![ConstStmt::Assign { local, value }],
-                        Terminator::Goto(rest),
-                    )
-                } else {
-                    self.exprs.mark_unsupported(expr.span());
-                    rest
-                }
+                self.exprs.mark_unsupported(expr.span());
+                self.lower_stmt_suffix(stmts, index + 1, next)
             }
             HirStmt::ElabIf {
                 cond,
@@ -524,15 +528,8 @@ impl<'a, 'b> FunctionLowerer<'a, 'b> {
 
     fn lower_block_to(&mut self, block: &HirBlock, next: BlockId) -> BlockId {
         let next = if let Some(tail) = &block.tail {
-            if let Some((local, value)) = self.exprs.lower_assignment(tail) {
-                self.push_block(
-                    vec![ConstStmt::Assign { local, value }],
-                    Terminator::Goto(next),
-                )
-            } else {
-                self.exprs.mark_unsupported(tail.span());
-                next
-            }
+            self.exprs.mark_unsupported(tail.span());
+            next
         } else {
             next
         };

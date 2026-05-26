@@ -236,6 +236,8 @@ pub enum EirError {
     HardwareGeneratorCallInExpression { name: String },
     #[error("hardware value expressions cannot call unknown function {name}")]
     UnknownHardwareValueCall { name: String },
+    #[error("reg {name} cannot be driven directly; use next {name} := ...")]
+    ContinuousDriveTargetIsReg { name: String },
     #[error("expression is not supported by hardware value lowering")]
     UnsupportedHardwareValueExpression,
     #[error("aggregate field {field} is missing for {ty}")]
@@ -269,6 +271,7 @@ impl EirError {
             Self::HardwareGeneratorCallInMap { .. } => "E_MIDDLE_HW_GENERATOR_CALL_IN_MAP",
             Self::HardwareGeneratorCallInExpression { .. } => "E_MIDDLE_HW_GENERATOR_CALL_IN_EXPR",
             Self::UnknownHardwareValueCall { .. } => "E_MIDDLE_UNKNOWN_HW_VALUE_CALL",
+            Self::ContinuousDriveTargetIsReg { .. } => "E_MIDDLE_CONTINUOUS_DRIVE_TO_REG",
             Self::UnsupportedHardwareValueExpression => "E_MIDDLE_UNSUPPORTED_HW_VALUE_EXPR",
             Self::MissingAggregateField { .. } => "E_MIDDLE_MISSING_AGGREGATE_FIELD",
             Self::UnknownAggregateField { .. } => "E_MIDDLE_UNKNOWN_AGGREGATE_FIELD",
@@ -285,6 +288,8 @@ pub enum DriverError {
     UnknownHardwareObject { module: String, name: String },
     #[error("next target {name} is not a reg")]
     NextTargetIsNotReg { name: String },
+    #[error("continuous drive target {name} is a reg; use next {name} := ...")]
+    ContinuousDriveTargetIsReg { name: String },
     #[error("duplicate next driver for {name}")]
     DuplicateNextDriver { name: String },
     #[error("duplicate hardware driver for {name}")]
@@ -314,6 +319,7 @@ impl DriverError {
         match self {
             Self::UnknownHardwareObject { .. } => "E_MIDDLE_UNKNOWN_HW_OBJECT",
             Self::NextTargetIsNotReg { .. } => "E_MIDDLE_NEXT_TARGET_NOT_REG",
+            Self::ContinuousDriveTargetIsReg { .. } => "E_MIDDLE_CONTINUOUS_DRIVE_TO_REG",
             Self::DuplicateNextDriver { .. } => "E_MIDDLE_DUPLICATE_NEXT_DRIVER",
             Self::DuplicateHardwareDriver { .. } => "E_MIDDLE_DUPLICATE_HARDWARE_DRIVER",
             Self::UndrivenOut { .. } => "E_MIDDLE_UNDRIVEN_OUT",

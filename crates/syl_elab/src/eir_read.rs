@@ -141,8 +141,12 @@ impl<'a> EirBuilder<'a> {
                     self.collect_elab_read_places(tail, env, reads);
                 }
                 for stmt in &body.stmts {
-                    if let ElabStmt::Expr(expr) = stmt {
-                        self.collect_elab_read_places(expr, env, reads);
+                    match stmt {
+                        ElabStmt::Expr(expr) => self.collect_elab_read_places(expr, env, reads),
+                        ElabStmt::Drive { value, .. } => {
+                            self.collect_elab_read_places(value, env, reads);
+                        }
+                        _ => {}
                     }
                 }
             }

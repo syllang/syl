@@ -1,5 +1,5 @@
-use super::Parser;
 use super::span_ext::PatternSpan;
+use super::Parser;
 use crate::lexer::{Token, TokenKind};
 use crate::*;
 use syl_span::{Diagnostic, Span};
@@ -347,7 +347,7 @@ impl Parser {
             end: Box::new(end_expr),
             span: range_span,
         };
-        let body = self.parse_block()?;
+        let body = self.parse_block(self.block_context())?;
         let span = start.join(body.span);
         Ok(Expr::For {
             name,
@@ -513,7 +513,6 @@ impl Parser {
             }
 
             let (l_bp, r_bp, op) = match self.peek_kind() {
-                Some(TokenKind::Eq) | Some(TokenKind::ColonEq) => (0, 0, BinaryOp::Assign),
                 Some(TokenKind::OrOr) => (1, 2, BinaryOp::OrOr),
                 Some(TokenKind::KwOr) => (1, 2, BinaryOp::OrWord),
                 Some(TokenKind::AndAnd) => (3, 4, BinaryOp::AndAnd),
@@ -536,18 +535,6 @@ impl Parser {
             };
             if l_bp < min_bp {
                 break;
-            }
-            if matches!(op, BinaryOp::Assign) {
-                self.bump();
-                let rhs = self.parse_expr(r_bp + 1)?;
-                let span = lhs.span().join(rhs.span());
-                lhs = Expr::Binary {
-                    op,
-                    left: Box::new(lhs),
-                    right: Box::new(rhs),
-                    span,
-                };
-                continue;
             }
             let op_span = match self.bump() {
                 Some(tok) => tok.span,
@@ -651,7 +638,7 @@ impl Parser {
                 ..
             }) => {
                 self.pos -= 1;
-                let block = self.parse_block()?;
+                let block = self.parse_block(self.block_context())?;
                 Ok(Expr::Block(block))
             }
             Some(Token {

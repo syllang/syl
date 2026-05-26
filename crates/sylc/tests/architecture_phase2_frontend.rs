@@ -4,7 +4,7 @@ use std::{
 };
 
 use syl_span::SourceId;
-use syl_syntax::{Expr, Item, SourceParser, Stmt};
+use syl_syntax::{Item, SourceParser, Stmt};
 
 #[test]
 fn architecture_phase2_frontend_entry_stays_small_and_split() {
@@ -94,13 +94,12 @@ module Tail(a: in Bit, b: out Bit) {
     match &output.file.items[0] {
         Item::Module(item) => {
             assert!(matches!(item.body.stmts.first(), Some(Stmt::Error { .. })));
-            let recovered_assign = item
+            let recovered_drive = item
                 .body
                 .stmts
                 .iter()
-                .any(|stmt| matches!(stmt, Stmt::Expr(Expr::Binary { .. })))
-                || matches!(item.body.tail.as_deref(), Some(Expr::Binary { .. }));
-            assert!(recovered_assign);
+                .any(|stmt| matches!(stmt, Stmt::Drive { .. }));
+            assert!(recovered_drive);
         }
         other => panic!("unexpected first item after recovery: {other:?}"),
     }

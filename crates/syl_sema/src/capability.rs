@@ -16,7 +16,6 @@ use crate::{
 };
 use syl_hir::{DefId, LocalId};
 use syl_span::Span;
-use syl_syntax::BinaryOp;
 
 mod view;
 
@@ -128,6 +127,10 @@ impl<'a> CapabilityChecker<'a> {
                     scope.insert(self.local_id(name, *id, *span)?, caps);
                     self.check_read_expr(owner, value, &scope)?;
                 }
+                HirStmt::Drive { target, value, .. } => {
+                    self.require_write(owner, target, &scope)?;
+                    self.check_read_expr(owner, value, &scope)?;
+                }
                 HirStmt::Next { value, .. } => {
                     self.check_read_expr(owner, value, &scope)?;
                 }
@@ -180,7 +183,7 @@ impl<'a> CapabilityChecker<'a> {
     ) {
         for stmt in &body.stmts {
             match stmt {
-                HirStmt::Expr(expr) => self.collect_expr_drive(owner, expr, scope),
+                HirStmt::Drive { target, .. } => self.collect_drive(owner, target, scope),
                 HirStmt::ElabIf {
                     then_block,
                     else_block,
@@ -197,19 +200,10 @@ impl<'a> CapabilityChecker<'a> {
                 _ => {}
             }
         }
-        if let Some(tail) = &body.tail {
-            self.collect_expr_drive(owner, tail, scope);
-        }
     }
 
-    fn collect_expr_drive(&self, owner: DefId, expr: &HirBodyExpr, scope: &mut CapabilityScope) {
-        if let HirExprNode::Binary {
-            op: BinaryOp::Assign,
-            left,
-            ..
-        } = &expr.node
-            && let PlaceResolution::Place(place) =
-                PlaceResolver::new(self.hir, owner, left).resolve()
+    fn collect_drive(&self, owner: DefId, target: &HirBodyExpr, scope: &mut CapabilityScope) {
+        if let PlaceResolution::Place(place) = PlaceResolver::new(self.hir, owner, target).resolve()
         {
             scope.mark_local_drive(&place);
         }
@@ -221,16 +215,6 @@ impl<'a> CapabilityChecker<'a> {
         expr: &HirBodyExpr,
         scope: &CapabilityScope,
     ) -> Result<(), CompileError> {
-        if let HirExprNode::Binary {
-            op: BinaryOp::Assign,
-            left,
-            right,
-        } = &expr.node
-        {
-            self.require_write(owner, left, scope)?;
-            self.check_read_expr(owner, right, scope)?;
-            return Ok(());
-        }
         self.check_read_expr(owner, expr, scope)
     }
 
@@ -288,13 +272,9 @@ impl<'a> CapabilityChecker<'a> {
                 self.check_read_expr(owner, expr, scope)
             }
             HirExprNode::Binary {
-                op, left, right, ..
+                left, right, ..
             } => {
-                if matches!(op, BinaryOp::Assign) {
-                    self.require_write(owner, left, scope)?;
-                } else {
-                    self.check_read_expr(owner, left, scope)?;
-                }
+                self.check_read_expr(owner, left, scope)?;
                 self.check_read_expr(owner, right, scope)
             }
             HirExprNode::Call { callee, args } | HirExprNode::Place { callee, args } => {

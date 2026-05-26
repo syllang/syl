@@ -6,7 +6,7 @@ use crate::{
     eir_connect::{InstanceEmitRequest, ViewSignalSpec},
     eir_expr::EirExpr,
     eir_place::EirPlace,
-    mir::{MirBinaryOp, MirTypeRef},
+    mir::MirTypeRef,
     program::{ElabBlock, ElabExpr, ElabExprNode, ElabStmt},
 };
 use std::collections::HashMap;
@@ -94,6 +94,11 @@ impl<'a> EirBuilder<'a> {
                     },
                     env,
                 )?),
+                ElabStmt::Drive {
+                    target,
+                    value,
+                    span,
+                } => items.extend(self.emit_drive(target, value, *span, env)?),
                 ElabStmt::Expr(expr) => {
                     items.extend(self.emit_expr_stmt(expr, env, compile_error_as_sv)?);
                 }
@@ -561,11 +566,6 @@ impl<'a> EirBuilder<'a> {
         env: &Env,
         compile_error_as_sv: bool,
     ) -> Result<Vec<EirItem>, CompileError> {
-        if let ElabExprNode::Binary { op, left, right } = &expr.node
-            && *op == MirBinaryOp::Assign
-        {
-            return self.emit_assign(left, right, expr.span(), env);
-        }
         if let ElabExprNode::CompileError { message } = &expr.node {
             if !compile_error_as_sv {
                 return Err(CompileError::lowering_at(
@@ -584,18 +584,18 @@ impl<'a> EirBuilder<'a> {
         ))
     }
 
-    fn emit_assign(
+    fn emit_drive(
         &self,
-        left: &ElabExpr,
-        right: &ElabExpr,
+        target: &ElabExpr,
+        value: &ElabExpr,
         span: Span,
         env: &Env,
     ) -> Result<Vec<EirItem>, CompileError> {
-        match (&left.node, &right.node) {
+        match (&target.node, &value.node) {
             (ElabExprNode::Ident(_), ElabExprNode::Aggregate { ty, fields }) => self
-                .emit_aggregate_assign(
+                .emit_aggregate_drive(
                     AggregateAssignEmit {
-                        target: left,
+                        target,
                         ty,
                         fields,
                         span,
@@ -603,15 +603,15 @@ impl<'a> EirBuilder<'a> {
                     env,
                 ),
             _ => Ok(vec![EirItem::Drive {
-                lhs: self.place_expr(left, env)?,
-                rhs: self.elab_expr(right, env),
-                reads: self.elab_read_places(right, env),
+                lhs: self.place_expr(target, env)?,
+                rhs: self.elab_expr(value, env),
+                reads: self.elab_read_places(value, env),
                 origin: env.origin(span),
             }]),
         }
     }
 
-    fn emit_aggregate_assign(
+    fn emit_aggregate_drive(
         &self,
         request: AggregateAssignEmit<'_>,
         env: &Env,

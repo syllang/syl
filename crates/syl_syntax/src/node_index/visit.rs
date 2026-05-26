@@ -1,4 +1,4 @@
-use super::{AstNodeIndexBuilder, NodeHandle, binary_op_label, select_mode_label, unary_op_label};
+use super::{binary_op_label, select_mode_label, unary_op_label, AstNodeIndexBuilder, NodeHandle};
 use crate::{
     Block, CallArg, Expr, MatchArm, NamedExpr, Pattern, RegReset, SelectArm, Stmt, TypeExpr,
 };
@@ -86,6 +86,24 @@ impl<'a> AstNodeIndexBuilder<'a> {
                 if let Some(reset) = reset {
                     self.visit_reg_reset(reset, id);
                 }
+            }
+            Stmt::Assign {
+                target,
+                value,
+                span,
+            } => {
+                let id = self.push_kind(super::AstNodeKind::AssignStmt, *span, Some(parent));
+                self.visit_expr(target, id);
+                self.visit_expr(value, id);
+            }
+            Stmt::Drive {
+                target,
+                value,
+                span,
+            } => {
+                let id = self.push_kind(super::AstNodeKind::DriveStmt, *span, Some(parent));
+                self.visit_expr(target, id);
+                self.visit_expr(value, id);
             }
             Stmt::Next { name, value, span } => {
                 let id = self.push_name(super::AstNodeKind::NextStmt, *span, Some(parent), name);

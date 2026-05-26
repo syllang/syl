@@ -15,6 +15,12 @@ enum BlockEntry {
     Tail(Expr),
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum BlockContext {
+    Function,
+    Hardware,
+}
+
 #[derive(Debug, Clone)]
 #[non_exhaustive]
 pub struct SourceParser<'a> {
@@ -194,6 +200,7 @@ pub struct Parser {
     tokens: Vec<Token>,
     pos: usize,
     eof_span: Span,
+    block_context: BlockContext,
     diagnostics: Vec<Diagnostic>,
 }
 
@@ -216,6 +223,7 @@ impl Parser {
             tokens,
             pos: 0,
             eof_span,
+            block_context: BlockContext::Function,
             diagnostics: Vec::new(),
         }
     }
@@ -372,7 +380,7 @@ impl Parser {
         } else {
             None
         };
-        let body = self.parse_block()?;
+        let body = self.parse_block(BlockContext::Hardware)?;
         let span = start.join(body.span);
         Ok(CallableItem::builder(name, body)
             .generics(generics)
@@ -452,7 +460,7 @@ impl Parser {
         } else {
             None
         };
-        let body = self.parse_block()?;
+        let body = self.parse_block(BlockContext::Function)?;
         let span = start.join(body.span);
         Ok(FnItem::builder(name, body)
             .params(params)
@@ -461,36 +469,42 @@ impl Parser {
             .build())
     }
 
-    fn parse_block(&mut self) -> Result<Block, Vec<Diagnostic>> {
-        let start = self.expect(TokenKind::LBrace)?.span;
-        let mut stmts = Vec::new();
-        let mut tail = None;
-        while !self.check(&TokenKind::RBrace) && !self.is_eof() {
-            let start_pos = self.pos;
-            match self.parse_block_entry() {
-                Ok(BlockEntry::Stmt(stmt)) => stmts.push(*stmt),
-                Ok(BlockEntry::Tail(expr)) => {
-                    tail = Some(Box::new(expr));
-                    break;
-                }
-                Err(mut diagnostics) => {
-                    self.diagnostics.append(&mut diagnostics);
-                    let span = self.recover_stmt_boundary(start_pos);
-                    stmts.push(Stmt::Error { span });
+    fn parse_block(&mut self, context: BlockContext) -> Result<Block, Vec<Diagnostic>> {
+        let previous_context = self.block_context;
+        self.block_context = context;
+        let result = (|| {
+            let start = self.expect(TokenKind::LBrace)?.span;
+            let mut stmts = Vec::new();
+            let mut tail = None;
+            while !self.check(&TokenKind::RBrace) && !self.is_eof() {
+                let start_pos = self.pos;
+                match self.parse_block_entry(context) {
+                    Ok(BlockEntry::Stmt(stmt)) => stmts.push(*stmt),
+                    Ok(BlockEntry::Tail(expr)) => {
+                        tail = Some(Box::new(expr));
+                        break;
+                    }
+                    Err(mut diagnostics) => {
+                        self.diagnostics.append(&mut diagnostics);
+                        let span = self.recover_stmt_boundary(start_pos);
+                        stmts.push(Stmt::Error { span });
+                    }
                 }
             }
-        }
-        let end = if let Some(tok) = self.consume(&TokenKind::RBrace) {
-            tok.span
-        } else {
-            let span = self.eof_span();
-            self.error(span, "expected RBrace");
-            span
-        };
-        Ok(Block::new(stmts, tail, start.join(end)))
+            let end = if let Some(tok) = self.consume(&TokenKind::RBrace) {
+                tok.span
+            } else {
+                let span = self.eof_span();
+                self.error(span, "expected RBrace");
+                span
+            };
+            Ok(Block::new(stmts, tail, start.join(end)))
+        })();
+        self.block_context = previous_context;
+        result
     }
 
-    fn parse_block_entry(&mut self) -> Result<BlockEntry, Vec<Diagnostic>> {
+    fn parse_block_entry(&mut self, context: BlockContext) -> Result<BlockEntry, Vec<Diagnostic>> {
         if self.check(&TokenKind::KwLet) {
             return self
                 .parse_let_stmt()
@@ -553,6 +567,14 @@ impl Parser {
             ))));
         }
         let expr = self.parse_expr(0)?;
+        if matches!(
+            self.peek_kind(),
+            Some(TokenKind::Eq) | Some(TokenKind::ColonEq)
+        ) {
+            return self
+                .parse_contextual_assignment_stmt(expr, context)
+                .map(|stmt| BlockEntry::Stmt(Box::new(stmt)));
+        }
         if self.consume(&TokenKind::Semi).is_some() || !self.check(&TokenKind::RBrace) {
             Ok(BlockEntry::Stmt(Box::new(Stmt::Expr(expr))))
         } else {
@@ -592,7 +614,11 @@ impl Parser {
     }
 
     fn consume(&mut self, kind: &TokenKind) -> Option<Token> {
-        if self.check(kind) { self.bump() } else { None }
+        if self.check(kind) {
+            self.bump()
+        } else {
+            None
+        }
     }
 
     fn check(&self, kind: &TokenKind) -> bool {
@@ -618,6 +644,10 @@ impl Parser {
 
     fn eof_span(&self) -> Span {
         self.eof_span
+    }
+
+    fn block_context(&self) -> BlockContext {
+        self.block_context
     }
 
     fn prev_span(&self) -> Span {

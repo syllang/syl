@@ -36,7 +36,7 @@
 // - `let x = rhs` only binds a name; it does not create a driver.
 // - `signal x: T := expr` is a local continuous driver.
 // - `target := expr` is a compiler-owned continuous driver.
-// - `next reg := expr` is a register next-state definition.
+// - `reg` values can be read, but only `next reg_name := expr` can update them.
 // - `return` is only valid inside fn, not inside map/cell/module bodies.
 // - Hardware Bit levels are written as 0/1; true/false are Bool proposition literals.
 // - Hardware logic uses and/or/not/xor/eq; const/proposition logic uses &&/||/!/==.

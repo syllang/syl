@@ -123,6 +123,10 @@ impl<'files> HirResolver<'files> {
                 self.index_optional_type(owner, ty);
                 self.index_expr(owner, value);
             }
+            HirStmt::Assign { target, value, .. } | HirStmt::Drive { target, value, .. } => {
+                self.index_expr(owner, target);
+                self.index_expr(owner, value);
+            }
             HirStmt::Let {
                 ty, value: None, ..
             }
