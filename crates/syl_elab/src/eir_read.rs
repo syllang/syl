@@ -162,6 +162,7 @@ impl<'a> EirBuilder<'a> {
         }
     }
 
+    #[allow(clippy::only_used_in_recursion)]
     fn collect_eir_value_read_places(&self, expr: &EirExpr, reads: &mut BTreeMap<String, EirExpr>) {
         if EirPlace::try_from(expr).is_ok() {
             reads.entry(expr.fact_key()).or_insert_with(|| expr.clone());

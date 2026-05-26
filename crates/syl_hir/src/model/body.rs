@@ -265,14 +265,12 @@ impl HirStmt {
                 span: *span,
             },
             Stmt::Expr(expr) => HirStmt::Expr(HirExpr::from_syntax_with_context(expr, context)),
-            Stmt::Return(value, span) => {
-                HirStmt::Return(
-                    value
-                        .as_ref()
-                        .map(|expr| HirExpr::from_syntax_with_context(expr, context)),
-                    *span,
-                )
-            }
+            Stmt::Return(value, span) => HirStmt::Return(
+                value
+                    .as_ref()
+                    .map(|expr| HirExpr::from_syntax_with_context(expr, context)),
+                *span,
+            ),
             _ => HirStmt::Error { span: stmt.span() },
         }
     }

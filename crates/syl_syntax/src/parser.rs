@@ -428,7 +428,7 @@ impl Parser {
                 );
                 return Err(std::mem::take(&mut self.diagnostics));
             }
-            let Some(dir) = param.dir.clone() else {
+            let Some(dir) = param.dir else {
                 self.error(
                     param.span,
                     "module and cell ports require explicit in/out direction",
@@ -614,11 +614,7 @@ impl Parser {
     }
 
     fn consume(&mut self, kind: &TokenKind) -> Option<Token> {
-        if self.check(kind) {
-            self.bump()
-        } else {
-            None
-        }
+        if self.check(kind) { self.bump() } else { None }
     }
 
     fn check(&self, kind: &TokenKind) -> bool {

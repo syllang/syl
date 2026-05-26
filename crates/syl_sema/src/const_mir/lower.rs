@@ -59,7 +59,10 @@ impl<'a> ExprLowerer<'a> {
         let HirExprNode::Ident(name) = &target.node else {
             return None;
         };
-        Some((self.local_ref_for_expr(target, name), self.lower_expr(value)))
+        Some((
+            self.local_ref_for_expr(target, name),
+            self.lower_expr(value),
+        ))
     }
 
     pub(super) fn lower_expr(&mut self, expr: &HirBodyExpr) -> ConstExpr {

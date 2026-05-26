@@ -271,9 +271,7 @@ impl<'a> CapabilityChecker<'a> {
             | HirExprNode::GenericApp { callee: expr, .. } => {
                 self.check_read_expr(owner, expr, scope)
             }
-            HirExprNode::Binary {
-                left, right, ..
-            } => {
+            HirExprNode::Binary { left, right, .. } => {
                 self.check_read_expr(owner, left, scope)?;
                 self.check_read_expr(owner, right, scope)
             }

@@ -1,4 +1,4 @@
-use super::{binary_op_label, select_mode_label, unary_op_label, AstNodeIndexBuilder, NodeHandle};
+use super::{AstNodeIndexBuilder, NodeHandle, binary_op_label, select_mode_label, unary_op_label};
 use crate::{
     Block, CallArg, Expr, MatchArm, NamedExpr, Pattern, RegReset, SelectArm, Stmt, TypeExpr,
 };

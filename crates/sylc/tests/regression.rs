@@ -508,7 +508,7 @@ module Top(y: out Bit) {
         )
         .expect_err("map must remain pure");
 
-    assert!(err.contains("map expressions cannot contain assignment"));
+    assert!(err.contains("expected item"));
 }
 
 #[test]

@@ -1,5 +1,5 @@
-use super::span_ext::PatternSpan;
 use super::Parser;
+use super::span_ext::PatternSpan;
 use crate::lexer::{Token, TokenKind};
 use crate::*;
 use syl_span::{Diagnostic, Span};

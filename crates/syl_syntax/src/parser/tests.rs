@@ -129,9 +129,11 @@ fn rejects_this_receiver_on_cell_port() {
         .parse_file()
         .expect_err("cell ports cannot be receivers");
 
-    assert!(errors
-        .iter()
-        .any(|error| error.message == "module and cell ports cannot use `this` receiver"));
+    assert!(
+        errors
+            .iter()
+            .any(|error| error.message == "module and cell ports cannot use `this` receiver")
+    );
 }
 
 #[test]
@@ -140,9 +142,11 @@ fn rejects_non_leading_this_receiver() {
         .parse_file()
         .expect_err("receiver must be first");
 
-    assert!(errors
-        .iter()
-        .any(|error| error.message == "`this` receiver must be the first parameter"));
+    assert!(
+        errors
+            .iter()
+            .any(|error| error.message == "`this` receiver must be the first parameter")
+    );
 }
 
 #[test]
@@ -151,9 +155,11 @@ fn rejects_directed_this_receiver() {
         .parse_file()
         .expect_err("receiver cannot have a port direction");
 
-    assert!(errors
-        .iter()
-        .any(|error| error.message == "`this` receiver cannot have an in/out direction"));
+    assert!(
+        errors
+            .iter()
+            .any(|error| error.message == "`this` receiver cannot have an in/out direction")
+    );
 }
 
 #[test]
@@ -538,10 +544,12 @@ module Top(x: in Bit, y: out Pair) {
 
     assert!(output.node_index().find_by_span(field.span).is_some());
     assert!(output.node_index().find_by_span(param.span).is_some());
-    assert!(output
-        .node_index()
-        .find_by_span(signal_field.span)
-        .is_some());
+    assert!(
+        output
+            .node_index()
+            .find_by_span(signal_field.span)
+            .is_some()
+    );
 }
 
 #[test]

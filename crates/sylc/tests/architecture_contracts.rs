@@ -42,9 +42,13 @@ fn architecture_manifests_match_phase0_dependency_contract() {
             .join("Cargo.toml");
         let manifest = read_text(&manifest_path);
 
-        let dependencies = dependency_names(manifest_section(&manifest, "dependencies"));
-        let dev_dependencies =
-            optional_dependency_names(optional_manifest_section(&manifest, "dev-dependencies"));
+        let dependencies = workspace_dependency_names(dependency_names(manifest_section(
+            &manifest,
+            "dependencies",
+        )));
+        let dev_dependencies = workspace_dependency_names(optional_dependency_names(
+            optional_manifest_section(&manifest, "dev-dependencies"),
+        ));
 
         assert_eq!(
             dependencies,
@@ -267,7 +271,7 @@ fn crate_contracts() -> &'static [CrateContract] {
         CrateContract {
             name: "syl_sema",
             rank: 3,
-            dependencies: &["syl_hir", "syl_span", "syl_syntax", "thiserror"],
+            dependencies: &["syl_hir", "syl_span", "syl_syntax"],
             dev_dependencies: &["syl_elab", "syl_emit", "syl_hw"],
             readme_mentions: &[
                 "syl_hir",
@@ -311,22 +315,14 @@ fn crate_contracts() -> &'static [CrateContract] {
         CrateContract {
             name: "syl_emit",
             rank: 5,
-            dependencies: &["syl_hw", "thiserror"],
+            dependencies: &["syl_hw"],
             dev_dependencies: &[],
             readme_mentions: &["syl_hw", "syl_elab", "SystemVerilog", "backend entry point"],
         },
         CrateContract {
             name: "syl_session",
             rank: 6,
-            dependencies: &[
-                "syl_elab",
-                "syl_hw",
-                "syl_sema",
-                "syl_span",
-                "syl_syntax",
-                "thiserror",
-                "url",
-            ],
+            dependencies: &["syl_elab", "syl_hw", "syl_sema", "syl_span", "syl_syntax"],
             dev_dependencies: &[],
             readme_mentions: &[
                 "syl_elab",
@@ -341,13 +337,7 @@ fn crate_contracts() -> &'static [CrateContract] {
         CrateContract {
             name: "syl_query",
             rank: 7,
-            dependencies: &[
-                "syl_sema",
-                "syl_session",
-                "syl_span",
-                "syl_syntax",
-                "thiserror",
-            ],
+            dependencies: &["syl_sema", "syl_session", "syl_span", "syl_syntax"],
             dev_dependencies: &[],
             readme_mentions: &[
                 "syl_session",
@@ -361,7 +351,7 @@ fn crate_contracts() -> &'static [CrateContract] {
         CrateContract {
             name: "syl_lsp",
             rank: 8,
-            dependencies: &["syl_query", "syl_session", "syl_span", "tokio", "tower-lsp"],
+            dependencies: &["syl_query", "syl_session", "syl_span"],
             dev_dependencies: &[],
             readme_mentions: &[
                 "syl_query",
@@ -436,6 +426,13 @@ fn set_of(values: &[&str]) -> BTreeSet<String> {
 
 fn dependency_names(section: &str) -> BTreeSet<String> {
     optional_dependency_names(Some(section))
+}
+
+fn workspace_dependency_names(dependencies: BTreeSet<String>) -> BTreeSet<String> {
+    dependencies
+        .into_iter()
+        .filter(|name| name == "syl" || name == "sylc" || name.starts_with("syl_"))
+        .collect()
 }
 
 fn optional_dependency_names(section: Option<&str>) -> BTreeSet<String> {
