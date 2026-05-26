@@ -1,13 +1,18 @@
 use std::collections::HashMap;
+use strum_macros::IntoStaticStr;
 use syl_span::Span;
 use syl_syntax::{BinaryOp, Expr, Pattern, SelectMode, TypeExpr, UnaryOp};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, IntoStaticStr)]
 #[non_exhaustive]
 pub enum MirUnaryOp {
+    #[strum(serialize = "-")]
     Neg,
+    #[strum(serialize = "!")]
     Not,
+    #[strum(serialize = "not")]
     NotWord,
+    #[strum(serialize = "?")]
     Unsupported,
 }
 
@@ -22,28 +27,48 @@ impl From<UnaryOp> for MirUnaryOp {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, IntoStaticStr)]
 #[non_exhaustive]
 pub enum MirBinaryOp {
+    #[strum(serialize = "=")]
     Assign,
+    #[strum(serialize = "||")]
     OrOr,
+    #[strum(serialize = "&&")]
     AndAnd,
+    #[strum(serialize = "==")]
     Eq,
+    #[strum(serialize = "!=")]
     NotEq,
+    #[strum(serialize = "<")]
     Lt,
+    #[strum(serialize = "<=")]
     LtEq,
+    #[strum(serialize = ">")]
     Gt,
+    #[strum(serialize = ">=")]
     GtEq,
+    #[strum(serialize = "+")]
     Add,
+    #[strum(serialize = "-")]
     Sub,
+    #[strum(serialize = "*")]
     Mul,
+    #[strum(serialize = "/")]
     Div,
+    #[strum(serialize = "%")]
     Rem,
+    #[strum(serialize = "<<")]
     Shl,
+    #[strum(serialize = ".")]
     Field,
+    #[strum(serialize = "and")]
     BitAnd,
+    #[strum(serialize = "or")]
     BitOr,
+    #[strum(serialize = "xor")]
     BitXor,
+    #[strum(serialize = "?")]
     Unsupported,
 }
 
@@ -74,19 +99,21 @@ impl From<BinaryOp> for MirBinaryOp {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, IntoStaticStr)]
 #[non_exhaustive]
 pub enum MirSelectMode {
+    #[strum(serialize = "priority")]
     Priority,
+    #[strum(serialize = "unique")]
     Unique,
 }
 
-impl From<&SelectMode> for MirSelectMode {
-    fn from(value: &SelectMode) -> Self {
-        if value.is_unique() {
-            Self::Unique
-        } else {
-            Self::Priority
+impl From<SelectMode> for MirSelectMode {
+    fn from(mode: SelectMode) -> Self {
+        match mode {
+            SelectMode::Priority => Self::Priority,
+            SelectMode::Unique => Self::Unique,
+            _ => Self::Priority,
         }
     }
 }

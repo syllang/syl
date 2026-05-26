@@ -1,33 +1,27 @@
 use std::{error::Error, fmt};
+use strum_macros::IntoStaticStr;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, IntoStaticStr)]
 #[non_exhaustive]
 pub enum HwBindingKind {
+    #[strum(serialize = "module")]
     Module,
+    #[strum(serialize = "parameter")]
     Parameter,
+    #[strum(serialize = "port")]
     Port,
+    #[strum(serialize = "localparam")]
     LocalParam,
+    #[strum(serialize = "signal")]
     Signal,
+    #[strum(serialize = "storage")]
     Storage,
+    #[strum(serialize = "instance")]
     Instance,
+    #[strum(serialize = "generate label")]
     GenerateLabel,
+    #[strum(serialize = "generate index")]
     GenerateIndex,
-}
-
-impl From<HwBindingKind> for &'static str {
-    fn from(value: HwBindingKind) -> Self {
-        match value {
-            HwBindingKind::Module => "module",
-            HwBindingKind::Parameter => "parameter",
-            HwBindingKind::Port => "port",
-            HwBindingKind::LocalParam => "localparam",
-            HwBindingKind::Signal => "signal",
-            HwBindingKind::Storage => "storage",
-            HwBindingKind::Instance => "instance",
-            HwBindingKind::GenerateLabel => "generate label",
-            HwBindingKind::GenerateIndex => "generate index",
-        }
-    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

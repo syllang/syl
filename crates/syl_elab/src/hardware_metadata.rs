@@ -1,3 +1,4 @@
+use derive_builder::Builder;
 use syl_hw::{HwGuard, HwOrigin, HwPlace, ObjectId};
 use syl_sema::OpaqueSummaryTable;
 
@@ -225,13 +226,19 @@ impl HardwareCreateFact {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Builder)]
+#[builder(pattern = "owned", build_fn(name = "try_build"))]
 #[non_exhaustive]
 pub struct HardwareCellSummary {
+    #[builder(setter(into))]
     callable: String,
+    #[builder(setter(into))]
     instance: String,
+    #[builder(default)]
     drives: Vec<HwPlace>,
+    #[builder(default)]
     reads: Vec<HwPlace>,
+    #[builder(default)]
     creates: Vec<String>,
     origin: HwOrigin,
 }
@@ -242,14 +249,10 @@ impl HardwareCellSummary {
         instance: impl Into<String>,
         origin: HwOrigin,
     ) -> HardwareCellSummaryBuilder {
-        HardwareCellSummaryBuilder {
-            callable: callable.into(),
-            instance: instance.into(),
-            drives: Vec::new(),
-            reads: Vec::new(),
-            creates: Vec::new(),
-            origin,
-        }
+        HardwareCellSummaryBuilder::default()
+            .callable(callable.into())
+            .instance(instance.into())
+            .origin(origin)
     }
 
     pub fn callable(&self) -> &str {
@@ -277,41 +280,10 @@ impl HardwareCellSummary {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-#[non_exhaustive]
-pub struct HardwareCellSummaryBuilder {
-    callable: String,
-    instance: String,
-    drives: Vec<HwPlace>,
-    reads: Vec<HwPlace>,
-    creates: Vec<String>,
-    origin: HwOrigin,
-}
-
 impl HardwareCellSummaryBuilder {
-    pub fn drives(mut self, drives: Vec<HwPlace>) -> Self {
-        self.drives = drives;
-        self
-    }
-
-    pub fn reads(mut self, reads: Vec<HwPlace>) -> Self {
-        self.reads = reads;
-        self
-    }
-
-    pub fn creates(mut self, creates: Vec<String>) -> Self {
-        self.creates = creates;
-        self
-    }
-
     pub fn build(self) -> HardwareCellSummary {
-        HardwareCellSummary {
-            callable: self.callable,
-            instance: self.instance,
-            drives: self.drives,
-            reads: self.reads,
-            creates: self.creates,
-            origin: self.origin,
-        }
+        self.try_build().expect(
+            "HardwareCellSummaryBuilder must be initialized with callable, instance, and origin",
+        )
     }
 }

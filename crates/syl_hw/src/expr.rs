@@ -1,3 +1,5 @@
+use strum_macros::IntoStaticStr;
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum HwExpr {
@@ -47,39 +49,60 @@ pub enum HwExpr {
     },
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, IntoStaticStr)]
 #[non_exhaustive]
 pub enum HwUnaryOp {
+    #[strum(serialize = "-")]
     Neg,
+    #[strum(serialize = "!")]
     Not,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, IntoStaticStr)]
 #[non_exhaustive]
 pub enum HwBinaryOp {
+    #[strum(serialize = "||")]
     OrOr,
+    #[strum(serialize = "&&")]
     AndAnd,
+    #[strum(serialize = "==")]
     Eq,
+    #[strum(serialize = "!=")]
     NotEq,
+    #[strum(serialize = "<")]
     Lt,
+    #[strum(serialize = "<=")]
     LtEq,
+    #[strum(serialize = ">")]
     Gt,
+    #[strum(serialize = ">=")]
     GtEq,
+    #[strum(serialize = "+")]
     Add,
+    #[strum(serialize = "-")]
     Sub,
+    #[strum(serialize = "*")]
     Mul,
+    #[strum(serialize = "/")]
     Div,
+    #[strum(serialize = "%")]
     Rem,
+    #[strum(serialize = "<<")]
     Shl,
+    #[strum(serialize = "and")]
     BitAnd,
+    #[strum(serialize = "or")]
     BitOr,
+    #[strum(serialize = "xor")]
     BitXor,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, IntoStaticStr)]
 #[non_exhaustive]
 pub enum HwSelectMode {
+    #[strum(serialize = "priority")]
     Priority,
+    #[strum(serialize = "unique")]
     Unique,
 }
 

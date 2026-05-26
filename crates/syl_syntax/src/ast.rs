@@ -1,4 +1,6 @@
 use crate::lossless::LosslessItemKind;
+use derive_builder::Builder;
+use strum_macros::IntoStaticStr;
 use syl_span::Span;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -79,13 +81,17 @@ pub struct ConstItem {
     pub span: Span,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Builder)]
+#[builder(pattern = "owned", build_fn(name = "try_build"))]
 #[non_exhaustive]
 pub struct FnItem {
     pub name: String,
+    #[builder(default)]
     pub params: Vec<Param>,
+    #[builder(default)]
     pub ret_ty: Option<TypeExpr>,
     pub body: Block,
+    #[builder(default)]
     pub span: Span,
 }
 
@@ -104,57 +110,84 @@ pub struct EnumVariant {
     pub span: Span,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Builder)]
+#[builder(pattern = "owned", build_fn(name = "try_build"))]
 #[non_exhaustive]
 pub struct BundleItem {
     pub name: String,
+    #[builder(default)]
     pub generics: Vec<GenericParam>,
+    #[builder(default)]
     pub fields: Vec<FieldDecl>,
+    #[builder(default)]
     pub attrs: Vec<Attribute>,
+    #[builder(default)]
     pub span: Span,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Builder)]
+#[builder(pattern = "owned", build_fn(name = "try_build"))]
 #[non_exhaustive]
 pub struct InterfaceItem {
     pub name: String,
+    #[builder(default)]
     pub generics: Vec<GenericParam>,
+    #[builder(default)]
     pub fields: Vec<FieldDecl>,
+    #[builder(default)]
     pub views: Vec<ViewDecl>,
+    #[builder(default)]
     pub span: Span,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Builder)]
+#[builder(pattern = "owned", build_fn(name = "try_build"))]
 #[non_exhaustive]
 pub struct MapItem {
     pub name: String,
+    #[builder(default)]
     pub generics: Vec<GenericParam>,
+    #[builder(default)]
     pub params: Vec<Param>,
+    #[builder(default)]
     pub ret_ty: Option<TypeExpr>,
     pub body: Expr,
+    #[builder(default)]
     pub span: Span,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Builder)]
+#[builder(pattern = "owned", build_fn(name = "try_build"))]
 #[non_exhaustive]
 pub struct CallableItem {
     pub name: String,
+    #[builder(default)]
     pub generics: Vec<GenericParam>,
+    #[builder(default)]
     pub params: Vec<Param>,
+    #[builder(default)]
     pub ports: Vec<PortDecl>,
+    #[builder(default)]
     pub result: Option<ResultBinding>,
     pub body: Block,
+    #[builder(default)]
     pub span: Span,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Builder)]
+#[builder(pattern = "owned", build_fn(name = "try_build"))]
 #[non_exhaustive]
 pub struct ExternModuleItem {
     pub name: String,
+    #[builder(default)]
     pub generics: Vec<GenericParam>,
+    #[builder(default)]
     pub params: Vec<Param>,
+    #[builder(default)]
     pub ports: Vec<PortDecl>,
+    #[builder(default)]
     pub result: Option<ResultBinding>,
+    #[builder(default)]
     pub span: Span,
 }
 
@@ -167,12 +200,6 @@ pub struct ResultBinding {
     pub span: Span,
 }
 
-impl ResultBinding {
-    pub fn is_drivable(&self) -> bool {
-        self.drive.can_write()
-    }
-}
-
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct PortDecl {
@@ -183,21 +210,14 @@ pub struct PortDecl {
     pub span: Span,
 }
 
-impl PortDecl {
-    pub fn is_in(&self) -> bool {
-        self.dir.is_in()
-    }
-
-    pub fn is_out(&self) -> bool {
-        self.dir.is_out()
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, IntoStaticStr)]
 #[non_exhaustive]
 pub enum DriveCapability {
+    #[strum(serialize = "ReadOnly")]
     ReadOnly,
+    #[strum(serialize = "ReadWrite")]
     ReadWrite,
+    #[strum(serialize = "WriteOnly")]
     WriteOnly,
 }
 
@@ -221,12 +241,6 @@ pub struct Param {
     pub span: Span,
 }
 
-impl Param {
-    pub fn is_receiver(&self) -> bool {
-        matches!(self.role, ParamRole::Receiver)
-    }
-}
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum ParamRole {
@@ -234,30 +248,15 @@ pub enum ParamRole {
     Receiver,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, IntoStaticStr)]
 #[non_exhaustive]
 pub enum ParamDirection {
+    #[strum(serialize = "in")]
     In,
+    #[strum(serialize = "inout")]
     InOut,
+    #[strum(serialize = "out")]
     Out,
-}
-
-impl ParamDirection {
-    pub fn is_in(&self) -> bool {
-        match self {
-            Self::In => true,
-            Self::InOut => true,
-            Self::Out => false,
-        }
-    }
-
-    pub fn is_out(&self) -> bool {
-        match self {
-            Self::In => false,
-            Self::InOut => true,
-            Self::Out => true,
-        }
-    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -301,11 +300,14 @@ pub struct ViewField {
     pub span: Span,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, IntoStaticStr)]
 #[non_exhaustive]
 pub enum ViewDirection {
+    #[strum(serialize = "in")]
     In,
+    #[strum(serialize = "inout")]
     InOut,
+    #[strum(serialize = "out")]
     Out,
 }
 
@@ -536,20 +538,13 @@ impl TypeExpr {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, IntoStaticStr)]
 #[non_exhaustive]
 pub enum SelectMode {
+    #[strum(serialize = "priority")]
     Priority,
+    #[strum(serialize = "unique")]
     Unique,
-}
-
-impl SelectMode {
-    pub fn is_unique(&self) -> bool {
-        match self {
-            Self::Priority => false,
-            Self::Unique => true,
-        }
-    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -611,72 +606,58 @@ pub enum TypeExpr {
     },
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, IntoStaticStr)]
 #[non_exhaustive]
 pub enum UnaryOp {
+    #[strum(serialize = "-")]
     Neg,
+    #[strum(serialize = "!")]
     Not,
+    #[strum(serialize = "not")]
     NotWord,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, IntoStaticStr)]
 #[non_exhaustive]
 pub enum BinaryOp {
+    #[strum(serialize = "=")]
     Assign,
+    #[strum(serialize = "||")]
     OrOr,
+    #[strum(serialize = "&&")]
     AndAnd,
+    #[strum(serialize = "==")]
     EqEq,
+    #[strum(serialize = "!=")]
     NotEq,
+    #[strum(serialize = "<")]
     Lt,
+    #[strum(serialize = "<=")]
     LtEq,
+    #[strum(serialize = ">")]
     Gt,
+    #[strum(serialize = ">=")]
     GtEq,
+    #[strum(serialize = "+")]
     Add,
+    #[strum(serialize = "-")]
     Sub,
+    #[strum(serialize = "*")]
     Mul,
+    #[strum(serialize = "/")]
     Div,
+    #[strum(serialize = "%")]
     Rem,
+    #[strum(serialize = "<<")]
     Shl,
+    #[strum(serialize = ".")]
     Field,
+    #[strum(serialize = "and")]
     AndWord,
+    #[strum(serialize = "or")]
     OrWord,
+    #[strum(serialize = "xor")]
     XorWord,
+    #[strum(serialize = "eq")]
     EqWord,
-}
-
-impl From<UnaryOp> for &'static str {
-    fn from(value: UnaryOp) -> Self {
-        match value {
-            UnaryOp::Neg => "-",
-            UnaryOp::Not => "!",
-            UnaryOp::NotWord => "not",
-        }
-    }
-}
-
-impl From<BinaryOp> for &'static str {
-    fn from(value: BinaryOp) -> Self {
-        match value {
-            BinaryOp::Assign => "=",
-            BinaryOp::OrOr => "||",
-            BinaryOp::AndAnd => "&&",
-            BinaryOp::EqEq => "==",
-            BinaryOp::NotEq => "!=",
-            BinaryOp::Lt => "<",
-            BinaryOp::LtEq => "<=",
-            BinaryOp::Gt => ">",
-            BinaryOp::GtEq => ">=",
-            BinaryOp::Add => "+",
-            BinaryOp::Sub => "-",
-            BinaryOp::Mul => "*",
-            BinaryOp::Div => "/",
-            BinaryOp::Rem => "%",
-            BinaryOp::Shl => "<<",
-            BinaryOp::Field => ".",
-            BinaryOp::AndWord => "and",
-            BinaryOp::OrWord => "or",
-            BinaryOp::XorWord => "xor",
-            BinaryOp::EqWord => "eq",
-        }
-    }
 }

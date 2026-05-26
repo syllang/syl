@@ -1,19 +1,13 @@
+use strum_macros::IntoStaticStr;
 use syl_span::{Diagnostic, DiagnosticRelatedInfo, DiagnosticSeverity, Span};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, IntoStaticStr)]
 #[non_exhaustive]
 pub enum SemanticDiagnosticStage {
+    #[strum(serialize = "lowering")]
     Lowering,
+    #[strum(serialize = "driver")]
     Driver,
-}
-
-impl From<SemanticDiagnosticStage> for &'static str {
-    fn from(value: SemanticDiagnosticStage) -> Self {
-        match value {
-            SemanticDiagnosticStage::Lowering => "lowering",
-            SemanticDiagnosticStage::Driver => "driver",
-        }
-    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

@@ -3,6 +3,7 @@ use crate::{
     hir::HirPortDirection,
     tir::{TirConstTerm, TirDesign},
 };
+use derive_builder::Builder;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[non_exhaustive]
@@ -407,35 +408,37 @@ impl TrustBoundary {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Builder)]
+#[builder(pattern = "owned", build_fn(name = "try_build"))]
 #[non_exhaustive]
 pub struct OpaqueItemSummary {
+    #[builder(setter(into))]
     kind: OpaqueItemKind,
+    #[builder(setter(into))]
     callable: String,
+    #[builder(default)]
     endpoints: Vec<SummaryEndpoint>,
+    #[builder(default)]
     driven_fields: Vec<SummaryPath>,
+    #[builder(default)]
     consumed_fields: Vec<SummaryPath>,
+    #[builder(default = "SummaryDomainBehavior::Unknown")]
     domain_behavior: SummaryDomainBehavior,
+    #[builder(default = "SummaryLatencyClass::Unknown")]
     latency_class: SummaryLatencyClass,
+    #[builder(default = "SummaryProtocolPreservation::Unknown")]
     protocol_preservation: SummaryProtocolPreservation,
+    #[builder(default = "TrustBoundary::SourceDerived")]
     trust_boundary: TrustBoundary,
+    #[builder(default)]
     backend_constraints: Vec<BackendConstraint>,
 }
 
 impl OpaqueItemSummary {
     pub fn builder(kind: OpaqueItemKind, callable: impl Into<String>) -> OpaqueItemSummaryBuilder {
-        OpaqueItemSummaryBuilder {
-            kind,
-            callable: callable.into(),
-            endpoints: Vec::new(),
-            driven_fields: Vec::new(),
-            consumed_fields: Vec::new(),
-            domain_behavior: SummaryDomainBehavior::Unknown,
-            latency_class: SummaryLatencyClass::Unknown,
-            protocol_preservation: SummaryProtocolPreservation::Unknown,
-            trust_boundary: TrustBoundary::SourceDerived,
-            backend_constraints: Vec::new(),
-        }
+        OpaqueItemSummaryBuilder::default()
+            .kind(kind)
+            .callable(callable.into())
     }
 
     pub fn kind(&self) -> OpaqueItemKind {
@@ -545,95 +548,32 @@ impl OpaqueItemSummary {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-#[non_exhaustive]
-pub struct OpaqueItemSummaryBuilder {
-    kind: OpaqueItemKind,
-    callable: String,
-    endpoints: Vec<SummaryEndpoint>,
-    driven_fields: Vec<SummaryPath>,
-    consumed_fields: Vec<SummaryPath>,
-    domain_behavior: SummaryDomainBehavior,
-    latency_class: SummaryLatencyClass,
-    protocol_preservation: SummaryProtocolPreservation,
-    trust_boundary: TrustBoundary,
-    backend_constraints: Vec<BackendConstraint>,
-}
-
 impl OpaqueItemSummaryBuilder {
     pub fn endpoint(mut self, endpoint: SummaryEndpoint) -> Self {
-        self.endpoints.push(endpoint);
-        self
-    }
-
-    pub fn endpoints(mut self, endpoints: Vec<SummaryEndpoint>) -> Self {
-        self.endpoints = endpoints;
+        self.endpoints.get_or_insert_with(Vec::new).push(endpoint);
         self
     }
 
     pub fn driven_field(mut self, path: SummaryPath) -> Self {
-        self.driven_fields.push(path);
-        self
-    }
-
-    pub fn driven_fields(mut self, paths: Vec<SummaryPath>) -> Self {
-        self.driven_fields = paths;
+        self.driven_fields.get_or_insert_with(Vec::new).push(path);
         self
     }
 
     pub fn consumed_field(mut self, path: SummaryPath) -> Self {
-        self.consumed_fields.push(path);
-        self
-    }
-
-    pub fn consumed_fields(mut self, paths: Vec<SummaryPath>) -> Self {
-        self.consumed_fields = paths;
-        self
-    }
-
-    pub fn domain_behavior(mut self, behavior: SummaryDomainBehavior) -> Self {
-        self.domain_behavior = behavior;
-        self
-    }
-
-    pub fn latency_class(mut self, latency_class: SummaryLatencyClass) -> Self {
-        self.latency_class = latency_class;
-        self
-    }
-
-    pub fn protocol_preservation(mut self, preservation: SummaryProtocolPreservation) -> Self {
-        self.protocol_preservation = preservation;
-        self
-    }
-
-    pub fn trust_boundary(mut self, boundary: TrustBoundary) -> Self {
-        self.trust_boundary = boundary;
+        self.consumed_fields.get_or_insert_with(Vec::new).push(path);
         self
     }
 
     pub fn backend_constraint(mut self, constraint: BackendConstraint) -> Self {
-        self.backend_constraints.push(constraint);
-        self
-    }
-
-    pub fn backend_constraints(mut self, constraints: Vec<BackendConstraint>) -> Self {
-        self.backend_constraints = constraints;
+        self.backend_constraints
+            .get_or_insert_with(Vec::new)
+            .push(constraint);
         self
     }
 
     pub fn build(self) -> OpaqueItemSummary {
-        OpaqueItemSummary {
-            kind: self.kind,
-            callable: self.callable,
-            endpoints: self.endpoints,
-            driven_fields: self.driven_fields,
-            consumed_fields: self.consumed_fields,
-            domain_behavior: self.domain_behavior,
-            latency_class: self.latency_class,
-            protocol_preservation: self.protocol_preservation,
-            trust_boundary: self.trust_boundary,
-            backend_constraints: self.backend_constraints,
-        }
+        self.try_build()
+            .expect("OpaqueItemSummaryBuilder must be initialized with kind and callable")
     }
 }
 

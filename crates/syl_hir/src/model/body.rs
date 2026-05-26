@@ -293,7 +293,7 @@ impl HirExpr {
                 arms: arms.iter().map(HirMatchArm::from_syntax).collect(),
             },
             Expr::Select { mode, arms, .. } => HirExprNode::Select {
-                mode: MirSelectMode::from(mode),
+                mode: MirSelectMode::from(*mode),
                 arms: arms.iter().map(HirSelectArm::from_syntax).collect(),
             },
             Expr::Place { callee, args, .. } => HirExprNode::Place {

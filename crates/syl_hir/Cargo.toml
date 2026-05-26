@@ -13,3 +13,5 @@ readme = "README.md"
 [dependencies]
 syl_syntax.workspace = true
 syl_span.workspace = true
+strum.workspace = true
+strum_macros.workspace = true

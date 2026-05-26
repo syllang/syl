@@ -1,3 +1,5 @@
+use strum_macros::IntoStaticStr;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub(super) struct SvDesign {
@@ -81,7 +83,7 @@ impl SvModule {
                 let comma = if idx + 1 == self.ports.len() { "" } else { "," };
                 out.push_str(&format!(
                     "    {} {}{}{}\n",
-                    port.direction.keyword(),
+                    <&'static str>::from(port.direction),
                     SvRange::new(&port.width).prefix(),
                     port.name,
                     comma
@@ -152,22 +154,15 @@ impl SvPort {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, IntoStaticStr)]
 #[non_exhaustive]
 pub(super) enum SvDirection {
+    #[strum(serialize = "input")]
     Input,
+    #[strum(serialize = "inout")]
     InOut,
+    #[strum(serialize = "output")]
     Output,
-}
-
-impl SvDirection {
-    fn keyword(self) -> &'static str {
-        match self {
-            Self::Input => "input",
-            Self::InOut => "inout",
-            Self::Output => "output",
-        }
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -395,7 +390,7 @@ impl SvExpr {
             Self::Zero => out.push_str("'0"),
             Self::Unary { op, expr } => {
                 out.push('(');
-                out.push_str(op.token());
+                out.push_str(<&'static str>::from(*op));
                 expr.emit_into(out);
                 out.push(')');
             }
@@ -403,7 +398,7 @@ impl SvExpr {
                 out.push('(');
                 left.emit_into(out);
                 out.push(' ');
-                out.push_str(op.token());
+                out.push_str(<&'static str>::from(*op));
                 out.push(' ');
                 right.emit_into(out);
                 out.push(')');
@@ -427,7 +422,7 @@ impl SvExpr {
                 default,
             } => {
                 out.push_str("/* ");
-                out.push_str(mode.keyword());
+                out.push_str(<&'static str>::from(*mode));
                 out.push_str(" */ ");
                 Self::emit_select_chain(out, arms, default);
             }
@@ -490,20 +485,13 @@ impl SvExpr {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, IntoStaticStr)]
 #[non_exhaustive]
 pub(super) enum SvSelectMode {
+    #[strum(serialize = "priority")]
     Priority,
+    #[strum(serialize = "unique")]
     Unique,
-}
-
-impl SvSelectMode {
-    fn keyword(self) -> &'static str {
-        match self {
-            Self::Priority => "priority",
-            Self::Unique => "unique",
-        }
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -519,66 +507,52 @@ impl SvSelectArm {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, IntoStaticStr)]
 #[non_exhaustive]
 pub(super) enum SvUnaryOp {
+    #[strum(serialize = "-")]
     Neg,
+    #[strum(serialize = "!")]
     Not,
 }
 
-impl SvUnaryOp {
-    fn token(self) -> &'static str {
-        match self {
-            Self::Neg => "-",
-            Self::Not => "!",
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, IntoStaticStr)]
 #[non_exhaustive]
 pub(super) enum SvBinaryOp {
+    #[strum(serialize = "||")]
     OrOr,
+    #[strum(serialize = "&&")]
     AndAnd,
+    #[strum(serialize = "==")]
     Eq,
+    #[strum(serialize = "!=")]
     NotEq,
+    #[strum(serialize = "<")]
     Lt,
+    #[strum(serialize = "<=")]
     LtEq,
+    #[strum(serialize = ">")]
     Gt,
+    #[strum(serialize = ">=")]
     GtEq,
+    #[strum(serialize = "+")]
     Add,
+    #[strum(serialize = "-")]
     Sub,
+    #[strum(serialize = "*")]
     Mul,
+    #[strum(serialize = "/")]
     Div,
+    #[strum(serialize = "%")]
     Rem,
+    #[strum(serialize = "<<")]
     Shl,
+    #[strum(serialize = "&")]
     BitAnd,
+    #[strum(serialize = "|")]
     BitOr,
+    #[strum(serialize = "^")]
     BitXor,
-}
-
-impl SvBinaryOp {
-    fn token(self) -> &'static str {
-        match self {
-            Self::OrOr => "||",
-            Self::AndAnd => "&&",
-            Self::Eq => "==",
-            Self::NotEq => "!=",
-            Self::Lt => "<",
-            Self::LtEq => "<=",
-            Self::Gt => ">",
-            Self::GtEq => ">=",
-            Self::Add => "+",
-            Self::Sub => "-",
-            Self::Mul => "*",
-            Self::Div => "/",
-            Self::Rem => "%",
-            Self::Shl => "<<",
-            Self::BitAnd => "&",
-            Self::BitOr => "|",
-            Self::BitXor => "^",
-        }
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

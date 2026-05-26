@@ -1,10 +1,15 @@
+use derive_builder::Builder;
 use std::path::PathBuf;
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Builder)]
+#[builder(pattern = "owned", build_fn(name = "try_build"))]
 #[non_exhaustive]
 pub struct ProjectConfig {
+    #[builder(default)]
     workspace_roots: Vec<PathBuf>,
+    #[builder(default)]
     std_roots: Vec<PathBuf>,
+    #[builder(default)]
     package_roots: Vec<PathBuf>,
 }
 
@@ -14,7 +19,7 @@ impl ProjectConfig {
     }
 
     pub fn builder() -> ProjectConfigBuilder {
-        ProjectConfigBuilder::new()
+        ProjectConfigBuilder::default()
     }
 
     pub fn workspace_roots(&self) -> &[PathBuf] {
@@ -45,60 +50,25 @@ impl ProjectConfig {
     }
 }
 
-#[derive(Clone, Debug, Default)]
-#[non_exhaustive]
-pub struct ProjectConfigBuilder {
-    workspace_roots: Vec<PathBuf>,
-    std_roots: Vec<PathBuf>,
-    package_roots: Vec<PathBuf>,
-}
-
 impl ProjectConfigBuilder {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub fn workspace_roots(mut self, roots: Vec<PathBuf>) -> Self {
-        self.workspace_roots = roots;
-        self
-    }
-
-    pub fn std_roots(mut self, roots: Vec<PathBuf>) -> Self {
-        self.std_roots = roots;
-        self
-    }
-
-    pub fn package_roots(mut self, roots: Vec<PathBuf>) -> Self {
-        self.package_roots = roots;
-        self
-    }
-
     pub fn push_workspace_root(mut self, root: PathBuf) -> Self {
-        self.workspace_roots.push(root);
+        self.workspace_roots.get_or_insert_with(Vec::new).push(root);
         self
     }
 
     pub fn push_std_root(mut self, root: PathBuf) -> Self {
-        self.std_roots.push(root);
+        self.std_roots.get_or_insert_with(Vec::new).push(root);
         self
     }
 
     pub fn push_package_root(mut self, root: PathBuf) -> Self {
-        self.package_roots.push(root);
+        self.package_roots.get_or_insert_with(Vec::new).push(root);
         self
     }
 
     pub fn build(self) -> ProjectConfig {
-        ProjectConfig {
-            workspace_roots: self.workspace_roots,
-            std_roots: self.std_roots,
-            package_roots: self.package_roots,
-        }
-    }
-}
-
-impl From<ProjectConfigBuilder> for ProjectConfig {
-    fn from(value: ProjectConfigBuilder) -> Self {
-        value.build()
+        self.try_build().expect(
+            "ProjectConfigBuilder only fails when required roots are missing, which cannot happen",
+        )
     }
 }

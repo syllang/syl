@@ -33,52 +33,16 @@ impl MirConstExprFacts for MirConstExpr {
             return value.to_string();
         }
         if let Some((op, expr)) = self.unary() {
-            return format!("({}{})", unary_symbol(op), expr.fact_key());
+            return format!("({}{})", <&'static str>::from(op), expr.fact_key());
         }
         if let Some((op, left, right)) = self.binary() {
             return format!(
                 "({} {} {})",
                 left.fact_key(),
-                binary_symbol(op),
+                <&'static str>::from(op),
                 right.fact_key()
             );
         }
         "unsupported_const_expr".to_string()
-    }
-}
-
-fn unary_symbol(op: MirUnaryOp) -> &'static str {
-    match op {
-        MirUnaryOp::Neg => "-",
-        MirUnaryOp::Not => "!",
-        MirUnaryOp::NotWord => "not",
-        MirUnaryOp::Unsupported => "?",
-        _ => "?",
-    }
-}
-
-fn binary_symbol(op: MirBinaryOp) -> &'static str {
-    match op {
-        MirBinaryOp::Assign => "=",
-        MirBinaryOp::OrOr => "||",
-        MirBinaryOp::AndAnd => "&&",
-        MirBinaryOp::Eq => "==",
-        MirBinaryOp::NotEq => "!=",
-        MirBinaryOp::Lt => "<",
-        MirBinaryOp::LtEq => "<=",
-        MirBinaryOp::Gt => ">",
-        MirBinaryOp::GtEq => ">=",
-        MirBinaryOp::Add => "+",
-        MirBinaryOp::Sub => "-",
-        MirBinaryOp::Mul => "*",
-        MirBinaryOp::Div => "/",
-        MirBinaryOp::Rem => "%",
-        MirBinaryOp::Shl => "<<",
-        MirBinaryOp::Field => ".",
-        MirBinaryOp::BitAnd => "and",
-        MirBinaryOp::BitOr => "or",
-        MirBinaryOp::BitXor => "xor",
-        MirBinaryOp::Unsupported => "?",
-        _ => "?",
     }
 }

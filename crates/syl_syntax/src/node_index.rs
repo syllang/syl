@@ -423,27 +423,18 @@ fn unary_op_label(op: UnaryOp) -> &'static str {
 }
 
 fn select_mode_label(mode: &SelectMode) -> &'static str {
-    match mode {
-        SelectMode::Priority => "priority",
-        SelectMode::Unique => "unique",
-    }
+    <&'static str>::from(*mode)
 }
 
 fn param_direction_label(direction: Option<&ParamDirection>) -> &'static str {
     match direction {
-        Some(ParamDirection::In) => "in",
-        Some(ParamDirection::InOut) => "inout",
-        Some(ParamDirection::Out) => "out",
+        Some(direction) => <&'static str>::from(*direction),
         None => "value",
     }
 }
 
 fn view_direction_label(direction: &ViewDirection) -> &'static str {
-    match direction {
-        ViewDirection::In => "in",
-        ViewDirection::InOut => "inout",
-        ViewDirection::Out => "out",
-    }
+    <&'static str>::from(*direction)
 }
 
 fn zero_range() -> SourceRange {

@@ -2,6 +2,7 @@ use crate::name::HirPath;
 use crate::resolution::HirResolution;
 use crate::{DefId, ExprId, LocalId, PackageId};
 use std::collections::BTreeMap;
+use strum_macros::IntoStaticStr;
 use syl_span::Span;
 
 mod body;
@@ -313,8 +314,9 @@ impl HirDef {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, IntoStaticStr)]
 #[non_exhaustive]
+#[strum(serialize_all = "snake_case")]
 pub enum HirDefKind {
     Const,
     Fn,
@@ -324,6 +326,7 @@ pub enum HirDefKind {
     Map,
     Cell,
     Module,
+    #[strum(serialize = "extern module")]
     ExternModule,
 }
 
@@ -348,8 +351,9 @@ impl HirLocal {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, IntoStaticStr)]
 #[non_exhaustive]
+#[strum(serialize_all = "snake_case")]
 pub enum HirLocalKind {
     Generic,
     Param,
@@ -415,20 +419,20 @@ impl HirMemberDecl {
     }
 }
 
+#[derive(Clone, Debug, PartialEq, IntoStaticStr)]
 #[non_exhaustive]
 pub enum HirMemberKind {
+    #[strum(serialize = "field")]
     Field { ty: MirTypeRef },
+    #[strum(serialize = "view")]
     View,
+    #[strum(serialize = "view field")]
     ViewField { view: String },
 }
 
 impl HirMemberKind {
     pub fn label(&self) -> &'static str {
-        match self {
-            Self::Field { .. } => "field",
-            Self::View => "view",
-            Self::ViewField { .. } => "view field",
-        }
+        self.clone().into()
     }
 }
 

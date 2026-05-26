@@ -25,6 +25,7 @@ repository = "https://github.com/syllang/syl"
 homepage = "https://github.com/syllang/syl"
 
 [workspace.dependencies]
+derive_builder = "0.20"
 syl_elab = { path = "crates/syl_elab", version = "0.1.0" }
 syl_emit = { path = "crates/syl_emit", version = "0.1.0" }
 syl_hir = { path = "crates/syl_hir", version = "0.1.0" }
@@ -38,6 +39,8 @@ thiserror = "1"
 tokio = { version = "1", features = ["io-std", "macros", "rt-multi-thread", "sync", "time", "test-util"] }
 tower-lsp = "0.20"
 url = "2"
+strum = { version = "0.26", features = ["derive"] }
+strum_macros = "0.26"
 
 [workspace.metadata.release-plz]
 release = true

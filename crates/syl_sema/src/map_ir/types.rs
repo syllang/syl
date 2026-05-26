@@ -3,15 +3,20 @@ use crate::mir::{
 };
 use crate::tir::{TirGenericArg, TirType};
 use std::collections::HashMap;
+use strum_macros::IntoStaticStr;
 use syl_span::Span;
 use syl_syntax::{BinaryOp, UnaryOp};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, IntoStaticStr)]
 #[non_exhaustive]
 pub enum MapUnaryOp {
+    #[strum(serialize = "-")]
     Neg,
+    #[strum(serialize = "!")]
     Not,
+    #[strum(serialize = "not")]
     NotWord,
+    #[strum(serialize = "?")]
     Unsupported,
 }
 
@@ -38,28 +43,48 @@ impl From<MirUnaryOp> for MapUnaryOp {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, IntoStaticStr)]
 #[non_exhaustive]
 pub enum MapBinaryOp {
+    #[strum(serialize = "=")]
     Assign,
+    #[strum(serialize = "||")]
     OrOr,
+    #[strum(serialize = "&&")]
     AndAnd,
+    #[strum(serialize = "==")]
     Eq,
+    #[strum(serialize = "!=")]
     NotEq,
+    #[strum(serialize = "<")]
     Lt,
+    #[strum(serialize = "<=")]
     LtEq,
+    #[strum(serialize = ">")]
     Gt,
+    #[strum(serialize = ">=")]
     GtEq,
+    #[strum(serialize = "+")]
     Add,
+    #[strum(serialize = "-")]
     Sub,
+    #[strum(serialize = "*")]
     Mul,
+    #[strum(serialize = "/")]
     Div,
+    #[strum(serialize = "%")]
     Rem,
+    #[strum(serialize = "<<")]
     Shl,
+    #[strum(serialize = ".")]
     Field,
+    #[strum(serialize = "and")]
     BitAnd,
+    #[strum(serialize = "or")]
     BitOr,
+    #[strum(serialize = "xor")]
     BitXor,
+    #[strum(serialize = "?")]
     Unsupported,
 }
 
@@ -118,10 +143,12 @@ impl From<MirBinaryOp> for MapBinaryOp {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, IntoStaticStr)]
 #[non_exhaustive]
 pub enum MapSelectMode {
+    #[strum(serialize = "priority")]
     Priority,
+    #[strum(serialize = "unique")]
     Unique,
 }
 
@@ -384,12 +411,12 @@ impl MapConstExpr {
             MapConstExprKind::Ident(name) | MapConstExprKind::Opaque(name) => name.clone(),
             MapConstExprKind::Nat(text, _) | MapConstExprKind::Bool(text, _) => text.clone(),
             MapConstExprKind::Unary { op, expr } => {
-                format!("({}{})", Self::unary_symbol(*op), expr.fact_key())
+                format!("({}{})", <&'static str>::from(*op), expr.fact_key())
             }
             MapConstExprKind::Binary { op, left, right } => format!(
                 "({} {} {})",
                 left.fact_key(),
-                Self::binary_symbol(*op),
+                <&'static str>::from(*op),
                 right.fact_key()
             ),
         }
@@ -437,40 +464,6 @@ impl MapConstExpr {
             kind,
             span: ty.span(),
         })
-    }
-
-    fn unary_symbol(op: MapUnaryOp) -> &'static str {
-        match op {
-            MapUnaryOp::Neg => "-",
-            MapUnaryOp::Not => "!",
-            MapUnaryOp::NotWord => "not",
-            MapUnaryOp::Unsupported => "?",
-        }
-    }
-
-    fn binary_symbol(op: MapBinaryOp) -> &'static str {
-        match op {
-            MapBinaryOp::Assign => "=",
-            MapBinaryOp::OrOr => "||",
-            MapBinaryOp::AndAnd => "&&",
-            MapBinaryOp::Eq => "==",
-            MapBinaryOp::NotEq => "!=",
-            MapBinaryOp::Lt => "<",
-            MapBinaryOp::LtEq => "<=",
-            MapBinaryOp::Gt => ">",
-            MapBinaryOp::GtEq => ">=",
-            MapBinaryOp::Add => "+",
-            MapBinaryOp::Sub => "-",
-            MapBinaryOp::Mul => "*",
-            MapBinaryOp::Div => "/",
-            MapBinaryOp::Rem => "%",
-            MapBinaryOp::Shl => "<<",
-            MapBinaryOp::Field => ".",
-            MapBinaryOp::BitAnd => "and",
-            MapBinaryOp::BitOr => "or",
-            MapBinaryOp::BitXor => "xor",
-            MapBinaryOp::Unsupported => "?",
-        }
     }
 }
 

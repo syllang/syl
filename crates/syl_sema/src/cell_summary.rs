@@ -1,5 +1,6 @@
 use crate::{CompileError, DriverError};
 use std::collections::BTreeMap;
+use strum_macros::IntoStaticStr;
 use syl_span::{SourceId, Span};
 
 mod internal {
@@ -302,22 +303,15 @@ impl FromIterator<CellSummaryDeclaration> for CellSummaryRegistry {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, IntoStaticStr)]
 #[non_exhaustive]
 pub enum CellSummaryStatus {
+    #[strum(serialize = "available")]
     Available,
+    #[strum(serialize = "missing")]
     Missing,
+    #[strum(serialize = "unsafe-assumed")]
     UnsafeAssumed,
-}
-
-impl From<CellSummaryStatus> for &'static str {
-    fn from(status: CellSummaryStatus) -> Self {
-        match status {
-            CellSummaryStatus::Available => "available",
-            CellSummaryStatus::Missing => "missing",
-            CellSummaryStatus::UnsafeAssumed => "unsafe-assumed",
-        }
-    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

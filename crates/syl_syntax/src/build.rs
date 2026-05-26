@@ -1,8 +1,12 @@
+use crate::ast::{
+    BundleItemBuilder, CallableItemBuilder, ExternModuleItemBuilder, FnItemBuilder,
+    InterfaceItemBuilder, MapItemBuilder,
+};
 use crate::{
-    AstFile, Attribute, Block, BundleItem, CallArg, CallableItem, ConstItem, DriveCapability,
-    EnumItem, EnumVariant, ErrorItem, Expr, ExternModuleItem, FieldDecl, FnItem, GenericParam,
-    InterfaceItem, MapItem, MatchArm, NamedExpr, Param, ParamDirection, ParamRole, PortDecl,
-    RegReset, ResultBinding, SelectArm, TypeExpr, UseItem, ViewDecl, ViewDirection, ViewField,
+    AstFile, Attribute, Block, BundleItem, CallArg, CallableItem, ConstItem, EnumItem, EnumVariant,
+    ErrorItem, Expr, ExternModuleItem, FieldDecl, FnItem, GenericParam, InterfaceItem, MapItem,
+    MatchArm, NamedExpr, Param, ParamDirection, ParamRole, PortDecl, RegReset, ResultBinding,
+    SelectArm, SelectMode, Stmt, TypeExpr, UseItem, ViewDecl, ViewDirection, ViewField,
 };
 use syl_span::Span;
 
@@ -37,369 +41,94 @@ impl ConstItem {
 
 impl FnItem {
     pub fn builder(name: String, body: Block) -> FnItemBuilder {
-        FnItemBuilder {
-            name,
-            body,
-            params: Vec::new(),
-            ret_ty: None,
-            span: Span::default(),
-        }
+        FnItemBuilder::default().name(name).body(body)
     }
-}
-
-#[derive(Debug)]
-#[non_exhaustive]
-pub struct FnItemBuilder {
-    name: String,
-    body: Block,
-    params: Vec<Param>,
-    ret_ty: Option<TypeExpr>,
-    span: Span,
 }
 
 impl FnItemBuilder {
-    pub fn params(mut self, params: Vec<Param>) -> Self {
-        self.params = params;
-        self
-    }
-
-    pub fn ret_ty(mut self, ret_ty: Option<TypeExpr>) -> Self {
-        self.ret_ty = ret_ty;
-        self
-    }
-
-    pub fn span(mut self, span: Span) -> Self {
-        self.span = span;
-        self
-    }
-
     pub fn build(self) -> FnItem {
-        FnItem {
-            name: self.name,
-            params: self.params,
-            ret_ty: self.ret_ty,
-            body: self.body,
-            span: self.span,
-        }
-    }
-}
-
-impl EnumItem {
-    pub fn new(name: String, variants: Vec<EnumVariant>, span: Span) -> Self {
-        Self {
-            name,
-            variants,
-            span,
-        }
-    }
-}
-
-impl EnumVariant {
-    pub fn new(name: String, span: Span) -> Self {
-        Self { name, span }
+        self.try_build()
+            .expect("FnItemBuilder must be initialized with name and body")
     }
 }
 
 impl BundleItem {
     pub fn builder(name: String) -> BundleItemBuilder {
-        BundleItemBuilder {
-            name,
-            generics: Vec::new(),
-            fields: Vec::new(),
-            attrs: Vec::new(),
-            span: Span::default(),
-        }
+        BundleItemBuilder::default().name(name)
     }
-}
-
-#[derive(Debug)]
-#[non_exhaustive]
-pub struct BundleItemBuilder {
-    name: String,
-    generics: Vec<GenericParam>,
-    fields: Vec<FieldDecl>,
-    attrs: Vec<Attribute>,
-    span: Span,
 }
 
 impl BundleItemBuilder {
-    pub fn generics(mut self, generics: Vec<GenericParam>) -> Self {
-        self.generics = generics;
-        self
-    }
-
-    pub fn fields(mut self, fields: Vec<FieldDecl>) -> Self {
-        self.fields = fields;
-        self
-    }
-
-    pub fn attrs(mut self, attrs: Vec<Attribute>) -> Self {
-        self.attrs = attrs;
-        self
-    }
-
-    pub fn span(mut self, span: Span) -> Self {
-        self.span = span;
-        self
-    }
-
     pub fn build(self) -> BundleItem {
-        BundleItem {
-            name: self.name,
-            generics: self.generics,
-            fields: self.fields,
-            attrs: self.attrs,
-            span: self.span,
-        }
+        self.try_build()
+            .expect("BundleItemBuilder must be initialized with name")
     }
 }
 
 impl InterfaceItem {
     pub fn builder(name: String) -> InterfaceItemBuilder {
-        InterfaceItemBuilder {
-            name,
-            generics: Vec::new(),
-            fields: Vec::new(),
-            views: Vec::new(),
-            span: Span::default(),
-        }
+        InterfaceItemBuilder::default().name(name)
     }
-}
-
-#[derive(Debug)]
-#[non_exhaustive]
-pub struct InterfaceItemBuilder {
-    name: String,
-    generics: Vec<GenericParam>,
-    fields: Vec<FieldDecl>,
-    views: Vec<ViewDecl>,
-    span: Span,
 }
 
 impl InterfaceItemBuilder {
-    pub fn generics(mut self, generics: Vec<GenericParam>) -> Self {
-        self.generics = generics;
-        self
-    }
-
-    pub fn fields(mut self, fields: Vec<FieldDecl>) -> Self {
-        self.fields = fields;
-        self
-    }
-
-    pub fn views(mut self, views: Vec<ViewDecl>) -> Self {
-        self.views = views;
-        self
-    }
-
-    pub fn span(mut self, span: Span) -> Self {
-        self.span = span;
-        self
-    }
-
     pub fn build(self) -> InterfaceItem {
-        InterfaceItem {
-            name: self.name,
-            generics: self.generics,
-            fields: self.fields,
-            views: self.views,
-            span: self.span,
-        }
+        self.try_build()
+            .expect("InterfaceItemBuilder must be initialized with name")
     }
 }
 
 impl MapItem {
     pub fn builder(name: String, body: Expr) -> MapItemBuilder {
-        MapItemBuilder {
-            name,
-            body,
-            generics: Vec::new(),
-            params: Vec::new(),
-            ret_ty: None,
-            span: Span::default(),
-        }
+        MapItemBuilder::default().name(name).body(body)
     }
-}
-
-#[derive(Debug)]
-#[non_exhaustive]
-pub struct MapItemBuilder {
-    name: String,
-    body: Expr,
-    generics: Vec<GenericParam>,
-    params: Vec<Param>,
-    ret_ty: Option<TypeExpr>,
-    span: Span,
 }
 
 impl MapItemBuilder {
-    pub fn generics(mut self, generics: Vec<GenericParam>) -> Self {
-        self.generics = generics;
-        self
-    }
-
-    pub fn params(mut self, params: Vec<Param>) -> Self {
-        self.params = params;
-        self
-    }
-
-    pub fn ret_ty(mut self, ret_ty: Option<TypeExpr>) -> Self {
-        self.ret_ty = ret_ty;
-        self
-    }
-
-    pub fn span(mut self, span: Span) -> Self {
-        self.span = span;
-        self
-    }
-
     pub fn build(self) -> MapItem {
-        MapItem {
-            name: self.name,
-            generics: self.generics,
-            params: self.params,
-            ret_ty: self.ret_ty,
-            body: self.body,
-            span: self.span,
-        }
+        self.try_build()
+            .expect("MapItemBuilder must be initialized with name and body")
     }
 }
 
 impl CallableItem {
     pub fn builder(name: String, body: Block) -> CallableItemBuilder {
-        CallableItemBuilder {
-            name,
-            body,
-            generics: Vec::new(),
-            params: Vec::new(),
-            ports: Vec::new(),
-            result: None,
-            span: Span::default(),
-        }
+        CallableItemBuilder::default().name(name).body(body)
     }
-}
-
-#[derive(Debug)]
-#[non_exhaustive]
-pub struct CallableItemBuilder {
-    name: String,
-    body: Block,
-    generics: Vec<GenericParam>,
-    params: Vec<Param>,
-    ports: Vec<PortDecl>,
-    result: Option<ResultBinding>,
-    span: Span,
 }
 
 impl CallableItemBuilder {
-    pub fn generics(mut self, generics: Vec<GenericParam>) -> Self {
-        self.generics = generics;
-        self
-    }
-
-    pub fn params(mut self, params: Vec<Param>) -> Self {
-        self.params = params;
-        self
-    }
-
-    pub fn ports(mut self, ports: Vec<PortDecl>) -> Self {
-        self.ports = ports;
-        self
-    }
-
-    pub fn result(mut self, result: Option<ResultBinding>) -> Self {
-        self.result = result;
-        self
-    }
-
-    pub fn span(mut self, span: Span) -> Self {
-        self.span = span;
-        self
-    }
-
     pub fn build(self) -> CallableItem {
-        CallableItem {
-            name: self.name,
-            generics: self.generics,
-            params: self.params,
-            ports: self.ports,
-            result: self.result,
-            body: self.body,
-            span: self.span,
-        }
+        self.try_build()
+            .expect("CallableItemBuilder must be initialized with name and body")
     }
 }
 
 impl ExternModuleItem {
     pub fn builder(name: String) -> ExternModuleItemBuilder {
-        ExternModuleItemBuilder {
-            name,
-            generics: Vec::new(),
-            params: Vec::new(),
-            ports: Vec::new(),
-            result: None,
-            span: Span::default(),
-        }
+        ExternModuleItemBuilder::default().name(name)
     }
-}
-
-#[derive(Debug)]
-#[non_exhaustive]
-pub struct ExternModuleItemBuilder {
-    name: String,
-    generics: Vec<GenericParam>,
-    params: Vec<Param>,
-    ports: Vec<PortDecl>,
-    result: Option<ResultBinding>,
-    span: Span,
 }
 
 impl ExternModuleItemBuilder {
-    pub fn generics(mut self, generics: Vec<GenericParam>) -> Self {
-        self.generics = generics;
-        self
-    }
-
-    pub fn params(mut self, params: Vec<Param>) -> Self {
-        self.params = params;
-        self
-    }
-
-    pub fn ports(mut self, ports: Vec<PortDecl>) -> Self {
-        self.ports = ports;
-        self
-    }
-
-    pub fn result(mut self, result: Option<ResultBinding>) -> Self {
-        self.result = result;
-        self
-    }
-
-    pub fn span(mut self, span: Span) -> Self {
-        self.span = span;
-        self
-    }
-
     pub fn build(self) -> ExternModuleItem {
-        ExternModuleItem {
-            name: self.name,
-            generics: self.generics,
-            params: self.params,
-            ports: self.ports,
-            result: self.result,
-            span: self.span,
-        }
+        self.try_build()
+            .expect("ExternModuleItemBuilder must be initialized with name")
     }
 }
 
 impl ResultBinding {
-    pub fn new(name: String, ty: TypeExpr, drive: DriveCapability, span: Span) -> Self {
+    pub fn new(name: String, ty: TypeExpr, drive: crate::DriveCapability, span: Span) -> Self {
         Self {
             name,
             ty,
             drive,
             span,
         }
+    }
+
+    pub fn is_drivable(&self) -> bool {
+        self.drive.can_write()
     }
 }
 
@@ -408,7 +137,7 @@ impl PortDecl {
         name: String,
         dir: ParamDirection,
         ty: TypeExpr,
-        drive: DriveCapability,
+        drive: crate::DriveCapability,
         span: Span,
     ) -> Self {
         Self {
@@ -418,6 +147,14 @@ impl PortDecl {
             drive,
             span,
         }
+    }
+
+    pub fn is_in(&self) -> bool {
+        self.dir.is_in()
+    }
+
+    pub fn is_out(&self) -> bool {
+        self.dir.is_out()
     }
 }
 
@@ -432,7 +169,7 @@ impl Param {
         }
     }
 
-    pub(crate) fn receiver(name: String, ty: TypeExpr, span: Span) -> Self {
+    pub fn receiver(name: String, ty: TypeExpr, span: Span) -> Self {
         Self {
             name,
             dir: None,
@@ -441,28 +178,35 @@ impl Param {
             span,
         }
     }
-}
 
-impl GenericParam {
-    pub fn new(name: String, kind: Option<TypeExpr>, default: Option<Expr>, span: Span) -> Self {
-        Self {
-            name,
-            kind,
-            default,
-            span,
-        }
+    pub fn is_receiver(&self) -> bool {
+        matches!(self.role, ParamRole::Receiver)
     }
 }
 
-impl FieldDecl {
-    pub fn new(name: String, ty: TypeExpr, span: Span) -> Self {
-        Self { name, ty, span }
+impl ParamDirection {
+    pub fn is_in(&self) -> bool {
+        matches!(self, Self::In | Self::InOut)
+    }
+
+    pub fn is_out(&self) -> bool {
+        matches!(self, Self::InOut | Self::Out)
     }
 }
 
-impl Attribute {
-    pub fn new(name: String, args: Vec<Expr>, span: Span) -> Self {
-        Self { name, args, span }
+impl ViewDirection {
+    pub fn is_in(&self) -> bool {
+        matches!(self, Self::In | Self::InOut)
+    }
+
+    pub fn is_out(&self) -> bool {
+        matches!(self, Self::InOut | Self::Out)
+    }
+}
+
+impl SelectMode {
+    pub fn is_unique(&self) -> bool {
+        matches!(self, Self::Unique)
     }
 }
 
@@ -479,7 +223,7 @@ impl ViewField {
 }
 
 impl Block {
-    pub fn new(stmts: Vec<crate::Stmt>, tail: Option<Box<Expr>>, span: Span) -> Self {
+    pub fn new(stmts: Vec<Stmt>, tail: Option<Box<Expr>>, span: Span) -> Self {
         Self { stmts, tail, span }
     }
 }
@@ -523,5 +267,44 @@ impl MatchArm {
             value,
             span,
         }
+    }
+}
+
+impl EnumItem {
+    pub fn new(name: String, variants: Vec<EnumVariant>, span: Span) -> Self {
+        Self {
+            name,
+            variants,
+            span,
+        }
+    }
+}
+
+impl EnumVariant {
+    pub fn new(name: String, span: Span) -> Self {
+        Self { name, span }
+    }
+}
+
+impl Attribute {
+    pub fn new(name: String, args: Vec<Expr>, span: Span) -> Self {
+        Self { name, args, span }
+    }
+}
+
+impl GenericParam {
+    pub fn new(name: String, kind: Option<TypeExpr>, default: Option<Expr>, span: Span) -> Self {
+        Self {
+            name,
+            kind,
+            default,
+            span,
+        }
+    }
+}
+
+impl FieldDecl {
+    pub fn new(name: String, ty: TypeExpr, span: Span) -> Self {
+        Self { name, ty, span }
     }
 }

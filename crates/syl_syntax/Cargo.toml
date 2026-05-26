@@ -11,4 +11,7 @@ homepage.workspace = true
 readme = "README.md"
 
 [dependencies]
+derive_builder.workspace = true
+strum.workspace = true
+strum_macros.workspace = true
 syl_span.workspace = true

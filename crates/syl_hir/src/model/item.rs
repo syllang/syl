@@ -1,16 +1,20 @@
 use super::{HirBlock, HirBodyExpr, MirTypeRef};
 use crate::LocalId;
+use strum_macros::IntoStaticStr;
 use syl_span::Span;
 use syl_syntax::{
     BundleItem, ConstItem, DriveCapability, EnumItem, ExternModuleItem, FieldDecl, FnItem,
     GenericParam, InterfaceItem, MapItem, Param, ParamDirection, PortDecl, TypeExpr, ViewDirection,
 };
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, IntoStaticStr)]
 #[non_exhaustive]
 pub enum HirPortDirection {
+    #[strum(serialize = "in")]
     In,
+    #[strum(serialize = "inout")]
     InOut,
+    #[strum(serialize = "out")]
     Out,
 }
 
@@ -52,11 +56,14 @@ impl From<Option<&ParamDirection>> for HirPortDirection {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, IntoStaticStr)]
 #[non_exhaustive]
 pub enum HirDriveCapability {
+    #[strum(serialize = "read only")]
     ReadOnly,
+    #[strum(serialize = "read write")]
     ReadWrite,
+    #[strum(serialize = "write only")]
     WriteOnly,
 }
 
@@ -176,11 +183,14 @@ impl From<&TypeExpr> for HirReturnType {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, IntoStaticStr)]
 #[non_exhaustive]
 pub enum HirViewDirection {
+    #[strum(serialize = "in")]
     In,
+    #[strum(serialize = "inout")]
     InOut,
+    #[strum(serialize = "out")]
     Out,
 }
 
