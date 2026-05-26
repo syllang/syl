@@ -269,7 +269,9 @@ impl TypePhaseChecker {
             HirExprNode::GenericApp { callee, .. } | HirExprNode::Group(callee) => {
                 self.infer_expr_type(owner, callee)
             }
-            HirExprNode::Field { base, field } => self.infer_field_type(owner, base, field),
+            HirExprNode::Field { base, field } => {
+                self.infer_field_expr_type(expr, owner, base, field)
+            }
             HirExprNode::Index { base, .. } => self.infer_index_type(owner, base),
             HirExprNode::Unary { expr, .. } => self.infer_expr_type(owner, expr),
             HirExprNode::Binary { op, left, .. } if self.binary_returns_bool(*op) => {
@@ -456,6 +458,19 @@ impl TypePhaseChecker {
             .is_some()
     }
 
+    fn infer_field_expr_type(
+        &self,
+        expr: &HirBodyExpr,
+        owner: DefId,
+        base: &HirBodyExpr,
+        field: &str,
+    ) -> TirType {
+        if let Some((enum_def, _)) = self.hir.enum_variant_expr(expr) {
+            return self.named_type_for_def(enum_def);
+        }
+        self.infer_field_type(owner, base, field)
+    }
+
     fn infer_field_type(&self, owner: DefId, base: &HirBodyExpr, field: &str) -> TirType {
         let base_ty = self.infer_expr_type(owner, base);
         let Some(type_def) = base_ty.definition() else {
@@ -469,6 +484,16 @@ impl TypePhaseChecker {
         };
         self.type_from_mir_type_ref(type_def, &field_ty)
             .unwrap_or(TirType::Unknown)
+    }
+
+    fn named_type_for_def(&self, def: DefId) -> TirType {
+        TirType::Named {
+            name: self.hir.def_name(def).unwrap_or("<unknown>").to_string(),
+            def: Some(def),
+            generic: None,
+            kind: self.hir.def_kind(def),
+            args: Vec::new(),
+        }
     }
 
     fn infer_index_type(&self, owner: DefId, base: &HirBodyExpr) -> TirType {

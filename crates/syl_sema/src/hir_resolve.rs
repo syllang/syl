@@ -1,9 +1,10 @@
 use crate::{
     CompileError, HirError,
     hir::{
-        HirBlock, HirBodyExpr, HirCallArg, HirCallable, HirCallableItem, HirConstItem, HirDesign,
-        HirExprNode, HirExternModuleItem, HirFnItem, HirInterfaceItem, HirMapItem, HirMatchArm,
-        HirNamedExpr, HirSelectArm, HirSignatureGenericParam, HirSignatureParam, HirStmt,
+        HirBlock, HirBodyExpr, HirCallArg, HirCallable, HirCallableItem, HirConstItem, HirDefKind,
+        HirDesign, HirEnumVariantKey, HirExprNode, HirExternModuleItem, HirFnItem,
+        HirInterfaceItem, HirMapItem, HirMatchArm, HirNamedExpr, HirSelectArm,
+        HirSignatureGenericParam, HirSignatureParam, HirStmt,
     },
     hir_view::HirDesignViewExt,
 };
@@ -321,7 +322,10 @@ impl<'a> HirNameResolver<'a> {
             }
             HirExprNode::GenericApp { callee, .. } => self.resolve_expr(owner, callee),
             HirExprNode::Aggregate { fields, .. } => self.resolve_named_exprs(owner, fields),
-            HirExprNode::Field { base, .. } => self.resolve_expr(owner, base),
+            HirExprNode::Field { base, field } => {
+                self.resolve_expr(owner, base);
+                self.validate_enum_variant_expr(expr, base, field);
+            }
             HirExprNode::Index { base, index } => {
                 self.resolve_expr(owner, base);
                 self.resolve_expr(owner, index);
@@ -436,6 +440,25 @@ impl<'a> HirNameResolver<'a> {
 
     fn is_default_select_pattern(&self, expr: &HirBodyExpr) -> bool {
         matches!(&expr.node, HirExprNode::Ident(name) if name == "default")
+    }
+
+    fn validate_enum_variant_expr(&mut self, expr: &HirBodyExpr, base: &HirBodyExpr, field: &str) {
+        let Some(HirResolution::Def(def)) = self.design.expr_resolutions.get(&base.id()).copied()
+        else {
+            return;
+        };
+        if self.design.def_kind(def) != Some(HirDefKind::Enum) {
+            return;
+        }
+        if self
+            .design
+            .enum_variants
+            .contains_key(&HirEnumVariantKey::new(def, field))
+        {
+            return;
+        }
+        let enum_name = self.design.def_name(def).unwrap_or("<unknown>");
+        self.record_unresolved_name(&format!("{enum_name}.{field}"), expr.span());
     }
 
     fn visible_def_exists(&self, owner: DefId, name: &str) -> bool {

@@ -214,6 +214,35 @@ impl HirDesign {
             .get(owner.get())
             .map(|def| def.canonical_path.parent())
     }
+
+    pub fn enum_variant_expr<'a>(&self, expr: &'a HirBodyExpr) -> Option<(DefId, &'a str)> {
+        let (base, variant) = match &expr.node {
+            HirExprNode::Field { base, field } => (base.as_ref(), field.as_str()),
+            _ => return None,
+        };
+        let enum_def = self.enum_variant_base_def(base)?;
+        self.enum_variants
+            .contains_key(&HirEnumVariantKey::new(enum_def, variant))
+            .then_some((enum_def, variant))
+    }
+
+    fn enum_variant_base_def(&self, expr: &HirBodyExpr) -> Option<DefId> {
+        let mut current = expr;
+        loop {
+            match &current.node {
+                HirExprNode::Group(inner) => current = inner,
+                HirExprNode::Ident(_) => break,
+                _ => return None,
+            }
+        }
+        let HirResolution::Def(def) = self.expr_resolutions.get(&current.id()).copied()? else {
+            return None;
+        };
+        self.defs
+            .get(def.get())
+            .filter(|item| item.kind == HirDefKind::Enum)
+            .map(|item| item.id)
+    }
 }
 
 fn contains_span(container: Span, cursor: Span) -> bool {

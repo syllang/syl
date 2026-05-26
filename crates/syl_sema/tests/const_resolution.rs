@@ -116,3 +116,45 @@ module Top(x: in Left, y: out Bit) {
 
     assert!(verilog.contains("assign y = ((x == 0) ? 1 : 0);"));
 }
+
+#[test]
+fn enum_variant_in_expression_context() {
+    let verilog = ConstResolutionHarness::new()
+        .compile_sources(&[r#"
+enum State {
+    IDLE,
+    BUSY,
+    DONE,
+}
+
+map is_idle(x: State) -> Bit =
+    x eq State.IDLE
+
+module Top(x: in State, y: out Bit) {
+    y := is_idle(x)
+}
+"#])
+        .expect("qualified enum variant name must resolve in expression context");
+
+    assert!(verilog.contains("assign y = (x == 0);"));
+}
+
+#[test]
+fn bare_enum_variant_in_expression_context_is_rejected() {
+    let err = ConstResolutionHarness::new()
+        .compile_sources(&[r#"
+enum State {
+    IDLE,
+}
+
+map is_idle(x: State) -> Bit =
+    x eq IDLE
+
+module Top(x: in State, y: out Bit) {
+    y := is_idle(x)
+}
+"#])
+        .expect_err("bare enum variant names should stay unresolved in expressions");
+
+    assert!(err.contains("unresolved name IDLE"), "{err}");
+}

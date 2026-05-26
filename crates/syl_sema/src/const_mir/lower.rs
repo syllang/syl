@@ -141,6 +141,9 @@ impl<'a> ExprLowerer<'a> {
                 )
                 .with_origin(expr.id())
             }
+            HirExprNode::Field { .. } => self
+                .enum_variant_expr(expr)
+                .unwrap_or_else(|| self.unsupported_expr(expr.span(), expr.id())),
             HirExprNode::GenericApp { callee, .. } => self.lower_expr(callee),
             HirExprNode::Unsupported => self.unsupported_expr(expr.span(), expr.id()),
             _ => self.unsupported_expr(expr.span(), expr.id()),
@@ -180,6 +183,17 @@ impl<'a> ExprLowerer<'a> {
     fn unsupported_expr(&mut self, span: Span, origin: syl_hir::ExprId) -> ConstExpr {
         self.mark_unsupported(span);
         ConstExpr::unsupported(span).with_origin(origin)
+    }
+
+    fn enum_variant_expr(&mut self, expr: &HirBodyExpr) -> Option<ConstExpr> {
+        let (enum_def, variant) = self.tir.hir().enum_variant_expr(expr)?;
+        let value = self
+            .tir
+            .hir()
+            .enum_variants
+            .get(&crate::hir::HirEnumVariantKey::new(enum_def, variant))?
+            .value;
+        Some(ConstExpr::nat(value, expr.span()).with_origin(expr.id()))
     }
 
     fn callee_root<'b>(&self, expr: &'b HirBodyExpr) -> Option<&'b HirBodyExpr> {

@@ -231,11 +231,6 @@ impl<'a> EirBuilder<'a> {
                 .vars
                 .get(local.name())
                 .map(|var| var.code.clone())
-                .or_else(|| {
-                    self.program
-                        .enum_variant_value_by_name(env.owner, local.name())
-                        .map(EirExpr::Int)
-                })
                 .unwrap_or_else(|| EirExpr::ident(local.name())),
             MapExpr::Int(value) => EirExpr::Int(*value),
             MapExpr::Bool(value) => EirExpr::Bool(*value),

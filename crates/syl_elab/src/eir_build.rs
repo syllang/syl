@@ -357,9 +357,6 @@ impl<'a> EirBuilder<'a> {
                     var.code.clone()
                 } else if let Some(item) = self.const_for_name(env.owner, name) {
                     self.elab_expr(&item.value, env)
-                } else if let Some(value) = self.program.enum_variant_value_by_name(env.owner, name)
-                {
-                    EirExpr::Int(value)
                 } else {
                     EirExpr::ident(name)
                 }
@@ -428,6 +425,11 @@ impl<'a> EirBuilder<'a> {
     }
 
     fn elab_field_expr(&self, base: &ElabExpr, field: &str, env: &Env) -> EirExpr {
+        if let Some(owner) = env.owner
+            && let Some(value) = self.program.enum_variant_field_value(owner, base, field)
+        {
+            return EirExpr::Int(value);
+        }
         if self.elab_is_indexed_view_field(base, env) {
             return self.elab_actual_view_field(base, field, env);
         }

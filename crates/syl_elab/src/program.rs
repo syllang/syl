@@ -130,10 +130,35 @@ impl ElabProgram {
         self.variant_value_for_visible_enum(owner?, name)
     }
 
+    pub(crate) fn enum_variant_field_value(
+        &self,
+        owner: DefId,
+        base: &ElabExpr,
+        field: &str,
+    ) -> Option<u64> {
+        let enum_def = self.enum_variant_base_def(owner, base)?;
+        self.variant_value(enum_def, field)
+    }
+
     fn variant_value(&self, enum_def: DefId, name: &str) -> Option<u64> {
         self.enum_variants
             .get(&ElabEnumVariantKey::new(enum_def, name))
             .copied()
+    }
+
+    fn enum_variant_base_def(&self, owner: DefId, expr: &ElabExpr) -> Option<DefId> {
+        let mut current = expr;
+        loop {
+            match &current.node {
+                ElabExprNode::Group(inner) => current = inner,
+                ElabExprNode::Ident(_) => break,
+                _ => return None,
+            }
+        }
+        let ElabResolution::Def(def) = self.expr_resolution(owner, current)? else {
+            return None;
+        };
+        (self.def_kind(def) == Some(ElabDefKind::Enum)).then_some(def)
     }
 
     fn variant_value_for_visible_enum(&self, owner: DefId, name: &str) -> Option<u64> {

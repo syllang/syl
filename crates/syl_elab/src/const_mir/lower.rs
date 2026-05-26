@@ -118,10 +118,10 @@ impl<'program, 'env> ElabConstLowerer<'program, 'env> {
                 expr.span(),
             )),
             ElabExprNode::Call { callee, args } => self.call_expr(expr, callee, args),
+            ElabExprNode::Field { base, field } => self.field_expr(expr, base, field),
             ElabExprNode::Unsupported => Err(self.invalid(expr)),
             ElabExprNode::Str(_)
             | ElabExprNode::Aggregate { .. }
-            | ElabExprNode::Field { .. }
             | ElabExprNode::Index { .. }
             | ElabExprNode::Block(_)
             | ElabExprNode::Match { .. }
@@ -140,18 +140,27 @@ impl<'program, 'env> ElabConstLowerer<'program, 'env> {
         if let Some(item) = self.resolved_const(expr) {
             return self.lower(&item.value);
         }
-        if let Some(value) = self
-            .program
-            .enum_variant_value_by_name(self.env.owner(), name)
-        {
-            return Ok(ConstExpr::nat(value, expr.span()));
-        }
         Err(CompileError::lowering_at(
             ConstEvalError::UnknownElaborationIdentifier {
                 name: name.to_string(),
             },
             expr.span(),
         ))
+    }
+
+    fn field_expr(
+        &self,
+        expr: &ElabExpr,
+        base: &ElabExpr,
+        field: &str,
+    ) -> Result<ConstExpr, CompileError> {
+        let Some(owner) = self.env.owner() else {
+            return Err(self.invalid(expr));
+        };
+        let Some(value) = self.program.enum_variant_field_value(owner, base, field) else {
+            return Err(self.invalid(expr));
+        };
+        Ok(ConstExpr::nat(value, expr.span()))
     }
 
     fn resolved_const(&self, expr: &ElabExpr) -> Option<&crate::program::ElabConstItem> {
