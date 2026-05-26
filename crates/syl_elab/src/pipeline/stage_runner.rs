@@ -45,7 +45,7 @@ impl<'tir_stage> TirStageRunner<'tir_stage> {
         let _validation = EirValidationPass::run(&eir_build)?;
         let eir_facts = EirFactsPass::run(&eir_build, &opaque_summaries)?;
         let eir = EirComposePass::run(&eir_build, &eir_facts);
-        let driver_facts = DriverFactsPass::run(&eir).map_err(first_error)?;
+        let driver_facts = DriverFactsPass::run(&eir, &opaque_summaries).map_err(first_error)?;
         let _drc = DrcPass::run(&eir, &driver_facts).map_err(first_error)?;
         HwLoweringPass::run(&eir)
     }
@@ -201,7 +201,10 @@ impl<'tir_stage> TirStageRunner<'tir_stage> {
             eir_build.as_ref().expect("EIR build stage must exist"),
             eir_facts.as_ref().expect("EIR facts stage must exist"),
         ));
-        let driver_facts = match DriverFactsPass::run(eir.as_ref().expect("EIR stage must exist")) {
+        let driver_facts = match DriverFactsPass::run(
+            eir.as_ref().expect("EIR stage must exist"),
+            &opaque_summaries,
+        ) {
             Ok(stage) => Some(stage),
             Err(errors) => {
                 diagnostics.extend(errors.into_iter().map(Diagnostic::from));
@@ -352,8 +355,11 @@ impl EirComposePass {
 struct DriverFactsPass;
 
 impl DriverFactsPass {
-    fn run(eir: &EirStage) -> Result<DriverFactsStage, Vec<CompileError>> {
-        DriverFactsCollector::new(&eir.design)
+    fn run(
+        eir: &EirStage,
+        opaque_summaries: &OpaqueSummaryTable,
+    ) -> Result<DriverFactsStage, Vec<CompileError>> {
+        DriverFactsCollector::with_opaque_summaries(&eir.design, opaque_summaries)
             .collect()
             .map(DriverFactsStage::new)
     }

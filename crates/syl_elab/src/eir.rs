@@ -494,6 +494,7 @@ pub(crate) struct EirInstance {
     module: String,
     params: Vec<EirParamBind>,
     name: String,
+    source_name: String,
     connections: Vec<EirConnection>,
     origin: EirOrigin,
 }
@@ -503,6 +504,7 @@ impl EirInstance {
         module: impl Into<String>,
         params: Vec<EirParamBind>,
         name: impl Into<String>,
+        source_name: impl Into<String>,
         connections: Vec<EirConnection>,
         origin: EirOrigin,
     ) -> Self {
@@ -510,6 +512,7 @@ impl EirInstance {
             module: module.into(),
             params,
             name: name.into(),
+            source_name: source_name.into(),
             connections,
             origin,
         }
@@ -525,6 +528,10 @@ impl EirInstance {
 
     pub(crate) fn name(&self) -> &str {
         &self.name
+    }
+
+    pub(crate) fn source_name(&self) -> &str {
+        &self.source_name
     }
 
     pub(crate) fn connections(&self) -> &[EirConnection] {

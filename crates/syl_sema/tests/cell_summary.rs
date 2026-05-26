@@ -80,6 +80,43 @@ module Top(y: out Bit) {
 }
 
 #[test]
+fn hierarchical_source_cell_exports_signature_derived_driver_summary() {
+    let output = CellSummaryHarness::new()
+        .compile_output(
+            r#"
+cell Link(x: in Bit, y: out Bit) {
+    y := x
+}
+
+cell Top(x: in Bit, y: out Bit) {
+    let stage = place Link(x: x, y: y)
+}
+"#,
+        )
+        .expect("hierarchical source cell must compile into driver metadata");
+    let metadata = output
+        .metadata()
+        .expect("successful elaboration must expose hardware metadata");
+
+    let summary = metadata
+        .cell_summaries()
+        .iter()
+        .find(|summary| summary.callable() == "Link" && summary.instance() == "stage")
+        .expect("placed source cell must export an instantiation summary");
+
+    assert!(summary.drives().iter().any(|place| {
+        matches!(place, HardwarePlace::Ident(name) if name == "y")
+            || matches!(place, HardwarePlace::Object { name, .. } if name == "y")
+    }));
+    assert!(summary.reads().iter().any(|place| {
+        matches!(place, HardwarePlace::Ident(name) if name == "x")
+            || matches!(place, HardwarePlace::Object { name, .. } if name == "x")
+    }));
+    assert!(summary.creates().is_empty());
+    assert!(summary.origin().expansion_stack().is_empty());
+}
+
+#[test]
 fn external_summary_registry_resolves_missing_boundary() {
     let boundary_origin = Span::new_in(SourceId::new(12), 10, 20);
     let declaration_origin = Span::new_in(SourceId::new(13), 30, 40);

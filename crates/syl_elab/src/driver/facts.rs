@@ -7,12 +7,16 @@ use crate::{
     driver_place::{
         DriverExpr, DriverObjectTable, DriverPlace, DriverPlaceError, DriverPlaceResolver,
     },
-    eir::{EirDesign, EirDriveKind, EirObjectKind},
+    eir::{EirDesign, EirDriveKind, EirInstance, EirItem, EirObjectKind},
 };
+use std::collections::BTreeMap;
+use syl_sema::{OpaqueItemKind, OpaqueSummaryTable};
+use syl_span::SourceId;
 
 #[non_exhaustive]
 pub(crate) struct DriverFactsCollector<'a> {
     eir: &'a EirDesign,
+    opaque_summaries: OpaqueSummaryTable,
     objects: DriverObjectTable,
     drives: Vec<DriveFact>,
     reads: Vec<ReadFact>,
@@ -21,9 +25,18 @@ pub(crate) struct DriverFactsCollector<'a> {
 }
 
 impl<'a> DriverFactsCollector<'a> {
+    #[cfg(test)]
     pub(crate) fn new(eir: &'a EirDesign) -> Self {
+        Self::with_opaque_summaries(eir, &OpaqueSummaryTable::new())
+    }
+
+    pub(crate) fn with_opaque_summaries(
+        eir: &'a EirDesign,
+        opaque_summaries: &OpaqueSummaryTable,
+    ) -> Self {
         Self {
             eir,
+            opaque_summaries: opaque_summaries.clone(),
             objects: DriverObjectTable::new(),
             drives: Vec::new(),
             reads: Vec::new(),
@@ -40,9 +53,11 @@ impl<'a> DriverFactsCollector<'a> {
         if !self.errors.is_empty() {
             return Err(self.errors);
         }
-        let cell_summaries = CellSummaryCollector::new(&self.drives, &self.reads, &self.creates)
-            .collect()
-            .finish();
+        let mut cell_summaries =
+            CellSummaryCollector::new(&self.drives, &self.reads, &self.creates)
+                .collect()
+                .finish();
+        cell_summaries.extend(self.collect_source_instance_summaries());
         Ok(DriverFacts::new(
             self.objects,
             self.drives,
@@ -161,6 +176,124 @@ impl<'a> DriverFactsCollector<'a> {
             }
         };
         CompileError::driver_error(kind, span)
+    }
+
+    fn collect_source_instance_summaries(&self) -> Vec<super::DriverCellSummary> {
+        let mut summaries = BTreeMap::new();
+        for module in self.eir.modules() {
+            self.collect_source_instance_summaries_from_items(module.items(), &mut summaries);
+        }
+        for drive in &self.drives {
+            if let Some(summary) =
+                summaries.get_mut(&DriverSummaryOriginKey::from_origin(drive.origin()))
+            {
+                summary.add_drive(drive.target_place().clone());
+            }
+        }
+        for read in &self.reads {
+            if let Some(summary) =
+                summaries.get_mut(&DriverSummaryOriginKey::from_origin(read.origin()))
+            {
+                summary.add_read(read.source_place().clone());
+            }
+        }
+        summaries.into_values().collect()
+    }
+
+    fn collect_source_instance_summaries_from_items(
+        &self,
+        items: &[EirItem],
+        summaries: &mut BTreeMap<DriverSummaryOriginKey, super::DriverCellSummary>,
+    ) {
+        for item in items {
+            match item {
+                EirItem::CellExpansion(expansion) => {
+                    self.collect_source_instance_summaries_from_items(expansion.items(), summaries);
+                }
+                EirItem::Instance(instance) => {
+                    self.insert_source_instance_summary(instance, summaries);
+                }
+                EirItem::SymbolicStaticIf {
+                    then_items,
+                    else_items,
+                    ..
+                } => {
+                    self.collect_source_instance_summaries_from_items(then_items, summaries);
+                    self.collect_source_instance_summaries_from_items(else_items, summaries);
+                }
+                EirItem::SymbolicStaticFor { items, .. } => {
+                    self.collect_source_instance_summaries_from_items(items, summaries);
+                }
+                _ => {}
+            }
+        }
+    }
+
+    fn insert_source_instance_summary(
+        &self,
+        instance: &EirInstance,
+        summaries: &mut BTreeMap<DriverSummaryOriginKey, super::DriverCellSummary>,
+    ) {
+        let Some(summary) = self.opaque_summaries.get(instance.module()) else {
+            return;
+        };
+        if summary.kind() != OpaqueItemKind::SourceCell {
+            return;
+        }
+        let key = DriverSummaryOriginKey::from_origin(instance.origin());
+        summaries.entry(key).or_insert_with(|| {
+            super::DriverCellSummary::new(
+                summary.callable(),
+                instance.source_name(),
+                instance.origin().clone(),
+            )
+        });
+    }
+}
+
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
+struct DriverSummaryOriginKey {
+    source: SourceId,
+    start: usize,
+    end: usize,
+    expansion_stack: Vec<DriverSummaryExpansionKey>,
+}
+
+impl DriverSummaryOriginKey {
+    fn from_origin(origin: &crate::eir_origin::EirOrigin) -> Self {
+        let span = origin.span();
+        Self {
+            source: span.source,
+            start: span.start,
+            end: span.end,
+            expansion_stack: origin
+                .expansion_stack()
+                .iter()
+                .map(DriverSummaryExpansionKey::from_expansion)
+                .collect(),
+        }
+    }
+}
+
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
+struct DriverSummaryExpansionKey {
+    callable: String,
+    instance: String,
+    source: SourceId,
+    start: usize,
+    end: usize,
+}
+
+impl DriverSummaryExpansionKey {
+    fn from_expansion(expansion: &crate::eir_origin::EirExpansion) -> Self {
+        let span = expansion.span();
+        Self {
+            callable: expansion.callable().to_string(),
+            instance: expansion.instance().to_string(),
+            source: span.source,
+            start: span.start,
+            end: span.end,
+        }
     }
 }
 

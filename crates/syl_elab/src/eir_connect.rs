@@ -304,6 +304,7 @@ impl<'a> EirBuilder<'a> {
             callable_name,
             params,
             safe_name,
+            request.inst_name,
             conns,
             request.env.origin(request.span),
         ))])
