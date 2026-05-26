@@ -156,7 +156,12 @@ class ScopePolicy:
                 continue
             if self.preference_score(candidate) < requested_score:
                 candidates.append(candidate)
-        return sorted(candidates, key=self.sort_key)
+        sorted_candidates = sorted(candidates, key=self.sort_key)
+        if not sorted_candidates:
+            return []
+        best_score = self.sort_key(sorted_candidates[0])
+        best_candidates = [candidate for candidate in sorted_candidates if self.sort_key(candidate) == best_score]
+        return best_candidates[:5]
 
     def enumerate_covering_candidates(
         self, changed_paths: list[str]
