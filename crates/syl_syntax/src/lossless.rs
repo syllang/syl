@@ -136,13 +136,22 @@ impl LosslessToken {
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum LosslessTokenKind {
+    /// Keywords such as `fn`, `if`, or `select`.
     Keyword,
+    /// Identifiers.
     Ident,
+    /// Integer literals.
     Int,
+    /// Boolean literals.
     Bool,
+    /// String literals.
     Str,
+    /// Punctuation and operator tokens.
     Punctuation,
+    /// Whitespace kept by the lossless lexer.
     Whitespace,
+    /// Line comments kept by the lossless lexer.
     LineComment,
+    /// Unknown or unsupported input.
     Unknown,
 }

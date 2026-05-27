@@ -1,4 +1,4 @@
-use crate::lexer::{Lexer, LosslessTokenKind as LexerLosslessTokenKind, Token, TokenKind};
+use crate::lexer::{LexemeKind, Lexer, LosslessLexer, Token, TokenKind};
 use crate::*;
 use syl_span::{Diagnostic, SourceId, Span};
 
@@ -55,14 +55,14 @@ impl<'a> SourceParser<'a> {
     }
 
     pub fn parse_file_with_lossless(&self) -> (ParseOutput, LosslessSyntaxFile) {
-        let mut lexer = Lexer::new_in(self.source, self.source_id);
-        let output = lexer.lex_lossless_partial();
+        let mut lexer = LosslessLexer::new_in(self.source, self.source_id);
+        let output = lexer.lex_all_partial();
         let mut parse_tokens = Vec::new();
         let mut syntax_tokens = Vec::new();
 
-        for token in output.tokens {
-            let syntax_kind = match &token.kind {
-                LexerLosslessTokenKind::Token(kind) => match kind {
+        for lexeme in output.lexemes {
+            let syntax_kind = match &lexeme.kind {
+                LexemeKind::Token(kind) => match kind {
                     TokenKind::Ident(_) => LosslessTokenKind::Ident,
                     TokenKind::Int(_) => LosslessTokenKind::Int,
                     TokenKind::Str(_) => LosslessTokenKind::Str,
@@ -134,14 +134,14 @@ impl<'a> SourceParser<'a> {
                     | TokenKind::LBracket
                     | TokenKind::RBracket => LosslessTokenKind::Punctuation,
                 },
-                LexerLosslessTokenKind::Whitespace => LosslessTokenKind::Whitespace,
-                LexerLosslessTokenKind::LineComment => LosslessTokenKind::LineComment,
-                LexerLosslessTokenKind::Unknown => LosslessTokenKind::Unknown,
+                LexemeKind::Whitespace => LosslessTokenKind::Whitespace,
+                LexemeKind::LineComment => LosslessTokenKind::LineComment,
+                LexemeKind::Unknown => LosslessTokenKind::Unknown,
             };
-            if let LexerLosslessTokenKind::Token(kind) = token.kind {
-                parse_tokens.push(Token::new(kind, token.span));
+            if let LexemeKind::Token(kind) = lexeme.kind {
+                parse_tokens.push(Token::new(kind, lexeme.span));
             }
-            syntax_tokens.push(LosslessToken::new(syntax_kind, token.span, token.text));
+            syntax_tokens.push(LosslessToken::new(syntax_kind, lexeme.span, lexeme.text));
         }
 
         let mut parsed = Parser::new_at_end(parse_tokens, self.source_id, self.source.len())
