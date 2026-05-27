@@ -16,7 +16,7 @@ use syl_hw::{
 use syl_span::SourceId;
 
 #[test]
-fn architecture_phase6_hw_validation_happens_before_sv_emission() {
+fn architecture_backend_hw_validation_happens_before_sv_emission() {
     let invalid = ParametricHwDesign::new(vec![
         module(
             "Top",
@@ -41,7 +41,7 @@ fn architecture_phase6_hw_validation_happens_before_sv_emission() {
 }
 
 #[test]
-fn architecture_phase6_emits_inout_and_high_z() {
+fn architecture_backend_emits_inout_and_high_z() {
     let design = ParametricHwDesign::new(vec![module(
         "PadTop",
         vec![port(HwDirection::InOut, "1", "pad")],
@@ -63,7 +63,7 @@ fn architecture_phase6_emits_inout_and_high_z() {
 }
 
 #[test]
-fn architecture_phase6_emitter_stays_frontend_free_and_hw_checks_stay_outside() {
+fn architecture_backend_emitter_stays_frontend_free_and_hw_checks_stay_outside() {
     let emit_manifest = read_text(&workspace_root().join("crates/syl_emit/Cargo.toml"));
     for forbidden in ["syl_hir", "syl_sema", "syl_elab"] {
         assert!(
@@ -93,7 +93,7 @@ fn architecture_phase6_emitter_stays_frontend_free_and_hw_checks_stay_outside() 
     for required in ["pub struct HwValidator", "pub struct HwNormalizer"] {
         assert!(
             hw_validate_api.contains(required),
-            "syl_hw must own Phase 6 backend-independent validation: missing {required}"
+            "syl_hw must own backend-independent validation: missing {required}"
         );
     }
     for required in [
@@ -103,16 +103,16 @@ fn architecture_phase6_emitter_stays_frontend_free_and_hw_checks_stay_outside() 
     ] {
         assert!(
             hw_validate_diagnostics.contains(required) || hw_validate_impl.contains(required),
-            "syl_hw must own Phase 6 backend-independent validation: missing {required}"
+            "syl_hw must own backend-independent validation: missing {required}"
         );
     }
 }
 
 #[test]
-fn architecture_phase6_same_hwir_produces_dump_and_sv() {
+fn architecture_backend_same_hwir_produces_dump_and_sv() {
     let hwir = MiddleCompiler::new()
         .compile_sources(&[inline_passthrough_source()])
-        .expect("Phase 6 fixture must lower to HW IR once");
+        .expect("backend fixture must lower to HW IR once");
 
     let hwir_dump = hwir.debug_dump();
     let sv_dump = SystemVerilogBackend::new()
@@ -129,14 +129,14 @@ fn architecture_phase6_same_hwir_produces_dump_and_sv() {
 }
 
 #[test]
-fn architecture_phase6_golden_sv_output_stays_stable() {
+fn architecture_backend_golden_sv_output_stays_stable() {
     let hwir = MiddleCompiler::new()
         .compile_sources(&[inline_passthrough_source()])
         .expect("golden fixture must lower to HW IR");
     let actual = SystemVerilogBackend::new()
         .emit(&hwir)
         .expect("golden fixture must emit SystemVerilog");
-    let expected = include_str!("golden/phase6_child_top.sv");
+    let expected = include_str!("golden/backend_child_top.sv");
 
     assert_eq!(
         actual.as_str(),
@@ -146,7 +146,7 @@ fn architecture_phase6_golden_sv_output_stays_stable() {
 }
 
 #[test]
-fn architecture_phase6_verilator_smoke_covers_example_and_integration_designs() {
+fn architecture_backend_verilator_smoke_covers_example_and_integration_designs() {
     if !verilator_available() {
         eprintln!("Skipping Verilator smoke because `verilator` is not available");
         return;
@@ -168,8 +168,8 @@ fn architecture_phase6_verilator_smoke_covers_example_and_integration_designs() 
         )
         .expect("integration fixture must emit SystemVerilog");
 
-    let example_path = temp_sv_path("phase6-example");
-    let integration_path = temp_sv_path("phase6-integration");
+    let example_path = temp_sv_path("backend-example");
+    let integration_path = temp_sv_path("backend-integration");
     fs::write(&example_path, example_sv).expect("example smoke file must be writable");
     fs::write(&integration_path, integration_sv).expect("integration smoke file must be writable");
 

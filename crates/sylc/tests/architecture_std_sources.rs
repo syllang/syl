@@ -12,7 +12,7 @@ use syl_sema::{
 use syl_session::{AnalysisHost, DocumentOrigin, ProjectConfig};
 
 #[test]
-fn architecture_phase8_std_sources_enter_ordinary_session_pipeline() {
+fn architecture_std_sources_enter_ordinary_session_pipeline() {
     let workspace = workspace_root();
     let mut host = AnalysisHost::with_config(
         ProjectConfig::new()
@@ -57,7 +57,7 @@ fn architecture_phase8_std_sources_enter_ordinary_session_pipeline() {
 }
 
 #[test]
-fn architecture_phase8_std_imports_are_ordinary_source_documents() {
+fn architecture_std_imports_are_ordinary_source_documents() {
     let workspace = workspace_root();
     let input = workspace.join("examples/std_user/custom_stage.syl");
     let mut host = AnalysisHost::with_config(
@@ -95,7 +95,7 @@ fn architecture_phase8_std_imports_are_ordinary_source_documents() {
 }
 
 #[test]
-fn architecture_phase8_std_public_summaries_feed_opaque_overlay() {
+fn architecture_std_public_summaries_feed_opaque_overlay() {
     let workspace = workspace_root();
     let mut host = AnalysisHost::with_config(
         ProjectConfig::new()
@@ -140,7 +140,7 @@ fn architecture_phase8_std_public_summaries_feed_opaque_overlay() {
 }
 
 #[test]
-fn architecture_phase8_std_and_user_cells_share_capability_checker() {
+fn architecture_std_and_user_cells_share_capability_checker() {
     let bad_user_cell = r#"
 use std.stream.Stream
 use std.stage.Stage
@@ -177,7 +177,7 @@ cell BadUserCell<T>(
 }
 
 #[test]
-fn architecture_phase8_stage_link_summaries_are_source_derived() {
+fn architecture_std_stage_link_summaries_are_source_derived() {
     let workspace = workspace_root();
     let mut host = AnalysisHost::with_config(
         ProjectConfig::new()
@@ -297,7 +297,7 @@ fn architecture_phase8_stage_link_summaries_are_source_derived() {
 }
 
 #[test]
-fn architecture_phase8_std_files_are_not_hardcoded_in_compiler_layers() {
+fn architecture_std_files_are_not_hardcoded_in_compiler_layers() {
     let workspace = workspace_root();
     let resolver = read_text(&workspace.join("crates/syl_session/src/import_resolver.rs"));
     assert!(

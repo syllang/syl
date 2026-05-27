@@ -15,7 +15,8 @@ use syl_span::Diagnostic;
 
 impl TypePhaseChecker {
     pub fn check(self) -> Result<TirDesign, CompileError> {
-        self.check_collect().map_err(|mut errors| errors.remove(0))
+        self.check_or_collect()
+            .map_err(|mut errors| errors.remove(0))
     }
 
     pub fn check_output(mut self) -> StageOutput<TirDesign> {
@@ -24,9 +25,9 @@ impl TypePhaseChecker {
         StageOutput::new(Some(self.finish()), diagnostics)
     }
 
-    // Legacy all-or-nothing helper retained for callers that still expect a Result.
+    // Result-only adapter for callers that still need immediate error propagation.
     // New code should prefer `check_output` so diagnostics are not forced through Err-only control flow.
-    pub fn check_collect(mut self) -> Result<TirDesign, Vec<CompileError>> {
+    pub fn check_or_collect(mut self) -> Result<TirDesign, Vec<CompileError>> {
         let errors = self.collect_errors();
         if errors.is_empty() {
             return Ok(self.finish());

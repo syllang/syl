@@ -90,15 +90,15 @@ fn navigation_queries_use_target_package_semantic_shard() {
         beta_source.to_string(),
         DocumentVersion::new(1),
     );
-    let baseline = host
+    let initial_snapshot = host
         .snapshot()
-        .expect("baseline navigation fixture must snapshot cleanly");
-    let baseline_alpha = baseline
+        .expect("initial navigation fixture must snapshot cleanly");
+    let initial_alpha = initial_snapshot
         .package_semantic_cache("alpha")
-        .expect("alpha baseline shard must exist");
-    let baseline_beta = baseline
+        .expect("alpha initial shard must exist");
+    let initial_beta = initial_snapshot
         .package_semantic_cache("beta")
-        .expect("beta baseline shard must exist");
+        .expect("beta initial shard must exist");
 
     host.update_document_at_version(
         &beta_uri,
@@ -116,8 +116,8 @@ fn navigation_queries_use_target_package_semantic_shard() {
         .package_semantic_cache("beta")
         .expect("beta updated shard must exist");
 
-    assert!(baseline_alpha.shares_with(&updated_alpha));
-    assert!(!baseline_beta.shares_with(&updated_beta));
+    assert!(initial_alpha.shares_with(&updated_alpha));
+    assert!(!initial_beta.shares_with(&updated_beta));
 
     let token = CancellationToken::new();
     let hover = updated

@@ -16,7 +16,7 @@ use syl_session::{AnalysisHost, DocumentUri, DocumentVersion};
 use syl_syntax::SourceParser;
 
 #[test]
-fn architecture_phase5_public_summary_surface_stays_explicit() {
+fn architecture_opaque_public_summary_surface_stays_explicit() {
     let workspace = workspace_root();
 
     let sema_readme = read_text(&workspace.join("crates/syl_sema/README.md"));
@@ -27,7 +27,7 @@ fn architecture_phase5_public_summary_surface_stays_explicit() {
     ] {
         assert!(
             sema_readme.contains(required),
-            "syl_sema README must document Phase 5 summary ownership: missing {required:?}"
+            "syl_sema README must document opaque summary ownership: missing {required:?}"
         );
     }
 
@@ -103,16 +103,16 @@ fn architecture_phase5_public_summary_surface_stays_explicit() {
 }
 
 #[test]
-fn architecture_phase5_session_and_query_read_summary_without_elaboration() {
+fn architecture_opaque_session_and_query_read_summary_without_elaboration() {
     let source = r#"
 extern cell DriveBit(y: out Bit)
 "#;
-    let uri = DocumentUri::new("untitled:syl/phase5_summary");
+    let uri = DocumentUri::new("untitled:syl/opaque_summary");
     let mut host = AnalysisHost::new();
     host.open_document(uri.clone(), source.to_string(), DocumentVersion::new(1));
     let snapshot = host
         .snapshot()
-        .expect("Phase 5 summary fixture must snapshot cleanly");
+        .expect("opaque summary fixture must snapshot cleanly");
 
     assert!(!snapshot.is_elaboration_cached());
     let from_session = snapshot
@@ -154,7 +154,7 @@ extern cell DriveBit(y: out Bit)
 }
 
 #[test]
-fn architecture_phase5_host_registered_overlay_is_visible_to_query_and_elab() {
+fn architecture_opaque_host_registered_overlay_is_visible_to_query_and_elab() {
     let source = r#"
 extern cell VendorBox(y: in Bit)
 
@@ -164,22 +164,19 @@ cell Top(y: out Bit) {
     y := tmp
 }
     "#;
-    let uri = DocumentUri::new("untitled:syl/phase5_overlay");
+    let uri = DocumentUri::new("untitled:syl/opaque_overlay");
     let mut host = AnalysisHost::new();
     host.open_document(uri.clone(), source.to_string(), DocumentVersion::new(1));
-    let baseline = host
+    let initial_snapshot = host
         .snapshot()
-        .expect("baseline fixture must snapshot cleanly");
-    let baseline_summary = baseline
+        .expect("initial overlay fixture must snapshot cleanly");
+    let initial_summary = initial_snapshot
         .opaque_summaries()
         .and_then(|summaries| summaries.get("VendorBox"))
         .expect("extern summary must exist before overlay registration");
+    assert!(matches!(initial_summary.kind(), OpaqueItemKind::ExternCell));
     assert!(matches!(
-        baseline_summary.kind(),
-        OpaqueItemKind::ExternCell
-    ));
-    assert!(matches!(
-        baseline_summary.trust_boundary(),
+        initial_summary.trust_boundary(),
         TrustBoundary::SourceDerived
     ));
 
@@ -206,7 +203,7 @@ cell Top(y: out Bit) {
         .expect("overlay fixture must snapshot cleanly");
 
     assert!(
-        !baseline.shares_semantic_cache_with(&snapshot),
+        !initial_snapshot.shares_semantic_cache_with(&snapshot),
         "registering a workspace overlay must invalidate the previous semantic cache"
     );
     assert!(!snapshot.is_elaboration_cached());
@@ -260,7 +257,7 @@ cell Top(y: out Bit) {
 }
 
 #[test]
-fn architecture_phase5_extern_out_auto_drive_summary_enters_metadata() {
+fn architecture_opaque_extern_out_auto_drive_summary_enters_metadata() {
     let output = MiddleCompiler::new()
         .output_files(&[parse_file(
             r#"
@@ -301,7 +298,7 @@ cell Top(y: out Bit) {
 }
 
 #[test]
-fn architecture_phase5_precompiled_summary_without_body_enters_multi_driver_drc() {
+fn architecture_opaque_precompiled_summary_without_body_enters_multi_driver_drc() {
     let source = r#"
 extern cell VendorLatch(y: in Bit)
 
@@ -311,11 +308,11 @@ cell Top(y: out Bit) {
     y := tmp
 }
 "#;
-    let baseline = MiddleCompiler::new()
+    let signature_only = MiddleCompiler::new()
         .output_files(&[parse_file(source)])
         .expect("signature-only opaque boundary should elaborate");
     assert!(
-        baseline
+        signature_only
             .diagnostics()
             .iter()
             .all(|diagnostic| diagnostic.code.as_deref()
@@ -352,7 +349,7 @@ cell Top(y: out Bit) {
 }
 
 #[test]
-fn architecture_phase5_trust_boundaries_are_structured_and_assertable() {
+fn architecture_opaque_trust_boundaries_are_structured_and_assertable() {
     let summary = OpaqueItemSummary::builder(OpaqueItemKind::PrecompiledCell, "VendorBox")
         .endpoint(SummaryEndpoint::new(
             "y",

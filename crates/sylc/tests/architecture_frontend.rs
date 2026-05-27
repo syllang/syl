@@ -7,14 +7,14 @@ use syl_span::SourceId;
 use syl_syntax::{Item, SourceParser, Stmt};
 
 #[test]
-fn architecture_phase2_frontend_entry_stays_small_and_split() {
+fn architecture_frontend_entry_stays_small_and_split() {
     let lib_path = workspace_root().join("crates/syl_syntax/src/lib.rs");
     let lib = read_text(&lib_path);
     let line_count = lib.lines().count();
 
     assert!(
         line_count <= 80,
-        "syl_syntax lib.rs should stay thin after the Phase 2 split, got {line_count} lines"
+        "syl_syntax lib.rs should stay thin after the frontend split, got {line_count} lines"
     );
     for required in [
         "mod ast;",
@@ -45,11 +45,11 @@ fn architecture_phase2_frontend_entry_stays_small_and_split() {
 }
 
 #[test]
-fn architecture_phase2_frontend_examples_parse_without_diagnostics() {
+fn architecture_frontend_examples_parse_without_diagnostics() {
     let example_files = syl_files_under(&workspace_root().join("examples"));
     assert!(
         !example_files.is_empty(),
-        "expected examples/**/*.syl fixtures for Phase 2 coverage"
+        "expected examples/**/*.syl fixtures for frontend coverage"
     );
 
     for (idx, path) in example_files.iter().enumerate() {
@@ -70,7 +70,7 @@ fn architecture_phase2_frontend_examples_parse_without_diagnostics() {
 }
 
 #[test]
-fn architecture_phase2_frontend_recovery_keeps_ast_usable() {
+fn architecture_frontend_recovery_keeps_ast_usable() {
     let output = SourceParser::new(
         r#"
 cell Top(x: in Bit, y: out Bit) {
@@ -110,7 +110,7 @@ cell Tail(a: in Bit, b: out Bit) {
 }
 
 #[test]
-fn architecture_phase2_frontend_node_ids_stay_stable_and_ranges_precise() {
+fn architecture_frontend_node_ids_stay_stable_and_ranges_precise() {
     let base = "const A = 1;\nconst B = A;\n";
     let with_comment = "const A = 1;\n// retained trivia\nconst B = A;\n";
 
@@ -147,7 +147,7 @@ fn architecture_phase2_frontend_node_ids_stay_stable_and_ranges_precise() {
 }
 
 #[test]
-fn architecture_phase2_frontend_node_ids_survive_same_text_sibling_insertions() {
+fn architecture_frontend_node_ids_survive_same_text_sibling_insertions() {
     let base = "const A = 1;\nconst A = 1;\nconst B = A;\n";
     let expanded = "const A = 1;\nconst A = 1;\nconst A = 1;\nconst B = A;\n";
 
@@ -181,7 +181,7 @@ fn architecture_phase2_frontend_node_ids_survive_same_text_sibling_insertions() 
 }
 
 #[test]
-fn architecture_phase2_frontend_ast_dump_stays_stable() {
+fn architecture_frontend_ast_dump_stays_stable() {
     let source = concat!(
         "const WIDTH = 8;\n",
         "fn id(x: UInt<8>) -> UInt<8> { return x; }\n",

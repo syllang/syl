@@ -12,7 +12,7 @@ use syl_session::{AnalysisHost, CancellationToken, DocumentUri, DocumentVersion}
 use syl_span::SourcePosition;
 
 #[test]
-fn architecture_phase7_session_owns_workspace_and_package_scoped_cache_invalidation() {
+fn architecture_query_lsp_session_owns_workspace_and_package_scoped_cache_invalidation() {
     let first_uri = DocumentUri::new("untitled:syl/first");
     let second_uri = DocumentUri::new("untitled:syl/second");
     let mut host = AnalysisHost::new();
@@ -26,13 +26,13 @@ fn architecture_phase7_session_owns_workspace_and_package_scoped_cache_invalidat
         "cell Second(y: out Bit) {\n    y := 0\n}\n".to_string(),
         DocumentVersion::new(1),
     );
-    let baseline = host
+    let initial_snapshot = host
         .snapshot()
-        .expect("phase7 combined package fixture must snapshot");
-    let baseline_first = baseline
+        .expect("query/lsp combined package fixture must snapshot");
+    let initial_first = initial_snapshot
         .package_semantic_cache("first")
         .expect("first package shard must exist");
-    let baseline_second = baseline
+    let initial_second = initial_snapshot
         .package_semantic_cache("second")
         .expect("second package shard must exist");
 
@@ -41,10 +41,10 @@ fn architecture_phase7_session_owns_workspace_and_package_scoped_cache_invalidat
         "cell Second(y: out Bit) {\n    y := 1\n}\n".to_string(),
         DocumentVersion::new(2),
     )
-    .expect("phase7 second package update must succeed");
+    .expect("query/lsp second package update must succeed");
     let updated = host
         .snapshot()
-        .expect("phase7 updated package fixture must snapshot");
+        .expect("query/lsp updated package fixture must snapshot");
     let updated_first = updated
         .package_semantic_cache("first")
         .expect("first package shard must still exist");
@@ -66,12 +66,12 @@ fn architecture_phase7_session_owns_workspace_and_package_scoped_cache_invalidat
         2,
         "workspace snapshot should stay session-owned and track live documents"
     );
-    assert!(baseline_first.shares_with(&updated_first));
-    assert!(!baseline_second.shares_with(&updated_second));
+    assert!(initial_first.shares_with(&updated_first));
+    assert!(!initial_second.shares_with(&updated_second));
 }
 
 #[test]
-fn architecture_phase7_navigation_uses_target_package_semantic_shard() {
+fn architecture_query_lsp_navigation_uses_target_package_semantic_shard() {
     let alpha_source = "cell Alpha(x: in Bit, y: out Bit) {\n    y := x\n}\n";
     let beta_source = "cell Beta(y: out Bit) {\n    y := 0\n}\n";
     let beta_updated_source = "cell Beta(y: out Bit) {\n    y := 1\n}\n";
@@ -88,25 +88,25 @@ fn architecture_phase7_navigation_uses_target_package_semantic_shard() {
         beta_source.to_string(),
         DocumentVersion::new(1),
     );
-    let baseline = host
+    let initial_snapshot = host
         .snapshot()
-        .expect("phase7 navigation baseline must snapshot");
-    let baseline_alpha = baseline
+        .expect("initial navigation fixture must snapshot");
+    let initial_alpha = initial_snapshot
         .package_semantic_cache("alpha")
-        .expect("alpha baseline shard must exist");
-    let baseline_beta = baseline
+        .expect("alpha initial shard must exist");
+    let initial_beta = initial_snapshot
         .package_semantic_cache("beta")
-        .expect("beta baseline shard must exist");
+        .expect("beta initial shard must exist");
 
     host.update_document_at_version(
         &beta_uri,
         beta_updated_source.to_string(),
         DocumentVersion::new(2),
     )
-    .expect("phase7 beta update must succeed");
+    .expect("beta update must succeed");
     let updated = host
         .snapshot()
-        .expect("phase7 navigation update must snapshot");
+        .expect("updated navigation fixture must snapshot");
     let updated_alpha = updated
         .package_semantic_cache("alpha")
         .expect("alpha updated shard must exist");
@@ -114,19 +114,19 @@ fn architecture_phase7_navigation_uses_target_package_semantic_shard() {
         .package_semantic_cache("beta")
         .expect("beta updated shard must exist");
 
-    assert!(baseline_alpha.shares_with(&updated_alpha));
-    assert!(!baseline_beta.shares_with(&updated_beta));
+    assert!(initial_alpha.shares_with(&updated_alpha));
+    assert!(!initial_beta.shares_with(&updated_beta));
 
     let token = CancellationToken::new();
     let hover = updated
         .hover_at_with_token(&alpha_uri, source_position(alpha_source, "x\n}"), &token)
-        .expect("phase7 hover should stay package-local");
+        .expect("hover should stay package-local");
     let completions = updated
         .completions_at_with_token(&alpha_uri, source_position(alpha_source, "y := "), &token)
-        .expect("phase7 completion should stay package-local");
+        .expect("completion should stay package-local");
     let definition = updated
         .definition_at_with_token(&alpha_uri, source_position(alpha_source, "x\n}"), &token)
-        .expect("phase7 definition should stay package-local");
+        .expect("definition should stay package-local");
 
     assert!(hover.is_some());
     assert!(completions.items.iter().any(|item| item.label == "x"));
@@ -141,7 +141,7 @@ fn architecture_phase7_navigation_uses_target_package_semantic_shard() {
 }
 
 #[test]
-fn architecture_phase7_query_surface_stays_on_compiler_facts() {
+fn architecture_query_lsp_query_surface_stays_on_compiler_facts() {
     let workspace = workspace_root();
     let query_root = workspace.join("crates/syl_query/src");
     let manifest = read_text(workspace.join("crates/syl_query/Cargo.toml"));
@@ -195,7 +195,7 @@ fn architecture_phase7_query_surface_stays_on_compiler_facts() {
 }
 
 #[test]
-fn architecture_phase7_grouped_diagnostics_and_partial_failure_stages_stay_distinct() {
+fn architecture_query_lsp_grouped_diagnostics_and_partial_failure_stages_stay_distinct() {
     let parse_uri = DocumentUri::new("untitled:syl/parse");
     let tir_uri = DocumentUri::new("untitled:syl/sema");
     let elab_uri = DocumentUri::new("untitled:syl/elab");
@@ -219,7 +219,7 @@ fn architecture_phase7_grouped_diagnostics_and_partial_failure_stages_stay_disti
 
     let snapshot = host
         .snapshot()
-        .expect("phase7 grouped diagnostic fixture must snapshot");
+        .expect("query grouped diagnostic fixture must snapshot");
     let grouped = snapshot.grouped_diagnostics();
 
     assert_eq!(grouped.packages().len(), 3);
@@ -229,17 +229,17 @@ fn architecture_phase7_grouped_diagnostics_and_partial_failure_stages_stay_disti
 }
 
 #[test]
-fn architecture_phase7_hover_and_completion_do_not_emit_and_respect_cancellation() {
+fn architecture_query_lsp_hover_and_completion_do_not_emit_and_respect_cancellation() {
     let source = "cell Top(x: in Bit, y: out Bit) {\n    y := x\n}\n";
     let uri = DocumentUri::new("untitled:syl/app");
     let mut query_host = AnalysisHost::new();
     query_host.open_document(uri.clone(), source.to_string(), DocumentVersion::new(1));
     let snapshot = query_host
         .snapshot()
-        .expect("phase7 hover fixture must snapshot cleanly");
+        .expect("hover fixture must snapshot cleanly");
     let app_cache = snapshot
         .package_semantic_cache("app")
-        .expect("phase7 app package shard must exist");
+        .expect("app package shard must exist");
 
     let token = CancellationToken::new();
     let hover = snapshot
@@ -266,13 +266,13 @@ fn architecture_phase7_hover_and_completion_do_not_emit_and_respect_cancellation
     );
     let cancelled_snapshot = cancel_host
         .snapshot()
-        .expect("phase7 cancellation fixture must snapshot cleanly");
+        .expect("cancellation fixture must snapshot cleanly");
     let cancel_cache = cancelled_snapshot
         .package_semantic_cache("app")
-        .expect("phase7 cancellation app shard must exist");
+        .expect("cancellation app shard must exist");
     let _ = cancelled_snapshot
         .hir_analysis_for_uri_with_token(&cancel_uri, &CancellationToken::new())
-        .expect("phase7 package HIR should build before cancellation");
+        .expect("package HIR should build before cancellation");
     let cancelled = CancellationToken::new();
     cancelled.cancel();
     let err = cancelled_snapshot
@@ -288,7 +288,7 @@ fn architecture_phase7_hover_and_completion_do_not_emit_and_respect_cancellation
 }
 
 #[test]
-fn architecture_phase7_lsp_adapter_stays_protocol_only() {
+fn architecture_query_lsp_lsp_adapter_stays_protocol_only() {
     let workspace = workspace_root();
     let adapter = read_text(workspace.join("crates/syl_lsp/src/adapter.rs"));
     let diagnostics = read_text(workspace.join("crates/syl_lsp/src/diagnostics.rs"));
@@ -296,7 +296,7 @@ fn architecture_phase7_lsp_adapter_stays_protocol_only() {
 
     assert!(
         adapter.contains("struct LspAdapter"),
-        "Phase 7 expects an explicit LSP adapter boundary"
+        "query/LSP architecture expects an explicit LSP adapter boundary"
     );
     assert!(
         adapter.contains("GroupedDiagnostics") && diagnostics.contains("GroupedDiagnostics"),
@@ -332,7 +332,7 @@ fn assert_document_has_stage(
 fn source_position(source: &str, needle: &str) -> SourcePosition {
     let offset = source
         .find(needle)
-        .unwrap_or_else(|| panic!("phase7 fixture must contain marker {needle:?}"));
+        .unwrap_or_else(|| panic!("query/lsp fixture must contain marker {needle:?}"));
     let prefix = &source[..offset];
     let line = prefix.lines().count().saturating_sub(1);
     let character = prefix

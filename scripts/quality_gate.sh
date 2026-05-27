@@ -19,15 +19,12 @@ run scripts/check_public_api.py --check
 run cargo doc --workspace --no-deps
 run git diff --check
 
-baseline_ref="${QUALITY_GATE_BASELINE:-origin/feat/initial-syl-baseline}"
-if git rev-parse --verify --quiet "$baseline_ref" >/dev/null; then
-    run git diff --check "$baseline_ref"...HEAD
-elif git rev-parse --verify --quiet HEAD^ >/dev/null; then
-    printf '==> baseline %s not found; falling back to HEAD^..HEAD whitespace check\n' "$baseline_ref"
-    run git diff --check HEAD^..HEAD
+diff_base_ref="${QUALITY_GATE_DIFF_BASE:-HEAD^}"
+if git rev-parse --verify --quiet "$diff_base_ref" >/dev/null; then
+    run git diff --check "$diff_base_ref"...HEAD
 else
-    printf 'error: no baseline ref %s and no HEAD^ fallback for committed whitespace check\n' \
-        "$baseline_ref" >&2
+    printf 'error: diff base %s not found for committed whitespace check\n' \
+        "$diff_base_ref" >&2
     exit 1
 fi
 

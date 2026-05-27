@@ -9,7 +9,7 @@ use syl_span::Span;
 use syl_syntax::SourceParser;
 
 #[test]
-fn architecture_phase3_readme_and_public_facts_facade_stay_explicit() {
+fn architecture_semantic_readme_and_public_facts_facade_stay_explicit() {
     let workspace = workspace_root();
     let readme = read_text(&workspace.join("crates/syl_sema/README.md"));
     for required in [
@@ -23,7 +23,7 @@ fn architecture_phase3_readme_and_public_facts_facade_stay_explicit() {
     ] {
         assert!(
             readme.contains(required),
-            "syl_sema README must document Phase 3 fact ownership: missing {required:?}"
+            "syl_sema README must document semantic fact ownership: missing {required:?}"
         );
     }
 
@@ -35,25 +35,25 @@ fn architecture_phase3_readme_and_public_facts_facade_stay_explicit() {
     ] {
         assert!(
             analysis.contains(required),
-            "semantic analysis facade must expose Phase 3 facts: missing {required:?}"
+            "semantic analysis facade must expose semantic facts: missing {required:?}"
         );
     }
 }
 
 #[test]
-fn architecture_phase3_hover_and_definition_queries_do_not_trigger_elaboration() {
+fn architecture_semantic_hover_and_definition_queries_do_not_trigger_elaboration() {
     let source = r#"
 cell Top(x: in Bit, y: out Bit) {
     y := x
 }
 "#;
     let x_offset = source.rfind('x').expect("query fixture must contain rhs x");
-    let uri = DocumentUri::new("untitled:syl/phase3_query");
+    let uri = DocumentUri::new("untitled:syl/semantic_query");
     let mut host = AnalysisHost::new();
     host.open_document(uri, source.to_string(), DocumentVersion::new(1));
     let snapshot = host
         .snapshot()
-        .expect("phase3 query fixture must snapshot cleanly");
+        .expect("semantic query fixture must snapshot cleanly");
     assert!(!snapshot.is_hir_cached());
     assert!(!snapshot.is_tir_cached());
     assert!(!snapshot.is_elaboration_cached());
@@ -80,7 +80,7 @@ cell Top(x: in Bit, y: out Bit) {
 }
 
 #[test]
-fn architecture_phase3_query_layer_stays_on_snapshot_sema_accessors() {
+fn architecture_semantic_query_layer_stays_on_snapshot_sema_accessors() {
     let query_api = read_text(&workspace_root().join("crates/syl_query/src/snapshot/api.rs"));
 
     for required in [
@@ -101,7 +101,7 @@ fn architecture_phase3_query_layer_stays_on_snapshot_sema_accessors() {
 }
 
 #[test]
-fn architecture_phase3_structured_errors_do_not_require_string_matching() {
+fn architecture_semantic_structured_errors_do_not_require_string_matching() {
     let file = SourceParser::new(
         r#"
 cell Bad(x: in Missing) {
@@ -124,7 +124,7 @@ cell Bad(x: in Missing) {
 }
 
 #[test]
-fn architecture_phase3_fact_collectors_stay_canonical() {
+fn architecture_semantic_fact_collectors_stay_canonical() {
     let workspace = workspace_root();
     let capability = normalize_whitespace(&read_text(
         &workspace.join("crates/syl_sema/src/facts/capability.rs"),
@@ -159,13 +159,13 @@ fn architecture_phase3_fact_collectors_stay_canonical() {
     ] {
         assert!(
             !consts.contains(forbidden),
-            "const facts must stay on the shared evaluator path, found legacy evaluator marker {forbidden:?}"
+            "const facts must stay on the shared evaluator path, found old evaluator marker {forbidden:?}"
         );
     }
 }
 
 #[test]
-fn architecture_phase3_sema_production_code_stays_off_hardware_layers() {
+fn architecture_semantic_production_code_stays_off_hardware_layers() {
     let workspace = workspace_root();
     let source_root = workspace.join("crates/syl_sema/src");
     let mut violations = Vec::new();
@@ -197,7 +197,7 @@ fn architecture_phase3_sema_production_code_stays_off_hardware_layers() {
 }
 
 #[test]
-fn architecture_phase3_legacy_hardware_integration_tests_stay_inventoried() {
+fn architecture_semantic_hardware_integration_tests_stay_inventoried() {
     let workspace = workspace_root();
     let mut actual: Vec<_> = rs_files_under(&workspace.join("crates/syl_sema/tests"))
         .into_iter()
@@ -228,7 +228,7 @@ fn architecture_phase3_legacy_hardware_integration_tests_stay_inventoried() {
             "crates/syl_sema/tests/support/mod.rs".to_string(),
             "crates/syl_sema/tests/tir_semantics.rs".to_string(),
         ],
-        "legacy sema integration tests that still touch hardware layers must stay explicitly inventoried"
+        "sema integration tests that still touch hardware layers must stay explicitly inventoried"
     );
 }
 

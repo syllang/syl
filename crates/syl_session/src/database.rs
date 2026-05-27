@@ -366,13 +366,13 @@ cell Overlay(y: out Bit) {
             DocumentVersion::new(1),
         );
 
-        let baseline = database
+        let initial_snapshot = database
             .snapshot()
-            .expect("package shard baseline fixture must snapshot");
-        let baseline_first = baseline
+            .expect("package shard initial fixture must snapshot");
+        let initial_first = initial_snapshot
             .package_semantic_cache("first")
             .expect("first package shard must exist");
-        let baseline_second = baseline
+        let initial_second = initial_snapshot
             .package_semantic_cache("second")
             .expect("second package shard must exist");
 
@@ -393,8 +393,8 @@ cell Overlay(y: out Bit) {
             .package_semantic_cache("second")
             .expect("second package shard must still exist");
 
-        assert!(baseline_first.shares_with(&updated_first));
-        assert!(!baseline_second.shares_with(&updated_second));
+        assert!(initial_first.shares_with(&updated_first));
+        assert!(!initial_second.shares_with(&updated_second));
     }
 
     #[test]

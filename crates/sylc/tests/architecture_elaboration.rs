@@ -11,7 +11,7 @@ use syl_span::SourceId;
 use syl_syntax::SourceParser;
 
 #[test]
-fn architecture_phase4_pipeline_passes_stay_explicit() {
+fn architecture_elaboration_pipeline_passes_stay_explicit() {
     let workspace = workspace_root();
     let pipeline = read_text(&workspace.join("crates/syl_elab/src/pipeline.rs"));
     for required in [
@@ -28,7 +28,7 @@ fn architecture_phase4_pipeline_passes_stay_explicit() {
     ] {
         assert!(
             pipeline.contains(required),
-            "Phase 4 pipeline output must expose explicit pass boundaries: missing {required:?}"
+            "elaboration pipeline output must expose explicit pass boundaries: missing {required:?}"
         );
     }
 
@@ -47,13 +47,13 @@ fn architecture_phase4_pipeline_passes_stay_explicit() {
     ] {
         assert!(
             stage_runner.contains(required),
-            "Phase 4 runner must keep pass orchestration explicit: missing {required:?}"
+            "elaboration runner must keep pass orchestration explicit: missing {required:?}"
         );
     }
     for forbidden in ["ElaborationOutputBuilder", "fn analyze_drivers(&mut self)"] {
         assert!(
             !stage_runner.contains(forbidden),
-            "Phase 4 runner must not keep giant builder orchestration: found {forbidden:?}"
+            "elaboration runner must not keep giant builder orchestration: found {forbidden:?}"
         );
     }
     let build_pass = section_between(
@@ -119,13 +119,13 @@ fn architecture_phase4_pipeline_passes_stay_explicit() {
 }
 
 #[test]
-fn architecture_phase4_output_exposes_each_stage() {
-    let file = SourceParser::new(phase4_ok_source())
+fn architecture_elaboration_output_exposes_each_stage() {
+    let file = SourceParser::new(elaboration_ok_source())
         .parse_file()
-        .expect("phase4 fixture must parse");
+        .expect("elaboration fixture must parse");
     let output = MiddleCompiler::new()
         .output_files(&[file])
-        .expect("phase4 fixture must elaborate");
+        .expect("elaboration fixture must elaborate");
 
     assert!(output.const_mir().is_some());
     assert!(output.map_ir().is_some());
@@ -141,13 +141,13 @@ fn architecture_phase4_output_exposes_each_stage() {
 }
 
 #[test]
-fn architecture_phase4_eir_dump_explains_created_and_driven_objects() {
-    let file = SourceParser::new(phase4_ok_source())
+fn architecture_elaboration_eir_dump_explains_created_and_driven_objects() {
+    let file = SourceParser::new(elaboration_ok_source())
         .parse_file()
-        .expect("phase4 fixture must parse");
+        .expect("elaboration fixture must parse");
     let output = MiddleCompiler::new()
         .output_files(&[file])
-        .expect("phase4 fixture must elaborate");
+        .expect("elaboration fixture must elaborate");
     let dump = output
         .eir()
         .expect("EIR stage must be present")
@@ -167,13 +167,13 @@ fn architecture_phase4_eir_dump_explains_created_and_driven_objects() {
 }
 
 #[test]
-fn architecture_phase4_raw_eir_and_fact_stages_stay_structured() {
-    let file = SourceParser::new(phase4_boundary_source())
+fn architecture_elaboration_raw_eir_and_fact_stages_stay_structured() {
+    let file = SourceParser::new(elaboration_boundary_source())
         .parse_file()
-        .expect("phase4 boundary fixture must parse");
+        .expect("elaboration boundary fixture must parse");
     let output = MiddleCompiler::new()
         .output_files(&[file])
-        .expect("phase4 boundary fixture must elaborate");
+        .expect("elaboration boundary fixture must elaborate");
     let eir_build = output
         .eir_build()
         .expect("raw EIR build stage must be present");
@@ -207,7 +207,7 @@ fn architecture_phase4_raw_eir_and_fact_stages_stay_structured() {
 }
 
 #[test]
-fn architecture_phase4_driver_conflict_keeps_call_stack_spans() {
+fn architecture_elaboration_driver_conflict_keeps_call_stack_spans() {
     let source = r#"
 cell DoubleDrive() -> y: Bit {
     y := 0
@@ -222,10 +222,10 @@ cell Top(z: out Bit) {
     let source_id = SourceId::new(21);
     let file = SourceParser::new_in(source, source_id)
         .parse_file()
-        .expect("phase4 conflict fixture must parse");
+        .expect("elaboration conflict fixture must parse");
     let output = MiddleCompiler::new()
         .output_files(&[file])
-        .expect("phase4 conflict fixture must still produce elaboration output");
+        .expect("elaboration conflict fixture must still produce elaboration output");
     let diagnostic = output
         .diagnostics()
         .iter()
@@ -240,8 +240,8 @@ cell Top(z: out Bit) {
 }
 
 #[test]
-fn architecture_phase4_cell_and_module_boundaries_stay_distinct() {
-    let file = SourceParser::new(phase4_boundary_source())
+fn architecture_elaboration_cell_and_module_boundaries_stay_distinct() {
+    let file = SourceParser::new(elaboration_boundary_source())
         .parse_file()
         .expect("boundary fixture must parse");
     let output = MiddleCompiler::new()
@@ -286,7 +286,7 @@ fn architecture_phase4_cell_and_module_boundaries_stay_distinct() {
     );
 }
 
-fn phase4_ok_source() -> &'static str {
+fn elaboration_ok_source() -> &'static str {
     r#"
 cell MakeBit() -> y: Bit {
     signal tmp: Bit := 1
@@ -300,7 +300,7 @@ cell Top(y: out Bit) {
 "#
 }
 
-fn phase4_boundary_source() -> &'static str {
+fn elaboration_boundary_source() -> &'static str {
     r#"
 cell MakeBit() -> y: Bit {
     signal tmp: Bit := 1

@@ -4,7 +4,7 @@ use std::{
 };
 
 #[test]
-fn architecture_debt_markers_match_baseline_script() {
+fn architecture_debt_markers_match_quality_gate_script() {
     let workspace = workspace_root();
     let self_path = workspace.join("crates/sylc/tests/architecture_markers.rs");
     let violations = unresolved_debt_markers(&workspace, &self_path);
@@ -238,7 +238,7 @@ fn architecture_must_not_reintroduce_span_based_semantic_identity_fallback() {
 }
 
 #[test]
-fn architecture_must_not_reintroduce_legacy_hir_span_keys() {
+fn architecture_must_not_reintroduce_hir_span_key_compatibility() {
     let workspace = workspace_root();
     let source_root = workspace.join("crates/syl_hir/src");
     let mut violations = Vec::new();
@@ -247,7 +247,7 @@ fn architecture_must_not_reintroduce_legacy_hir_span_keys() {
         let text = read_text(path.clone());
         let normalized = normalize_whitespace(&text);
 
-        for pattern in forbidden_hir_legacy_patterns() {
+        for pattern in forbidden_hir_compatibility_patterns() {
             if normalized.contains(pattern.snippet) {
                 violations.push(format!(
                     "{} contains forbidden pattern {:?} ({})",
@@ -263,13 +263,13 @@ fn architecture_must_not_reintroduce_legacy_hir_span_keys() {
 
     assert!(
         violations.is_empty(),
-        "legacy span-key compatibility fallbacks must stay out of syl_hir.\n{}",
+        "span-key compatibility fallbacks must stay out of syl_hir.\n{}",
         violations.join("\n")
     );
 }
 
 #[test]
-fn architecture_phase2_white_box_inventory_matches_current_internal_imports() {
+fn architecture_white_box_inventory_matches_current_internal_imports() {
     let workspace = workspace_root();
     let mut actual: Vec<_> = remaining_sylc_internal_test_imports(&workspace)
         .into_iter()
@@ -284,7 +284,7 @@ fn architecture_phase2_white_box_inventory_matches_current_internal_imports() {
 
     assert_eq!(
         actual,
-        phase2_white_box_inventory(),
+        internal_test_inventory(),
         "sylc tests that import compiler internals must stay explicitly inventoried"
     );
 }
@@ -316,14 +316,14 @@ fn repeated_crate_domain_paths(workspace: &Path) -> Vec<String> {
     violations
 }
 
-fn phase2_white_box_inventory() -> Vec<String> {
+fn internal_test_inventory() -> Vec<String> {
     [
-        "crates/sylc/tests/architecture_phase3_sema.rs",
-        "crates/sylc/tests/architecture_phase4_elab.rs",
-        "crates/sylc/tests/architecture_phase5_opaque.rs",
-        "crates/sylc/tests/architecture_phase6_backend.rs",
-        "crates/sylc/tests/architecture_phase7_query_lsp.rs",
-        "crates/sylc/tests/architecture_phase8_std.rs",
+        "crates/sylc/tests/architecture_backend_emit.rs",
+        "crates/sylc/tests/architecture_elaboration.rs",
+        "crates/sylc/tests/architecture_opaque_summaries.rs",
+        "crates/sylc/tests/architecture_query_lsp.rs",
+        "crates/sylc/tests/architecture_semantic_analysis.rs",
+        "crates/sylc/tests/architecture_std_sources.rs",
         "crates/sylc/tests/conformance.rs",
         "crates/sylc/tests/driver_overlap.rs",
         "crates/sylc/tests/interface_regression.rs",
@@ -586,7 +586,7 @@ fn collect_files(dir: &Path, files: &mut Vec<PathBuf>) {
     }
 }
 
-struct ForbiddenHirLegacyPattern {
+struct ForbiddenHirCompatibilityPattern {
     snippet: &'static str,
     reason: &'static str,
 }
@@ -621,19 +621,19 @@ fn forbidden_elab_span_fallback_patterns() -> [ForbiddenElabSpanFallbackPattern;
     ]
 }
 
-fn forbidden_hir_legacy_patterns() -> [ForbiddenHirLegacyPattern; 3] {
+fn forbidden_hir_compatibility_patterns() -> [ForbiddenHirCompatibilityPattern; 3] {
     [
-        ForbiddenHirLegacyPattern {
+        ForbiddenHirCompatibilityPattern {
             snippet: "Legacy source-span projections retained only for compatibility fallbacks.",
-            reason: "legacy span-key compatibility comment",
+            reason: "span-key compatibility comment",
         },
-        ForbiddenHirLegacyPattern {
+        ForbiddenHirCompatibilityPattern {
             snippet: "mod keys;",
-            reason: "legacy span-key module",
+            reason: "span-key compatibility module",
         },
-        ForbiddenHirLegacyPattern {
+        ForbiddenHirCompatibilityPattern {
             snippet: "pub use keys::{HirExprKey, HirLocalKey};",
-            reason: "legacy span-key reexport",
+            reason: "span-key compatibility reexport",
         },
     ]
 }

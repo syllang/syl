@@ -5,7 +5,7 @@ use std::{
 };
 
 #[test]
-fn architecture_readmes_cover_phase0_contract_sections() {
+fn architecture_readmes_cover_contract_sections() {
     for contract in crate_contracts() {
         let readme_path = workspace_root()
             .join("crates")
@@ -34,7 +34,7 @@ fn architecture_readmes_cover_phase0_contract_sections() {
 }
 
 #[test]
-fn architecture_manifests_match_phase0_dependency_contract() {
+fn architecture_manifests_match_dependency_contract() {
     for contract in crate_contracts() {
         let manifest_path = workspace_root()
             .join("crates")
@@ -53,13 +53,13 @@ fn architecture_manifests_match_phase0_dependency_contract() {
         assert_eq!(
             dependencies,
             set_of(contract.dependencies),
-            "{} [dependencies] drifted from the Phase 0 contract",
+            "{} [dependencies] drifted from the crate dependency contract",
             contract.name
         );
         assert_eq!(
             dev_dependencies,
             set_of(contract.dev_dependencies),
-            "{} [dev-dependencies] drifted from the Phase 0 contract",
+            "{} [dev-dependencies] drifted from the crate dependency contract",
             contract.name
         );
     }
@@ -89,7 +89,7 @@ fn architecture_workspace_dependencies_stay_one_way_and_acyclic() {
             });
             assert!(
                 rank > dependency_rank,
-                "Phase 0 dependency direction violation: {crate_name} (rank {rank}) depends on {dependency} (rank {dependency_rank})"
+                "crate dependency direction violation: {crate_name} (rank {rank}) depends on {dependency} (rank {dependency_rank})"
             );
         }
     }
@@ -156,7 +156,7 @@ fn architecture_session_and_query_use_sema_accessors_not_elab_stage_api() {
     for forbidden in ["pub fn hir_stage", "pub fn tir_stage"] {
         assert!(
             !session_model.contains(forbidden),
-            "syl_session snapshot API must not expose legacy elab stage accessors: {forbidden}"
+            "syl_session snapshot API must not expose removed elab stage accessors: {forbidden}"
         );
     }
     assert!(

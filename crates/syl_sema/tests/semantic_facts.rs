@@ -10,7 +10,7 @@ use syl_span::{SourceId, Span};
 use syl_syntax::{AstFile, SourceParser};
 
 #[test]
-fn semantic_facts_bundle_exposes_queryable_phase3_tables() {
+fn semantic_facts_bundle_exposes_queryable_tables() {
     let shared = r#"
 const WIDTH: Nat = 4 + 1
 
@@ -53,11 +53,11 @@ cell Direct(
     ]);
     let hir = session
         .resolve_hir()
-        .expect("phase3 facts fixture must resolve HIR");
+        .expect("semantic facts fixture must resolve HIR");
     let output = session.check();
     let tir = output
         .tir()
-        .expect("phase3 facts fixture must type-check into TIR");
+        .expect("semantic facts fixture must type-check into TIR");
     let facts = output
         .facts()
         .expect("type-checked semantic output must expose facts");

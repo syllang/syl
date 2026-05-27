@@ -238,8 +238,8 @@ pub(crate) enum CreateKind {
     Storage,
 }
 
-// Legacy driver-local cell summary shape used by the existing HWIR lowerer. Keep this isolated so the
-// new first-class `CellSummary` model can evolve independently.
+// Driver-local cell summary shape used by the current HWIR lowering adapter. Keep this isolated so
+// the new first-class `CellSummary` model can evolve independently.
 #[non_exhaustive]
 pub(crate) struct DriverCellSummary {
     callable: String,

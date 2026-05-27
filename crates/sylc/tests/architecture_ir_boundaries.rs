@@ -7,14 +7,14 @@ use syl_span::SourceId;
 use syl_syntax::SourceParser;
 
 #[test]
-fn architecture_phase1_ir_owners_stay_single_source() {
+fn architecture_ir_owners_stay_single_source() {
     let workspace = workspace_root();
 
     let sema_readme = read_text(&workspace.join("crates/syl_sema/README.md"));
     for required in ["TIR side", "Const MIR", "Map IR"] {
         assert!(
             sema_readme.contains(required),
-            "syl_sema README must spell out its Phase 1 IR ownership: {required}"
+            "syl_sema README must spell out its IR ownership: {required}"
         );
     }
 
@@ -159,12 +159,12 @@ fn architecture_phase1_ir_owners_stay_single_source() {
 }
 
 #[test]
-fn architecture_phase1_ir_boundaries_expose_debug_dumps() {
-    let file = SourceParser::new_in(phase1_source(), SourceId::new(0))
+fn architecture_ir_boundaries_expose_debug_dumps() {
+    let file = SourceParser::new_in(ir_source(), SourceId::new(0))
         .parse_file()
         .unwrap_or_else(|errors| {
             panic!(
-                "phase1 architecture source must parse:\n{}",
+                "ir architecture source must parse:\n{}",
                 errors_text(&errors)
             )
         });
@@ -180,20 +180,20 @@ fn architecture_phase1_ir_boundaries_expose_debug_dumps() {
     let hir = semantic
         .session(&files)
         .resolve_hir()
-        .expect("phase1 architecture source must resolve HIR");
+        .expect("ir architecture source must resolve HIR");
     let hir_dump = hir.debug_dump();
     assert!(hir_dump.contains("hir "));
     assert!(hir_dump.contains("cell Top"));
 
     let tir = hir
         .check_tir()
-        .expect("phase1 architecture source must type-check into TIR");
+        .expect("ir architecture source must type-check into TIR");
     assert!(tir.debug_dump().contains("tir "));
 
     let output = hardware.output_for_tir(&tir);
     assert!(
         output.diagnostics().is_empty(),
-        "phase1 architecture source must elaborate without diagnostics:\n{}",
+        "ir architecture source must elaborate without diagnostics:\n{}",
         diagnostics_text(output.diagnostics())
     );
 
@@ -235,7 +235,7 @@ fn architecture_phase1_ir_boundaries_expose_debug_dumps() {
     assert!(sv_dump.contains("Top"));
 }
 
-fn phase1_source() -> &'static str {
+fn ir_source() -> &'static str {
     r#"
 fn one() -> Nat {
     return 1

@@ -1,4 +1,4 @@
-// Draft Syl syntax sketch.
+// Minimal Syl syntax reference example.
 // Goal: one compact file that exposes the v0 facts required by static analysis.
 // Closed-world rule for this example:
 // - Every project symbol used below is defined in this file.
