@@ -586,8 +586,9 @@ impl<'files> HirResolver<'files> {
 
     fn register_bundle_members(&mut self, owner: DefId, fields: &[HirFieldDecl]) {
         for field in fields {
-            self.design.member_decls.push(HirMemberDecl::new(
+            self.design.member_decls.push(HirMemberDecl::with_doc(
                 owner,
+                field.doc.clone(),
                 field.name.clone(),
                 HirMemberKind::Field {
                     ty: field.ty.clone(),
@@ -605,8 +606,9 @@ impl<'files> HirResolver<'files> {
     ) {
         self.register_bundle_members(owner, fields);
         for view in views {
-            self.design.member_decls.push(HirMemberDecl::new(
+            self.design.member_decls.push(HirMemberDecl::with_doc(
                 owner,
+                None,
                 view.name.clone(),
                 HirMemberKind::View,
                 view.span,
@@ -617,8 +619,9 @@ impl<'files> HirResolver<'files> {
 
     fn register_view_fields(&mut self, owner: DefId, view: &str, fields: &[HirViewField]) {
         for field in fields {
-            self.design.member_decls.push(HirMemberDecl::new(
+            self.design.member_decls.push(HirMemberDecl::with_doc(
                 owner,
+                field.doc.clone(),
                 field.name.clone(),
                 HirMemberKind::ViewField {
                     view: view.to_string(),

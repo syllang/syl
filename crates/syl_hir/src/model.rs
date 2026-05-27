@@ -480,6 +480,7 @@ impl HirFieldAccess {
 #[non_exhaustive]
 pub struct HirMemberDecl {
     pub owner: DefId,
+    pub doc: Option<String>,
     pub name: String,
     pub kind: HirMemberKind,
     pub span: Span,
@@ -489,6 +490,23 @@ impl HirMemberDecl {
     pub fn new(owner: DefId, name: String, kind: HirMemberKind, span: Span) -> Self {
         Self {
             owner,
+            doc: None,
+            name,
+            kind,
+            span,
+        }
+    }
+
+    pub fn with_doc(
+        owner: DefId,
+        doc: Option<String>,
+        name: String,
+        kind: HirMemberKind,
+        span: Span,
+    ) -> Self {
+        Self {
+            owner,
+            doc,
             name,
             kind,
             span,

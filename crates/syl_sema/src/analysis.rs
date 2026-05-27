@@ -239,15 +239,15 @@ impl HirAnalysis {
         if let Some(definition) = self.member_decl_definition_at(span) {
             return Some(definition);
         }
+        if let Some(definition) = self.def_decl_definition_at(span) {
+            return Some(definition);
+        }
         self.type_definition_at(span)
     }
 
     pub fn hover_at(&self, span: Span) -> Option<HoverInfo> {
         let definition = self.definition_at(span)?;
-        Some(HoverInfo::new(
-            definition.span,
-            format!("{} {}", definition.kind, definition.name),
-        ))
+        Some(HoverInfo::new(definition.span, definition.hover_text()))
     }
 
     pub fn completion_items(&self) -> Vec<CompletionItem> {
@@ -304,30 +304,47 @@ impl HirAnalysis {
     fn member_definition_at(&self, span: Span) -> Option<DefinitionInfo> {
         let owner = self.owner_at(span)?.id;
         let member = self.design.member_field_def_at(owner, span)?;
-        Some(DefinitionInfo::new(
+        Some(DefinitionInfo::with_doc(
             member.name.clone(),
             member.kind.label(),
             member.span,
+            member.doc.clone(),
         ))
     }
 
     fn member_decl_definition_at(&self, span: Span) -> Option<DefinitionInfo> {
         let member = self.design.member_decl_definition_at(span)?;
-        Some(DefinitionInfo::new(
+        Some(DefinitionInfo::with_doc(
             member.name.clone(),
             member.kind.label(),
             member.span,
+            member.doc.clone(),
         ))
+    }
+
+    fn def_decl_definition_at(&self, span: Span) -> Option<DefinitionInfo> {
+        let def = self
+            .design
+            .defs
+            .iter()
+            .filter(|def| {
+                def.span.source == span.source
+                    && def.span.start <= span.start
+                    && span.end <= def.span.end
+            })
+            .min_by_key(|def| def.span.end.saturating_sub(def.span.start))?;
+        self.def_info(def.id)
     }
 
     fn type_definition_at(&self, span: Span) -> Option<DefinitionInfo> {
         let owner = self.owner_at(span)?.id;
         let type_ref = self.design.type_ref_at(owner, span)?;
         if let Some(view) = self.design.view_def_for_type_ref(owner, &type_ref.ty, span) {
-            return Some(DefinitionInfo::new(
+            return Some(DefinitionInfo::with_doc(
                 view.name.clone(),
                 view.kind.label(),
                 view.span,
+                view.doc.clone(),
             ));
         }
         let def = self.design.resolved_type_def_for_ref(type_ref)?;
@@ -336,10 +353,11 @@ impl HirAnalysis {
 
     fn def_info(&self, id: DefId) -> Option<DefinitionInfo> {
         let def = self.design.defs.get(id.get())?;
-        Some(DefinitionInfo::new(
+        Some(DefinitionInfo::with_doc(
             def.name.clone(),
             def.kind.into(),
             def.span,
+            self.design.doc_for_item(id).map(ToOwned::to_owned),
         ))
     }
 
@@ -513,11 +531,34 @@ pub struct DefinitionInfo {
     name: String,
     kind: &'static str,
     span: Span,
+    doc: Option<String>,
 }
 
 impl DefinitionInfo {
     fn new(name: String, kind: &'static str, span: Span) -> Self {
-        Self { name, kind, span }
+        Self {
+            name,
+            kind,
+            span,
+            doc: None,
+        }
+    }
+
+    fn with_doc(name: String, kind: &'static str, span: Span, doc: Option<String>) -> Self {
+        Self {
+            name,
+            kind,
+            span,
+            doc,
+        }
+    }
+
+    fn hover_text(&self) -> String {
+        let signature = format!("{} {}", self.kind, self.name);
+        self.doc
+            .as_ref()
+            .map(|doc| format!("{signature}\n\n{doc}"))
+            .unwrap_or(signature)
     }
 
     pub fn name(&self) -> &str {
@@ -530,6 +571,10 @@ impl DefinitionInfo {
 
     pub fn span(&self) -> Span {
         self.span
+    }
+
+    pub fn doc(&self) -> Option<&str> {
+        self.doc.as_deref()
     }
 }
 

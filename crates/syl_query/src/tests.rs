@@ -102,6 +102,31 @@ bundle Word {
 }
 
 #[test]
+fn hover_includes_item_and_field_docs() {
+    let source = r#"
+/// Bundle docs.
+bundle Word {
+    /// Low bits.
+    lo: UInt<4>,
+}
+"#;
+    let uri = DocumentUri::new("untitled:syl/doc-hover");
+    let mut host = AnalysisHost::new();
+    host.open_document(uri.clone(), source.to_string(), DocumentVersion::new(1));
+    let snapshot = host.snapshot().expect("doc hover fixture must snapshot");
+
+    let item_hover = snapshot
+        .hover_at(&uri, source_position(source, "Word"))
+        .expect("bundle name should produce hover");
+    assert_eq!(item_hover.contents, "bundle Word\n\nBundle docs.");
+
+    let field_hover = snapshot
+        .hover_at(&uri, source_position(source, "lo:"))
+        .expect("field name should produce hover");
+    assert_eq!(field_hover.contents, "field lo\n\nLow bits.");
+}
+
+#[test]
 fn navigation_queries_use_target_package_semantic_shard() {
     let alpha_source = "cell Alpha(x: in Bit, y: out Bit) {\n    y := x\n}\n";
     let beta_source = "cell Beta(y: out Bit) {\n    y := 0\n}\n";
