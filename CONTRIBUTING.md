@@ -40,7 +40,7 @@ Commit headers must follow Conventional Commits with an explicit scope:
 
 This repository enforces scope coverage with [`.commit-scope.json`](/home/midori/syllang/syl/.commit-scope.json).
 The scope must be the narrowest valid responsibility boundary that covers the
-staged paths.
+changed paths for each commit.
 
 Allowed scope forms:
 
@@ -63,6 +63,9 @@ Additional rules:
 - use the narrowest covering scope; if `syl_syntax` covers the change, do not use `frontend`
 - use at most three scope members in a `+` expression
 - if no valid scope cleanly covers the change, split the commit instead of widening the scope
+- breaking-change commits written as `type(scope)!: subject` may include supporting edits outside the declared scope, but the scope must still cover at least one changed path and remain the narrowest valid description of the primary breaking area
+
+For squash merges, the pull request title is still linted as a Conventional Commit header with a valid scope, but it is not checked against the aggregate diff. Commit-level scope validation remains the authoritative rule because large refactors and multi-step PRs often span several otherwise-valid commit scopes once squashed.
 
 Examples:
 
