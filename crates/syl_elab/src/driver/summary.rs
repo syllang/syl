@@ -1,5 +1,5 @@
 use super::{CreateFact, DriveFact, DriverCellSummary, ReadFact};
-use crate::eir_origin::{EirExpansion, EirOrigin};
+use crate::eir::{EirExpansion, EirOrigin};
 use std::collections::BTreeMap;
 use syl_span::SourceId;
 

@@ -1,7 +1,6 @@
 use crate::{
-    eir_build::{EirBuilder, Env},
-    eir_expr::EirExpr,
-    eir_place::EirPlace,
+    eir_builder::{EirBuilder, Env},
+    eir::{EirExpr, EirPlace},
     program::{ElabExpr, ElabExprNode, ElabLocalKind, ElabResolution, ElabStmt},
 };
 use std::collections::BTreeMap;

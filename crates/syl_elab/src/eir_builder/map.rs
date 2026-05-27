@@ -1,7 +1,6 @@
 use crate::{
-    eir_build::{EirBuilder, Env},
-    eir_expr::{EirBinaryOp, EirExpr, EirSelectArm, EirSelectMode, EirUnaryOp},
-    eir_type::MapTypeLowerer,
+    eir_builder::{EirBuilder, Env},
+    eir::{EirBinaryOp, EirExpr, EirSelectArm, EirSelectMode, EirUnaryOp},
     map_ir::{
         MapArg, MapBinaryOp, MapExpr, MapFunction, MapGenericArg, MapMatchArm, MapNamedExpr,
         MapPattern, MapSelectArm, MapTypeRef, MapUnaryOp,
@@ -10,6 +9,8 @@ use crate::{
 };
 use std::collections::HashMap;
 use syl_hir::DefId;
+
+use super::ty::MapTypeLowerer;
 
 struct MapElabArgBinding<'a> {
     map: &'a MapFunction,

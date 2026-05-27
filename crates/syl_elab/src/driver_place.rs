@@ -1,6 +1,5 @@
 use crate::{
-    eir_expr::{EirBinaryOp, EirBound, EirExpr, EirUnaryOp},
-    eir_place::EirPlace,
+    eir::{EirBinaryOp, EirBound, EirExpr, EirUnaryOp, EirPlace},
 };
 use std::collections::BTreeMap;
 use syl_hw::ObjectId;
@@ -401,7 +400,7 @@ impl DriverPlace {
 #[cfg(test)]
 mod tests {
     use super::{DriverExpr, DriverObjectTable, DriverPlaceResolver};
-    use crate::{eir_expr::EirExpr, eir_place::EirPlace};
+    use crate::eir::{EirExpr, EirPlace};
 
     #[test]
     fn driver_expr_rejects_unsupported_eir_expr() {

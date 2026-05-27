@@ -260,7 +260,7 @@ struct DriverSummaryOriginKey {
 }
 
 impl DriverSummaryOriginKey {
-    fn from_origin(origin: &crate::eir_origin::EirOrigin) -> Self {
+    fn from_origin(origin: &crate::eir::EirOrigin) -> Self {
         let span = origin.span();
         Self {
             source: span.source,
@@ -285,7 +285,7 @@ struct DriverSummaryExpansionKey {
 }
 
 impl DriverSummaryExpansionKey {
-    fn from_expansion(expansion: &crate::eir_origin::EirExpansion) -> Self {
+    fn from_expansion(expansion: &crate::eir::EirExpansion) -> Self {
         let span = expansion.span();
         Self {
             callable: expansion.callable().to_string(),
@@ -306,9 +306,7 @@ mod tests {
             EirDesign, EirDesignComposer, EirFactCollector, EirItem, EirModule, EirRawDesign,
             EirValidator,
         },
-        eir_expr::EirExpr,
-        eir_origin::EirOrigin,
-        eir_place::EirPlace,
+        eir::{EirExpr, EirOrigin, EirPlace},
     };
     use std::sync::Arc;
     use syl_sema::OpaqueSummaryTable;

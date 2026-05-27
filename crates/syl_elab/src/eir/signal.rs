@@ -1,7 +1,4 @@
-use crate::eir_expr::{EirBound, EirExpr};
-use crate::eir_guard::EirGuard;
-use crate::eir_origin::EirOrigin;
-use crate::eir_place::EirPlace;
+use super::{EirBound, EirExpr, EirGuard, EirOrigin, EirPlace};
 
 #[non_exhaustive]
 pub(crate) struct EirObject {

@@ -4,12 +4,8 @@ use super::{
 };
 use crate::{
     CompileError, DriverError, EirError,
-    eir_expr::EirBound,
-    eir_guard::{EirGuard, EirGuardFrame},
-    eir_origin::EirOrigin,
-    eir_place::EirPlace,
-    eir_expr::EirExpr,
 };
+use super::{EirBound, EirExpr, EirGuard, EirGuardFrame, EirOrigin, EirPlace};
 use std::collections::{BTreeMap, BTreeSet};
 use syl_sema::OpaqueSummaryTable;
 

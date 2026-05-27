@@ -1,9 +1,7 @@
 use crate::{
     driver_place::{DriverObjectTable, DriverPlace},
     eir::EirSignalActivity,
-    eir_expr::EirExpr,
-    eir_guard::EirGuard,
-    eir_origin::EirOrigin,
+    eir::{EirExpr, EirGuard, EirOrigin},
 };
 use syl_hw::ObjectId;
 

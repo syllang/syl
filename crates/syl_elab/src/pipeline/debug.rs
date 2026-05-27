@@ -4,9 +4,7 @@ use super::{
 use crate::{
     driver::{CreateKind, DriveEffect},
     eir::{EirDriveKind, EirItem, EirModule, EirObjectKind, EirSignalActivity},
-    eir_guard::{EirGuard, EirGuardFrame},
-    eir_origin::EirOrigin,
-    eir_place::EirPlace,
+    eir::{EirGuard, EirGuardFrame, EirOrigin, EirPlace},
 };
 
 pub(super) fn eir_build_stage_dump(stage: &EirBuildStage) -> String {

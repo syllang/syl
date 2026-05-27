@@ -1,4 +1,4 @@
-use crate::eir_expr::EirBound;
+use super::EirBound;
 use syl_span::Span;
 
 #[derive(Clone, Debug, PartialEq, Eq)]

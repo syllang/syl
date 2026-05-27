@@ -1,7 +1,6 @@
 use crate::{
     driver_place::{DriverBound, DriverExpr},
-    eir_expr::EirBound,
-    eir_guard::{EirGuard, EirGuardFrame},
+    eir::{EirBound, EirGuard, EirGuardFrame},
 };
 
 #[non_exhaustive]
@@ -122,7 +121,7 @@ mod tests {
     use super::DriverLoopGuard;
     use crate::{
         driver_place::{DriverBound, DriverExpr},
-        eir_guard::{EirGuard, EirGuardFrame},
+        eir::{EirGuard, EirGuardFrame},
     };
     use syl_span::Span;
 

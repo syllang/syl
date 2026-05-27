@@ -1,10 +1,6 @@
 use super::{EirItem, EirModule, EirReset};
-use crate::{
-    CellBoundarySummary, CompileError, EirError,
-    eir_expr::{EirExpr, EirSelectArm},
-    eir_origin::EirOrigin,
-    eir_place::EirPlace,
-};
+use crate::{CellBoundarySummary, CompileError, EirError};
+use super::{EirExpr, EirOrigin, EirPlace, EirSelectArm};
 
 #[non_exhaustive]
 pub(crate) struct EirValidator<'a> {
@@ -205,9 +201,7 @@ mod tests {
             EirDesign, EirDesignComposer, EirDriveKind, EirFactCollector, EirItem, EirModule,
             EirRawDesign,
         },
-        eir_guard::EirGuard,
-        eir_origin::EirOrigin,
-        eir_place::EirPlace,
+        eir::{EirGuard, EirOrigin, EirPlace},
     };
     use std::sync::Arc;
     use syl_sema::{

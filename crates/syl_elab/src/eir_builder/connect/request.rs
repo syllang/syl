@@ -1,6 +1,6 @@
 use crate::{
-    eir_build::Env,
-    eir_expr::EirExpr,
+    eir::EirExpr,
+    eir_builder::Env,
     mir::{MirConstExpr, MirTypeRef},
     program::{ElabCallArg, ElabCallableItem, ElabExpr, ElabPortDirection},
 };

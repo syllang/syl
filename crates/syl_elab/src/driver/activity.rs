@@ -3,7 +3,7 @@ use crate::{
     CompileError, DriverError,
     driver_place::{DriverObjectTable, DriverPlace, DriverStaticRange},
     eir::EirSignalActivity,
-    eir_guard::EirGuard,
+    eir::EirGuard,
 };
 use syl_hw::ObjectId;
 

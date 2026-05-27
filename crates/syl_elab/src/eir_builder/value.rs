@@ -1,8 +1,8 @@
 use crate::{
     CompileError, ConstEvalError, EirError,
     eir::EirParamBind,
-    eir_build::{EirBuilder, Env},
-    eir_expr::{EirBinaryOp, EirBound, EirExpr, EirSelectArm, EirSelectMode},
+    eir_builder::{EirBuilder, Env},
+    eir::{EirBinaryOp, EirBound, EirExpr, EirSelectArm, EirSelectMode},
     mir::{MirPattern, MirSelectMode, MirTypeRef},
     program::{
         ElabCallArg, ElabCallable, ElabExpr, ElabExprNode, ElabMatchArm, ElabNamedExpr,

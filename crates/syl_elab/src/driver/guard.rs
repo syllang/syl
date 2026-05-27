@@ -1,4 +1,4 @@
-use crate::eir_guard::EirGuard;
+use crate::eir::EirGuard;
 
 #[non_exhaustive]
 pub(super) struct DriverGuardSet<'a> {

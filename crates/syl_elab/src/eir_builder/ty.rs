@@ -1,6 +1,5 @@
 use crate::{
-    eir_build::{EirBuilder, Env},
-    eir_expr::{EirBinaryOp, EirBound, EirExpr},
+    eir::{EirBinaryOp, EirBound, EirExpr},
     map_ir::{MapBinaryOp, MapConstExpr, MapTypeRef, MapUnaryOp},
     mir::{MirBinaryOp, MirConstExpr, MirConstExprFacts, MirTypeRef, MirUnaryOp},
     program::{
@@ -9,6 +8,8 @@ use crate::{
 };
 use std::collections::HashMap;
 use syl_hir::DefId;
+
+use super::{EirBuilder, Env};
 
 #[non_exhaustive]
 pub(super) struct MapTypeLowerer {

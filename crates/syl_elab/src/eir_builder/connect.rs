@@ -2,9 +2,9 @@ use crate::{
     CompileError, EirError,
     actual_binding::ActualFormalBinder,
     eir::{EirConnection, EirDirection, EirInstance, EirItem, EirPort, EirSignalActivity},
-    eir_build::{EirBuilder, Env},
+    eir_builder::{EirBuilder, Env},
     eir_cell::EirCellExpansion,
-    eir_expr::{EirBinaryOp, EirBound, EirExpr},
+    eir::{EirBinaryOp, EirBound, EirExpr},
     mir::{MirTypeRef, MirTypeRefExt},
     program::{
         ElabBlock, ElabCallArg, ElabCallable, ElabCallableItem, ElabExpr, ElabExprNode,
@@ -16,11 +16,11 @@ use syl_hir::DefId;
 use syl_span::Span;
 
 mod request;
-use request::{
+use self::request::{
     CellArgBindingRequest, CellInlineRequest, ConnectionPushRequest, ResultConnectionRequest,
     ViewArgConnectionRequest, ViewPortSpec,
 };
-pub(super) use request::{InstanceEmitRequest, PortSpec, ViewSignalSpec};
+pub(super) use self::request::{InstanceEmitRequest, PortSpec, ViewSignalSpec};
 
 impl<'a> EirBuilder<'a> {
     pub(super) fn add_port(

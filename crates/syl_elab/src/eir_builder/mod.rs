@@ -2,9 +2,7 @@ use crate::{
     CompileError,
     const_mir::ConstMirProgram,
     eir::{EirModule, EirParam, EirRawDesign},
-    eir_connect::PortSpec,
-    eir_expr::{EirBinaryOp, EirExpr, EirUnaryOp},
-    eir_origin::{EirExpansion, EirOrigin},
+    eir::{EirBinaryOp, EirExpr, EirUnaryOp, EirExpansion, EirOrigin},
     map_ir::MapIrProgram,
     mir::MirTypeRef,
     program::{
@@ -15,6 +13,17 @@ use crate::{
 use std::collections::HashMap;
 use syl_hir::DefId;
 use syl_span::Span;
+
+mod body;
+mod connect;
+mod const_mod;
+mod map;
+mod method;
+mod read;
+mod ty;
+mod value;
+
+use self::connect::PortSpec;
 
 #[derive(Clone)]
 #[non_exhaustive]

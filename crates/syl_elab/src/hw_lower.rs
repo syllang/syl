@@ -2,10 +2,9 @@ use crate::{
     CompileError,
     eir::{
         EirConnection, EirDirection, EirInstance, EirItem, EirModule, EirParam, EirPort, EirReset,
+        EirBinaryOp, EirExpr, EirExpansion, EirOrigin, EirPlace, EirSelectArm, EirSelectMode,
+        EirUnaryOp,
     },
-    eir_expr::{EirBinaryOp, EirExpr, EirSelectMode, EirUnaryOp},
-    eir_origin::{EirExpansion, EirOrigin},
-    eir_place::EirPlace,
 };
 use syl_hw::{
     HwBinaryOp, HwConnection, HwDirection, HwExpansion, HwExpr, HwInstance, HwItem, HwOrigin,
@@ -329,7 +328,7 @@ impl<'a> HwLowerer<'a> {
 
     fn lower_select_arm(
         &self,
-        arm: &crate::eir_expr::EirSelectArm,
+        arm: &EirSelectArm,
         span: Span,
     ) -> Result<HwSelectArm, CompileError> {
         Ok(HwSelectArm::new(

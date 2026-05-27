@@ -2,9 +2,7 @@ use crate::{
     CompileError,
     driver::{CreateKind, DriverFacts},
     driver_place::{DriverExpr, DriverPlace},
-    eir_expr::{EirBinaryOp, EirUnaryOp},
-    eir_guard::{EirGuard, EirGuardFrame},
-    eir_origin::{EirExpansion, EirOrigin},
+    eir::{EirBinaryOp, EirExpansion, EirGuard, EirGuardFrame, EirOrigin, EirUnaryOp},
     hardware_metadata::{
         HardwareCellSummary, HardwareCreateFact, HardwareCreateKind, HardwareDriveFact,
         HardwareMetadata, HardwareReadFact,

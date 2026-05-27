@@ -1,4 +1,4 @@
-use crate::eir_expr::{EirBound, EirExpr};
+use super::{EirBound, EirExpr};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]

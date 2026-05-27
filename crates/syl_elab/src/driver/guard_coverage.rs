@@ -1,4 +1,4 @@
-use crate::eir_guard::{EirGuard, EirGuardFrame, EirGuardLabel};
+use crate::eir::{EirGuard, EirGuardFrame, EirGuardLabel};
 use std::collections::BTreeMap;
 
 #[non_exhaustive]

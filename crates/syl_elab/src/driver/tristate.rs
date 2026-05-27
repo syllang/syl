@@ -1,5 +1,5 @@
 use super::DriveFact;
-use crate::eir_expr::{EirBinaryOp, EirExpr, EirSelectArm, EirUnaryOp};
+use crate::eir::{EirBinaryOp, EirExpr, EirSelectArm, EirUnaryOp};
 use std::collections::BTreeMap;
 
 #[non_exhaustive]

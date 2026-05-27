@@ -1,11 +1,8 @@
 use crate::{
     CellBoundarySummary,
     eir_cell::EirCellExpansion,
-    eir_expr::{EirBound, EirExpr},
-    eir_origin::EirOrigin,
-    eir_place::EirPlace,
 };
-use crate::eir::signal::{EirReset, EirSignalActivity};
+use super::{EirBound, EirExpr, EirOrigin, EirPlace, EirReset, EirSignalActivity};
 
 #[derive(Debug)]
 #[non_exhaustive]

@@ -3,11 +3,11 @@ use crate::{
     CompileError, EirError,
     const_eval::ConstValue,
     eir::EirItem,
-    eir_connect::InstanceEmitRequest,
-    eir_expr::EirExpr,
+    eir::EirExpr,
     mir::MirTypeRef,
     program::{ElabBlock, ElabExprNode},
 };
+use super::super::connect::InstanceEmitRequest;
 
 impl<'a> EirBuilder<'a> {
     pub(super) fn emit_for(

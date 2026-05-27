@@ -1,5 +1,5 @@
 use super::DriverExpr;
-use crate::eir_expr::{EirBinaryOp, EirBound, EirExpr, EirUnaryOp};
+use crate::eir::{EirBinaryOp, EirBound, EirExpr, EirUnaryOp};
 use std::collections::BTreeMap;
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -641,7 +641,7 @@ impl<'a> TopLevelProduct<'a> {
 #[cfg(test)]
 mod tests {
     use super::DriverBound;
-    use crate::eir_expr::{EirBinaryOp, EirExpr};
+    use crate::eir::{EirBinaryOp, EirExpr};
 
     #[test]
     fn symbolic_extent_ignores_neutral_one_and_parentheses() {

@@ -5,8 +5,7 @@ use crate::{
     CompileError, DriverError,
     driver_place::{DriverBound, DriverExpr, DriverObjectTable, DriverPlace, DriverStaticRange},
     eir::{EirDesign, EirDirection, EirPort},
-    eir_expr::EirBound,
-    eir_guard::EirGuard,
+    eir::{EirBound, EirGuard},
 };
 use syl_hw::ObjectId;
 
@@ -591,8 +590,7 @@ mod tests {
     use super::{CoverageRoot, SymbolicLoopCoverage};
     use crate::{
         driver_place::{DriverBound, DriverExpr, DriverPlace},
-        eir_expr::{EirBinaryOp, EirBound, EirExpr},
-        eir_guard::{EirGuard, EirGuardFrame},
+        eir::{EirBinaryOp, EirBound, EirExpr, EirGuard, EirGuardFrame},
     };
     use syl_span::Span;
 

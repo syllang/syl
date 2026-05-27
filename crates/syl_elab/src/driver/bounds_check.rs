@@ -1,8 +1,7 @@
 use crate::{
     CompileError, DriverError,
     driver_place::{DriverBound, DriverObjectTable, DriverPlace, DriverStaticRange},
-    eir_guard::EirGuard,
-    eir_origin::EirOrigin,
+    eir::{EirGuard, EirOrigin},
 };
 
 use super::loop_bounds::{DriverLoopBounds, DriverLoopGuard};

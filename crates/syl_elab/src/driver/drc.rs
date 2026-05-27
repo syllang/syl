@@ -4,7 +4,7 @@ use super::{
     ReadFact,
 };
 use crate::{
-    CompileError, DriverError, driver_place::DriverPlace, eir::EirDesign, eir_origin::EirOrigin,
+    CompileError, DriverError, driver_place::DriverPlace, eir::EirDesign, eir::EirOrigin,
 };
 use syl_span::Span;
 
@@ -295,10 +295,10 @@ mod tests {
             EirDesign, EirDesignComposer, EirFactCollector, EirItem, EirModule, EirRawDesign,
             EirSignalActivity, EirValidator,
         },
-        eir_expr::{EirBinaryOp, EirExpr, EirSelectArm, EirSelectMode, EirUnaryOp},
-        eir_guard::EirGuard,
-        eir_origin::{EirExpansion, EirOrigin},
-        eir_place::EirPlace,
+        eir::{
+            EirBinaryOp, EirExpr, EirExpansion, EirGuard, EirOrigin, EirPlace, EirSelectArm,
+            EirSelectMode, EirUnaryOp,
+        },
     };
     use std::sync::Arc;
     use syl_sema::OpaqueSummaryTable;
