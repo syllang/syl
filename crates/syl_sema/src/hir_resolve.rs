@@ -2,9 +2,9 @@ use crate::{
     CompileError, HirError,
     hir::{
         HirBlock, HirBodyExpr, HirCallArg, HirCallable, HirCallableItem, HirConstItem, HirDefKind,
-        HirDesign, HirEnumVariantKey, HirExprNode, HirExternCellItem, HirFnItem,
-        HirInterfaceItem, HirMapItem, HirMatchArm, HirNamedExpr, HirSelectArm,
-        HirSignatureGenericParam, HirSignatureParam, HirStmt,
+        HirDesign, HirEnumVariantKey, HirExprNode, HirExternCellItem, HirFnItem, HirInterfaceItem,
+        HirMapItem, HirMatchArm, HirNamedExpr, HirSelectArm, HirSignatureGenericParam,
+        HirSignatureParam, HirStmt,
     },
     hir_view::HirDesignViewExt,
 };

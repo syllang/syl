@@ -1,17 +1,15 @@
 use super::TypePhaseChecker;
+use super::{TirConstTerm, TirType};
+use crate::mir::MirTypeRef;
 use crate::{
     CompileError, TirError,
-    hir::{
-        HirBodyExpr, HirConstItem, HirEnumItem, HirEnumLayout, HirEnumVariantDecl, HirExprNode,
-    },
+    hir::{HirBodyExpr, HirConstItem, HirEnumItem, HirEnumLayout, HirEnumVariantDecl, HirExprNode},
     hir_resolve::HirResolution,
     hir_view::HirDesignViewExt,
 };
-use super::{TirConstTerm, TirType};
 use std::collections::{BTreeMap, BTreeSet};
 use syl_hir::{DefId, HirEnumVariantKey};
 use syl_syntax::BinaryOp;
-use crate::mir::MirTypeRef;
 
 pub(super) fn resolve_enum_values(
     checker: &TypePhaseChecker,
@@ -67,9 +65,9 @@ impl<'a> EnumValueResolver<'a> {
                         self.eval_nat_expr(expr, &variant.name)?
                     } else {
                         match last_ordinal {
-                            Some(previous) => previous.checked_add(1).ok_or_else(|| {
-                                self.nat_error(variant.span, &variant.name)
-                            })?,
+                            Some(previous) => previous
+                                .checked_add(1)
+                                .ok_or_else(|| self.nat_error(variant.span, &variant.name))?,
                             None => 0,
                         }
                     }
@@ -281,11 +279,7 @@ impl<'a> EnumValueResolver<'a> {
     fn nat_error(&self, span: syl_span::Span, variant_name: &str) -> CompileError {
         CompileError::lowering_at(
             TirError::RequiresNatExpression {
-                context: format!(
-                    "enum discriminant {}.{}",
-                    self.item.name,
-                    variant_name
-                ),
+                context: format!("enum discriminant {}.{}", self.item.name, variant_name),
             },
             span,
         )

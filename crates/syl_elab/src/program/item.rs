@@ -2,10 +2,9 @@ use super::{ElabPortDirection, ElabViewDirection, body::ElabBlock, body::ElabExp
 use crate::{
     mir::MirTypeRef,
     source::{
-        HirBundleItem, HirCallable, HirCallableItem, HirConstItem, HirEnumItem,
-        HirEnumVariantKey, HirExternCellItem, HirFieldDecl, HirInterfaceItem,
-        HirSignatureGenericParam, HirSignatureParam, HirSignatureResultBinding, HirViewDecl,
-        HirViewField,
+        HirBundleItem, HirCallable, HirCallableItem, HirConstItem, HirEnumItem, HirEnumVariantKey,
+        HirExternCellItem, HirFieldDecl, HirInterfaceItem, HirSignatureGenericParam,
+        HirSignatureParam, HirSignatureResultBinding, HirViewDecl, HirViewField,
     },
 };
 use syl_hir::DefId;

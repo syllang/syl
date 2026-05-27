@@ -5,9 +5,12 @@ use syl_span::{Diagnostic, SourceId, Span};
 mod expr;
 mod item;
 mod lossless_tree;
+mod output;
 mod recovery;
 mod span_ext;
 mod stmt;
+
+pub use output::ParseOutput;
 
 #[derive(Debug)]
 enum BlockEntry {
@@ -160,40 +163,6 @@ impl<'a> SourceParser<'a> {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
-#[non_exhaustive]
-pub struct ParseOutput {
-    pub file: AstFile,
-    pub diagnostics: Vec<Diagnostic>,
-    node_index: crate::AstNodeIndex,
-}
-
-impl ParseOutput {
-    pub fn new(file: AstFile, diagnostics: Vec<Diagnostic>) -> Self {
-        Self {
-            file,
-            diagnostics,
-            node_index: crate::AstNodeIndex::default(),
-        }
-    }
-
-    pub fn into_result(self) -> Result<AstFile, Vec<Diagnostic>> {
-        if self.diagnostics.is_empty() {
-            Ok(self.file)
-        } else {
-            Err(self.diagnostics)
-        }
-    }
-
-    pub fn node_index(&self) -> &crate::AstNodeIndex {
-        &self.node_index
-    }
-
-    pub(crate) fn attach_node_index(&mut self, source: &str) {
-        self.node_index = self.file.build_node_index(source);
-    }
-}
-
 #[derive(Debug, Clone)]
 #[non_exhaustive]
 pub struct Parser {
@@ -323,15 +292,18 @@ impl Parser {
             } else {
                 None
             };
-            let end = value
-                .as_ref()
-                .map(Expr::span)
-                .unwrap_or(name_span);
+            let end = value.as_ref().map(Expr::span).unwrap_or(name_span);
             variants.push(EnumVariant::new(vname, value, name_span.join(end)));
             self.consume(&TokenKind::Comma);
         }
         let end = self.expect(TokenKind::RBrace)?.span;
-        Ok(EnumItem::new(name, width, layout, variants, start.join(end)))
+        Ok(EnumItem::new(
+            name,
+            width,
+            layout,
+            variants,
+            start.join(end),
+        ))
     }
 
     fn parse_bundle_item(&mut self, attrs: Vec<Attribute>) -> Result<BundleItem, Vec<Diagnostic>> {
@@ -434,10 +406,7 @@ impl Parser {
         let mut ports = Vec::new();
         for param in params {
             if param.is_receiver() {
-                self.error(
-                    param.span,
-                    "cell ports cannot use `this` receiver",
-                );
+                self.error(param.span, "cell ports cannot use `this` receiver");
                 return Err(std::mem::take(&mut self.diagnostics));
             }
             let Some(dir) = param.dir else {
@@ -611,12 +580,18 @@ impl Parser {
         }
     }
 
-    fn enum_layout_from_attrs(&mut self, attrs: &[Attribute]) -> Result<EnumLayout, Vec<Diagnostic>> {
+    fn enum_layout_from_attrs(
+        &mut self,
+        attrs: &[Attribute],
+    ) -> Result<EnumLayout, Vec<Diagnostic>> {
         let mut layout = EnumLayout::Ordinal;
         let mut seen_layout = false;
         for attr in attrs {
             if attr.name != "layout" {
-                self.error(attr.span, format!("unknown enum attribute `@{}`", attr.name));
+                self.error(
+                    attr.span,
+                    format!("unknown enum attribute `@{}`", attr.name),
+                );
                 return Err(std::mem::take(&mut self.diagnostics));
             }
             if seen_layout {

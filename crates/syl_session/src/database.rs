@@ -275,7 +275,7 @@ mod tests {
         database.open_document(
             uri.clone(),
             r#"
-module Cache(y: out Bit) {
+cell Cache(y: out Bit) {
     y := 1
 }
 "#
@@ -312,7 +312,7 @@ module Cache(y: out Bit) {
         database.open_document(
             base_uri.clone(),
             r#"
-module Base(y: out Bit) {
+cell Base(y: out Bit) {
     y := 1
 }
 "#
@@ -327,7 +327,7 @@ module Base(y: out Bit) {
         database.open_document(
             overlay_uri.clone(),
             r#"
-module Overlay(y: out Bit) {
+cell Overlay(y: out Bit) {
     y := 1
 }
 "#
@@ -357,12 +357,12 @@ module Overlay(y: out Bit) {
         let mut database = AnalysisDatabase::new();
         database.open_document(
             first_uri,
-            "module First(y: out Bit) { y := 1 }\n".to_string(),
+            "cell First(y: out Bit) { y := 1 }\n".to_string(),
             DocumentVersion::new(1),
         );
         database.open_document(
             second_uri.clone(),
-            "module Second(y: out Bit) { y := 0 }\n".to_string(),
+            "cell Second(y: out Bit) { y := 0 }\n".to_string(),
             DocumentVersion::new(1),
         );
 
@@ -379,7 +379,7 @@ module Overlay(y: out Bit) {
         database
             .update_document_at_version(
                 &second_uri,
-                "module Second(y: out Bit) { y := 1 }\n".to_string(),
+                "cell Second(y: out Bit) { y := 1 }\n".to_string(),
                 DocumentVersion::new(2),
             )
             .expect("package shard edit must update the second package");
@@ -404,12 +404,12 @@ module Overlay(y: out Bit) {
         let mut database = AnalysisDatabase::new();
         database.open_document(
             first_uri.clone(),
-            "module First(y: out Bit) { y := 1 }\n".to_string(),
+            "cell First(y: out Bit) { y := 1 }\n".to_string(),
             DocumentVersion::new(1),
         );
         database.open_document(
             second_uri.clone(),
-            "module Second(y: out Bit) { y := 1 }\n".to_string(),
+            "cell Second(y: out Bit) { y := 1 }\n".to_string(),
             DocumentVersion::new(1),
         );
 
@@ -434,7 +434,7 @@ module Overlay(y: out Bit) {
         let mut database = AnalysisDatabase::new();
         database.open_document(
             uri,
-            "module Top(y: out Bit) { y := 1 }\n".to_string(),
+            "cell Top(y: out Bit) { y := 1 }\n".to_string(),
             DocumentVersion::new(1),
         );
         let token = CancellationToken::new();

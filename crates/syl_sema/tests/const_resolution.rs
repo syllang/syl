@@ -118,6 +118,51 @@ cell Top(x: in Left, y: out Bit) {
 }
 
 #[test]
+fn shorthand_enum_match_patterns_lower_against_scrutinee_type() {
+    let verilog = ConstResolutionHarness::new()
+        .compile_sources(&[r#"
+enum State {
+    Idle,
+    Busy,
+}
+
+map is_idle(x: State) -> Bit =
+    match x {
+        .Idle => 1,
+        default => 0,
+    }
+
+cell Top(x: in State, y: out Bit) {
+    y := is_idle(x)
+}
+"#])
+        .expect("match shorthand should resolve against the scrutinee enum type");
+
+    assert!(verilog.contains("assign y = ((x == 0) ? 1 : 0);"));
+}
+
+#[test]
+fn shorthand_enum_match_patterns_work_in_cell_bodies() {
+    let verilog = ConstResolutionHarness::new()
+        .compile_sources(&[r#"
+enum State {
+    Idle,
+    Busy,
+}
+
+cell Top(x: in State, y: out Bit) {
+    y := match x {
+        .Idle => 1,
+        default => 0,
+    }
+}
+"#])
+        .expect("cell-local match shorthand should resolve against the scrutinee enum type");
+
+    assert!(verilog.contains("assign y = ((x == 0) ? 1 : 0);"));
+}
+
+#[test]
 fn enum_variant_in_expression_context() {
     let verilog = ConstResolutionHarness::new()
         .compile_sources(&[r#"

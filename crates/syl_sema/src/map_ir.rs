@@ -333,7 +333,7 @@ impl<'a> MapIrBuilder<'a> {
             },
             HirExprNode::Match { expr, arms } => MapExpr::Match {
                 value: Box::new(self.lower_expr(owner, expr)?),
-                arms: self.lower_match_arms(owner, arms)?,
+                arms: self.lower_match_arms(owner, expr, arms)?,
             },
             HirExprNode::Select { mode, arms } => MapExpr::Select {
                 mode: MapSelectMode::from(*mode),
@@ -462,16 +462,46 @@ impl<'a> MapIrBuilder<'a> {
     fn lower_match_arms(
         &self,
         owner: DefId,
+        value: &HirBodyExpr,
         arms: &[HirMatchArm],
     ) -> Result<Vec<MapMatchArm>, CompileError> {
+        let target_enum_name = self.match_target_enum_name(value);
         arms.iter()
             .map(|arm| {
                 Ok(MapMatchArm::new(
-                    MapPattern::from(&arm.pattern),
+                    self.lower_match_pattern(&arm.pattern, target_enum_name.as_deref()),
                     self.lower_expr(owner, &arm.value)?,
                 ))
             })
             .collect()
+    }
+
+    fn lower_match_pattern(
+        &self,
+        pattern: &crate::mir::MirPattern,
+        target_enum_name: Option<&str>,
+    ) -> MapPattern {
+        match pattern {
+            crate::mir::MirPattern::Path(path, _) if path.len() == 1 => {
+                let Some(enum_name) = target_enum_name else {
+                    return MapPattern::Path(path.clone());
+                };
+                MapPattern::Path(vec![enum_name.to_string(), path[0].clone()])
+            }
+            _ => MapPattern::from(pattern),
+        }
+    }
+
+    fn match_target_enum_name(&self, value: &HirBodyExpr) -> Option<String> {
+        let ty = self
+            .tir
+            .expr_types()
+            .get(&value.id())
+            .and_then(|ty| self.tir.type_table().get(*ty))?;
+        let def = ty.definition()?;
+        (self.tir.hir().def_kind(def) == Some(crate::hir::HirDefKind::Enum))
+            .then(|| self.tir.hir().def_name(def).map(str::to_string))
+            .flatten()
     }
 
     fn lower_select_arms(

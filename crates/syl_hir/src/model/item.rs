@@ -3,9 +3,9 @@ use crate::LocalId;
 use strum_macros::IntoStaticStr;
 use syl_span::Span;
 use syl_syntax::{
-    BundleItem, ConstItem, DriveCapability, EnumItem, EnumLayout as SyntaxEnumLayout, ExternCellItem,
-    FieldDecl, FnItem, GenericParam, InterfaceItem, MapItem, Param, ParamDirection, PortDecl,
-    TypeExpr, ViewDirection,
+    BundleItem, ConstItem, DriveCapability, EnumItem, EnumLayout as SyntaxEnumLayout,
+    ExternCellItem, FieldDecl, FnItem, GenericParam, InterfaceItem, MapItem, Param, ParamDirection,
+    PortDecl, TypeExpr, ViewDirection,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, IntoStaticStr)]
@@ -259,10 +259,7 @@ impl From<&syl_syntax::EnumVariant> for HirEnumVariantDecl {
 impl HirEnumVariantDecl {
     fn summary_count(&self) -> usize {
         self.name.len()
-            + self
-                .value
-                .as_ref()
-                .map_or(0, |value| value.span().start)
+            + self.value.as_ref().map_or(0, |value| value.span().start)
             + self.span.start
     }
 }

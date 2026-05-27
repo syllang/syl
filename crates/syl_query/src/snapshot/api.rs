@@ -505,9 +505,9 @@ impl<'a> CompletionCollector<'a> {
 
     fn kind_for(&self, kind: CompletionKind) -> CompletionItemKind {
         match kind {
-            CompletionKind::Cell
-            | CompletionKind::ExternCell
-            | CompletionKind::Instance => CompletionItemKind::Module,
+            CompletionKind::Cell | CompletionKind::ExternCell | CompletionKind::Instance => {
+                CompletionItemKind::Module
+            }
             CompletionKind::Fn | CompletionKind::Map => CompletionItemKind::Function,
             CompletionKind::Enum | CompletionKind::Bundle | CompletionKind::Interface => {
                 CompletionItemKind::Type

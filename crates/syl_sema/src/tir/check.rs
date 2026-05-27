@@ -1,3 +1,4 @@
+use super::enum_layout;
 use super::{BindingKind, BindingRef, HardwareBlockMode, Phase, TirDesign, TypePhaseChecker};
 use crate::{
     CompileError, StageOutput,
@@ -9,7 +10,6 @@ use crate::{
     },
     tir_const::TirConstEnv,
 };
-use super::enum_layout;
 use syl_hir::DefId;
 use syl_span::Diagnostic;
 
@@ -190,9 +190,7 @@ impl TypePhaseChecker {
         errors: &mut Vec<CompileError>,
     ) -> Result<(), CompileError> {
         match callable {
-            HirCallable::Cell(item) => {
-                self.check_callable_item(item, errors)
-            }
+            HirCallable::Cell(item) => self.check_callable_item(item, errors),
             HirCallable::Extern(item) => self.check_extern_module(owner, item, errors),
             _ => Ok(()),
         }

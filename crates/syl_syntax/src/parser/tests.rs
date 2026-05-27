@@ -66,11 +66,9 @@ fn parses_source_from_lexer() {
 
 #[test]
 fn parses_enum_layout_width_and_explicit_values() {
-    let file = SourceParser::new(
-        "@layout(flags) enum Access: Bits<4> { Read, Write = 4, Exec }",
-    )
-    .parse_file()
-    .unwrap();
+    let file = SourceParser::new("@layout(flags) enum Access: Bits<4> { Read, Write = 4, Exec }")
+        .parse_file()
+        .unwrap();
 
     match &file.items[0] {
         Item::Enum(item) => {

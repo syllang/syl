@@ -74,6 +74,7 @@ impl<'a> EirBuilder<'a> {
         arms: &[ElabMatchArm],
         env: &Env,
     ) -> EirExpr {
+        let target_enum_def = self.match_target_enum_def(target, env);
         let mut fallback = None;
         for arm in arms.iter().rev() {
             let value = self.elab_expr(&arm.value, env);
@@ -81,7 +82,8 @@ impl<'a> EirBuilder<'a> {
                 MirPattern::Wildcard(_) => fallback = Some(value),
                 MirPattern::Ident(name, _) if name == "default" => fallback = Some(value),
                 pattern => {
-                    let cond = self.elab_match_pattern_condition(target, pattern, env);
+                    let cond =
+                        self.elab_match_pattern_condition(target, pattern, env, target_enum_def);
                     fallback = Some(match fallback {
                         Some(next) => EirExpr::mux(cond, value, next),
                         None => value,
@@ -97,23 +99,38 @@ impl<'a> EirBuilder<'a> {
         target: &ElabExpr,
         pattern: &MirPattern,
         env: &Env,
+        target_enum_def: Option<DefId>,
     ) -> EirExpr {
         EirExpr::binary(
             EirBinaryOp::Eq,
             self.elab_expr(target, env),
-            self.elab_match_pattern_value(pattern, env),
+            self.elab_match_pattern_value(pattern, env, target_enum_def),
         )
     }
 
-    fn elab_match_pattern_value(&self, pattern: &MirPattern, env: &Env) -> EirExpr {
+    fn elab_match_pattern_value(
+        &self,
+        pattern: &MirPattern,
+        env: &Env,
+        target_enum_def: Option<DefId>,
+    ) -> EirExpr {
         match pattern {
             MirPattern::Path(path, _) => path
                 .last()
                 .map(|variant| {
-                    env.owner
-                        .and_then(|owner| self.program.enum_variant_value(owner, path))
-                        .map(EirExpr::Int)
-                        .unwrap_or_else(|| EirExpr::ident(variant))
+                    if path.len() == 1 {
+                        target_enum_def
+                            .and_then(|enum_def| {
+                                self.program.enum_variant_value_for_def(enum_def, variant)
+                            })
+                            .map(EirExpr::Int)
+                            .unwrap_or_else(|| EirExpr::ident(variant))
+                    } else {
+                        env.owner
+                            .and_then(|owner| self.program.enum_variant_value(owner, path))
+                            .map(EirExpr::Int)
+                            .unwrap_or_else(|| EirExpr::ident(variant))
+                    }
                 })
                 .unwrap_or_else(|| EirExpr::unsupported("empty match path pattern")),
             MirPattern::Ident(name, _) => env
@@ -127,6 +144,12 @@ impl<'a> EirBuilder<'a> {
             MirPattern::Unsupported(_) => EirExpr::unsupported("unsupported match pattern"),
             _ => EirExpr::unsupported("unsupported match pattern"),
         }
+    }
+
+    fn match_target_enum_def(&self, target: &ElabExpr, env: &Env) -> Option<DefId> {
+        let owner = env.owner?;
+        let def = self.program.expr_type(owner, target)?.definition()?;
+        (self.program.def_kind(def) == Some(crate::program::ElabDefKind::Enum)).then_some(def)
     }
 
     pub(super) fn elab_select_expr(

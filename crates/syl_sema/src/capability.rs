@@ -562,10 +562,7 @@ impl<'a> CapabilityChecker<'a> {
             return None;
         };
         let kind = self.hir.def_kind(def)?;
-        if !matches!(
-            kind,
-            HirDefKind::Cell | HirDefKind::ExternCell
-        ) {
+        if !matches!(kind, HirDefKind::Cell | HirDefKind::ExternCell) {
             return None;
         }
         let name = self.hir.def_name(def)?.to_string();

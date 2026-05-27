@@ -504,7 +504,13 @@ impl<'a> EirBuilder<'a> {
                     .map(EirExpr::Int)
                     .unwrap_or_else(|_| self.type_value_expr(owner, width))
             })
-            .unwrap_or_else(|| EirExpr::Int(self.enum_value_width(item.max_value).try_into().unwrap_or(u64::MAX)))
+            .unwrap_or_else(|| {
+                EirExpr::Int(
+                    self.enum_value_width(item.max_value)
+                        .try_into()
+                        .unwrap_or(u64::MAX),
+                )
+            })
     }
 
     fn enum_value_width(&self, value: u64) -> usize {

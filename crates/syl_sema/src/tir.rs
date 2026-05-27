@@ -14,8 +14,8 @@ use syl_hir::{DefId, ExprId, HirEnumVariantKey, LocalId};
 use syl_span::Span;
 
 mod body_check;
-mod enum_layout;
 mod check;
+mod enum_layout;
 mod extension_method;
 mod return_type;
 #[cfg(test)]

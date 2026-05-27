@@ -105,10 +105,7 @@ impl CompletionKind {
     }
 
     pub fn is_callable(self) -> bool {
-        matches!(
-            self,
-            Self::Fn | Self::Map | Self::Cell | Self::ExternCell
-        )
+        matches!(self, Self::Fn | Self::Map | Self::Cell | Self::ExternCell)
     }
 }
 

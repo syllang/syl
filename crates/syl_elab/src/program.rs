@@ -142,6 +142,10 @@ impl ElabProgram {
         self.variant_value(enum_def, field)
     }
 
+    pub(crate) fn enum_variant_value_for_def(&self, enum_def: DefId, name: &str) -> Option<u64> {
+        self.variant_value(enum_def, name)
+    }
+
     fn variant_value(&self, enum_def: DefId, name: &str) -> Option<u64> {
         self.enum_variants
             .get(&ElabEnumVariantKey::new(enum_def, name))
@@ -162,7 +166,6 @@ impl ElabProgram {
         };
         (self.def_kind(def) == Some(ElabDefKind::Enum)).then_some(def)
     }
-
 }
 
 #[non_exhaustive]
@@ -177,11 +180,9 @@ impl<'a> ElabProgramBuilder<'a> {
 
     fn build(&self) -> ElabProgram {
         let hir = self.tir.hir();
-        let enum_max_values = self
-            .tir
-            .enum_variant_values()
-            .iter()
-            .fold(BTreeMap::new(), |mut max_values, (key, value)| {
+        let enum_max_values = self.tir.enum_variant_values().iter().fold(
+            BTreeMap::new(),
+            |mut max_values, (key, value)| {
                 max_values
                     .entry(key.enum_def)
                     .and_modify(|current| {
@@ -191,7 +192,8 @@ impl<'a> ElabProgramBuilder<'a> {
                     })
                     .or_insert(*value);
                 max_values
-            });
+            },
+        );
         let mut visible_defs = BTreeMap::new();
         for owner in &hir.defs {
             for def in hir.visible_def_ids(owner.id) {
@@ -270,10 +272,7 @@ impl<'a> ElabProgramBuilder<'a> {
                 .map(|(def, item)| {
                     (
                         *def,
-                        ElabEnumItem::new(
-                            item,
-                            enum_max_values.get(def).copied().unwrap_or(0),
-                        ),
+                        ElabEnumItem::new(item, enum_max_values.get(def).copied().unwrap_or(0)),
                     )
                 })
                 .collect(),

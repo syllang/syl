@@ -172,7 +172,12 @@ impl<'a> EirBuilder<'a> {
         ) {
             items.extend(view_items);
             if let Some(value) = request.value {
-                if let ElabExprNode::Place { callee, args, inplace } = &value.node {
+                if let ElabExprNode::Place {
+                    callee,
+                    args,
+                    inplace,
+                } = &value.node
+                {
                     items.extend(self.emit_instance(InstanceEmitRequest {
                         inst_name: &physical_name,
                         callee,
@@ -202,7 +207,12 @@ impl<'a> EirBuilder<'a> {
         });
         env.insert(request.name, EirExpr::ident(&physical_name), ty);
         if let Some(value) = request.value {
-            if let ElabExprNode::Place { callee, args, inplace } = &value.node {
+            if let ElabExprNode::Place {
+                callee,
+                args,
+                inplace,
+            } = &value.node
+            {
                 items.extend(self.emit_instance(InstanceEmitRequest {
                     inst_name: &physical_name,
                     callee,
@@ -473,7 +483,11 @@ impl<'a> EirBuilder<'a> {
         env: &mut Env,
     ) -> Result<Vec<EirItem>, CompileError> {
         match &value.node {
-            ElabExprNode::Place { callee, args, inplace } => self.emit_let_place(
+            ElabExprNode::Place {
+                callee,
+                args,
+                inplace,
+            } => self.emit_let_place(
                 LetPlaceEmit {
                     name,
                     callee,

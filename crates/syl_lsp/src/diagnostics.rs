@@ -380,7 +380,7 @@ mod tests {
         let mut host = AnalysisHost::new();
         host.open_document(
             uri.clone(),
-            "module Bad(y: out Bit) {\n    y := 0\n    y := 1\n}\n".to_string(),
+            "cell Bad(y: out Bit) {\n    y := 0\n    y := 1\n}\n".to_string(),
             DocumentVersion::new(11),
         );
         let snapshot = host
@@ -441,12 +441,12 @@ mod tests {
         );
         host.open_document(
             tir_uri.clone(),
-            "module Bad(x: in Missing) {}\n".to_string(),
+            "cell Bad(x: in Missing) {}\n".to_string(),
             DocumentVersion::new(1),
         );
         host.open_document(
             driver_uri.clone(),
-            "module Bad(y: out Bit) {\n    y := 0\n    y := 1\n}\n".to_string(),
+            "cell Bad(y: out Bit) {\n    y := 0\n    y := 1\n}\n".to_string(),
             DocumentVersion::new(1),
         );
         let snapshot = host
