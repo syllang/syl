@@ -1,10 +1,10 @@
 use crate::{
     CompileError, EirError,
     actual_binding::ActualFormalBinder,
+    eir::{EirBinaryOp, EirBound, EirExpr},
     eir::{EirConnection, EirDirection, EirInstance, EirItem, EirPort, EirSignalActivity},
     eir_builder::{EirBuilder, Env},
     eir_cell::EirCellExpansion,
-    eir::{EirBinaryOp, EirBound, EirExpr},
     mir::{MirTypeRef, MirTypeRefExt},
     program::{
         ElabBlock, ElabCallArg, ElabCallable, ElabCallableItem, ElabExpr, ElabExprNode,
@@ -34,6 +34,7 @@ impl<'a> EirBuilder<'a> {
                 ports,
                 env,
                 ViewPortSpec {
+                    doc: spec.doc,
                     name: spec.name,
                     base,
                     view,
@@ -56,12 +57,10 @@ impl<'a> EirBuilder<'a> {
             }
         };
         let width = self.width_bound(env.owner, spec.ty);
-        ports.push(EirPort::new(
-            direction,
-            width,
-            spec.name,
-            env.origin(spec.span),
-        ));
+        ports.push(
+            EirPort::new(direction, width, spec.name, env.origin(spec.span))
+                .with_doc(spec.doc.map(ToOwned::to_owned)),
+        );
         env.insert(spec.name, EirExpr::ident(spec.name), spec.ty.clone());
         Ok(())
     }
@@ -140,12 +139,10 @@ impl<'a> EirBuilder<'a> {
                     env_ty.clone(),
                 );
                 env.insert(&port_name, EirExpr::ident(&port_name), env_ty);
-                ports.push(EirPort::new(
-                    direction,
-                    width,
-                    port_name,
-                    env.origin(spec.span),
-                ));
+                ports.push(
+                    EirPort::new(direction, width, port_name, env.origin(spec.span))
+                        .with_doc(spec.doc.map(ToOwned::to_owned)),
+                );
             }
         }
         Ok(())

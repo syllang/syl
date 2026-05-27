@@ -4,7 +4,10 @@ use std::vec::Vec;
 use syl_span::Diagnostic;
 
 impl Parser {
-    pub(super) fn parse_attrs(&mut self) -> Result<Vec<Attribute>, Vec<Diagnostic>> {
+    pub(super) fn parse_attrs_and_doc(
+        &mut self,
+    ) -> Result<(Vec<Attribute>, Option<String>), Vec<Diagnostic>> {
+        let mut doc = self.take_doc_for_next_token();
         let mut attrs = Vec::new();
         while self.check(&crate::lexer::TokenKind::At) {
             let at = self.expect(crate::lexer::TokenKind::At)?.span;
@@ -25,8 +28,10 @@ impl Parser {
             } else {
                 attrs.push(Attribute::new(name, args, at.join(name_span)));
             }
+            let next_doc = self.take_doc_for_next_token();
+            doc = self.merge_doc(doc, next_doc);
         }
-        Ok(attrs)
+        Ok((attrs, doc))
     }
 
     pub(super) fn parse_path(&mut self) -> Result<Vec<String>, Vec<Diagnostic>> {

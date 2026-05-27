@@ -1,4 +1,5 @@
 use crate::{AnalysisQueries, DiagnosticStage, QueryError, snapshot::DiagnosticQueryEngine};
+use syl_hir::DefId;
 use syl_sema::{
     OpaqueItemKind, OpaqueItemSummary, SummaryCapability, SummaryDirection, SummaryEndpoint,
     SummaryLatencyClass, SummaryLayout, SummaryPath, TrustBoundary,
@@ -70,6 +71,34 @@ fn hover_and_completion_do_not_trigger_elaboration() {
     assert!(!snapshot.is_hir_cached());
     assert!(!snapshot.is_tir_cached());
     assert!(!snapshot.is_elaboration_cached());
+}
+
+#[test]
+fn analysis_queries_expose_docs() {
+    let source = r#"
+//! Module docs.
+
+/// Bundle docs.
+bundle Word {
+    /// Low bits.
+    lo: UInt<4>,
+}
+"#;
+    let uri = DocumentUri::new("untitled:syl/docs");
+    let mut host = AnalysisHost::new();
+    host.open_document(uri.clone(), source.to_string(), DocumentVersion::new(1));
+    let snapshot = host.snapshot().expect("doc query fixture must snapshot");
+    let file = snapshot
+        .file_by_uri(&uri)
+        .expect("snapshot should retain opened document");
+    let word = DefId::new(0);
+
+    assert_eq!(
+        snapshot.doc_for_module(file.source_id()),
+        Some("Module docs.")
+    );
+    assert_eq!(snapshot.doc_for_item(word), Some("Bundle docs."));
+    assert_eq!(snapshot.doc_for_field(word, "lo"), Some("Low bits."));
 }
 
 #[test]

@@ -152,6 +152,10 @@ pub enum LosslessTokenKind {
     Whitespace,
     /// Line comments kept by the lossless lexer.
     LineComment,
+    /// Outer documentation comments kept by the lossless lexer.
+    DocComment,
+    /// File-level documentation comments kept by the lossless lexer.
+    InnerDocComment,
     /// Unknown or unsupported input.
     Unknown,
 }

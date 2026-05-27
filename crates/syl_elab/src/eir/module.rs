@@ -1,12 +1,10 @@
-use crate::{
-    CellBoundarySummary,
-    eir_cell::EirCellExpansion,
-};
 use super::{EirBound, EirExpr, EirOrigin, EirPlace, EirReset, EirSignalActivity};
+use crate::{CellBoundarySummary, eir_cell::EirCellExpansion};
 
 #[derive(Debug)]
 #[non_exhaustive]
 pub(crate) struct EirModule {
+    doc: Option<String>,
     name: String,
     kind: EirModuleKind,
     params: Vec<EirParam>,
@@ -22,6 +20,7 @@ impl EirModule {
         items: Vec<EirItem>,
     ) -> Self {
         Self {
+            doc: None,
             name: name.into(),
             kind: EirModuleKind::Defined,
             params,
@@ -30,18 +29,28 @@ impl EirModule {
         }
     }
 
+    pub(crate) fn with_doc(mut self, doc: Option<String>) -> Self {
+        self.doc = doc;
+        self
+    }
+
     pub(crate) fn new_extern(
         name: impl Into<String>,
         params: Vec<EirParam>,
         ports: Vec<EirPort>,
     ) -> Self {
         Self {
+            doc: None,
             name: name.into(),
             kind: EirModuleKind::Extern,
             params,
             ports,
             items: Vec::new(),
         }
+    }
+
+    pub(crate) fn doc(&self) -> Option<&str> {
+        self.doc.as_deref()
     }
 
     pub(crate) fn name(&self) -> &str {
@@ -74,6 +83,7 @@ enum EirModuleKind {
 #[derive(Debug)]
 #[non_exhaustive]
 pub(crate) struct EirParam {
+    doc: Option<String>,
     name: String,
     default: String,
 }
@@ -81,9 +91,19 @@ pub(crate) struct EirParam {
 impl EirParam {
     pub(crate) fn new(name: impl Into<String>, default: impl Into<String>) -> Self {
         Self {
+            doc: None,
             name: name.into(),
             default: default.into(),
         }
+    }
+
+    pub(crate) fn with_doc(mut self, doc: Option<String>) -> Self {
+        self.doc = doc;
+        self
+    }
+
+    pub(crate) fn doc(&self) -> Option<&str> {
+        self.doc.as_deref()
     }
 
     pub(crate) fn name(&self) -> &str {
@@ -98,6 +118,7 @@ impl EirParam {
 #[derive(Debug)]
 #[non_exhaustive]
 pub(crate) struct EirPort {
+    doc: Option<String>,
     direction: EirDirection,
     width: EirBound,
     name: String,
@@ -112,11 +133,21 @@ impl EirPort {
         origin: EirOrigin,
     ) -> Self {
         Self {
+            doc: None,
             direction,
             width: width.into(),
             name: name.into(),
             origin,
         }
+    }
+
+    pub(crate) fn with_doc(mut self, doc: Option<String>) -> Self {
+        self.doc = doc;
+        self
+    }
+
+    pub(crate) fn doc(&self) -> Option<&str> {
+        self.doc.as_deref()
     }
 
     pub(crate) fn direction(&self) -> EirDirection {

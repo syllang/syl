@@ -27,6 +27,7 @@ impl Parser {
         if self.consume(&TokenKind::Lt).is_some() {
             if !self.check(&TokenKind::Gt) {
                 loop {
+                    let doc = self.take_doc_for_next_token();
                     let name = self.expect_ident()?;
                     let start = self.prev_span();
                     let kind = if self.consume(&TokenKind::Colon).is_some() {
@@ -44,7 +45,9 @@ impl Parser {
                         .map(Expr::span)
                         .or_else(|| kind.as_ref().map(TypeExpr::span))
                         .unwrap_or(start);
-                    params.push(GenericParam::new(name, kind, default, start.join(end)));
+                    let mut param = GenericParam::new(name, kind, default, start.join(end));
+                    param.doc = doc;
+                    params.push(param);
                     if self.consume(&TokenKind::Comma).is_none() {
                         break;
                     }
@@ -63,6 +66,7 @@ impl Parser {
         self.expect(TokenKind::LParen)?;
         if !self.check(&TokenKind::RParen) {
             loop {
+                let doc = self.take_doc_for_next_token();
                 let receiver = self.consume(&TokenKind::KwThis).is_some();
                 if receiver && !params.is_empty() {
                     self.error(
@@ -90,9 +94,13 @@ impl Parser {
                         self.error(span, "`this` receiver cannot have an in/out direction");
                         return Err(std::mem::take(&mut self.diagnostics));
                     }
-                    params.push(Param::receiver(name, ty, span));
+                    let mut param = Param::receiver(name, ty, span);
+                    param.doc = doc;
+                    params.push(param);
                 } else {
-                    params.push(Param::new(name, dir, ty, span));
+                    let mut param = Param::new(name, dir, ty, span);
+                    param.doc = doc;
+                    params.push(param);
                 }
                 if self.consume(&TokenKind::Comma).is_none() {
                     break;
@@ -107,29 +115,30 @@ impl Parser {
     }
 
     pub(super) fn parse_result_binding(&mut self) -> Result<ResultBinding, Vec<Diagnostic>> {
+        let doc = self.take_doc_for_next_token();
         let name = self.expect_ident()?;
         let start = self.prev_span();
         self.expect(TokenKind::Colon)?;
         let ty = self.parse_type_expr()?;
         let span = start.join(ty.span());
-        Ok(ResultBinding::new(
-            name,
-            ty,
-            DriveCapability::WriteOnly,
-            span,
-        ))
+        let mut result = ResultBinding::new(name, ty, DriveCapability::WriteOnly, span);
+        result.doc = doc;
+        Ok(result)
     }
 
     pub(super) fn parse_field_block(&mut self) -> Result<(Vec<FieldDecl>, Span), Vec<Diagnostic>> {
         let start = self.expect(TokenKind::LBrace)?.span;
         let mut fields = Vec::new();
         while !self.check(&TokenKind::RBrace) && !self.is_eof() {
+            let doc = self.take_doc_for_next_token();
             let name = self.expect_ident()?;
             let field_start = self.prev_span();
             self.expect(TokenKind::Colon)?;
             let ty = self.parse_type_expr()?;
             let span = field_start.join(ty.span());
-            fields.push(FieldDecl::new(name, ty, span));
+            let mut field = FieldDecl::new(name, ty, span);
+            field.doc = doc;
+            fields.push(field);
             self.consume(&TokenKind::Comma);
         }
         let end = self.expect(TokenKind::RBrace)?.span;
@@ -147,12 +156,15 @@ impl Parser {
                 views.push(self.parse_view_decl()?);
                 continue;
             }
+            let doc = self.take_doc_for_next_token();
             let name = self.expect_ident()?;
             let field_start = self.prev_span();
             self.expect(TokenKind::Colon)?;
             let ty = self.parse_type_expr()?;
             let span = field_start.join(ty.span());
-            fields.push(FieldDecl::new(name, ty, span));
+            let mut field = FieldDecl::new(name, ty, span);
+            field.doc = doc;
+            fields.push(field);
             self.consume(&TokenKind::Comma);
         }
         let end = self.expect(TokenKind::RBrace)?.span;
@@ -165,6 +177,7 @@ impl Parser {
         self.expect(TokenKind::LBrace)?;
         let mut fields = Vec::new();
         while !self.check(&TokenKind::RBrace) && !self.is_eof() {
+            let doc = self.take_doc_for_next_token();
             let (dir, dir_span) = match self.bump() {
                 Some(Token {
                     kind: TokenKind::KwIn,
@@ -192,7 +205,9 @@ impl Parser {
             };
             let field = self.expect_ident()?;
             let end = self.prev_span();
-            fields.push(ViewField::new(dir, field, dir_span.join(end)));
+            let mut field = ViewField::new(dir, field, dir_span.join(end));
+            field.doc = doc;
+            fields.push(field);
             self.consume(&TokenKind::Comma);
         }
         let end = self.expect(TokenKind::RBrace)?.span;
@@ -229,13 +244,16 @@ impl Parser {
         self.expect(TokenKind::LBrace)?;
         let mut arms = Vec::new();
         while !self.check(&TokenKind::RBrace) && !self.is_eof() {
+            let doc = self.take_doc_for_next_token();
             let pattern = self.parse_pattern()?;
             if self.consume(&TokenKind::EqGt).is_none() {
                 self.expect(TokenKind::Arrow)?;
             }
             let value = self.parse_expr(0)?;
             let span = PatternSpan::new(&pattern).span().join(value.span());
-            arms.push(MatchArm::new(pattern, value, span));
+            let mut arm = MatchArm::new(pattern, value, span);
+            arm.doc = doc;
+            arms.push(arm);
             self.consume(&TokenKind::Comma);
         }
         let end = self.expect(TokenKind::RBrace)?.span;
@@ -257,13 +275,16 @@ impl Parser {
         self.expect(TokenKind::LBrace)?;
         let mut arms = Vec::new();
         while !self.check(&TokenKind::RBrace) && !self.is_eof() {
+            let doc = self.take_doc_for_next_token();
             let pattern = self.parse_expr(0)?;
             if self.consume(&TokenKind::EqGt).is_none() {
                 self.expect(TokenKind::Arrow)?;
             }
             let value = self.parse_expr(0)?;
             let span = pattern.span().join(value.span());
-            arms.push(SelectArm::new(pattern, value, span));
+            let mut arm = SelectArm::new(pattern, value, span);
+            arm.doc = doc;
+            arms.push(arm);
             self.consume(&TokenKind::Comma);
         }
         let end = self.expect(TokenKind::RBrace)?.span;

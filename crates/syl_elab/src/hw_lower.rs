@@ -1,8 +1,8 @@
 use crate::{
     CompileError,
     eir::{
-        EirConnection, EirDirection, EirInstance, EirItem, EirModule, EirParam, EirPort, EirReset,
-        EirBinaryOp, EirExpr, EirExpansion, EirOrigin, EirPlace, EirSelectArm, EirSelectMode,
+        EirBinaryOp, EirConnection, EirDirection, EirExpansion, EirExpr, EirInstance, EirItem,
+        EirModule, EirOrigin, EirParam, EirPlace, EirPort, EirReset, EirSelectArm, EirSelectMode,
         EirUnaryOp,
     },
 };
@@ -49,11 +49,12 @@ impl<'a> HwLowerer<'a> {
                 .map(|port| self.lower_port(port))
                 .collect::<Result<Vec<_>, _>>()?,
             self.lower_items(module.items())?,
-        ))
+        )
+        .with_doc(module.doc().map(ToOwned::to_owned)))
     }
 
     fn lower_param(&self, param: &EirParam) -> HwParam {
-        HwParam::new(param.name(), param.default())
+        HwParam::new(param.name(), param.default()).with_doc(param.doc().map(ToOwned::to_owned))
     }
 
     fn lower_port(&self, port: &EirPort) -> Result<HwPort, CompileError> {
@@ -61,7 +62,8 @@ impl<'a> HwLowerer<'a> {
             self.lower_direction(port.direction())?,
             port.width(),
             port.name(),
-        ))
+        )
+        .with_doc(port.doc().map(ToOwned::to_owned)))
     }
 
     fn lower_direction(&self, direction: EirDirection) -> Result<HwDirection, CompileError> {

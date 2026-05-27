@@ -9,6 +9,7 @@ use syl_span::Span;
 
 #[non_exhaustive]
 pub(crate) struct PortSpec<'a> {
+    pub(crate) doc: Option<&'a str>,
     pub(crate) name: &'a str,
     pub(crate) dir: ElabPortDirection,
     pub(crate) ty: &'a MirTypeRef,
@@ -17,6 +18,7 @@ pub(crate) struct PortSpec<'a> {
 
 #[non_exhaustive]
 pub(super) struct ViewPortSpec<'a> {
+    pub(super) doc: Option<&'a str>,
     pub(super) name: &'a str,
     pub(super) base: &'a MirTypeRef,
     pub(super) view: &'a str,

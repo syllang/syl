@@ -11,6 +11,7 @@ homepage.workspace = true
 readme = "README.md"
 
 [dependencies]
+syl_hir.workspace = true
 syl_sema.workspace = true
 syl_session.workspace = true
 syl_span.workspace = true

@@ -1,6 +1,6 @@
 use crate::{
-    eir_builder::{EirBuilder, Env},
     eir::{EirBinaryOp, EirExpr, EirSelectArm, EirSelectMode, EirUnaryOp},
+    eir_builder::{EirBuilder, Env},
     map_ir::{
         MapArg, MapBinaryOp, MapExpr, MapFunction, MapGenericArg, MapMatchArm, MapNamedExpr,
         MapPattern, MapSelectArm, MapTypeRef, MapUnaryOp,

@@ -784,6 +784,7 @@ dependencies = [
 name = "syl_query"
 version = "0.1.0"
 dependencies = [
+ "syl_hir",
  "syl_sema",
  "syl_session",
  "syl_span",

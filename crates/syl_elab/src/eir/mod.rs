@@ -16,7 +16,7 @@ mod facts;
 mod validate;
 
 pub(crate) use core::{
-    EirBinaryOp, EirBound, EirExpr, EirExpansion, EirGuard, EirGuardFrame, EirGuardLabel,
+    EirBinaryOp, EirBound, EirExpansion, EirExpr, EirGuard, EirGuardFrame, EirGuardLabel,
     EirOrigin, EirPlace, EirSelectArm, EirSelectMode, EirUnaryOp,
 };
 pub(crate) use design::{EirDesign, EirDesignFacts, EirRawDesign};

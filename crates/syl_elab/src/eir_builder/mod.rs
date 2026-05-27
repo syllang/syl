@@ -1,8 +1,8 @@
 use crate::{
     CompileError,
     const_mir::ConstMirProgram,
+    eir::{EirBinaryOp, EirExpansion, EirExpr, EirOrigin, EirUnaryOp},
     eir::{EirModule, EirParam, EirRawDesign},
-    eir::{EirBinaryOp, EirExpr, EirUnaryOp, EirExpansion, EirOrigin},
     map_ir::MapIrProgram,
     mir::MirTypeRef,
     program::{
@@ -245,6 +245,7 @@ impl<'a> EirBuilder<'a> {
                 &mut ports,
                 &mut env,
                 PortSpec {
+                    doc: param.doc.as_deref(),
                     name: &param.name,
                     dir: param.direction,
                     ty: &param_ty,
@@ -258,6 +259,7 @@ impl<'a> EirBuilder<'a> {
                 &mut ports,
                 &mut env,
                 PortSpec {
+                    doc: result.doc.as_deref(),
                     name: &result.name,
                     dir: ElabPortDirection::Out,
                     ty: &result_ty,
@@ -268,7 +270,7 @@ impl<'a> EirBuilder<'a> {
 
         let params = self.generic_params(&env, &item.generics);
         let items = self.emit_body(&item.body, &mut env)?;
-        Ok(EirModule::new(&item.name, params, ports, items))
+        Ok(EirModule::new(&item.name, params, ports, items).with_doc(item.doc.clone()))
     }
 
     fn build_extern(
@@ -290,6 +292,7 @@ impl<'a> EirBuilder<'a> {
                 &mut ports,
                 &mut env,
                 PortSpec {
+                    doc: param.doc.as_deref(),
                     name: &param.name,
                     dir: param.direction,
                     ty: &param_ty,
@@ -303,6 +306,7 @@ impl<'a> EirBuilder<'a> {
                 &mut ports,
                 &mut env,
                 PortSpec {
+                    doc: result.doc.as_deref(),
                     name: &result.name,
                     dir: ElabPortDirection::Out,
                     ty: &result_ty,
@@ -311,7 +315,7 @@ impl<'a> EirBuilder<'a> {
             )?;
         }
         let params = self.generic_params(&env, &item.generics);
-        Ok(EirModule::new_extern(&item.name, params, ports))
+        Ok(EirModule::new_extern(&item.name, params, ports).with_doc(item.doc.clone()))
     }
 
     fn generic_params(&self, env: &Env, params: &[ElabSignatureGenericParam]) -> Vec<EirParam> {
@@ -321,7 +325,9 @@ impl<'a> EirBuilder<'a> {
                 continue;
             }
             if param.kind.is_none() {
-                out.push(EirParam::new(format!("{}_WIDTH", param.name), "1"));
+                out.push(
+                    EirParam::new(format!("{}_WIDTH", param.name), "1").with_doc(param.doc.clone()),
+                );
                 continue;
             }
             let default = param
@@ -330,7 +336,7 @@ impl<'a> EirBuilder<'a> {
                 .map(|expr| self.elab_expr(expr, env))
                 .map(|expr| expr.fact_key())
                 .unwrap_or_else(|| "1".to_string());
-            out.push(EirParam::new(&param.name, default));
+            out.push(EirParam::new(&param.name, default).with_doc(param.doc.clone()));
         }
         out
     }

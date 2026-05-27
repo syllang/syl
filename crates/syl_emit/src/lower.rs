@@ -39,11 +39,12 @@ impl<'a> SvEmitter<'a> {
             .iter()
             .map(|item| self.lower_item(item))
             .collect::<Result<Vec<_>, _>>()?;
-        Ok(SvModule::new(module.name(), params, ports, items))
+        Ok(SvModule::new(module.name(), params, ports, items)
+            .with_doc(module.doc().map(ToOwned::to_owned)))
     }
 
     fn lower_param(&self, param: &HwParam) -> SvParam {
-        SvParam::new(param.name(), param.default())
+        SvParam::new(param.name(), param.default()).with_doc(param.doc().map(ToOwned::to_owned))
     }
 
     fn lower_port(&self, port: &HwPort) -> Result<SvPort, CompileError> {
@@ -51,7 +52,8 @@ impl<'a> SvEmitter<'a> {
             self.lower_direction(port.direction())?,
             port.width(),
             port.name(),
-        ))
+        )
+        .with_doc(port.doc().map(ToOwned::to_owned)))
     }
 
     fn lower_direction(&self, direction: HwDirection) -> Result<SvDirection, CompileError> {

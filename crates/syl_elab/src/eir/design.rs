@@ -54,11 +54,7 @@ pub(crate) struct EirDesignFacts {
 }
 
 impl EirDesignFacts {
-    pub(crate) fn new(
-        objects: Vec<EirObject>,
-        drives: Vec<EirDrive>,
-        reads: Vec<EirRead>,
-    ) -> Self {
+    pub(crate) fn new(objects: Vec<EirObject>, drives: Vec<EirDrive>, reads: Vec<EirRead>) -> Self {
         Self {
             objects,
             drives,

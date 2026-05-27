@@ -1,11 +1,15 @@
 use crate::lossless::LosslessItemKind;
 use derive_builder::Builder;
 use strum_macros::IntoStaticStr;
-use syl_span::Span;
+use syl_span::{SourceId, Span};
+
+mod span;
 
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct AstFile {
+    pub source_id: SourceId,
+    pub doc: Option<String>,
     pub items: Vec<Item>,
 }
 
@@ -65,6 +69,7 @@ pub struct ErrorItem {
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct UseItem {
+    pub doc: Option<String>,
     pub path: Vec<String>,
     pub span: Span,
 }
@@ -72,6 +77,7 @@ pub struct UseItem {
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct ConstItem {
+    pub doc: Option<String>,
     pub name: String,
     pub ty: Option<TypeExpr>,
     pub value: Expr,
@@ -82,6 +88,8 @@ pub struct ConstItem {
 #[builder(pattern = "owned", build_fn(name = "try_build"))]
 #[non_exhaustive]
 pub struct FnItem {
+    #[builder(default)]
+    pub doc: Option<String>,
     pub name: String,
     #[builder(default)]
     pub params: Vec<Param>,
@@ -95,6 +103,7 @@ pub struct FnItem {
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct EnumItem {
+    pub doc: Option<String>,
     pub name: String,
     pub width: Option<TypeExpr>,
     pub layout: EnumLayout,
@@ -105,6 +114,7 @@ pub struct EnumItem {
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct EnumVariant {
+    pub doc: Option<String>,
     pub name: String,
     pub value: Option<Expr>,
     pub span: Span,
@@ -125,6 +135,8 @@ pub enum EnumLayout {
 #[builder(pattern = "owned", build_fn(name = "try_build"))]
 #[non_exhaustive]
 pub struct BundleItem {
+    #[builder(default)]
+    pub doc: Option<String>,
     pub name: String,
     #[builder(default)]
     pub generics: Vec<GenericParam>,
@@ -140,6 +152,8 @@ pub struct BundleItem {
 #[builder(pattern = "owned", build_fn(name = "try_build"))]
 #[non_exhaustive]
 pub struct InterfaceItem {
+    #[builder(default)]
+    pub doc: Option<String>,
     pub name: String,
     #[builder(default)]
     pub generics: Vec<GenericParam>,
@@ -155,6 +169,8 @@ pub struct InterfaceItem {
 #[builder(pattern = "owned", build_fn(name = "try_build"))]
 #[non_exhaustive]
 pub struct MapItem {
+    #[builder(default)]
+    pub doc: Option<String>,
     pub name: String,
     #[builder(default)]
     pub generics: Vec<GenericParam>,
@@ -171,6 +187,8 @@ pub struct MapItem {
 #[builder(pattern = "owned", build_fn(name = "try_build"))]
 #[non_exhaustive]
 pub struct CallableItem {
+    #[builder(default)]
+    pub doc: Option<String>,
     pub name: String,
     #[builder(default)]
     pub generics: Vec<GenericParam>,
@@ -189,6 +207,8 @@ pub struct CallableItem {
 #[builder(pattern = "owned", build_fn(name = "try_build"))]
 #[non_exhaustive]
 pub struct ExternCellItem {
+    #[builder(default)]
+    pub doc: Option<String>,
     pub name: String,
     #[builder(default)]
     pub generics: Vec<GenericParam>,
@@ -205,6 +225,7 @@ pub struct ExternCellItem {
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct ResultBinding {
+    pub doc: Option<String>,
     pub name: String,
     pub ty: TypeExpr,
     pub drive: DriveCapability,
@@ -214,6 +235,7 @@ pub struct ResultBinding {
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct PortDecl {
+    pub doc: Option<String>,
     pub name: String,
     pub dir: ParamDirection,
     pub ty: TypeExpr,
@@ -245,6 +267,7 @@ impl DriveCapability {
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct Param {
+    pub doc: Option<String>,
     pub name: String,
     pub dir: Option<ParamDirection>,
     pub ty: TypeExpr,
@@ -273,6 +296,7 @@ pub enum ParamDirection {
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct GenericParam {
+    pub doc: Option<String>,
     pub name: String,
     pub kind: Option<TypeExpr>,
     pub default: Option<Expr>,
@@ -282,6 +306,7 @@ pub struct GenericParam {
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct FieldDecl {
+    pub doc: Option<String>,
     pub name: String,
     pub ty: TypeExpr,
     pub span: Span,
@@ -290,6 +315,7 @@ pub struct FieldDecl {
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct Attribute {
+    pub doc: Option<String>,
     pub name: String,
     pub args: Vec<Expr>,
     pub span: Span,
@@ -306,6 +332,7 @@ pub struct ViewDecl {
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct ViewField {
+    pub doc: Option<String>,
     pub dir: ViewDirection,
     pub name: String,
     pub span: Span,
@@ -504,64 +531,6 @@ pub struct CallArg {
     pub span: Span,
 }
 
-impl Expr {
-    pub fn span(&self) -> Span {
-        match self {
-            Expr::Ident(_, span)
-            | Expr::Int(_, span)
-            | Expr::Str(_, span)
-            | Expr::Bool(_, span)
-            | Expr::Group(_, span) => *span,
-            Expr::Unary { span, .. }
-            | Expr::Binary { span, .. }
-            | Expr::Call { span, .. }
-            | Expr::GenericApp { span, .. }
-            | Expr::Aggregate { span, .. }
-            | Expr::Field { span, .. }
-            | Expr::Index { span, .. }
-            | Expr::Match { span, .. }
-            | Expr::Select { span, .. }
-            | Expr::Place { span, .. }
-            | Expr::For { span, .. }
-            | Expr::CompileError { span, .. }
-            | Expr::Range { span, .. } => *span,
-            Expr::Block(block) => block.span,
-        }
-    }
-}
-
-impl Stmt {
-    pub fn span(&self) -> Span {
-        match self {
-            Self::Error { span }
-            | Self::Const { span, .. }
-            | Self::Let { span, .. }
-            | Self::Var { span, .. }
-            | Self::Signal { span, .. }
-            | Self::Reg { span, .. }
-            | Self::Assign { span, .. }
-            | Self::Drive { span, .. }
-            | Self::Next { span, .. }
-            | Self::While { span, .. }
-            | Self::ElabIf { span, .. }
-            | Self::ElabFor { span, .. } => *span,
-            Self::Expr(expr) => expr.span(),
-            Self::Return(_, span) => *span,
-        }
-    }
-}
-
-impl TypeExpr {
-    pub fn span(&self) -> Span {
-        match self {
-            Self::Path(_, span)
-            | Self::Array { span, .. }
-            | Self::Generic { span, .. }
-            | Self::ViewSelect { span, .. } => *span,
-        }
-    }
-}
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq, IntoStaticStr)]
 #[non_exhaustive]
 pub enum SelectMode {
@@ -574,6 +543,7 @@ pub enum SelectMode {
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct SelectArm {
+    pub doc: Option<String>,
     pub pattern: Expr,
     pub value: Expr,
     pub span: Span,
@@ -582,6 +552,7 @@ pub struct SelectArm {
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct MatchArm {
+    pub doc: Option<String>,
     pub pattern: Pattern,
     pub value: Expr,
     pub span: Span,
@@ -595,18 +566,6 @@ pub enum Pattern {
     Int(u64, Span),
     Bool(bool, Span),
     Path(Vec<String>, Span),
-}
-
-impl Pattern {
-    pub fn span(&self) -> Span {
-        match self {
-            Self::Wildcard(span)
-            | Self::Ident(_, span)
-            | Self::Int(_, span)
-            | Self::Bool(_, span)
-            | Self::Path(_, span) => *span,
-        }
-    }
 }
 
 #[derive(Clone, Debug, PartialEq)]

@@ -2,8 +2,8 @@ use crate::{
     CompileError,
     const_eval::{ConstEvalEnv, ConstValue},
     const_mir::ConstMirElabExt,
-    eir_builder::{EirBuilder, Env, VarInfo},
     eir::EirExpr,
+    eir_builder::{EirBuilder, Env, VarInfo},
     program::ElabExpr,
 };
 

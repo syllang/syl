@@ -11,6 +11,10 @@ pub enum LexemeKind {
     Whitespace,
     /// Line comment preserved as trivia.
     LineComment,
+    /// Outer documentation comment attached to the next declaration.
+    DocComment,
+    /// File-level documentation comment.
+    InnerDocComment,
     /// Unrecognized source fragment.
     Unknown,
 }
@@ -35,7 +39,11 @@ impl Lexeme {
     pub fn into_token(self) -> Option<Token> {
         match self.kind {
             LexemeKind::Token(kind) => Some(Token::new(kind, self.span)),
-            LexemeKind::Whitespace | LexemeKind::LineComment | LexemeKind::Unknown => None,
+            LexemeKind::Whitespace
+            | LexemeKind::LineComment
+            | LexemeKind::DocComment
+            | LexemeKind::InnerDocComment
+            | LexemeKind::Unknown => None,
         }
     }
 }
@@ -325,6 +333,14 @@ impl<'a> LosslessLexer<'a> {
 
     fn lex_line_comment(&mut self) -> Lexeme {
         let span = self.scanner.skip_line_comment();
-        Lexeme::new(LexemeKind::LineComment, span, self.scanner.text(span))
+        let text = self.scanner.text(span);
+        let kind = if text.starts_with("///") {
+            LexemeKind::DocComment
+        } else if text.starts_with("//!") {
+            LexemeKind::InnerDocComment
+        } else {
+            LexemeKind::LineComment
+        };
+        Lexeme::new(kind, span, text)
     }
 }

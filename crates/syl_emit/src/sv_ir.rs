@@ -37,6 +37,7 @@ impl SvDesign {
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub(super) struct SvModule {
+    pub(super) doc: Option<String>,
     pub(super) name: String,
     pub(super) params: Vec<SvParam>,
     pub(super) ports: Vec<SvPort>,
@@ -51,6 +52,7 @@ impl SvModule {
         items: Vec<SvItem>,
     ) -> Self {
         Self {
+            doc: None,
             name: name.into(),
             params,
             ports,
@@ -58,7 +60,13 @@ impl SvModule {
         }
     }
 
+    pub(super) fn with_doc(mut self, doc: Option<String>) -> Self {
+        self.doc = doc;
+        self
+    }
+
     fn emit_into(&self, out: &mut String) {
+        emit_doc(out, 0, self.doc.as_deref());
         out.push_str(&format!("module {}", self.name));
         if !self.params.is_empty() {
             out.push_str(" #(\n");
@@ -68,6 +76,7 @@ impl SvModule {
                 } else {
                     ","
                 };
+                emit_doc(out, 4, param.doc.as_deref());
                 out.push_str(&format!(
                     "    parameter {} = {}{}\n",
                     param.name, param.default, comma
@@ -81,6 +90,7 @@ impl SvModule {
             out.push_str(" (\n");
             for (idx, port) in self.ports.iter().enumerate() {
                 let comma = if idx + 1 == self.ports.len() { "" } else { "," };
+                emit_doc(out, 4, port.doc.as_deref());
                 out.push_str(&format!(
                     "    {} {}{}{}\n",
                     <&'static str>::from(port.direction),
@@ -95,6 +105,20 @@ impl SvModule {
             item.emit_into(out, 2);
         }
         out.push_str("endmodule\n");
+    }
+}
+
+fn emit_doc(out: &mut String, indent: usize, doc: Option<&str>) {
+    let Some(doc) = doc else {
+        return;
+    };
+    let pad = " ".repeat(indent);
+    for line in doc.lines() {
+        if line.is_empty() {
+            out.push_str(&format!("{pad}//\n"));
+        } else {
+            out.push_str(&format!("{pad}// {line}\n"));
+        }
     }
 }
 
@@ -125,6 +149,7 @@ impl<'a> SvRange<'a> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub(super) struct SvParam {
+    pub(super) doc: Option<String>,
     pub(super) name: String,
     pub(super) default: String,
 }
@@ -132,15 +157,22 @@ pub(super) struct SvParam {
 impl SvParam {
     pub(super) fn new(name: impl Into<String>, default: impl Into<String>) -> Self {
         Self {
+            doc: None,
             name: name.into(),
             default: default.into(),
         }
+    }
+
+    pub(super) fn with_doc(mut self, doc: Option<String>) -> Self {
+        self.doc = doc;
+        self
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub(super) struct SvPort {
+    pub(super) doc: Option<String>,
     pub(super) direction: SvDirection,
     pub(super) width: String,
     pub(super) name: String,
@@ -153,10 +185,16 @@ impl SvPort {
         name: impl Into<String>,
     ) -> Self {
         Self {
+            doc: None,
             direction,
             width: width.into(),
             name: name.into(),
         }
+    }
+
+    pub(super) fn with_doc(mut self, doc: Option<String>) -> Self {
+        self.doc = doc;
+        self
     }
 }
 

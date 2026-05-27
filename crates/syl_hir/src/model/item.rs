@@ -8,6 +8,8 @@ use syl_syntax::{
     PortDecl, TypeExpr, ViewDirection,
 };
 
+mod summary;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, IntoStaticStr)]
 #[non_exhaustive]
 pub enum HirPortDirection {
@@ -82,6 +84,7 @@ impl From<&DriveCapability> for HirDriveCapability {
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct HirSignatureGenericParam {
+    pub doc: Option<String>,
     pub id: Option<LocalId>,
     pub name: String,
     pub kind: Option<MirTypeRef>,
@@ -92,6 +95,7 @@ pub struct HirSignatureGenericParam {
 impl From<&GenericParam> for HirSignatureGenericParam {
     fn from(param: &GenericParam) -> Self {
         Self {
+            doc: param.doc.clone(),
             id: None,
             name: param.name.clone(),
             kind: param.kind.as_ref().map(MirTypeRef::from),
@@ -104,6 +108,7 @@ impl From<&GenericParam> for HirSignatureGenericParam {
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct HirSignatureParam {
+    pub doc: Option<String>,
     pub id: Option<LocalId>,
     pub name: String,
     pub direction: HirPortDirection,
@@ -138,6 +143,7 @@ impl From<&Param> for HirParamRole {
 impl From<&Param> for HirSignatureParam {
     fn from(param: &Param) -> Self {
         Self {
+            doc: param.doc.clone(),
             id: None,
             name: param.name.clone(),
             direction: HirPortDirection::from(param.dir.as_ref()),
@@ -151,6 +157,7 @@ impl From<&Param> for HirSignatureParam {
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct HirSignatureResultBinding {
+    pub doc: Option<String>,
     pub id: Option<LocalId>,
     pub name: String,
     pub ty: MirTypeRef,
@@ -161,6 +168,7 @@ pub struct HirSignatureResultBinding {
 impl From<&syl_syntax::ResultBinding> for HirSignatureResultBinding {
     fn from(result: &syl_syntax::ResultBinding) -> Self {
         Self {
+            doc: result.doc.clone(),
             id: None,
             name: result.name.clone(),
             ty: MirTypeRef::from(&result.ty),
@@ -228,19 +236,10 @@ impl From<&SyntaxEnumLayout> for HirEnumLayout {
     }
 }
 
-impl HirEnumLayout {
-    fn summary_count(self) -> usize {
-        match self {
-            Self::Ordinal => 1,
-            Self::Flags => 2,
-            Self::OneHot => 3,
-        }
-    }
-}
-
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct HirEnumVariantDecl {
+    pub doc: Option<String>,
     pub name: String,
     pub value: Option<HirBodyExpr>,
     pub span: Span,
@@ -249,6 +248,7 @@ pub struct HirEnumVariantDecl {
 impl From<&syl_syntax::EnumVariant> for HirEnumVariantDecl {
     fn from(variant: &syl_syntax::EnumVariant) -> Self {
         Self {
+            doc: variant.doc.clone(),
             name: variant.name.clone(),
             value: variant.value.as_ref().map(HirBodyExpr::from_syntax),
             span: variant.span,
@@ -256,17 +256,10 @@ impl From<&syl_syntax::EnumVariant> for HirEnumVariantDecl {
     }
 }
 
-impl HirEnumVariantDecl {
-    fn summary_count(&self) -> usize {
-        self.name.len()
-            + self.value.as_ref().map_or(0, |value| value.span().start)
-            + self.span.start
-    }
-}
-
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct HirFieldDecl {
+    pub doc: Option<String>,
     pub name: String,
     pub ty: MirTypeRef,
     pub span: Span,
@@ -275,6 +268,7 @@ pub struct HirFieldDecl {
 impl From<&FieldDecl> for HirFieldDecl {
     fn from(field: &FieldDecl) -> Self {
         Self {
+            doc: field.doc.clone(),
             name: field.name.clone(),
             ty: MirTypeRef::from(&field.ty),
             span: field.span,
@@ -285,6 +279,7 @@ impl From<&FieldDecl> for HirFieldDecl {
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct HirAttribute {
+    pub doc: Option<String>,
     pub name: String,
     pub args: Vec<HirBodyExpr>,
     pub span: Span,
@@ -293,18 +288,11 @@ pub struct HirAttribute {
 impl From<&syl_syntax::Attribute> for HirAttribute {
     fn from(attr: &syl_syntax::Attribute) -> Self {
         Self {
+            doc: attr.doc.clone(),
             name: attr.name.clone(),
             args: attr.args.iter().map(HirBodyExpr::from_syntax).collect(),
             span: attr.span,
         }
-    }
-}
-
-impl HirAttribute {
-    fn summary_count(&self) -> usize {
-        self.name.len()
-            + self.args.iter().map(|arg| arg.span().start).sum::<usize>()
-            + self.span.start
     }
 }
 
@@ -329,6 +317,7 @@ impl From<&syl_syntax::ViewDecl> for HirViewDecl {
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct HirViewField {
+    pub doc: Option<String>,
     pub direction: HirViewDirection,
     pub name: String,
     pub span: Span,
@@ -337,6 +326,7 @@ pub struct HirViewField {
 impl From<&syl_syntax::ViewField> for HirViewField {
     fn from(field: &syl_syntax::ViewField) -> Self {
         Self {
+            doc: field.doc.clone(),
             direction: HirViewDirection::from(&field.dir),
             name: field.name.clone(),
             span: field.span,
@@ -347,6 +337,7 @@ impl From<&syl_syntax::ViewField> for HirViewField {
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct HirPortDecl {
+    pub doc: Option<String>,
     pub name: String,
     pub direction: HirPortDirection,
     pub ty: MirTypeRef,
@@ -357,6 +348,7 @@ pub struct HirPortDecl {
 impl From<&PortDecl> for HirPortDecl {
     fn from(port: &PortDecl) -> Self {
         Self {
+            doc: port.doc.clone(),
             name: port.name.clone(),
             direction: HirPortDirection::from(port),
             ty: MirTypeRef::from(&port.ty),
@@ -366,25 +358,10 @@ impl From<&PortDecl> for HirPortDecl {
     }
 }
 
-impl HirPortDecl {
-    fn summary_count(&self) -> usize {
-        let direction = match self.direction {
-            HirPortDirection::In => 1,
-            HirPortDirection::InOut => 2,
-            HirPortDirection::Out => 3,
-        };
-        let drive = match self.drive {
-            HirDriveCapability::ReadOnly => 1,
-            HirDriveCapability::ReadWrite => 2,
-            HirDriveCapability::WriteOnly => 3,
-        };
-        self.name.len() + direction + self.ty.span().start + drive + self.span.start
-    }
-}
-
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct HirConstItem {
+    pub doc: Option<String>,
     pub name: String,
     pub ty: Option<MirTypeRef>,
     pub value: HirBodyExpr,
@@ -394,6 +371,7 @@ pub struct HirConstItem {
 impl From<&ConstItem> for HirConstItem {
     fn from(item: &ConstItem) -> Self {
         Self {
+            doc: item.doc.clone(),
             name: item.name.clone(),
             ty: item.ty.as_ref().map(MirTypeRef::from),
             value: HirBodyExpr::from_syntax(&item.value),
@@ -402,22 +380,10 @@ impl From<&ConstItem> for HirConstItem {
     }
 }
 
-impl HirConstItem {
-    pub(crate) fn summary_count(&self) -> usize {
-        self.name.len()
-            + self.span.start
-            + self
-                .ty
-                .as_ref()
-                .map(MirTypeRef::span)
-                .map_or(0, |span| span.start)
-            + self.value.span().start
-    }
-}
-
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct HirFnItem {
+    pub doc: Option<String>,
     pub name: String,
     pub params: Vec<HirSignatureParam>,
     pub ret_ty: Option<HirReturnType>,
@@ -428,6 +394,7 @@ pub struct HirFnItem {
 impl From<&FnItem> for HirFnItem {
     fn from(item: &FnItem) -> Self {
         Self {
+            doc: item.doc.clone(),
             name: item.name.clone(),
             params: item.params.iter().map(HirSignatureParam::from).collect(),
             ret_ty: item.ret_ty.as_ref().map(HirReturnType::from),
@@ -437,22 +404,10 @@ impl From<&FnItem> for HirFnItem {
     }
 }
 
-impl HirFnItem {
-    pub(crate) fn summary_count(&self) -> usize {
-        self.name.len()
-            + self.params.len()
-            + self
-                .ret_ty
-                .as_ref()
-                .map_or(0, |ret_ty| ret_ty.ty.span().start)
-            + self.body.span.start
-            + self.span.start
-    }
-}
-
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct HirEnumItem {
+    pub doc: Option<String>,
     pub name: String,
     pub width: Option<MirTypeRef>,
     pub layout: HirEnumLayout,
@@ -463,6 +418,7 @@ pub struct HirEnumItem {
 impl From<&EnumItem> for HirEnumItem {
     fn from(item: &EnumItem) -> Self {
         Self {
+            doc: item.doc.clone(),
             name: item.name.clone(),
             width: item.width.as_ref().map(MirTypeRef::from),
             layout: HirEnumLayout::from(&item.layout),
@@ -472,23 +428,10 @@ impl From<&EnumItem> for HirEnumItem {
     }
 }
 
-impl HirEnumItem {
-    pub(crate) fn summary_count(&self) -> usize {
-        self.name.len()
-            + self.width.as_ref().map_or(0, |width| width.span().start)
-            + self.layout.summary_count()
-            + self
-                .variants
-                .iter()
-                .map(HirEnumVariantDecl::summary_count)
-                .sum::<usize>()
-            + self.span.start
-    }
-}
-
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct HirBundleItem {
+    pub doc: Option<String>,
     pub name: String,
     pub generics: Vec<HirSignatureGenericParam>,
     pub fields: Vec<HirFieldDecl>,
@@ -499,6 +442,7 @@ pub struct HirBundleItem {
 impl From<&BundleItem> for HirBundleItem {
     fn from(item: &BundleItem) -> Self {
         Self {
+            doc: item.doc.clone(),
             name: item.name.clone(),
             generics: item
                 .generics
@@ -512,23 +456,10 @@ impl From<&BundleItem> for HirBundleItem {
     }
 }
 
-impl HirBundleItem {
-    pub(crate) fn summary_count(&self) -> usize {
-        self.name.len()
-            + self.generics.len()
-            + self.fields.len()
-            + self
-                .attrs
-                .iter()
-                .map(HirAttribute::summary_count)
-                .sum::<usize>()
-            + self.span.start
-    }
-}
-
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct HirInterfaceItem {
+    pub doc: Option<String>,
     pub name: String,
     pub generics: Vec<HirSignatureGenericParam>,
     pub fields: Vec<HirFieldDecl>,
@@ -539,6 +470,7 @@ pub struct HirInterfaceItem {
 impl From<&InterfaceItem> for HirInterfaceItem {
     fn from(item: &InterfaceItem) -> Self {
         Self {
+            doc: item.doc.clone(),
             name: item.name.clone(),
             generics: item
                 .generics
@@ -552,19 +484,10 @@ impl From<&InterfaceItem> for HirInterfaceItem {
     }
 }
 
-impl HirInterfaceItem {
-    pub(crate) fn summary_count(&self) -> usize {
-        self.name.len()
-            + self.generics.len()
-            + self.fields.len()
-            + self.views.len()
-            + self.span.start
-    }
-}
-
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct HirMapItem {
+    pub doc: Option<String>,
     pub name: String,
     pub generics: Vec<HirSignatureGenericParam>,
     pub params: Vec<HirSignatureParam>,
@@ -576,6 +499,7 @@ pub struct HirMapItem {
 impl From<&MapItem> for HirMapItem {
     fn from(item: &MapItem) -> Self {
         Self {
+            doc: item.doc.clone(),
             name: item.name.clone(),
             generics: item
                 .generics
@@ -590,23 +514,10 @@ impl From<&MapItem> for HirMapItem {
     }
 }
 
-impl HirMapItem {
-    pub(crate) fn summary_count(&self) -> usize {
-        self.name.len()
-            + self.generics.len()
-            + self.params.len()
-            + self
-                .ret_ty
-                .as_ref()
-                .map_or(0, |ret_ty| ret_ty.ty.span().start)
-            + self.body.span().start
-            + self.span.start
-    }
-}
-
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct HirCallableItem {
+    pub doc: Option<String>,
     pub name: String,
     pub generics: Vec<HirSignatureGenericParam>,
     pub params: Vec<HirSignatureParam>,
@@ -619,6 +530,7 @@ pub struct HirCallableItem {
 impl From<&syl_syntax::CallableItem> for HirCallableItem {
     fn from(item: &syl_syntax::CallableItem) -> Self {
         Self {
+            doc: item.doc.clone(),
             name: item.name.clone(),
             generics: item
                 .generics
@@ -634,25 +546,10 @@ impl From<&syl_syntax::CallableItem> for HirCallableItem {
     }
 }
 
-impl HirCallableItem {
-    pub(crate) fn summary_count(&self) -> usize {
-        self.name.len()
-            + self.generics.len()
-            + self.params.len()
-            + self
-                .ports
-                .iter()
-                .map(HirPortDecl::summary_count)
-                .sum::<usize>()
-            + self.result.as_ref().map_or(0, |result| result.span.start)
-            + self.body.span.start
-            + self.span.start
-    }
-}
-
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct HirExternCellItem {
+    pub doc: Option<String>,
     pub name: String,
     pub generics: Vec<HirSignatureGenericParam>,
     pub params: Vec<HirSignatureParam>,
@@ -664,6 +561,7 @@ pub struct HirExternCellItem {
 impl From<&ExternCellItem> for HirExternCellItem {
     fn from(item: &ExternCellItem) -> Self {
         Self {
+            doc: item.doc.clone(),
             name: item.name.clone(),
             generics: item
                 .generics
@@ -675,20 +573,5 @@ impl From<&ExternCellItem> for HirExternCellItem {
             result: item.result.as_ref().map(HirSignatureResultBinding::from),
             span: item.span,
         }
-    }
-}
-
-impl HirExternCellItem {
-    pub(crate) fn summary_count(&self) -> usize {
-        self.name.len()
-            + self.generics.len()
-            + self.params.len()
-            + self
-                .ports
-                .iter()
-                .map(HirPortDecl::summary_count)
-                .sum::<usize>()
-            + self.result.as_ref().map_or(0, |result| result.span.start)
-            + self.span.start
     }
 }

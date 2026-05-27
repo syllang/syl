@@ -3,7 +3,7 @@ use crate::resolution::HirResolution;
 use crate::{DefId, ExprId, LocalId, PackageId};
 use std::collections::BTreeMap;
 use strum_macros::IntoStaticStr;
-use syl_span::Span;
+use syl_span::{SourceId, Span};
 
 mod body;
 mod callable;
@@ -32,6 +32,7 @@ pub use item::{
 #[non_exhaustive]
 pub struct HirDesign {
     pub packages: Vec<HirPackage>,
+    pub module_docs: BTreeMap<SourceId, String>,
     pub imports: Vec<HirImport>,
     pub defs: Vec<HirDef>,
     pub def_names: BTreeMap<String, Vec<DefId>>,
@@ -57,6 +58,7 @@ impl HirDesign {
     pub fn empty() -> Self {
         Self {
             packages: Vec::new(),
+            module_docs: BTreeMap::new(),
             imports: Vec::new(),
             defs: Vec::new(),
             def_names: BTreeMap::new(),
@@ -112,6 +114,52 @@ impl HirDesign {
             .filter(|def| def.span.source == source)
             .map(|def| def.id)
             .collect()
+    }
+
+    pub fn doc_for_module(&self, source: SourceId) -> Option<&str> {
+        self.module_docs.get(&source).map(String::as_str)
+    }
+
+    pub fn doc_for_item(&self, def: DefId) -> Option<&str> {
+        self.consts
+            .get(&def)
+            .and_then(|item| item.doc.as_deref())
+            .or_else(|| self.fns.get(&def).and_then(|item| item.doc.as_deref()))
+            .or_else(|| self.enums.get(&def).and_then(|item| item.doc.as_deref()))
+            .or_else(|| self.bundles.get(&def).and_then(|item| item.doc.as_deref()))
+            .or_else(|| {
+                self.interfaces
+                    .get(&def)
+                    .and_then(|item| item.doc.as_deref())
+            })
+            .or_else(|| self.maps.get(&def).and_then(|item| item.doc.as_deref()))
+            .or_else(|| {
+                self.callables
+                    .get(&def)
+                    .and_then(|callable| match callable {
+                        HirCallable::Cell(item) => item.doc.as_deref(),
+                        HirCallable::Extern(item) => item.doc.as_deref(),
+                    })
+            })
+    }
+
+    pub fn doc_for_field(&self, def: DefId, field: &str) -> Option<&str> {
+        self.bundles
+            .get(&def)
+            .and_then(|item| {
+                item.fields
+                    .iter()
+                    .find(|decl| decl.name == field)
+                    .and_then(|decl| decl.doc.as_deref())
+            })
+            .or_else(|| {
+                self.interfaces.get(&def).and_then(|item| {
+                    item.fields
+                        .iter()
+                        .find(|decl| decl.name == field)
+                        .and_then(|decl| decl.doc.as_deref())
+                })
+            })
     }
 
     pub fn import_def_at(&self, span: Span) -> Option<DefId> {

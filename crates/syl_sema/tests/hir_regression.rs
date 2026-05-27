@@ -1,6 +1,7 @@
 mod support;
 
 use support::MiddleCompiler;
+use syl_hir::DefId;
 use syl_span::{SourceId, Span};
 use syl_syntax::SourceParser;
 
@@ -79,6 +80,34 @@ cell Top(x: in Bit, y: out Bit) {
     assert_eq!(definition.name(), "x");
     assert!(hover.text().contains("Bit"));
     assert!(tir.type_count() > 0);
+}
+
+#[test]
+fn hir_preserves_module_item_and_field_docs() {
+    let source = r#"
+//! Module docs.
+
+/// Bundle docs.
+bundle Word {
+    /// Low bits.
+    lo: UInt<4>,
+}
+"#;
+    let source_id = SourceId::new(51);
+    let file = SourceParser::new_in(source, source_id)
+        .parse_file()
+        .expect("test source must parse");
+    let files = vec![file];
+    let middle = MiddleCompiler::new();
+    let hir = middle
+        .session(&files)
+        .resolve_hir()
+        .expect("HIR stage must resolve");
+    let word = DefId::new(0);
+
+    assert_eq!(hir.doc_for_module(source_id), Some("Module docs."));
+    assert_eq!(hir.doc_for_item(word), Some("Bundle docs."));
+    assert_eq!(hir.doc_for_field(word, "lo"), Some("Low bits."));
 }
 
 #[test]

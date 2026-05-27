@@ -2,8 +2,8 @@ use super::{CreateFact, CreateKind, DriveFact, guard_coverage::GuardCoverage};
 use crate::{
     CompileError, DriverError,
     driver_place::{DriverObjectTable, DriverPlace, DriverStaticRange},
-    eir::EirSignalActivity,
     eir::EirGuard,
+    eir::EirSignalActivity,
 };
 use syl_hw::ObjectId;
 

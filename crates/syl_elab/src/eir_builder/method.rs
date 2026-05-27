@@ -1,6 +1,6 @@
 use crate::{
-    eir_builder::{EirBuilder, Env},
     eir::EirExpr,
+    eir_builder::{EirBuilder, Env},
     map_ir::MapGenericArg,
     program::{ElabCallArg, ElabDefKind, ElabExpr, ElabExprNode, ElabResolution},
 };

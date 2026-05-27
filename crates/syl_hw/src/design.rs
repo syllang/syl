@@ -167,6 +167,7 @@ impl HwExpansion {
 #[derive(Debug)]
 #[non_exhaustive]
 pub struct HwModule {
+    doc: Option<String>,
     name: String,
     params: Vec<HwParam>,
     ports: Vec<HwPort>,
@@ -181,11 +182,21 @@ impl HwModule {
         items: Vec<HwItem>,
     ) -> Self {
         Self {
+            doc: None,
             name: name.into(),
             params,
             ports,
             items,
         }
+    }
+
+    pub fn with_doc(mut self, doc: Option<String>) -> Self {
+        self.doc = doc;
+        self
+    }
+
+    pub fn doc(&self) -> Option<&str> {
+        self.doc.as_deref()
     }
 
     pub fn name(&self) -> &str {
@@ -208,6 +219,7 @@ impl HwModule {
 #[derive(Debug)]
 #[non_exhaustive]
 pub struct HwParam {
+    doc: Option<String>,
     name: String,
     default: String,
 }
@@ -215,9 +227,19 @@ pub struct HwParam {
 impl HwParam {
     pub fn new(name: impl Into<String>, default: impl Into<String>) -> Self {
         Self {
+            doc: None,
             name: name.into(),
             default: default.into(),
         }
+    }
+
+    pub fn with_doc(mut self, doc: Option<String>) -> Self {
+        self.doc = doc;
+        self
+    }
+
+    pub fn doc(&self) -> Option<&str> {
+        self.doc.as_deref()
     }
 
     pub fn name(&self) -> &str {
@@ -232,6 +254,7 @@ impl HwParam {
 #[derive(Debug)]
 #[non_exhaustive]
 pub struct HwPort {
+    doc: Option<String>,
     direction: HwDirection,
     width: String,
     name: String,
@@ -240,10 +263,20 @@ pub struct HwPort {
 impl HwPort {
     pub fn new(direction: HwDirection, width: impl Into<String>, name: impl Into<String>) -> Self {
         Self {
+            doc: None,
             direction,
             width: width.into(),
             name: name.into(),
         }
+    }
+
+    pub fn with_doc(mut self, doc: Option<String>) -> Self {
+        self.doc = doc;
+        self
+    }
+
+    pub fn doc(&self) -> Option<&str> {
+        self.doc.as_deref()
     }
 
     pub fn direction(&self) -> HwDirection {

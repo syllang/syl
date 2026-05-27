@@ -1,11 +1,9 @@
+use super::{EirBound, EirExpr, EirGuard, EirGuardFrame, EirOrigin, EirPlace};
 use super::{
     EirDesignFacts, EirDirection, EirDrive, EirDriveInput, EirDriveKind, EirInstance, EirItem,
     EirModule, EirObject, EirObjectKind, EirRead, EirSignalActivity,
 };
-use crate::{
-    CompileError, DriverError, EirError,
-};
-use super::{EirBound, EirExpr, EirGuard, EirGuardFrame, EirOrigin, EirPlace};
+use crate::{CompileError, DriverError, EirError};
 use std::collections::{BTreeMap, BTreeSet};
 use syl_sema::OpaqueSummaryTable;
 

@@ -8,11 +8,35 @@ use crate::{
     MatchArm, NamedExpr, Param, ParamDirection, ParamRole, PortDecl, RegReset, ResultBinding,
     SelectArm, SelectMode, Stmt, TypeExpr, UseItem, ViewDecl, ViewDirection, ViewField,
 };
-use syl_span::Span;
+use syl_span::{SourceId, Span};
 
 impl AstFile {
     pub fn new(items: Vec<crate::Item>) -> Self {
-        Self { items }
+        Self {
+            source_id: SourceId::default(),
+            doc: None,
+            items,
+        }
+    }
+
+    pub fn with_doc(doc: Option<String>, items: Vec<crate::Item>) -> Self {
+        Self {
+            source_id: SourceId::default(),
+            doc,
+            items,
+        }
+    }
+
+    pub fn with_source_doc(
+        source_id: SourceId,
+        doc: Option<String>,
+        items: Vec<crate::Item>,
+    ) -> Self {
+        Self {
+            source_id,
+            doc,
+            items,
+        }
     }
 }
 
@@ -24,13 +48,18 @@ impl ErrorItem {
 
 impl UseItem {
     pub fn new(path: Vec<String>, span: Span) -> Self {
-        Self { path, span }
+        Self {
+            doc: None,
+            path,
+            span,
+        }
     }
 }
 
 impl ConstItem {
     pub fn new(name: String, ty: Option<TypeExpr>, value: Expr, span: Span) -> Self {
         Self {
+            doc: None,
             name,
             ty,
             value,
@@ -120,6 +149,7 @@ impl ExternCellItemBuilder {
 impl ResultBinding {
     pub fn new(name: String, ty: TypeExpr, drive: crate::DriveCapability, span: Span) -> Self {
         Self {
+            doc: None,
             name,
             ty,
             drive,
@@ -141,6 +171,7 @@ impl PortDecl {
         span: Span,
     ) -> Self {
         Self {
+            doc: None,
             name,
             dir,
             ty,
@@ -161,6 +192,7 @@ impl PortDecl {
 impl Param {
     pub fn new(name: String, dir: Option<ParamDirection>, ty: TypeExpr, span: Span) -> Self {
         Self {
+            doc: None,
             name,
             dir,
             ty,
@@ -171,6 +203,7 @@ impl Param {
 
     pub fn receiver(name: String, ty: TypeExpr, span: Span) -> Self {
         Self {
+            doc: None,
             name,
             dir: None,
             ty,
@@ -218,7 +251,12 @@ impl ViewDecl {
 
 impl ViewField {
     pub fn new(dir: ViewDirection, name: String, span: Span) -> Self {
-        Self { dir, name, span }
+        Self {
+            doc: None,
+            dir,
+            name,
+            span,
+        }
     }
 }
 
@@ -253,6 +291,7 @@ impl CallArg {
 impl SelectArm {
     pub fn new(pattern: Expr, value: Expr, span: Span) -> Self {
         Self {
+            doc: None,
             pattern,
             value,
             span,
@@ -263,6 +302,7 @@ impl SelectArm {
 impl MatchArm {
     pub fn new(pattern: crate::Pattern, value: Expr, span: Span) -> Self {
         Self {
+            doc: None,
             pattern,
             value,
             span,
@@ -279,6 +319,7 @@ impl EnumItem {
         span: Span,
     ) -> Self {
         Self {
+            doc: None,
             name,
             width,
             layout,
@@ -290,19 +331,30 @@ impl EnumItem {
 
 impl EnumVariant {
     pub fn new(name: String, value: Option<Expr>, span: Span) -> Self {
-        Self { name, value, span }
+        Self {
+            doc: None,
+            name,
+            value,
+            span,
+        }
     }
 }
 
 impl Attribute {
     pub fn new(name: String, args: Vec<Expr>, span: Span) -> Self {
-        Self { name, args, span }
+        Self {
+            doc: None,
+            name,
+            args,
+            span,
+        }
     }
 }
 
 impl GenericParam {
     pub fn new(name: String, kind: Option<TypeExpr>, default: Option<Expr>, span: Span) -> Self {
         Self {
+            doc: None,
             name,
             kind,
             default,
@@ -313,6 +365,11 @@ impl GenericParam {
 
 impl FieldDecl {
     pub fn new(name: String, ty: TypeExpr, span: Span) -> Self {
-        Self { name, ty, span }
+        Self {
+            doc: None,
+            name,
+            ty,
+            span,
+        }
     }
 }

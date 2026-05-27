@@ -348,11 +348,162 @@ fn parse_file_with_lossless_separates_keywords_from_identifiers() {
             LosslessTokenKind::Punctuation => Some("punct"),
             LosslessTokenKind::Whitespace
             | LosslessTokenKind::LineComment
+            | LosslessTokenKind::DocComment
+            | LosslessTokenKind::InnerDocComment
             | LosslessTokenKind::Unknown => None,
         })
         .collect();
 
     assert_eq!(kinds, ["keyword", "ident", "punct", "int", "punct"]);
+}
+
+#[test]
+fn doc_comments_attach_to_items_and_nested_declarations() {
+    let source = r#"
+//! Module overview.
+//! More detail.
+
+/// Carry bit.
+const CARRY = 1;
+
+/// Adds one.
+fn inc(
+    /// Input value.
+    x: Nat,
+) -> Nat {
+    return x + 1
+}
+
+/// Packet bundle.
+bundle Packet<T: Nat> {
+    /// Payload bits.
+    data: UInt<T>,
+}
+
+/// Top cell.
+cell Top(
+    /// Input port.
+    x: in Bit,
+) -> /// Result bit.
+     y: Bit {
+    y := x
+}
+"#;
+    let file = SourceParser::new(source).parse_file().unwrap();
+    assert_eq!(file.doc.as_deref(), Some("Module overview.\nMore detail."));
+
+    match &file.items[0] {
+        Item::Const(item) => assert_eq!(item.doc.as_deref(), Some("Carry bit.")),
+        other => panic!("unexpected const item: {other:?}"),
+    }
+    match &file.items[1] {
+        Item::Fn(item) => {
+            assert_eq!(item.doc.as_deref(), Some("Adds one."));
+            assert_eq!(item.params[0].doc.as_deref(), Some("Input value."));
+        }
+        other => panic!("unexpected fn item: {other:?}"),
+    }
+    match &file.items[2] {
+        Item::Bundle(item) => {
+            assert_eq!(item.doc.as_deref(), Some("Packet bundle."));
+            assert_eq!(item.fields[0].doc.as_deref(), Some("Payload bits."));
+        }
+        other => panic!("unexpected bundle item: {other:?}"),
+    }
+    match &file.items[3] {
+        Item::Cell(item) => {
+            assert_eq!(item.doc.as_deref(), Some("Top cell."));
+            assert_eq!(item.params[0].doc.as_deref(), Some("Input port."));
+            assert_eq!(item.ports[0].doc.as_deref(), Some("Input port."));
+            assert_eq!(
+                item.result
+                    .as_ref()
+                    .and_then(|result| result.doc.as_deref()),
+                Some("Result bit.")
+            );
+        }
+        other => panic!("unexpected cell item: {other:?}"),
+    }
+}
+
+#[test]
+fn doc_comments_preserve_distinct_lossless_kinds() {
+    let source = "//! module\n/// item\nconst X = 1;";
+    let (output, syntax) = SourceParser::new(source).parse_file_with_lossless();
+
+    assert!(output.diagnostics.is_empty());
+    assert!(
+        syntax
+            .tokens()
+            .iter()
+            .any(|token| matches!(token.kind, LosslessTokenKind::InnerDocComment))
+    );
+    assert!(
+        syntax
+            .tokens()
+            .iter()
+            .any(|token| matches!(token.kind, LosslessTokenKind::DocComment))
+    );
+}
+
+#[test]
+fn doc_before_attr_attaches_to_item() {
+    let source = "/// Access flags.\n@layout(flags)\nenum Access { Read }";
+    let file = SourceParser::new(source).parse_file().unwrap();
+
+    match &file.items[0] {
+        Item::Enum(item) => {
+            assert_eq!(item.doc.as_deref(), Some("Access flags."));
+            assert!(matches!(item.layout, EnumLayout::Flags));
+        }
+        other => panic!("unexpected enum item: {other:?}"),
+    }
+}
+
+#[test]
+fn unattached_outer_doc_comment_is_reported() {
+    let errors = SourceParser::new("/// dangling\n")
+        .parse_file()
+        .expect_err("dangling doc comment should be rejected");
+
+    assert!(
+        errors
+            .iter()
+            .any(|error| error.code.as_deref() == Some("E_SYNTAX_DOC_COMMENT"))
+    );
+}
+
+#[test]
+fn inner_doc_after_item_is_reported() {
+    let errors = SourceParser::new("const X = 1;\n//! too late\nconst Y = 2;")
+        .parse_file()
+        .expect_err("late inner doc comment should be rejected");
+
+    assert!(errors.iter().any(|error| {
+        error
+            .message
+            .contains("only valid before the first declaration")
+    }));
+}
+
+#[test]
+fn doc_comment_on_local_statement_is_reported() {
+    let errors = SourceParser::new(
+        r#"
+fn bad() {
+    /// local docs are not valid
+    let x = 1
+}
+"#,
+    )
+    .parse_file()
+    .expect_err("doc comments cannot attach to local statements");
+
+    assert!(
+        errors
+            .iter()
+            .any(|error| error.message.contains("following declaration"))
+    );
 }
 
 #[test]

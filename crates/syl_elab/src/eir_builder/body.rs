@@ -1,9 +1,9 @@
 use crate::{
     CompileError, DriverError, EirError,
     const_eval::ConstValue,
+    eir::{EirExpr, EirPlace},
     eir::{EirItem, EirReset, EirSignalActivity},
     eir_builder::{EirBuilder, Env},
-    eir::{EirExpr, EirPlace},
     mir::MirTypeRef,
     program::{ElabBlock, ElabExpr, ElabExprNode, ElabStmt},
 };
@@ -13,7 +13,9 @@ use syl_span::Span;
 mod for_emit;
 mod request;
 
-use self::request::{AggregateAssignEmit, ConstEmit, ForEmit, IfEmit, LetPlaceEmit, RegEmit, SignalEmit};
+use self::request::{
+    AggregateAssignEmit, ConstEmit, ForEmit, IfEmit, LetPlaceEmit, RegEmit, SignalEmit,
+};
 use super::connect::{InstanceEmitRequest, ViewSignalSpec};
 
 impl<'a> EirBuilder<'a> {

@@ -4,8 +4,8 @@ use super::{CreateFact, CreateKind, DriveFact, ReadFact};
 use crate::{
     CompileError, DriverError,
     driver_place::{DriverBound, DriverExpr, DriverObjectTable, DriverPlace, DriverStaticRange},
-    eir::{EirDesign, EirDirection, EirPort},
     eir::{EirBound, EirGuard},
+    eir::{EirDesign, EirDirection, EirPort},
 };
 use syl_hw::ObjectId;
 

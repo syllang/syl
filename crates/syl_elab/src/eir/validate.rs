@@ -1,6 +1,6 @@
+use super::{EirExpr, EirOrigin, EirPlace, EirSelectArm};
 use super::{EirItem, EirModule, EirReset};
 use crate::{CellBoundarySummary, CompileError, EirError};
-use super::{EirExpr, EirOrigin, EirPlace, EirSelectArm};
 
 #[non_exhaustive]
 pub(crate) struct EirValidator<'a> {

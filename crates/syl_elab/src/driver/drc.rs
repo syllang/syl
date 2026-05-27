@@ -3,9 +3,7 @@ use super::{
     DriverFacts, DriverGuardSet, DriverReadCompletenessChecker, DriverSignalActivityChecker,
     ReadFact,
 };
-use crate::{
-    CompileError, DriverError, driver_place::DriverPlace, eir::EirDesign, eir::EirOrigin,
-};
+use crate::{CompileError, DriverError, driver_place::DriverPlace, eir::EirDesign, eir::EirOrigin};
 use syl_span::Span;
 
 use super::tristate::DriveConflict;
@@ -292,12 +290,12 @@ mod tests {
     use crate::{
         LoweringError,
         eir::{
-            EirDesign, EirDesignComposer, EirFactCollector, EirItem, EirModule, EirRawDesign,
-            EirSignalActivity, EirValidator,
+            EirBinaryOp, EirExpansion, EirExpr, EirGuard, EirOrigin, EirPlace, EirSelectArm,
+            EirSelectMode, EirUnaryOp,
         },
         eir::{
-            EirBinaryOp, EirExpr, EirExpansion, EirGuard, EirOrigin, EirPlace, EirSelectArm,
-            EirSelectMode, EirUnaryOp,
+            EirDesign, EirDesignComposer, EirFactCollector, EirItem, EirModule, EirRawDesign,
+            EirSignalActivity, EirValidator,
         },
     };
     use std::sync::Arc;

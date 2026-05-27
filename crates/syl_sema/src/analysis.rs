@@ -8,7 +8,7 @@ use crate::{
 };
 use std::{fmt, sync::Arc};
 use syl_hir::{DefId, HirResolution};
-use syl_span::{Diagnostic, Span};
+use syl_span::{Diagnostic, SourceId, Span};
 use syl_syntax::AstFile;
 
 #[derive(Debug)]
@@ -196,6 +196,18 @@ impl HirAnalysis {
 
     pub fn local_count(&self) -> usize {
         self.design.locals.len()
+    }
+
+    pub fn doc_for_item(&self, def_id: DefId) -> Option<&str> {
+        self.design.doc_for_item(def_id)
+    }
+
+    pub fn doc_for_field(&self, def_id: DefId, field: &str) -> Option<&str> {
+        self.design.doc_for_field(def_id, field)
+    }
+
+    pub fn doc_for_module(&self, source_id: SourceId) -> Option<&str> {
+        self.design.doc_for_module(source_id)
     }
 
     pub fn debug_dump(&self) -> String {

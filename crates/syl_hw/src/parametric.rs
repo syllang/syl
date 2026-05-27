@@ -29,6 +29,7 @@ impl ParametricHwDesign {
 #[derive(Debug)]
 #[non_exhaustive]
 pub struct ParametricHwModule {
+    doc: Option<String>,
     name: String,
     params: Vec<HwParam>,
     ports: Vec<HwPort>,
@@ -43,11 +44,21 @@ impl ParametricHwModule {
         items: Vec<ParametricHwItem>,
     ) -> Self {
         Self {
+            doc: None,
             name: name.into(),
             params,
             ports,
             items,
         }
+    }
+
+    pub fn with_doc(mut self, doc: Option<String>) -> Self {
+        self.doc = doc;
+        self
+    }
+
+    pub fn doc(&self) -> Option<&str> {
+        self.doc.as_deref()
     }
 
     pub fn name(&self) -> &str {

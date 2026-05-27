@@ -1,7 +1,9 @@
-use crate::lexer::{LexemeKind, Lexer, LosslessLexer, Token, TokenKind};
+use crate::lexer::{Lexer, LosslessLexer, Token, TokenKind};
 use crate::*;
+use std::collections::HashMap;
 use syl_span::{Diagnostic, SourceId, Span};
 
+mod doc;
 mod expr;
 mod item;
 mod lossless_tree;
@@ -45,11 +47,19 @@ impl<'a> SourceParser<'a> {
     }
 
     pub fn parse_file_partial(&self) -> ParseOutput {
-        let mut lexer = Lexer::new_in(self.source, self.source_id);
+        let mut lexer = LosslessLexer::new_in(self.source, self.source_id);
         let output = lexer.lex_all_partial();
-        let mut parsed = Parser::new_at_end(output.tokens, self.source_id, self.source.len())
-            .parse_file_partial();
+        let prepared = doc::prepare_lexemes(output.lexemes);
+        let mut parsed = Parser::new_at_end_with_docs(
+            prepared.tokens,
+            self.source_id,
+            self.source.len(),
+            prepared.doc_comments,
+            prepared.module_doc,
+        )
+        .parse_file_partial();
         parsed.diagnostics.extend(output.diagnostics);
+        parsed.diagnostics.extend(prepared.diagnostics);
         parsed.attach_node_index(self.source);
         parsed
     }
@@ -57,96 +67,18 @@ impl<'a> SourceParser<'a> {
     pub fn parse_file_with_lossless(&self) -> (ParseOutput, LosslessSyntaxFile) {
         let mut lexer = LosslessLexer::new_in(self.source, self.source_id);
         let output = lexer.lex_all_partial();
-        let mut parse_tokens = Vec::new();
-        let mut syntax_tokens = Vec::new();
-
-        for lexeme in output.lexemes {
-            let syntax_kind = match &lexeme.kind {
-                LexemeKind::Token(kind) => match kind {
-                    TokenKind::Ident(_) => LosslessTokenKind::Ident,
-                    TokenKind::Int(_) => LosslessTokenKind::Int,
-                    TokenKind::Str(_) => LosslessTokenKind::Str,
-                    TokenKind::Bool(_) => LosslessTokenKind::Bool,
-                    TokenKind::KwUse
-                    | TokenKind::KwConst
-                    | TokenKind::KwFn
-                    | TokenKind::KwLet
-                    | TokenKind::KwReturn
-                    | TokenKind::KwThis
-                    | TokenKind::KwVar
-                    | TokenKind::KwFor
-                    | TokenKind::KwWhile
-                    | TokenKind::KwIf
-                    | TokenKind::KwElse
-                    | TokenKind::KwMatch
-                    | TokenKind::KwSelect
-                    | TokenKind::KwPriority
-                    | TokenKind::KwUnique
-                    | TokenKind::KwEnum
-                    | TokenKind::KwBundle
-                    | TokenKind::KwInterface
-                    | TokenKind::KwView
-                    | TokenKind::KwMap
-                    | TokenKind::KwCell
-                    | TokenKind::KwExtern
-                    | TokenKind::KwSignal
-                    | TokenKind::KwReg
-                    | TokenKind::KwPlace
-                    | TokenKind::KwInplace
-                    | TokenKind::KwNext
-                    | TokenKind::KwIn
-                    | TokenKind::KwInOut
-                    | TokenKind::KwOut
-                    | TokenKind::KwAnd
-                    | TokenKind::KwOr
-                    | TokenKind::KwNot
-                    | TokenKind::KwXor
-                    | TokenKind::KwEqWord => LosslessTokenKind::Keyword,
-                    TokenKind::At
-                    | TokenKind::Plus
-                    | TokenKind::Minus
-                    | TokenKind::Star
-                    | TokenKind::Slash
-                    | TokenKind::Percent
-                    | TokenKind::Eq
-                    | TokenKind::EqEq
-                    | TokenKind::Bang
-                    | TokenKind::BangEq
-                    | TokenKind::Lt
-                    | TokenKind::LtEq
-                    | TokenKind::LtLt
-                    | TokenKind::Gt
-                    | TokenKind::GtEq
-                    | TokenKind::AndAnd
-                    | TokenKind::OrOr
-                    | TokenKind::Dot
-                    | TokenKind::DotDot
-                    | TokenKind::Comma
-                    | TokenKind::Colon
-                    | TokenKind::ColonEq
-                    | TokenKind::Semi
-                    | TokenKind::Arrow
-                    | TokenKind::EqGt
-                    | TokenKind::LParen
-                    | TokenKind::RParen
-                    | TokenKind::LBrace
-                    | TokenKind::RBrace
-                    | TokenKind::LBracket
-                    | TokenKind::RBracket => LosslessTokenKind::Punctuation,
-                },
-                LexemeKind::Whitespace => LosslessTokenKind::Whitespace,
-                LexemeKind::LineComment => LosslessTokenKind::LineComment,
-                LexemeKind::Unknown => LosslessTokenKind::Unknown,
-            };
-            if let LexemeKind::Token(kind) = lexeme.kind {
-                parse_tokens.push(Token::new(kind, lexeme.span));
-            }
-            syntax_tokens.push(LosslessToken::new(syntax_kind, lexeme.span, lexeme.text));
-        }
-
-        let mut parsed = Parser::new_at_end(parse_tokens, self.source_id, self.source.len())
-            .parse_file_partial();
+        let prepared = doc::prepare_lexemes(output.lexemes);
+        let syntax_tokens = prepared.syntax_tokens.clone();
+        let mut parsed = Parser::new_at_end_with_docs(
+            prepared.tokens,
+            self.source_id,
+            self.source.len(),
+            prepared.doc_comments,
+            prepared.module_doc,
+        )
+        .parse_file_partial();
         parsed.diagnostics.extend(output.diagnostics);
+        parsed.diagnostics.extend(prepared.diagnostics);
         parsed.attach_node_index(self.source);
         let syntax = lossless_tree::build_lossless_syntax_file(
             self.source_id,
@@ -170,6 +102,8 @@ pub struct Parser {
     pos: usize,
     eof_span: Span,
     block_context: BlockContext,
+    doc_comments: HashMap<usize, doc::CollectedDoc>,
+    module_doc: Option<String>,
     diagnostics: Vec<Diagnostic>,
 }
 
@@ -187,12 +121,38 @@ impl Parser {
         Self::new_with_eof(tokens, Span::new_in(source_id, source_len, source_len))
     }
 
+    fn new_at_end_with_docs(
+        tokens: Vec<Token>,
+        source_id: SourceId,
+        source_len: usize,
+        doc_comments: HashMap<usize, doc::CollectedDoc>,
+        module_doc: Option<String>,
+    ) -> Self {
+        Self::new_with_eof_and_docs(
+            tokens,
+            Span::new_in(source_id, source_len, source_len),
+            doc_comments,
+            module_doc,
+        )
+    }
+
     fn new_with_eof(tokens: Vec<Token>, eof_span: Span) -> Self {
+        Self::new_with_eof_and_docs(tokens, eof_span, HashMap::new(), None)
+    }
+
+    fn new_with_eof_and_docs(
+        tokens: Vec<Token>,
+        eof_span: Span,
+        doc_comments: HashMap<usize, doc::CollectedDoc>,
+        module_doc: Option<String>,
+    ) -> Self {
         Self {
             tokens,
             pos: 0,
             eof_span,
             block_context: BlockContext::Function,
+            doc_comments,
+            module_doc,
             diagnostics: Vec::new(),
         }
     }
@@ -214,12 +174,21 @@ impl Parser {
                 }
             }
         }
-        ParseOutput::new(AstFile::new(items), self.diagnostics)
+        for (_, doc) in std::mem::take(&mut self.doc_comments) {
+            self.error(
+                doc.span,
+                "`///` doc comment must attach to a following declaration",
+            );
+        }
+        ParseOutput::new(
+            AstFile::with_source_doc(self.eof_span.source, self.module_doc.take(), items),
+            self.diagnostics,
+        )
     }
 
     fn parse_item(&mut self) -> Result<Item, Vec<Diagnostic>> {
-        let attrs = self.parse_attrs()?;
-        let item = match self.peek_kind() {
+        let (attrs, doc) = self.parse_attrs_and_doc()?;
+        let mut item = match self.peek_kind() {
             Some(TokenKind::KwUse) => Item::Use(self.parse_use_item()?),
             Some(TokenKind::KwConst) => Item::Const(self.parse_const_item()?),
             Some(TokenKind::KwFn) => Item::Fn(self.parse_fn_item()?),
@@ -241,6 +210,7 @@ impl Parser {
             }
             None => return Err(std::mem::take(&mut self.diagnostics)),
         };
+        self.apply_item_doc(&mut item, doc);
         Ok(item)
     }
 
@@ -285,6 +255,7 @@ impl Parser {
         }
         let mut variants = Vec::new();
         while !self.check(&TokenKind::RBrace) && !self.is_eof() {
+            let doc = self.take_doc_for_next_token();
             let vname = self.expect_ident()?;
             let name_span = self.prev_span();
             let value = if self.consume(&TokenKind::Eq).is_some() {
@@ -293,7 +264,9 @@ impl Parser {
                 None
             };
             let end = value.as_ref().map(Expr::span).unwrap_or(name_span);
-            variants.push(EnumVariant::new(vname, value, name_span.join(end)));
+            let mut variant = EnumVariant::new(vname, value, name_span.join(end));
+            variant.doc = doc;
+            variants.push(variant);
             self.consume(&TokenKind::Comma);
         }
         let end = self.expect(TokenKind::RBrace)?.span;
@@ -428,6 +401,9 @@ impl Parser {
                 drive,
                 param.span,
             ));
+            if let Some(port) = ports.last_mut() {
+                port.doc = param.doc.clone();
+            }
         }
         Ok(ports)
     }
@@ -677,6 +653,7 @@ impl Parser {
             .map(|t| t.span)
             .unwrap_or_default()
     }
+
     fn error(&mut self, span: Span, message: impl Into<String>) {
         self.diagnostics.push(
             Diagnostic::new(span, message)

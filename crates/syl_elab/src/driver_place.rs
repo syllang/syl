@@ -1,6 +1,4 @@
-use crate::{
-    eir::{EirBinaryOp, EirBound, EirExpr, EirUnaryOp, EirPlace},
-};
+use crate::eir::{EirBinaryOp, EirBound, EirExpr, EirPlace, EirUnaryOp};
 use std::collections::BTreeMap;
 use syl_hw::ObjectId;
 

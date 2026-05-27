@@ -555,6 +555,7 @@ impl HirCallArg {
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct HirMatchArm {
+    pub doc: Option<String>,
     pub pattern: MirPattern,
     pub value: HirExpr,
     #[allow(
@@ -567,6 +568,7 @@ pub struct HirMatchArm {
 impl HirMatchArm {
     fn from_syntax_with_context(arm: &MatchArm, context: HirBlockContext) -> Self {
         Self {
+            doc: arm.doc.clone(),
             pattern: MirPattern::from(&arm.pattern),
             value: HirExpr::from_syntax_with_context(&arm.value, context),
             span: arm.span,
@@ -577,6 +579,7 @@ impl HirMatchArm {
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct HirSelectArm {
+    pub doc: Option<String>,
     pub pattern: HirExpr,
     pub value: HirExpr,
     #[allow(
@@ -589,6 +592,7 @@ pub struct HirSelectArm {
 impl HirSelectArm {
     fn from_syntax_with_context(arm: &SelectArm, context: HirBlockContext) -> Self {
         Self {
+            doc: arm.doc.clone(),
             pattern: HirExpr::from_syntax_with_context(&arm.pattern, context),
             value: HirExpr::from_syntax_with_context(&arm.value, context),
             span: arm.span,

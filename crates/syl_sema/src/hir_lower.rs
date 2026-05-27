@@ -106,6 +106,11 @@ impl<'files> HirResolver<'files> {
 
     fn insert_package(&mut self, source: &SemanticSourceFile<'_>) {
         let id = PackageId::new(self.design.packages.len());
+        if let Some(doc) = &source.ast().doc {
+            self.design
+                .module_docs
+                .insert(source.ast().source_id, doc.clone());
+        }
         self.design.packages.push(HirPackage::new(
             id,
             source.module_path().to_vec(),

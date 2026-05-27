@@ -2,10 +2,11 @@ use crate::{
     CompletionItem, CompletionItemKind, CompletionResult, DefinitionResult, DocumentSymbolResult,
     GroupedDiagnostics, HoverResult, QueryError,
 };
+use syl_hir::DefId;
 use syl_sema::OpaqueSummaryTable;
 use syl_sema::completion::CompletionKind;
 use syl_session::{AnalysisSnapshot, CancellationToken, DocumentUri, Project, ProjectError};
-use syl_span::{SourcePosition, Span};
+use syl_span::{SourceId, SourcePosition, Span};
 use syl_syntax::{AstFile, Item};
 
 use super::{
@@ -21,6 +22,12 @@ use super::{
 /// This is a trait rather than inherent snapshot methods so `syl_session` owns
 /// persisted state while `syl_query` owns editor-facing semantic operations.
 pub trait AnalysisQueries {
+    fn doc_for_item(&self, def_id: DefId) -> Option<&str>;
+
+    fn doc_for_field(&self, def_id: DefId, field: &str) -> Option<&str>;
+
+    fn doc_for_module(&self, source_id: SourceId) -> Option<&str>;
+
     fn opaque_summaries(&self) -> Option<&OpaqueSummaryTable>;
 
     fn opaque_summaries_with_token(
@@ -118,6 +125,18 @@ pub trait AnalysisQueries {
 }
 
 impl AnalysisQueries for AnalysisSnapshot {
+    fn doc_for_item(&self, def_id: DefId) -> Option<&str> {
+        self.hir_analysis().doc_for_item(def_id)
+    }
+
+    fn doc_for_field(&self, def_id: DefId, field: &str) -> Option<&str> {
+        self.hir_analysis().doc_for_field(def_id, field)
+    }
+
+    fn doc_for_module(&self, source_id: SourceId) -> Option<&str> {
+        self.hir_analysis().doc_for_module(source_id)
+    }
+
     fn opaque_summaries(&self) -> Option<&OpaqueSummaryTable> {
         self.opaque_summaries()
     }

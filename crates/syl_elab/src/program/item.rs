@@ -13,6 +13,7 @@ use syl_span::Span;
 #[derive(Clone)]
 #[non_exhaustive]
 pub(crate) struct ElabSignatureGenericParam {
+    pub(crate) doc: Option<String>,
     pub(crate) name: String,
     pub(crate) kind: Option<MirTypeRef>,
     pub(crate) default: Option<ElabExpr>,
@@ -21,6 +22,7 @@ pub(crate) struct ElabSignatureGenericParam {
 impl From<&HirSignatureGenericParam> for ElabSignatureGenericParam {
     fn from(value: &HirSignatureGenericParam) -> Self {
         Self {
+            doc: value.doc.clone(),
             name: value.name.clone(),
             kind: value.kind.clone(),
             default: value.default.as_ref().map(ElabExpr::from),
@@ -31,6 +33,7 @@ impl From<&HirSignatureGenericParam> for ElabSignatureGenericParam {
 #[derive(Clone)]
 #[non_exhaustive]
 pub(crate) struct ElabSignatureParam {
+    pub(crate) doc: Option<String>,
     pub(crate) name: String,
     pub(crate) direction: ElabPortDirection,
     pub(crate) ty: MirTypeRef,
@@ -40,6 +43,7 @@ pub(crate) struct ElabSignatureParam {
 impl From<&HirSignatureParam> for ElabSignatureParam {
     fn from(value: &HirSignatureParam) -> Self {
         Self {
+            doc: value.doc.clone(),
             name: value.name.clone(),
             direction: ElabPortDirection::from(value.direction),
             ty: value.ty.clone(),
@@ -51,6 +55,7 @@ impl From<&HirSignatureParam> for ElabSignatureParam {
 #[derive(Clone)]
 #[non_exhaustive]
 pub(crate) struct ElabSignatureResultBinding {
+    pub(crate) doc: Option<String>,
     pub(crate) name: String,
     pub(crate) ty: MirTypeRef,
     pub(crate) span: Span,
@@ -59,6 +64,7 @@ pub(crate) struct ElabSignatureResultBinding {
 impl From<&HirSignatureResultBinding> for ElabSignatureResultBinding {
     fn from(value: &HirSignatureResultBinding) -> Self {
         Self {
+            doc: value.doc.clone(),
             name: value.name.clone(),
             ty: value.ty.clone(),
             span: value.span,
@@ -251,6 +257,7 @@ impl From<&HirCallable> for ElabCallable {
 #[derive(Clone)]
 #[non_exhaustive]
 pub(crate) struct ElabCallableItem {
+    pub(crate) doc: Option<String>,
     pub(crate) name: String,
     pub(crate) generics: Vec<ElabSignatureGenericParam>,
     pub(crate) params: Vec<ElabSignatureParam>,
@@ -261,6 +268,7 @@ pub(crate) struct ElabCallableItem {
 impl From<&HirCallableItem> for ElabCallableItem {
     fn from(value: &HirCallableItem) -> Self {
         Self {
+            doc: value.doc.clone(),
             name: value.name.clone(),
             generics: value
                 .generics
@@ -277,6 +285,7 @@ impl From<&HirCallableItem> for ElabCallableItem {
 #[derive(Clone)]
 #[non_exhaustive]
 pub(crate) struct ElabExternCellItem {
+    pub(crate) doc: Option<String>,
     pub(crate) name: String,
     pub(crate) generics: Vec<ElabSignatureGenericParam>,
     pub(crate) params: Vec<ElabSignatureParam>,
@@ -286,6 +295,7 @@ pub(crate) struct ElabExternCellItem {
 impl From<&HirExternCellItem> for ElabExternCellItem {
     fn from(value: &HirExternCellItem) -> Self {
         Self {
+            doc: value.doc.clone(),
             name: value.name.clone(),
             generics: value
                 .generics

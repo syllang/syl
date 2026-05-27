@@ -1,13 +1,13 @@
+use super::super::connect::InstanceEmitRequest;
 use super::{EirBuilder, Env, ForEmit};
 use crate::{
     CompileError, EirError,
     const_eval::ConstValue,
-    eir::EirItem,
     eir::EirExpr,
+    eir::EirItem,
     mir::MirTypeRef,
     program::{ElabBlock, ElabExprNode},
 };
-use super::super::connect::InstanceEmitRequest;
 
 impl<'a> EirBuilder<'a> {
     pub(super) fn emit_for(
