@@ -1,3 +1,4 @@
+use clap::Parser;
 use std::env;
 use std::fs;
 use std::path::PathBuf;
@@ -5,46 +6,25 @@ use syl_emit::SystemVerilogBackend;
 use syl_session::{AnalysisHost, ProjectConfig};
 
 fn main() {
-    if let Err(message) = SylcApp::from_env().run() {
+    if let Err(message) = SylcApp::parse().run() {
         eprintln!("{message}");
         std::process::exit(1);
     }
 }
 
+#[derive(Debug, Parser)]
+#[command(name = "sylc", version, about = "Command-line compiler for Syl.")]
 struct SylcApp {
-    out_path: Option<String>,
+    #[arg(long = "out", value_name = "OUTPUT")]
+    out_path: Option<PathBuf>,
+    #[arg(long = "std-root", value_name = "PATH")]
     std_roots: Vec<PathBuf>,
+    #[arg(value_name = "FILE_OR_DIR", required = true)]
     inputs: Vec<PathBuf>,
 }
 
 impl SylcApp {
-    fn from_env() -> Self {
-        let mut args = env::args().skip(1);
-        let mut out_path = None;
-        let mut std_roots = Vec::new();
-        let mut inputs = Vec::new();
-        while let Some(arg) = args.next() {
-            if arg == "--out" {
-                out_path = args.next();
-            } else if arg == "--std-root" {
-                if let Some(root) = args.next() {
-                    std_roots.push(PathBuf::from(root));
-                }
-            } else {
-                inputs.push(PathBuf::from(arg));
-            }
-        }
-        Self {
-            out_path,
-            std_roots,
-            inputs,
-        }
-    }
-
     fn run(self) -> Result<(), String> {
-        if self.inputs.is_empty() {
-            return Err("usage: sylc [--out output.sv] <file-or-dir>...".to_string());
-        }
         let mut host = AnalysisHost::with_config(self.project_config()?);
         let snapshot = host.load(&self.inputs).map_err(|err| err.to_string())?;
         if !snapshot.diagnostics().is_empty() {
@@ -61,7 +41,8 @@ impl SylcApp {
             .emit(hwir)
             .map_err(|err| err.to_string())?;
         if let Some(path) = self.out_path {
-            fs::write(&path, verilog).map_err(|err| format!("failed to write {path}: {err}"))?;
+            fs::write(&path, verilog)
+                .map_err(|err| format!("failed to write {}: {err}", path.display()))?;
         } else {
             print!("{verilog}");
         }

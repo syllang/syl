@@ -25,6 +25,7 @@ repository = "https://github.com/syllang/syl"
 homepage = "https://github.com/syllang/syl"
 
 [workspace.dependencies]
+clap = { version = "4", features = ["derive"] }
 derive_builder = "0.20"
 syl_elab = { path = "crates/syl_elab", version = "0.1.0" }
 syl_emit = { path = "crates/syl_emit", version = "0.1.0" }
