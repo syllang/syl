@@ -1,1 +1,1 @@
-pub(crate) use syl_sema::const_eval::{ConstEvalEnv, ConstKind, ConstValue};
+pub(crate) use syl_sema::ir::const_mir::{ConstEvalEnv, ConstKind, ConstValue};

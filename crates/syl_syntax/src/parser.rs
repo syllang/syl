@@ -11,6 +11,7 @@ mod output;
 mod recovery;
 mod span_ext;
 mod stmt;
+mod type_expr;
 
 pub use output::ParseOutput;
 

@@ -1,7 +1,6 @@
 use super::HirFactId;
 use crate::{
-    const_eval::{ConstEvalEnv, ConstValue},
-    const_mir::ConstMirBuilder,
+    ir::const_mir::{ConstEvalEnv, ConstMirBuilder, ConstValue},
     tir::TirDesign,
 };
 use std::collections::BTreeMap;
@@ -21,17 +20,13 @@ pub struct ConstFacts {
 }
 
 impl ConstFacts {
-    pub(crate) fn empty() -> Self {
-        Self {
-            values: BTreeMap::new(),
-            cache: BTreeMap::new(),
-        }
-    }
-
     pub(crate) fn collect(tir: &TirDesign) -> Self {
         let lowering = ConstMirBuilder::new(tir);
-        let Ok(program) = ConstMirBuilder::new(tir).build() else {
-            return Self::empty();
+        let Ok(program) = lowering.build() else {
+            return Self {
+                values: BTreeMap::new(),
+                cache: BTreeMap::new(),
+            };
         };
         let mut evaluator = program.evaluator();
         let mut values = BTreeMap::new();

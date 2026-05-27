@@ -56,8 +56,12 @@ fn architecture_opaque_public_summary_surface_stays_explicit() {
         "syl_elab README must mention trusted opaque summary inputs"
     );
 
-    let sema_analysis = read_text(&workspace.join("crates/syl_sema/src/analysis.rs"));
-    let sema_facts = read_text(&workspace.join("crates/syl_sema/src/facts.rs"));
+    let sema_analysis = format!(
+        "{}\n{}",
+        read_text(&workspace.join("crates/syl_sema/src/pipeline/analysis.rs")),
+        read_text(&workspace.join("crates/syl_sema/src/pipeline/output.rs"))
+    );
+    let sema_facts = read_text(&workspace.join("crates/syl_sema/src/facts/semantic_facts.rs"));
     let session_model = read_text(&workspace.join("crates/syl_session/src/snapshot/model.rs"));
     let session_host = read_text(&workspace.join("crates/syl_session/src/host.rs"));
     let query_api = read_text(&workspace.join("crates/syl_query/src/snapshot/api.rs"));

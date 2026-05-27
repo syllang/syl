@@ -1,8 +1,8 @@
 use super::{
     TypePhaseChecker,
-    type_support::{TirConstTerm, TirConstTermResolver, TirGenericArg, TirType},
+    type_system::{TirConstTerm, TirConstTermResolver, TirGenericArg, TirType},
 };
-use crate::{CompileError, hir::HirBodyExpr, mir::MirTypeRef};
+use crate::{CompileError, hir::HirBodyExpr, ir::mir::MirTypeRef};
 use syl_hir::DefId;
 
 #[non_exhaustive]
@@ -217,7 +217,7 @@ impl<'checker, 'bindings> SubstitutingTypeResolver<'checker, 'bindings> {
         TirConstTermResolver::new(self.checker, self.owner).resolve_mir_type_ref(ty)
     }
 
-    fn resolve_mir_const_expr(&self, expr: &crate::mir::MirConstExpr) -> TirConstTerm {
+    fn resolve_mir_const_expr(&self, expr: &crate::ir::mir::MirConstExpr) -> TirConstTerm {
         if let Some(name) = expr.ident() {
             return self.const_binding(name).unwrap_or_else(|| {
                 TirConstTermResolver::new(self.checker, self.owner).resolve_mir_const_expr(expr)

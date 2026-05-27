@@ -66,12 +66,6 @@ pub struct LayoutFacts {
 }
 
 impl LayoutFacts {
-    pub(crate) fn empty() -> Self {
-        Self {
-            values: BTreeMap::new(),
-        }
-    }
-
     pub(crate) fn collect(tir: &TirDesign, protocols: &ProtocolFacts) -> Self {
         let values = tir
             .type_table()

@@ -94,12 +94,6 @@ pub struct CapabilityTable {
 }
 
 impl CapabilityTable {
-    pub(crate) fn empty() -> Self {
-        Self {
-            values: BTreeMap::new(),
-        }
-    }
-
     pub(crate) fn collect(tir: &TirDesign, types: &TypeTable, protocols: &ProtocolFacts) -> Self {
         let mut values = BTreeMap::new();
         let context = CapabilityKindContext::new(tir, protocols, types);

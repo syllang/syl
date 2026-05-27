@@ -8,6 +8,7 @@ analysis snapshot.
 ## Inputs
 
 - `syl_session::AnalysisSnapshot` and `syl_session::Project`
+- stable HIR IDs from `syl_hir` for semantic identity in query results
 - semantic facts and HIR/TIR analysis from `syl_sema` reachable through the
   snapshot
 - syntax trees and source coordinates used for navigation, grouped diagnostics,
@@ -26,6 +27,7 @@ analysis snapshot.
 
 - `syl_session`
 - `syl_sema`
+- `syl_hir`
 - `syl_syntax`
 - `syl_span`
 - `thiserror`

@@ -1,11 +1,11 @@
 use super::TypePhaseChecker;
 use super::{TirConstTerm, TirType};
-use crate::mir::MirTypeRef;
+use crate::ir::mir::MirTypeRef;
 use crate::{
     CompileError, TirError,
+    hir::resolve::HirResolution,
+    hir::view::HirDesignViewExt,
     hir::{HirBodyExpr, HirConstItem, HirEnumItem, HirEnumLayout, HirEnumVariantDecl, HirExprNode},
-    hir_resolve::HirResolution,
-    hir_view::HirDesignViewExt,
 };
 use std::collections::{BTreeMap, BTreeSet};
 use syl_hir::{DefId, HirEnumVariantKey};

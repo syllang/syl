@@ -3,7 +3,6 @@ pub use syl_sema::CompileError;
 pub(crate) use syl_sema::LoweringError;
 pub(crate) use syl_sema::{ConstEvalError, DriverError, EirError, TirError};
 
-mod actual_binding;
 mod const_eval;
 mod const_mir;
 mod driver;
@@ -29,4 +28,4 @@ pub use pipeline::{
     ConstMirStage, DrcStage, DriverFactsStage, EirBuildStage, EirFactsStage, EirStage,
     EirValidationStage, ElabStage, ElaborationOutput, HardwareCompiler, MapIrStage,
 };
-pub(crate) use syl_sema::cell_summary::CellBoundarySummary;
+pub(crate) use syl_sema::summary::cell::CellBoundarySummary;

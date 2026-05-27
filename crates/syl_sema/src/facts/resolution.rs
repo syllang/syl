@@ -409,21 +409,6 @@ pub struct ResolutionTable {
 }
 
 impl ResolutionTable {
-    pub(crate) fn empty() -> Self {
-        Self {
-            graph: ResolutionGraph {
-                packages: Vec::new(),
-                imports: Vec::new(),
-                definitions: BTreeMap::new(),
-                modules: Vec::new(),
-                package_definitions: BTreeMap::new(),
-                package_modules: BTreeMap::new(),
-                package_imports: BTreeMap::new(),
-            },
-            values: BTreeMap::new(),
-        }
-    }
-
     pub(crate) fn collect(hir: &HirDesign) -> Self {
         let values = hir
             .expr_resolutions

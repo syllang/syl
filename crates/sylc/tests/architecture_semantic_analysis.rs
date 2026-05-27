@@ -27,7 +27,11 @@ fn architecture_semantic_readme_and_public_facts_facade_stay_explicit() {
         );
     }
 
-    let analysis = read_text(&workspace.join("crates/syl_sema/src/analysis.rs"));
+    let analysis = format!(
+        "{}\n{}",
+        read_text(&workspace.join("crates/syl_sema/src/pipeline/analysis.rs")),
+        read_text(&workspace.join("crates/syl_sema/src/pipeline/output.rs"))
+    );
     for required in [
         "pub fn resolution(&self) -> &ResolutionTable",
         "pub fn facts(&self) -> Option<&SemanticFacts>",

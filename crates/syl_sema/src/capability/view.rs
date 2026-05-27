@@ -1,9 +1,11 @@
+use super::model::{EndpointSide, FieldCaps};
 use crate::{
     CapabilityError, CompileError,
-    capability_model::{EndpointSide, FieldCaps},
     hir::{HirDesign, HirViewDirection},
-    mir::{MirTypeRef, MirTypeRefExt},
-    mir_type_resolve::MirTypeDefinitionResolver,
+    ir::{
+        mir::{MirTypeRef, MirTypeRefExt},
+        mir_type_resolve::MirTypeDefinitionResolver,
+    },
 };
 use syl_hir::DefId;
 

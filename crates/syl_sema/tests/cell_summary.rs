@@ -3,7 +3,7 @@ mod support;
 use support::MiddleCompiler;
 use syl_elab::ElaborationOutput;
 use syl_hw::HwPlace as HardwarePlace;
-use syl_sema::cell_summary::{
+use syl_sema::summary::cell::{
     CellBoundarySummary, CellSummaryDeclaration, CellSummaryRegistry, HwPlace as SummaryPlace,
 };
 use syl_span::{SourceId, Span};

@@ -100,12 +100,6 @@ pub struct ProtocolFacts {
 }
 
 impl ProtocolFacts {
-    pub(crate) fn empty() -> Self {
-        Self {
-            values: BTreeMap::new(),
-        }
-    }
-
     pub(crate) fn collect(hir: &HirDesign) -> Self {
         let values = hir
             .interfaces

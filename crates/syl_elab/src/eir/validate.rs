@@ -206,7 +206,7 @@ mod tests {
     use std::sync::Arc;
     use syl_sema::{
         OpaqueSummaryTable,
-        cell_summary::{CellSummaryDeclaration, CellSummaryRegistry, HwOrigin, HwPlace},
+        summary::cell::{CellSummaryDeclaration, CellSummaryRegistry, HwOrigin, HwPlace},
     };
     use syl_span::{SourceId, Span};
 

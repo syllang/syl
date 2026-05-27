@@ -1,8 +1,8 @@
 use super::{TirDesign, TirGenericArg, TirType, TypePhaseChecker};
 use crate::{
     CompileError, TirError,
+    hir::view::HirDesignViewExt,
     hir::{HirBodyExpr, HirDefKind, HirExprNode},
-    hir_view::HirDesignViewExt,
 };
 use syl_hir::DefId;
 
@@ -55,11 +55,11 @@ impl TirDesign {
                 .ok()
                 .flatten()
                 .and_then(|resolution| match resolution {
-                    crate::hir_resolve::HirResolution::Local(id) => self
+                    crate::hir::resolve::HirResolution::Local(id) => self
                         .binding_types
                         .get(&super::BindingRef::Local(id))
                         .copied(),
-                    crate::hir_resolve::HirResolution::Def(id) => {
+                    crate::hir::resolve::HirResolution::Def(id) => {
                         self.binding_types.get(&super::BindingRef::Def(id)).copied()
                     }
                     _ => None,

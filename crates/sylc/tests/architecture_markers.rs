@@ -368,7 +368,11 @@ fn repeated_domain_component(path: &Path, domain: &str) -> Option<String> {
         if matches!(stem, "lib" | "main") {
             continue;
         }
-        if stem.starts_with(domain) {
+        if stem == domain
+            || stem
+                .strip_prefix(domain)
+                .is_some_and(|rest| rest.starts_with('_') || rest.starts_with('-'))
+        {
             return Some(stem.to_string());
         }
     }

@@ -4,7 +4,7 @@ use crate::{
 };
 use syl_hir::DefId;
 use syl_sema::OpaqueSummaryTable;
-use syl_sema::completion::CompletionKind;
+use syl_sema::query_support::CompletionKind;
 use syl_session::{AnalysisSnapshot, CancellationToken, DocumentUri, Project, ProjectError};
 use syl_span::{SourceId, SourcePosition, Span};
 use syl_syntax::{AstFile, Item};

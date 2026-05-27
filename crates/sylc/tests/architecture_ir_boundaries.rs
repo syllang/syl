@@ -40,13 +40,14 @@ fn architecture_ir_owners_stay_single_source() {
 
     let elab_const_mir = read_text(&workspace.join("crates/syl_elab/src/const_mir.rs"));
     assert!(
-        elab_const_mir.contains("pub(crate) use syl_sema::const_mir"),
+        elab_const_mir.contains("pub(crate) use syl_sema::ir::const_mir"),
         "syl_elab must consume sema-owned Const MIR instead of defining its own copy"
     );
     for forbidden in [
         "struct ConstMirProgram",
         "struct ConstMirBuilder",
         "inner: syl_sema::const_mir::ConstMirProgram",
+        "syl_sema::const_mir",
     ] {
         assert!(
             !elab_const_mir.contains(forbidden),
@@ -54,9 +55,15 @@ fn architecture_ir_owners_stay_single_source() {
         );
     }
 
+    let elab_const_eval = read_text(&workspace.join("crates/syl_elab/src/const_eval.rs"));
+    assert!(
+        elab_const_eval.contains("pub(crate) use syl_sema::ir::const_mir"),
+        "syl_elab const_eval wrapper must source sema-owned const evaluation types"
+    );
+
     let elab_map_ir = read_text(&workspace.join("crates/syl_elab/src/map_ir.rs"));
     assert!(
-        elab_map_ir.contains("pub(crate) use syl_sema::map_ir"),
+        elab_map_ir.contains("pub(crate) use syl_sema::ir::map_ir"),
         "syl_elab must consume sema-owned Map IR instead of defining its own copy"
     );
     for duplicate in [
@@ -69,7 +76,42 @@ fn architecture_ir_owners_stay_single_source() {
         );
     }
 
-    let eir_source = read_text(&workspace.join("crates/syl_elab/src/eir.rs"));
+    for obsolete in [
+        "crates/syl_sema/src/const_eval.rs",
+        "crates/syl_sema/src/const_mir.rs",
+        "crates/syl_sema/src/map_ir.rs",
+        "crates/syl_sema/src/mir.rs",
+        "crates/syl_sema/src/mir_type_resolve.rs",
+        "crates/syl_sema/src/const_mir/lower.rs",
+        "crates/syl_sema/src/const_mir/metrics.rs",
+        "crates/syl_sema/src/map_ir/types.rs",
+        "crates/syl_sema/src/map_ir/metrics.rs",
+    ] {
+        assert!(
+            !workspace.join(obsolete).exists(),
+            "obsolete sema IR path must stay removed: {obsolete}"
+        );
+    }
+
+    for owned in [
+        "crates/syl_sema/src/ir/mod.rs",
+        "crates/syl_sema/src/ir/mir.rs",
+        "crates/syl_sema/src/ir/mir_type_resolve.rs",
+        "crates/syl_sema/src/ir/const_mir/mod.rs",
+        "crates/syl_sema/src/ir/const_mir/eval.rs",
+        "crates/syl_sema/src/ir/const_mir/lower.rs",
+        "crates/syl_sema/src/ir/const_mir/metrics.rs",
+        "crates/syl_sema/src/ir/map_ir/mod.rs",
+        "crates/syl_sema/src/ir/map_ir/types.rs",
+        "crates/syl_sema/src/ir/map_ir/metrics.rs",
+    ] {
+        assert!(
+            workspace.join(owned).exists(),
+            "migrated sema IR path must exist: {owned}"
+        );
+    }
+
+    let eir_source = read_text(&workspace.join("crates/syl_elab/src/eir/design.rs"));
     let eir_assemble = read_text(&workspace.join("crates/syl_elab/src/eir/assemble.rs"));
     assert!(
         eir_assemble.contains("struct EirDesignComposer"),
@@ -90,7 +132,7 @@ fn architecture_ir_owners_stay_single_source() {
         );
     }
 
-    let eir_builder = read_text(&workspace.join("crates/syl_elab/src/eir_build.rs"));
+    let eir_builder = read_text(&workspace.join("crates/syl_elab/src/eir_builder/mod.rs"));
     assert!(
         eir_builder.contains("EirRawDesign::new(modules)"),
         "EIR builder must stop at raw EIR construction"
@@ -106,7 +148,7 @@ fn architecture_ir_owners_stay_single_source() {
         );
     }
 
-    let tir_source = read_text(&workspace.join("crates/syl_sema/src/tir.rs"));
+    let tir_source = read_text(&workspace.join("crates/syl_sema/src/tir/design.rs"));
     for required in [
         "hir: Arc<HirDesign>",
         "expr_phases: BTreeMap<ExprId, Phase>",

@@ -3,7 +3,7 @@ mod fallback;
 use fallback::CompletionSourceAnalyzer;
 
 use crate::CompletionItemKind;
-use syl_sema::completion::CompletionKind;
+use syl_sema::query_support::CompletionKind;
 use syl_span::Span;
 use syl_syntax::{
     AstFile, Block, CallArg, CallableItem, ConstItem, Expr, ExternCellItem, FieldDecl, FnItem,

@@ -13,13 +13,6 @@ pub struct TypeTable {
 }
 
 impl TypeTable {
-    pub(crate) fn empty() -> Self {
-        Self {
-            types: TirTypeTable::new(),
-            values: BTreeMap::new(),
-        }
-    }
-
     pub(crate) fn collect(tir: &TirDesign) -> Self {
         let mut values = BTreeMap::new();
         for (expr, ty) in tir.expr_types() {

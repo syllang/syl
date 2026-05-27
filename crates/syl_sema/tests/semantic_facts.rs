@@ -1,6 +1,5 @@
 use syl_hir::{DefId, ExprId, HirDesign, LocalId};
-use syl_sema::const_eval::{ConstEvalEnv, ConstValue};
-use syl_sema::const_mir::ConstMirBuilder;
+use syl_sema::ir::const_mir::{ConstEvalEnv, ConstMirBuilder, ConstValue};
 use syl_sema::{
     CapabilityKind, ConstEvalError, ConstFactKey, DomainFact, HirFactId, Layout, LoweringError,
     ProtocolFieldDirection, SemanticCompiler, SemanticResolution, SemanticSourceFile, TirError,

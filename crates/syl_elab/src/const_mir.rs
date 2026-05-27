@@ -1,6 +1,8 @@
 mod lower;
 
-pub(crate) use syl_sema::const_mir::{ConstExpr, ConstFunction, ConstMirBuilder, ConstMirProgram};
+pub(crate) use syl_sema::ir::const_mir::{
+    ConstExpr, ConstFunction, ConstMirBuilder, ConstMirProgram,
+};
 
 use crate::{
     CompileError,

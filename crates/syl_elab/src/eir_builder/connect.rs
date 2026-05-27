@@ -1,6 +1,5 @@
 use crate::{
     CompileError, EirError,
-    actual_binding::ActualFormalBinder,
     eir::{EirBinaryOp, EirBound, EirExpr},
     eir::{EirConnection, EirDirection, EirInstance, EirItem, EirPort, EirSignalActivity},
     eir_builder::{EirBuilder, Env},
@@ -13,6 +12,7 @@ use crate::{
 };
 use std::collections::{BTreeSet, HashMap};
 use syl_hir::DefId;
+use syl_sema::binding::ActualFormalBinder;
 use syl_span::Span;
 
 mod request;
