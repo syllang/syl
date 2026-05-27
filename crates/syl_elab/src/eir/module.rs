@@ -2,263 +2,10 @@ use crate::{
     CellBoundarySummary,
     eir_cell::EirCellExpansion,
     eir_expr::{EirBound, EirExpr},
-    eir_guard::EirGuard,
     eir_origin::EirOrigin,
     eir_place::EirPlace,
 };
-use std::sync::Arc;
-
-mod assemble;
-mod facts;
-mod validate;
-
-pub(crate) use assemble::EirDesignComposer;
-pub(crate) use facts::EirFactCollector;
-pub(crate) use validate::EirValidator;
-
-#[non_exhaustive]
-pub(crate) struct EirRawDesign {
-    modules: Vec<EirModule>,
-}
-
-impl EirRawDesign {
-    pub(crate) fn new(modules: Vec<EirModule>) -> Self {
-        Self { modules }
-    }
-
-    pub(crate) fn modules(&self) -> &[EirModule] {
-        &self.modules
-    }
-}
-
-#[non_exhaustive]
-pub(crate) struct EirDesign {
-    raw: Arc<EirRawDesign>,
-    facts: Arc<EirDesignFacts>,
-}
-
-impl EirDesign {
-    fn from_parts(raw: Arc<EirRawDesign>, facts: Arc<EirDesignFacts>) -> Self {
-        Self { raw, facts }
-    }
-
-    pub(crate) fn modules(&self) -> &[EirModule] {
-        self.raw.modules()
-    }
-
-    pub(crate) fn objects(&self) -> &[EirObject] {
-        self.facts.objects()
-    }
-
-    pub(crate) fn drives(&self) -> &[EirDrive] {
-        self.facts.drives()
-    }
-
-    pub(crate) fn reads(&self) -> &[EirRead] {
-        self.facts.reads()
-    }
-}
-
-#[non_exhaustive]
-pub(crate) struct EirDesignFacts {
-    objects: Vec<EirObject>,
-    drives: Vec<EirDrive>,
-    reads: Vec<EirRead>,
-}
-
-impl EirDesignFacts {
-    pub(crate) fn new(objects: Vec<EirObject>, drives: Vec<EirDrive>, reads: Vec<EirRead>) -> Self {
-        Self {
-            objects,
-            drives,
-            reads,
-        }
-    }
-
-    pub(crate) fn objects(&self) -> &[EirObject] {
-        &self.objects
-    }
-
-    pub(crate) fn drives(&self) -> &[EirDrive] {
-        &self.drives
-    }
-
-    pub(crate) fn reads(&self) -> &[EirRead] {
-        &self.reads
-    }
-}
-
-#[non_exhaustive]
-pub(crate) struct EirObject {
-    module: String,
-    name: String,
-    width: EirBound,
-    kind: EirObjectKind,
-    activity: EirSignalActivity,
-    origin: EirOrigin,
-}
-
-pub(crate) struct EirObjectInput {
-    pub(crate) module: String,
-    pub(crate) name: String,
-    pub(crate) width: EirBound,
-    pub(crate) kind: EirObjectKind,
-    pub(crate) activity: EirSignalActivity,
-    pub(crate) origin: EirOrigin,
-}
-
-impl EirObject {
-    fn new(input: EirObjectInput) -> Self {
-        Self {
-            module: input.module,
-            name: input.name,
-            width: input.width,
-            kind: input.kind,
-            activity: input.activity,
-            origin: input.origin,
-        }
-    }
-
-    pub(crate) fn module(&self) -> &str {
-        &self.module
-    }
-
-    pub(crate) fn name(&self) -> &str {
-        &self.name
-    }
-
-    pub(crate) fn width_bound(&self) -> &EirBound {
-        &self.width
-    }
-
-    pub(crate) fn kind(&self) -> EirObjectKind {
-        self.kind
-    }
-
-    pub(crate) fn activity(&self) -> EirSignalActivity {
-        self.activity
-    }
-
-    pub(crate) fn origin(&self) -> &EirOrigin {
-        &self.origin
-    }
-}
-
-#[derive(Clone, Copy)]
-#[non_exhaustive]
-pub(crate) enum EirObjectKind {
-    Signal,
-    Storage,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[non_exhaustive]
-pub(crate) enum EirSignalActivity {
-    Required,
-    Optional,
-}
-
-#[non_exhaustive]
-pub(crate) struct EirDrive {
-    module: String,
-    target: EirPlace,
-    value: Option<EirExpr>,
-    kind: EirDriveKind,
-    guard: EirGuard,
-    origin: EirOrigin,
-}
-
-impl EirDrive {
-    #[allow(clippy::too_many_arguments)]
-    fn new(
-        module: impl Into<String>,
-        target: EirPlace,
-        kind: EirDriveKind,
-        value: Option<EirExpr>,
-        guard: EirGuard,
-        origin: EirOrigin,
-    ) -> Self {
-        Self {
-            module: module.into(),
-            target,
-            value,
-            kind,
-            guard,
-            origin,
-        }
-    }
-
-    pub(crate) fn module(&self) -> &str {
-        &self.module
-    }
-
-    pub(crate) fn target_place(&self) -> &EirPlace {
-        &self.target
-    }
-
-    pub(crate) fn value(&self) -> Option<&EirExpr> {
-        self.value.as_ref()
-    }
-
-    pub(crate) fn kind(&self) -> EirDriveKind {
-        self.kind
-    }
-
-    pub(crate) fn guard(&self) -> &EirGuard {
-        &self.guard
-    }
-
-    pub(crate) fn origin(&self) -> &EirOrigin {
-        &self.origin
-    }
-}
-
-#[derive(Clone, Copy)]
-#[non_exhaustive]
-pub(crate) enum EirDriveKind {
-    Continuous,
-    Next,
-}
-
-#[non_exhaustive]
-pub(crate) struct EirRead {
-    module: String,
-    source: EirPlace,
-    guard: EirGuard,
-    origin: EirOrigin,
-}
-
-impl EirRead {
-    fn new(
-        module: impl Into<String>,
-        source: EirPlace,
-        guard: EirGuard,
-        origin: EirOrigin,
-    ) -> Self {
-        Self {
-            module: module.into(),
-            source,
-            guard,
-            origin,
-        }
-    }
-
-    pub(crate) fn module(&self) -> &str {
-        &self.module
-    }
-
-    pub(crate) fn source_place(&self) -> &EirPlace {
-        &self.source
-    }
-
-    pub(crate) fn guard(&self) -> &EirGuard {
-        &self.guard
-    }
-
-    pub(crate) fn origin(&self) -> &EirOrigin {
-        &self.origin
-    }
-}
+use crate::eir::signal::{EirReset, EirSignalActivity};
 
 #[derive(Debug)]
 #[non_exhaustive]
@@ -438,12 +185,9 @@ pub(crate) enum EirItem {
         origin: EirOrigin,
     },
     CellExpansion(EirCellExpansion),
-    /// Model-only opaque/precompiled boundary until source-level summary declarations exist.
     #[allow(dead_code)]
     CellBoundary(CellBoundarySummary),
     Instance(EirInstance),
-    /// Symbolic elaboration guard kept only when the condition still depends on
-    /// generic/localparam values after Const MIR evaluation.
     SymbolicStaticIf {
         cond: EirExpr,
         label: String,
@@ -451,8 +195,6 @@ pub(crate) enum EirItem {
         else_items: Vec<EirItem>,
         origin: EirOrigin,
     },
-    /// Symbolic elaboration loop kept only when the range is finite but not
-    /// numerically known until backend parameterization.
     SymbolicStaticFor {
         index: String,
         start: EirExpr,
@@ -465,27 +207,6 @@ pub(crate) enum EirItem {
         message: EirExpr,
         origin: EirOrigin,
     },
-}
-
-#[derive(Debug)]
-#[non_exhaustive]
-pub(crate) struct EirReset {
-    condition: EirExpr,
-    value: EirExpr,
-}
-
-impl EirReset {
-    pub(crate) fn new(condition: EirExpr, value: EirExpr) -> Self {
-        Self { condition, value }
-    }
-
-    pub(crate) fn condition(&self) -> &EirExpr {
-        &self.condition
-    }
-
-    pub(crate) fn value(&self) -> &EirExpr {
-        &self.value
-    }
 }
 
 #[derive(Debug)]

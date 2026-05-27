@@ -1,6 +1,6 @@
 use super::{
-    EirDesignFacts, EirDirection, EirDrive, EirDriveKind, EirExpr, EirInstance, EirItem, EirModule,
-    EirObject, EirObjectKind, EirRead,
+    EirDesignFacts, EirDirection, EirDrive, EirDriveInput, EirDriveKind, EirInstance, EirItem,
+    EirModule, EirObject, EirObjectKind, EirRead, EirSignalActivity,
 };
 use crate::{
     CompileError, DriverError, EirError,
@@ -8,6 +8,7 @@ use crate::{
     eir_guard::{EirGuard, EirGuardFrame},
     eir_origin::EirOrigin,
     eir_place::EirPlace,
+    eir_expr::EirExpr,
 };
 use std::collections::{BTreeMap, BTreeSet};
 use syl_sema::OpaqueSummaryTable;
@@ -99,7 +100,7 @@ impl EirFactCollector {
                     name: name.clone(),
                     width: width.clone(),
                     kind: EirObjectKind::Storage,
-                    activity: super::EirSignalActivity::Required,
+                    activity: EirSignalActivity::Required,
                     origin: origin.clone(),
                 })),
                 EirItem::Drive {
@@ -109,14 +110,14 @@ impl EirFactCollector {
                     origin,
                     ..
                 } => {
-                    self.drives.push(EirDrive::new(
-                        &self.module,
-                        lhs.clone(),
-                        EirDriveKind::Continuous,
-                        Some(rhs.clone()),
-                        self.guard(),
-                        origin.clone(),
-                    ));
+                    self.drives.push(EirDrive::new(EirDriveInput {
+                        module: self.module.clone(),
+                        target: lhs.clone(),
+                        kind: EirDriveKind::Continuous,
+                        value: Some(rhs.clone()),
+                        guard: self.guard(),
+                        origin: origin.clone(),
+                    }));
                     self.record_reads(reads, origin)?;
                 }
                 EirItem::ClockedStorage {
@@ -125,14 +126,14 @@ impl EirFactCollector {
                     origin,
                     ..
                 } => {
-                    self.drives.push(EirDrive::new(
-                        &self.module,
-                        target.clone(),
-                        EirDriveKind::Next,
-                        None,
-                        self.guard(),
-                        origin.clone(),
-                    ));
+                    self.drives.push(EirDrive::new(EirDriveInput {
+                        module: self.module.clone(),
+                        target: target.clone(),
+                        kind: EirDriveKind::Next,
+                        value: None,
+                        guard: self.guard(),
+                        origin: origin.clone(),
+                    }));
                     self.record_reads(reads, origin)?;
                 }
                 EirItem::CellExpansion(expansion) => {
@@ -273,16 +274,16 @@ impl EirFactCollector {
                             instance.origin().span(),
                         )
                     })?;
-                    self.drives.push(EirDrive::new(
-                        &self.module,
-                        place,
-                        EirDriveKind::Continuous,
-                        Some(EirExpr::Unsupported {
+                    self.drives.push(EirDrive::new(EirDriveInput {
+                        module: self.module.clone(),
+                        target: place,
+                        kind: EirDriveKind::Continuous,
+                        value: Some(EirExpr::Unsupported {
                             message: "instance inout enable is unknown".to_string(),
                         }),
-                        guard.clone(),
-                        instance.origin().clone(),
-                    ));
+                        guard: guard.clone(),
+                        origin: instance.origin().clone(),
+                    }));
                 }
                 EirDirection::Out => {
                     let place = EirPlace::try_from(connection.actual()).map_err(|_| {
@@ -291,14 +292,14 @@ impl EirFactCollector {
                             instance.origin().span(),
                         )
                     })?;
-                    self.drives.push(EirDrive::new(
-                        &self.module,
-                        place,
-                        EirDriveKind::Continuous,
-                        None,
-                        guard.clone(),
-                        instance.origin().clone(),
-                    ));
+                    self.drives.push(EirDrive::new(EirDriveInput {
+                        module: self.module.clone(),
+                        target: place,
+                        kind: EirDriveKind::Continuous,
+                        value: None,
+                        guard: guard.clone(),
+                        origin: instance.origin().clone(),
+                    }));
                 }
             }
         }
@@ -320,14 +321,14 @@ impl EirFactCollector {
                     instance.origin().span(),
                 )
             })?;
-            self.drives.push(EirDrive::new(
-                &self.module,
-                place,
-                EirDriveKind::Continuous,
-                None,
-                guard.clone(),
-                instance.origin().clone(),
-            ));
+            self.drives.push(EirDrive::new(EirDriveInput {
+                module: self.module.clone(),
+                target: place,
+                kind: EirDriveKind::Continuous,
+                value: None,
+                guard: guard.clone(),
+                origin: instance.origin().clone(),
+            }));
         }
         for path in summary.consumed_fields() {
             let actual = self.instance_connection(instance, &path.flattened())?;
