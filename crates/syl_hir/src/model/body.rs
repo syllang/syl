@@ -529,11 +529,6 @@ pub enum HirExprNode {
 pub struct HirNamedExpr {
     pub name: String,
     pub value: HirExpr,
-    #[allow(
-        dead_code,
-        reason = "HIR preserves field spans for diagnostics and LSP source maps."
-    )]
-    pub(crate) span: Span,
 }
 
 impl HirNamedExpr {
@@ -541,7 +536,6 @@ impl HirNamedExpr {
         Self {
             name: expr.name.clone(),
             value: HirExpr::from_syntax_with_context(&expr.value, context),
-            span: expr.span,
         }
     }
 }
@@ -552,10 +546,6 @@ impl HirNamedExpr {
 pub struct HirCallArg {
     pub name: Option<String>,
     pub value: HirExpr,
-    #[allow(
-        dead_code,
-        reason = "HIR retains argument spans for diagnostics and source mapping."
-    )]
     pub(crate) span: Span,
 }
 
@@ -581,11 +571,6 @@ pub struct HirMatchArm {
     pub doc: Option<String>,
     pub pattern: MirPattern,
     pub value: HirExpr,
-    #[allow(
-        dead_code,
-        reason = "HIR preserves arm spans for diagnostics and LSP source maps."
-    )]
-    pub(crate) span: Span,
 }
 
 impl HirMatchArm {
@@ -594,7 +579,6 @@ impl HirMatchArm {
             doc: arm.doc.clone(),
             pattern: MirPattern::from(&arm.pattern),
             value: HirExpr::from_syntax_with_context(&arm.value, context),
-            span: arm.span,
         }
     }
 }
@@ -606,11 +590,6 @@ pub struct HirSelectArm {
     pub doc: Option<String>,
     pub pattern: HirExpr,
     pub value: HirExpr,
-    #[allow(
-        dead_code,
-        reason = "HIR preserves arm spans for diagnostics and LSP source maps."
-    )]
-    pub(crate) span: Span,
 }
 
 impl HirSelectArm {
@@ -619,7 +598,6 @@ impl HirSelectArm {
             doc: arm.doc.clone(),
             pattern: HirExpr::from_syntax_with_context(&arm.pattern, context),
             value: HirExpr::from_syntax_with_context(&arm.value, context),
-            span: arm.span,
         }
     }
 }
