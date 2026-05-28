@@ -1,0 +1,59 @@
+// User code composing ordinary std cells with a user-defined cell.
+
+use std.stream.Stream
+use std.stage.Stage
+use std.stage.stage_from_stream
+use std.stage.stage_link
+use std.stage.stage_to_stream
+
+bundle UserWord<W: Nat> {
+    data: UInt<W>,
+    last: Bit,
+}
+
+map mark_nonzero<W: Nat>(word: UserWord<W>) -> UserWord<W> =
+    UserWord<W> {
+        data: word.data,
+        last: word.last or not (word.data eq 0),
+    }
+
+cell user_marking_stage<W: Nat, D: Domain>(
+    clk: in Clock<D>,
+    rst: in Reset<D>,
+    up: in Stream<UserWord<W>>.sink,
+) -> down: Stream<UserWord<W>>.source {
+    let input_stage = place stage_from_stream<UserWord<W>>(
+        stream: up,
+    )
+
+    let registered = place stage_link<UserWord<W>, D>(
+        clk: clk,
+        rst: rst,
+        up: input_stage,
+    )
+
+    let output_stream = place stage_to_stream<UserWord<W>>(
+        stage: registered,
+    )
+
+    down.valid := output_stream.valid
+    down.payload := output_stream.payload
+    output_stream.ready := down.ready
+}
+
+cell UserPipeline<W: Nat = 32, D: Domain>(
+    clk: in Clock<D>,
+    rst: in Reset<D>,
+    up: in Stream<UserWord<W>>.sink,
+    down: out Stream<UserWord<W>>.source,
+) {
+    let staged = place user_marking_stage<W, D>(
+        clk: clk,
+        rst: rst,
+        up: up,
+    )
+
+    down.valid := staged.valid
+    down.payload := staged.payload
+    staged.ready := down.ready
+}

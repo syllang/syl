@@ -1,0 +1,21 @@
+// Syl standard library: vendor boundary patterns.
+//
+// Extern declarations are ordinary public Syl declarations. Their summaries are
+// collected by sema and can be overlaid by trusted opaque-library metadata.
+
+extern cell VendorReadyValidSlice<W: Nat, D: Domain>(
+    clk: in Clock<D>,
+    rst: in Reset<D>,
+    in_payload: in UInt<W>,
+    in_valid: in Bit,
+    in_ready: out Bit,
+    out_payload: out UInt<W>,
+    out_valid: out Bit,
+    out_ready: in Bit,
+)
+
+extern cell VendorAssertBit<D: Domain>(
+    clk: in Clock<D>,
+    rst: in Reset<D>,
+    condition: in Bit,
+)

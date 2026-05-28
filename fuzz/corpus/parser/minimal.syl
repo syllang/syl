@@ -1,0 +1,5 @@
+const W: Nat = 8
+
+module Pass(x: in Bit, y: out Bit) {
+    y := x
+}

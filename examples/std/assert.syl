@@ -1,0 +1,29 @@
+// Syl standard library: assertion-shaped helpers.
+//
+// There is no formal/property syntax yet. These source-only cells model the
+// public API shape while remaining subject to normal read-capability checks.
+
+use std.stream.Stream
+use std.vendor.VendorAssertBit
+
+map assert_pass(condition: Bit) -> Bit =
+    condition
+
+cell observe_stream<T>(
+    stream: in Stream<T>.tap,
+) -> observed: Bit {
+    observed := stream.valid and stream.ready
+}
+
+cell vendor_assert_stream_fire<T, D: Domain>(
+    clk: in Clock<D>,
+    rst: in Reset<D>,
+    stream: in Stream<T>.tap,
+) {
+    signal fire: Bit := stream.valid and stream.ready
+    let check = place VendorAssertBit<D>(
+        clk: clk,
+        rst: rst,
+        condition: fire,
+    )
+}

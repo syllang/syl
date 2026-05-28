@@ -1,0 +1,4 @@
+cell DuplicateDriver(x: in Bit, y: out Bit) {
+    y := x
+    y := x
+}

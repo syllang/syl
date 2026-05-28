@@ -1,0 +1,54 @@
+[workspace]
+changelog_update = true
+publish = false
+dependencies_update = true
+semver_check = false
+release_always = false
+
+[[package]]
+name = "syl"
+changelog_path = "CHANGELOG.md"
+
+[[package]]
+name = "syl_span"
+changelog_path = "CHANGELOG.md"
+
+[[package]]
+name = "syl_syntax"
+changelog_path = "CHANGELOG.md"
+
+[[package]]
+name = "syl_hir"
+changelog_path = "CHANGELOG.md"
+
+[[package]]
+name = "syl_sema"
+changelog_path = "CHANGELOG.md"
+
+[[package]]
+name = "syl_hw"
+changelog_path = "CHANGELOG.md"
+
+[[package]]
+name = "syl_elab"
+changelog_path = "CHANGELOG.md"
+
+[[package]]
+name = "syl_emit"
+changelog_path = "CHANGELOG.md"
+
+[[package]]
+name = "syl_session"
+changelog_path = "CHANGELOG.md"
+
+[[package]]
+name = "syl_query"
+changelog_path = "CHANGELOG.md"
+
+[[package]]
+name = "syl_lsp"
+changelog_path = "CHANGELOG.md"
+
+[[package]]
+name = "sylc"
+changelog_path = "CHANGELOG.md"

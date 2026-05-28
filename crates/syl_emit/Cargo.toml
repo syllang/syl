@@ -1,0 +1,17 @@
+[package]
+name = "syl_emit"
+description = "SystemVerilog emission backend for Syl hardware graphs."
+documentation = "https://docs.rs/syl_emit"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+
+[dependencies]
+syl_hw.workspace = true
+strum.workspace = true
+strum_macros.workspace = true
+thiserror.workspace = true

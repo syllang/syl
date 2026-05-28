@@ -1,0 +1,146 @@
+// Syl standard library: typed Stage/Link pipeline primitives.
+//
+// This is deliberately source-only std code. Driver ownership, view
+// capabilities, and latency facts come from the same checker and summary paths
+// used by user-defined cells.
+
+use std.stream.Stream
+
+interface Stage<T> {
+    payload: T
+    valid: Bit
+    ready: Bit
+    cancel: Bit
+
+    view source {
+        out payload
+        out valid
+        in ready
+        in cancel
+    }
+
+    view sink {
+        in payload
+        in valid
+        out ready
+        out cancel
+    }
+
+    view tap {
+        in payload
+        in valid
+        in ready
+        in cancel
+    }
+}
+
+map fire<T>(this stage: Stage<T>.tap) -> Bit =
+    stage.valid and stage.ready and not stage.cancel
+
+map moving<T>(this stage: Stage<T>.tap) -> Bit =
+    stage.valid and (stage.ready or stage.cancel)
+
+cell stage_from_stream<T>(
+    stream: in Stream<T>.sink,
+) -> out_stage: Stage<T>.source {
+    out_stage.valid := stream.valid
+    out_stage.payload := stream.payload
+    stream.ready := out_stage.ready or out_stage.cancel
+}
+
+cell stage_to_stream<T>(
+    stage: in Stage<T>.sink,
+) -> stream: Stream<T>.source {
+    stream.valid := stage.valid
+    stream.payload := stage.payload
+    stage.ready := stream.ready
+    stage.cancel := 0
+}
+
+cell direct_link<T>(
+    up: in Stage<T>.sink,
+) -> down: Stage<T>.source {
+    down.valid := up.valid
+    down.payload := up.payload
+    up.ready := down.ready
+    up.cancel := down.cancel
+}
+
+cell map_stage<A, B>(
+    up: in Stage<A>.sink,
+    mapped_payload: in B,
+) -> down: Stage<B>.source {
+    down.valid := up.valid
+    down.payload := mapped_payload
+    up.ready := down.ready
+    up.cancel := down.cancel
+}
+
+cell stage_link<
+    T,
+    D: Domain,
+    HOLD_PAYLOAD: Bool = false,
+    COLLAPSE_BUBBLE: Bool = true,
+>(
+    clk: in Clock<D>,
+    rst: in Reset<D>,
+    up: in Stage<T>.sink,
+) -> down: Stage<T>.source {
+    reg payload_reg: T reset(rst, zero<T>())
+    reg valid_reg: Bit reset(rst, 0)
+
+    signal accept_up: Bit
+
+    if COLLAPSE_BUBBLE {
+        accept_up := down.ready or not valid_reg
+    } else {
+        accept_up := down.ready
+    }
+
+    up.ready := accept_up
+    up.cancel := down.cancel and not valid_reg
+
+    down.valid := valid_reg
+    down.payload := payload_reg
+
+    next valid_reg :=
+        select priority {
+            down.cancel => 0,
+            accept_up => up.valid,
+            default => valid_reg,
+        }
+
+    if HOLD_PAYLOAD {
+        next payload_reg :=
+            select priority {
+                up.valid and accept_up => up.payload,
+                default => payload_reg,
+            }
+    } else {
+        next payload_reg :=
+            select priority {
+                accept_up => up.payload,
+                default => payload_reg,
+            }
+    }
+}
+
+cell halt_link<T>(
+    up: in Stage<T>.sink,
+    halt: in Bit,
+) -> down: Stage<T>.source {
+    down.valid := up.valid and not halt
+    down.payload := up.payload
+    up.ready := down.ready and not halt
+    up.cancel := down.cancel
+}
+
+cell drop_link<T>(
+    up: in Stage<T>.sink,
+    drop: in Bit,
+) -> down: Stage<T>.source {
+    down.valid := up.valid and not drop
+    down.payload := up.payload
+    up.ready := down.ready or drop
+    up.cancel := down.cancel or drop
+}

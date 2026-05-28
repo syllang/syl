@@ -1,0 +1,4 @@
+module Broken(x: in Bit, y: out Bit) {
+    y :=
+    const W: Nat = 1
+}

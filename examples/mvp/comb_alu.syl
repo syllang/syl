@@ -1,0 +1,61 @@
+// MVP end-to-end sample 00: pure combinational hardware.
+//
+// Compiler stages exercised:
+// - package and name resolution
+// - enum and bundle type checking
+// - map lowering as a single combinational expression
+// - domain-agnostic module result binding
+// - signal driver completeness
+//
+// Compiler-provided forms used here:
+// - package, const, enum, bundle, map, module
+// - in, signal, match
+// - Nat, Bit, UInt<W>, target-typed numeric literals
+
+const DATA_W: Nat = 32
+
+enum AluOp {
+    Add,
+    Xor,
+    PassA,
+}
+
+bundle AluReq<W: Nat> {
+    op: AluOp,
+    a: UInt<W>,
+    b: UInt<W>,
+}
+
+bundle AluRsp<W: Nat> {
+    data: UInt<W>,
+    zero: Bit,
+}
+
+map alu_data<W: Nat>(req: AluReq<W>) -> UInt<W> =
+    match req.op {
+        .Add => req.a + req.b,
+        .Xor => req.a xor req.b,
+        .PassA => req.a,
+    }
+
+cell CombAlu<W: Nat>(
+    req: in AluReq<W>,
+) -> rsp: AluRsp<W> {
+    signal data: UInt<W> := alu_data<W>(req)
+
+    rsp := AluRsp<W> {
+        data: data,
+        zero: data eq 0,
+    }
+}
+
+cell CombAlu32(
+    req: in AluReq<DATA_W>,
+) -> rsp: AluRsp<DATA_W> {
+    signal inner: AluRsp<DATA_W> :=
+        place CombAlu<DATA_W>(
+            req: req,
+        )
+
+    rsp := inner
+}

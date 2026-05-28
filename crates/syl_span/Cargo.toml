@@ -1,0 +1,13 @@
+[package]
+name = "syl_span"
+description = "Source positions, source maps, and diagnostic data for Syl."
+documentation = "https://docs.rs/syl_span"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+
+[dependencies]

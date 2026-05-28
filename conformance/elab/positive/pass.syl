@@ -1,0 +1,3 @@
+cell Pass(x: in Bit, y: out Bit) {
+    y := x
+}

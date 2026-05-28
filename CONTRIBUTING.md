@@ -33,6 +33,64 @@ Before opening a pull request:
 Prefer small, reviewable commits with clear commit messages. If a change needs
 multiple steps, make each step independently understandable.
 
+Commit headers must follow Conventional Commits with an explicit scope:
+
+- `type(scope): subject`
+- `type(scope)!: subject`
+
+This repository enforces scope coverage with [`.commit-scope.json`](/home/midori/syllang/syl/.commit-scope.json).
+The scope must be the narrowest valid responsibility boundary that covers the
+changed paths for each commit.
+
+Allowed scope forms:
+
+- a single atomic scope such as `syl_syntax`, `docs`, or `workspace-config`
+- a scope expression with `+`, such as `syl_query+syl_lsp`
+- a configured composite scope such as `frontend`, `ide`, or `toolchain`
+
+The following broad escape-hatch scopes are forbidden:
+
+- `.`
+- `workspace`
+- `repo`
+- `all`
+- `misc`
+- `multi`
+- `cross`
+
+Additional rules:
+
+- use the narrowest covering scope; if `syl_syntax` covers the change, do not use `frontend`
+- use at most three scope members in a `+` expression
+- if no valid scope cleanly covers the change, split the commit instead of widening the scope
+- breaking-change commits written as `type(scope)!: subject` may include supporting edits outside the declared scope, but the scope must still cover at least one changed path and remain the narrowest valid description of the primary breaking area
+
+For squash merges, the pull request title is still linted as a Conventional Commit header with a valid scope, but it is not checked against the aggregate diff. Commit-level scope validation remains the authoritative rule because large refactors and multi-step PRs often span several otherwise-valid commit scopes once squashed.
+
+Examples:
+
+- `feat(syl_syntax): tighten parser recovery around match arms`
+- `fix(syl_query+syl_lsp): suppress invalid assignment completions`
+- `chore(toolchain): enforce commit scope policy in CI`
+- `chore(workspace-config): add repository scope policy`
+
+## Toolchain Policy
+
+- MSRV: Rust 1.85, pinned by `rust-toolchain.toml` and `workspace.package.rust-version`
+- Edition: Rust 2024 for all workspace crates
+- Feature policy: default builds must include the full parser, semantic, elaboration, backend,
+  session, query, LSP, CLI, and quality-gate harnesses. New optional features must document
+  their consumer, default state, and semver impact before merging
+- Release metadata: every publishable crate must carry description, license, readme, repository
+  or documentation URL, and workspace MSRV metadata
+
+## Quality Gates
+
+Run `scripts/quality_gate.sh` before release work or broad API changes. It is the shared local
+and CI entrypoint for formatting, clippy, workspace tests, parser fuzz smoke, example
+parse/sema/elab/emit checks, Verilator smoke, documentation syntax checks, and public API surface
+review.
+
 ## Review
 
 Review focuses on correctness, maintainability, diagnostics, and long-term

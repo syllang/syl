@@ -1,0 +1,57 @@
+// MVP end-to-end sample 01: one clocked state element.
+//
+// Compiler stages exercised:
+// - domain generic parameter checking
+// - reg allocation with reset
+// - next-state driver checking
+// - hardware Bit guards through select priority
+// - module result binding driven by a register
+//
+// Compiler-provided forms used here:
+// - package, module, reg, signal, reset, next, select, priority
+// - Nat, Bit, UInt<W>, Domain, Clock<D>, Reset<D>
+
+cell Counter<W: Nat, D: Domain>(
+    clk: in Clock<D>,
+    rst: in Reset<D>,
+    enable: in Bit,
+    clear: in Bit,
+) -> value: UInt<W> {
+    reg count: UInt<W> reset(rst, 0)
+
+    signal count_next: UInt<W> :=
+        select priority {
+            clear => 0,
+            enable => count + 1,
+            default => count,
+        }
+
+    next count := count_next
+    value := count
+}
+
+cell CounterPair<W: Nat = 16, D: Domain>(
+    clk: in Clock<D>,
+    rst: in Reset<D>,
+    enable_left: in Bit,
+    enable_right: in Bit,
+    clear: in Bit,
+) -> sum: UInt<W> {
+    signal left: UInt<W> :=
+        place Counter<W, D>(
+            clk: clk,
+            rst: rst,
+            enable: enable_left,
+            clear: clear,
+        )
+
+    signal right: UInt<W> :=
+        place Counter<W, D>(
+            clk: clk,
+            rst: rst,
+            enable: enable_right,
+            clear: clear,
+        )
+
+    sum := left + right
+}

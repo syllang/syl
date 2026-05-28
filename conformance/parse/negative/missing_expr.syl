@@ -1,0 +1,3 @@
+cell MissingExpr(x: in Bit, y: out Bit) {
+    y :=
+}
