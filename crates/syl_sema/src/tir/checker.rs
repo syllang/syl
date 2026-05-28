@@ -257,7 +257,6 @@ impl TypePhaseChecker {
 
     pub(super) fn collect_errors(&mut self) -> Vec<CompileError> {
         let hir = self.hir.clone();
-        let _hir_summary = hir.semantic_summary_count();
         let mut errors = Vec::new();
         for (owner, item) in &hir.consts {
             self.current_owner = Some(*owner);
