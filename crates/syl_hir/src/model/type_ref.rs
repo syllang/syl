@@ -495,11 +495,9 @@ impl MirConstExpr {
     /// semantics: a replacement `MirTypeRef::path(vec!["8"])` becomes `Nat(8)`,
     /// while `MirTypeRef::path(vec!["foo"])` stays as `Ident("foo")`.
     ///
-    /// **Silent type erasure:** If the replacement type is a multi-segment path
-    /// like `["some", "W"]`, `path_name()` returns `Some("W")` which is treated
-    /// as an `Ident("W")` — the original path context is lost. This means
-    /// substituting a const with a type argument that happens to parse as a
-    /// number changes its semantic kind.
+    /// **Namespace-sensitive:** Multi-segment paths are rejected here rather
+    /// than being collapsed to their last segment. That keeps const
+    /// substitution from silently discarding namespace context.
     ///
     /// ```ignore
     /// // Replacement {"N" → MirTypeRef::path(vec!["8"])} on Ident("N")
@@ -532,14 +530,16 @@ impl MirConstExpr {
     ///
     /// This is a **lossy conversion**: a type path like `["8"]` becomes `Nat(8)`,
     /// `["true"]` becomes `Bool(true)`, and anything else becomes `Ident(name)`.
-    /// Multi-segment paths silently lose their prefix: `["pkg", "W"]` returns
-    /// `Ident("W")` via `path_name()`.
     ///
-    /// Returns `None` only if the type has no `path_name` (e.g. an array or
-    /// generic type used as a const argument — which should not happen in
-    /// well-formed code).
+    /// Returns `None` if the type is not a single-segment path (for example an
+    /// array, generic, or multi-segment path used as a const argument — which
+    /// should not happen in well-formed code, but is treated conservatively
+    /// here).
     fn from_type_arg(ty: &MirTypeRef) -> Option<Self> {
-        let name = ty.path_name()?;
+        let [name] = ty.path()? else {
+            return None;
+        };
+        let name = name.as_str();
         let kind = if let Ok(value) = name.parse::<u64>() {
             MirConstExprKind::Nat(value)
         } else if name == "true" {
@@ -555,6 +555,9 @@ impl MirConstExpr {
         })
     }
 }
+
+#[cfg(test)]
+mod tests;
 
 /// The inner kind of a `MirConstExpr`.
 #[derive(Clone, Debug, PartialEq)]
