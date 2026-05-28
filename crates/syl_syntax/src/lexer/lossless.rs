@@ -222,6 +222,9 @@ impl<'a> LosslessLexer<'a> {
                     let token = self.scanner.single(TokenKind::RBracket);
                     lexemes.push(self.lossless_normal(token));
                 }
+                // Any other Unicode scalar is treated as a single unknown lexeme.
+                // We advance exactly one `char`, span it with its UTF-8 width, and
+                // keep scanning so recovery resumes at the next character.
                 _ => {
                     self.scanner.next();
                     let span = self.scanner.span(i, i + ch.len_utf8());
