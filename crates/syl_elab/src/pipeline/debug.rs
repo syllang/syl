@@ -210,12 +210,6 @@ fn dump_item(item: &EirItem, indent: usize, lines: &mut Vec<String>) {
                 dump_item(nested, indent + 2, lines);
             }
         }
-        EirItem::CellBoundary(boundary) => {
-            lines.push(format!(
-                "{pad}cell boundary {}",
-                <&'static str>::from(boundary.status())
-            ));
-        }
         EirItem::Instance(instance) => {
             lines.push(format!(
                 "{pad}instance {} as {} origin={}",

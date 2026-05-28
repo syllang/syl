@@ -10,11 +10,6 @@ pub(crate) use bounds::{DriverBitRange, DriverBound, DriverStaticRange};
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 #[non_exhaustive]
 pub(crate) enum DriverPlace {
-    #[allow(
-        dead_code,
-        reason = "Driver overlap unit tests keep an unresolved root variant; production resolver rejects unknown roots."
-    )]
-    Ident(String),
     Object(DriverObject),
     Slice {
         base: Box<DriverPlace>,
@@ -372,7 +367,6 @@ impl From<DriverExprError> for DriverPlaceError {
 impl DriverPlace {
     pub(crate) fn display(&self) -> String {
         match self {
-            Self::Ident(name) => name.clone(),
             Self::Object(object) => object.name().to_string(),
             Self::Slice { base, range } => {
                 format!("slice({},{})", base.display(), range.display())
@@ -392,6 +386,11 @@ impl DriverPlace {
 
     pub(crate) fn overlaps(&self, other: &Self) -> bool {
         overlap::DriverPlaceOverlap::new(self, other).may_overlap()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn test_object(id: usize, name: &str) -> Self {
+        Self::Object(DriverObject::new(ObjectId::new(id), name))
     }
 }
 

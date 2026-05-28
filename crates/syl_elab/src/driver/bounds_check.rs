@@ -73,7 +73,7 @@ impl<'a> PlaceBounds<'a> {
     fn range_for(&self, place: &DriverPlace) -> BoundsResult {
         match place {
             DriverPlace::Object(object) => self.object_range(object.id()),
-            DriverPlace::Ident(_) | DriverPlace::Expr(_) => BoundsResult::Unknown,
+            DriverPlace::Expr(_) => BoundsResult::Unknown,
             DriverPlace::Slice { base, range } => {
                 let base_range = self.range_for(base);
                 let relative = range.static_range();
@@ -133,10 +133,7 @@ impl<'a> PlaceBounds<'a> {
     }
 
     fn is_unprojected_place(&self, place: &DriverPlace) -> bool {
-        matches!(
-            place,
-            DriverPlace::Ident(_) | DriverPlace::Object(_) | DriverPlace::Expr(_)
-        )
+        matches!(place, DriverPlace::Object(_) | DriverPlace::Expr(_))
     }
 
     fn is_symbolic_slice_projection(&self, place: &DriverPlace) -> bool {
@@ -144,8 +141,7 @@ impl<'a> PlaceBounds<'a> {
             DriverPlace::Slice { base, .. } => {
                 self.is_unprojected_place(base) || self.is_symbolic_slice_projection(base)
             }
-            DriverPlace::Ident(_)
-            | DriverPlace::Object(_)
+            DriverPlace::Object(_)
             | DriverPlace::IndexedPartSelect { .. }
             | DriverPlace::Index { .. }
             | DriverPlace::Expr(_) => false,
@@ -163,7 +159,7 @@ impl<'a> PlaceBounds<'a> {
                 DriverPlace::Slice { base, .. }
                 | DriverPlace::IndexedPartSelect { base, .. }
                 | DriverPlace::Index { base, .. } => current = base,
-                DriverPlace::Ident(_) | DriverPlace::Object(_) => return Some(current),
+                DriverPlace::Object(_) => return Some(current),
                 DriverPlace::Expr(_) => return None,
             }
         }
@@ -238,7 +234,7 @@ impl<'a> SymbolicLoopProjection<'a> {
                 SymbolicLoopProjection::new(base, self.loop_bounds.clone(), self.objects)
                     .is_in_bounds()
             }
-            DriverPlace::Ident(_) | DriverPlace::Object(_) | DriverPlace::Expr(_) => false,
+            DriverPlace::Object(_) | DriverPlace::Expr(_) => false,
         }
     }
 
@@ -248,7 +244,7 @@ impl<'a> SymbolicLoopProjection<'a> {
             DriverPlace::Slice { base, .. }
             | DriverPlace::IndexedPartSelect { base, .. }
             | DriverPlace::Index { base, .. } => self.base_width(base),
-            DriverPlace::Ident(_) | DriverPlace::Expr(_) => None,
+            DriverPlace::Expr(_) => None,
         }
     }
 }

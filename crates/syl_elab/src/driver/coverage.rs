@@ -268,7 +268,6 @@ impl CoverageRoot {
                 .object_id
                 .map(|id| id == object.id())
                 .unwrap_or_else(|| object.name() == fallback_name),
-            DriverPlace::Ident(name) => name == fallback_name,
             DriverPlace::Slice { .. }
             | DriverPlace::IndexedPartSelect { .. }
             | DriverPlace::Index { .. }
@@ -306,7 +305,7 @@ impl<'a> ReadRoot<'a> {
                 DriverPlace::Slice { base, .. }
                 | DriverPlace::IndexedPartSelect { base, .. }
                 | DriverPlace::Index { base, .. } => current = base,
-                DriverPlace::Ident(_) | DriverPlace::Expr(_) => return None,
+                DriverPlace::Expr(_) => return None,
             }
         }
     }
@@ -395,10 +394,7 @@ impl<'a, 'bounds> SymbolicLoopDrive<'a, 'bounds> {
                     && self.loop_bounds.index_matches(index)
                     && self.loop_bounds.covers_bit_array(self.port_width)
             }
-            DriverPlace::Ident(_)
-            | DriverPlace::Object(_)
-            | DriverPlace::Slice { .. }
-            | DriverPlace::Expr(_) => false,
+            DriverPlace::Object(_) | DriverPlace::Slice { .. } | DriverPlace::Expr(_) => false,
         }
     }
 }
@@ -421,7 +417,6 @@ impl<'a> CoverageExtractor<'a> {
 
     fn range_for(&self, place: &DriverPlace) -> Option<DriverStaticRange> {
         match place {
-            DriverPlace::Ident(name) if name == self.root => Some(self.root_range),
             DriverPlace::Object(_) if self.root_object.matches(place, self.root) => {
                 Some(self.root_range)
             }
@@ -440,7 +435,7 @@ impl<'a> CoverageExtractor<'a> {
                 let relative = self.index_range(index)?;
                 self.apply_relative_range(base_range, relative)
             }
-            DriverPlace::Ident(_) | DriverPlace::Object(_) | DriverPlace::Expr(_) => None,
+            DriverPlace::Object(_) | DriverPlace::Expr(_) => None,
         }
     }
 
@@ -602,7 +597,7 @@ mod tests {
         );
         let mut coverage = SymbolicLoopCoverage::new("out", &port_width, CoverageRoot::new(None));
         let place = DriverPlace::IndexedPartSelect {
-            base: Box::new(DriverPlace::Ident("out".to_string())),
+            base: Box::new(DriverPlace::test_object(0, "out")),
             index: DriverExpr::Ident("i".to_string()),
             width: DriverBound::new("8"),
         };

@@ -53,10 +53,9 @@ impl HardwareCompiler {
     /// Compiles TIR analysis into a `ParametricHwDesign`.
     pub fn compile_tir(&self, tir: &TirAnalysis) -> Result<ParametricHwDesign, CompileError> {
         let cancellation = || false;
-        Ok(
-            self.compile_tir_with_token(tir, &cancellation)?
-                .expect("non-cancelable compile_tir must not observe cancellation"),
-        )
+        Ok(self
+            .compile_tir_with_token(tir, &cancellation)?
+            .expect("non-cancelable compile_tir must not observe cancellation"))
     }
 
     /// Compiles TIR analysis into a `ParametricHwDesign` while honoring cooperative cancellation.
@@ -316,7 +315,6 @@ impl EirBuildStage {
                     | EirItem::Storage { .. }
                     | EirItem::Drive { .. }
                     | EirItem::ClockedStorage { .. }
-                    | EirItem::CellBoundary(_)
                     | EirItem::Instance(_)
                     | EirItem::InitialError { .. } => {}
                 }

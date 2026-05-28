@@ -114,7 +114,6 @@ impl<'a> HardwareMetadataLowerer<'a> {
 
     fn lower_driver_place(&self, place: &DriverPlace) -> Result<HwPlace, CompileError> {
         match place {
-            DriverPlace::Ident(name) => Ok(HwPlace::Ident(name.clone())),
             DriverPlace::Object(object) => Ok(HwPlace::Object {
                 id: object.id(),
                 name: object.name().to_string(),

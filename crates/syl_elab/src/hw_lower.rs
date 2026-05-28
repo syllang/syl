@@ -147,7 +147,6 @@ impl<'a> HwLowerer<'a> {
                 self.lower_origin(origin),
             )]),
             EirItem::CellExpansion(expansion) => self.lower_items(expansion.items()),
-            EirItem::CellBoundary(_) => Ok(Vec::new()),
             EirItem::Instance(instance) => Ok(vec![ParametricHwItem::core(
                 HwItem::Instance(self.lower_instance(instance, instance.origin())?),
                 self.lower_origin(instance.origin()),

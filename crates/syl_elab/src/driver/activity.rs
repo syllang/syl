@@ -146,7 +146,7 @@ impl SignalCoverageExtractor {
                 let index = index.as_int()?;
                 self.apply_relative_range(base_range, DriverStaticRange::new(index, index))
             }
-            DriverPlace::Ident(_) | DriverPlace::Object(_) | DriverPlace::Expr(_) => None,
+            DriverPlace::Object(_) | DriverPlace::Expr(_) => None,
         }
     }
 

@@ -156,10 +156,6 @@ pub struct MirTypeRef {
     span: Span,
 }
 
-#[allow(
-    dead_code,
-    reason = "Internal lowering helpers are retained here until the sema-side replacement lands."
-)]
 impl MirTypeRef {
     /// Creates a path-based type reference (e.g. `UInt`).
     pub fn path_type(path: Vec<String>, span: Span) -> Self {
@@ -383,10 +379,6 @@ pub struct MirConstExpr {
     span: Span,
 }
 
-#[allow(
-    dead_code,
-    reason = "Internal lowering helpers are retained here until the sema-side replacement lands."
-)]
 impl MirConstExpr {
     /// Creates a constant reference to a name.
     pub fn ident_expr(name: String, span: Span) -> Self {

@@ -28,4 +28,3 @@ pub use pipeline::{
     ConstMirStage, DrcStage, DriverFactsStage, EirBuildStage, EirFactsStage, EirStage,
     EirValidationStage, ElabStage, ElaborationOutput, HardwareCompiler, MapIrStage,
 };
-pub(crate) use syl_sema::summary::cell::CellBoundarySummary;

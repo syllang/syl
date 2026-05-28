@@ -435,19 +435,6 @@ impl HirExpr {
         self.id
     }
 
-    #[allow(
-        dead_code,
-        reason = "Internal lowering still allocates IDs after HIR construction."
-    )]
-    pub(crate) fn set_id(&mut self, id: ExprId) {
-        debug_assert_eq!(
-            self.id,
-            Self::unallocated_id(),
-            "HIR expression ID allocated more than once"
-        );
-        self.id = id;
-    }
-
     /// Returns the source span of this expression.
     pub fn span(&self) -> Span {
         self.span

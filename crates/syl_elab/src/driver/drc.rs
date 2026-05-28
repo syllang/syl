@@ -238,7 +238,7 @@ impl<'a> DriverDrcChecker<'a> {
             DriverPlace::Slice { base, .. }
             | DriverPlace::IndexedPartSelect { base, .. }
             | DriverPlace::Index { base, .. } => self.storage_root_name(module, base),
-            DriverPlace::Ident(_) | DriverPlace::Expr(_) => None,
+            DriverPlace::Expr(_) => None,
         }
     }
 }

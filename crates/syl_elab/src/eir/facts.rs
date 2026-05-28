@@ -134,9 +134,6 @@ impl EirFactCollector {
                     let _cell_identity = (expansion.callable(), expansion.instance());
                     self.collect_items(expansion.items())?;
                 }
-                EirItem::CellBoundary(boundary) => {
-                    boundary.require_available()?;
-                }
                 EirItem::SymbolicStaticIf {
                     label,
                     origin,

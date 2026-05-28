@@ -1,6 +1,6 @@
 use super::{EirExpr, EirOrigin, EirPlace, EirSelectArm};
 use super::{EirItem, EirModule, EirReset};
-use crate::{CellBoundarySummary, CompileError, EirError};
+use crate::{CompileError, EirError};
 
 #[non_exhaustive]
 pub(crate) struct EirValidator<'a> {
@@ -55,7 +55,6 @@ impl<'a> EirValidator<'a> {
                 self.check_exprs(reads, origin)
             }
             EirItem::CellExpansion(expansion) => self.check_items(expansion.items()),
-            EirItem::CellBoundary(boundary) => self.check_cell_boundary(boundary),
             EirItem::Instance(instance) => {
                 for connection in instance.connections() {
                     self.check_expr(connection.actual(), instance.origin())?;
@@ -86,10 +85,6 @@ impl<'a> EirValidator<'a> {
             }
             EirItem::InitialError { message, origin } => self.check_expr(message, origin),
         }
-    }
-
-    fn check_cell_boundary(&self, boundary: &CellBoundarySummary) -> Result<(), CompileError> {
-        boundary.require_available().map(|_| ())
     }
 
     fn check_reset(
@@ -196,7 +191,6 @@ impl<'a> EirValidator<'a> {
 mod tests {
     use super::*;
     use crate::{
-        CellBoundarySummary, DriverError, LoweringError,
         eir::{
             EirDesign, EirDesignComposer, EirDriveKind, EirFactCollector, EirItem, EirModule,
             EirRawDesign,
@@ -204,10 +198,7 @@ mod tests {
         eir::{EirGuard, EirOrigin, EirPlace},
     };
     use std::sync::Arc;
-    use syl_sema::{
-        OpaqueSummaryTable,
-        summary::cell::{CellSummaryDeclaration, CellSummaryRegistry, HwOrigin, HwPlace},
-    };
+    use syl_sema::OpaqueSummaryTable;
     use syl_span::{SourceId, Span};
 
     fn validated_design(modules: Vec<EirModule>) -> Result<EirDesign, CompileError> {
@@ -309,80 +300,5 @@ mod tests {
         ));
         assert_eq!(design.drives()[0].guard(), &EirGuard::root());
         assert_eq!(design.reads().len(), 1);
-    }
-
-    #[test]
-    fn rejects_missing_opaque_cell_boundary_summary() {
-        let span = Span::new_in(SourceId::new(3), 70, 80);
-        let origin = HwOrigin::new(span.source, span.start, span.end, Vec::new());
-        let module = EirModule::new(
-            "Top",
-            Vec::new(),
-            Vec::new(),
-            vec![EirItem::CellBoundary(CellBoundarySummary::missing(
-                "VendorCell",
-                "u_vendor",
-                origin,
-            ))],
-        );
-
-        let validation = {
-            let raw = EirRawDesign::new(vec![module]);
-            EirValidator::new(raw.modules()).validate()
-        };
-        let error = match validation {
-            Ok(_) => panic!("missing opaque cell summary must be rejected"),
-            Err(error) => error,
-        };
-
-        assert!(matches!(
-            error,
-            CompileError::Lowering { ref kind, .. }
-                if matches!(
-                    kind.as_ref(),
-                    LoweringError::Driver(DriverError::MissingCellSummary {
-                        callable,
-                        instance,
-                        status,
-                    })
-                        if callable == "VendorCell"
-                            && instance == "u_vendor"
-                            && status == "missing"
-                )
-        ));
-        assert_eq!(error.diagnostic().span, span);
-    }
-
-    #[test]
-    fn accepts_cell_boundary_summary_loaded_from_registry() {
-        let summary_origin = HwOrigin::new(SourceId::new(4), 90, 100, Vec::new());
-        let boundary_span = Span::new_in(SourceId::new(5), 110, 120);
-        let boundary_origin = HwOrigin::new(
-            boundary_span.source,
-            boundary_span.start,
-            boundary_span.end,
-            Vec::new(),
-        );
-
-        let mut declaration =
-            CellSummaryDeclaration::exact("VendorCell", "u_vendor", summary_origin.clone());
-        declaration.add_drive(HwPlace::Ident("u_vendor.out".to_string()));
-        let registry = CellSummaryRegistry::from_iter([declaration]);
-        let resolved = CellBoundarySummary::missing("VendorCell", "u_vendor", boundary_origin)
-            .resolve_with(&registry);
-
-        let module = EirModule::new(
-            "Top",
-            Vec::new(),
-            Vec::new(),
-            vec![EirItem::CellBoundary(resolved)],
-        );
-
-        let design = match validated_design(vec![module]) {
-            Ok(design) => design,
-            Err(error) => panic!("resolved cell boundary summary must validate: {error}"),
-        };
-
-        assert_eq!(design.modules().len(), 1);
     }
 }

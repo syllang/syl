@@ -1,5 +1,5 @@
 use super::{EirBound, EirExpr, EirOrigin, EirPlace, EirReset, EirSignalActivity};
-use crate::{CellBoundarySummary, eir_cell::EirCellExpansion};
+use crate::eir_cell::EirCellExpansion;
 
 #[derive(Debug)]
 #[non_exhaustive]
@@ -213,8 +213,6 @@ pub(crate) enum EirItem {
         origin: EirOrigin,
     },
     CellExpansion(EirCellExpansion),
-    #[allow(dead_code)]
-    CellBoundary(CellBoundarySummary),
     Instance(EirInstance),
     SymbolicStaticIf {
         cond: EirExpr,
