@@ -17,37 +17,67 @@ use syl_sema::{OpaqueSummaryTable, TirAnalysis};
 use syl_span::Diagnostic;
 
 #[non_exhaustive]
-pub(super) struct TirStageRunner<'tir_stage> {
+pub(super) struct TirStageRunner<'tir_stage, C: Fn() -> bool + ?Sized> {
     tir: &'tir_stage TirAnalysis,
     opaque_summaries: &'tir_stage OpaqueSummaryTable,
+    cancellation: &'tir_stage C,
 }
 
-impl<'tir_stage> TirStageRunner<'tir_stage> {
+impl<'tir_stage, C: Fn() -> bool + ?Sized> TirStageRunner<'tir_stage, C> {
     pub(super) fn new(
         tir: &'tir_stage TirAnalysis,
         opaque_summaries: &'tir_stage OpaqueSummaryTable,
+        cancellation: &'tir_stage C,
     ) -> Self {
         Self {
             tir,
             opaque_summaries,
+            cancellation,
         }
     }
 
-    pub(super) fn compile_hwir(&self) -> Result<ParametricHwDesign, CompileError> {
+    pub(super) fn compile_hwir(&self) -> Result<Option<ParametricHwDesign>, CompileError> {
         let opaque_summaries = self
             .tir
             .facts()
             .opaque_summaries()
             .merged(self.opaque_summaries);
+        if (self.cancellation)() {
+            return Ok(None);
+        }
         let const_mir = ConstMirPass::run(self.tir)?;
+        if (self.cancellation)() {
+            return Ok(None);
+        }
         let map_ir = MapIrPass::run(self.tir)?;
+        if (self.cancellation)() {
+            return Ok(None);
+        }
         let eir_build = EirBuildPass::run(self.tir, &const_mir, &map_ir)?;
+        if (self.cancellation)() {
+            return Ok(None);
+        }
         let _validation = EirValidationPass::run(&eir_build)?;
+        if (self.cancellation)() {
+            return Ok(None);
+        }
         let eir_facts = EirFactsPass::run(&eir_build, &opaque_summaries)?;
+        if (self.cancellation)() {
+            return Ok(None);
+        }
         let eir = EirComposePass::run(&eir_build, &eir_facts);
+        if (self.cancellation)() {
+            return Ok(None);
+        }
         let driver_facts = DriverFactsPass::run(&eir, &opaque_summaries).map_err(first_error)?;
+        if (self.cancellation)() {
+            return Ok(None);
+        }
         let _drc = DrcPass::run(&eir, &driver_facts).map_err(first_error)?;
-        HwLoweringPass::run(&eir)
+        if (self.cancellation)() {
+            return Ok(None);
+        }
+        HwLoweringPass::run(&eir).map(Some)
     }
 
     pub(super) fn diagnostics(&self) -> Vec<Diagnostic> {
@@ -85,6 +115,22 @@ impl<'tir_stage> TirStageRunner<'tir_stage> {
         };
         let mut diagnostics = Vec::new();
 
+        if (self.cancellation)() {
+            return finish(
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                diagnostics,
+            );
+        }
+
         let const_mir = match ConstMirPass::run(self.tir) {
             Ok(stage) => Some(stage),
             Err(error) => {
@@ -104,6 +150,21 @@ impl<'tir_stage> TirStageRunner<'tir_stage> {
                 );
             }
         };
+        if (self.cancellation)() {
+            return finish(
+                const_mir,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                diagnostics,
+            );
+        }
         let map_ir = match MapIrPass::run(self.tir) {
             Ok(stage) => Some(stage),
             Err(error) => {
@@ -123,6 +184,21 @@ impl<'tir_stage> TirStageRunner<'tir_stage> {
                 );
             }
         };
+        if (self.cancellation)() {
+            return finish(
+                const_mir,
+                map_ir,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                diagnostics,
+            );
+        }
         let eir_build = match EirBuildPass::run(
             self.tir,
             const_mir
@@ -150,6 +226,21 @@ impl<'tir_stage> TirStageRunner<'tir_stage> {
                 );
             }
         };
+        if (self.cancellation)() {
+            return finish(
+                const_mir,
+                map_ir,
+                eir_build,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                diagnostics,
+            );
+        }
         let eir_validation = match EirValidationPass::run(
             eir_build
                 .as_ref()
@@ -173,6 +264,21 @@ impl<'tir_stage> TirStageRunner<'tir_stage> {
                 );
             }
         };
+        if (self.cancellation)() {
+            return finish(
+                const_mir,
+                map_ir,
+                eir_build,
+                eir_validation,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                diagnostics,
+            );
+        }
         let eir_facts = match EirFactsPass::run(
             eir_build
                 .as_ref()
@@ -197,10 +303,40 @@ impl<'tir_stage> TirStageRunner<'tir_stage> {
                 );
             }
         };
+        if (self.cancellation)() {
+            return finish(
+                const_mir,
+                map_ir,
+                eir_build,
+                eir_validation,
+                eir_facts,
+                None,
+                None,
+                None,
+                None,
+                None,
+                diagnostics,
+            );
+        }
         let eir = Some(EirComposePass::run(
             eir_build.as_ref().expect("EIR build stage must exist"),
             eir_facts.as_ref().expect("EIR facts stage must exist"),
         ));
+        if (self.cancellation)() {
+            return finish(
+                const_mir,
+                map_ir,
+                eir_build,
+                eir_validation,
+                eir_facts,
+                eir,
+                None,
+                None,
+                None,
+                None,
+                diagnostics,
+            );
+        }
         let driver_facts = match DriverFactsPass::run(
             eir.as_ref().expect("EIR stage must exist"),
             &opaque_summaries,
@@ -223,6 +359,21 @@ impl<'tir_stage> TirStageRunner<'tir_stage> {
                 );
             }
         };
+        if (self.cancellation)() {
+            return finish(
+                const_mir,
+                map_ir,
+                eir_build,
+                eir_validation,
+                eir_facts,
+                eir,
+                driver_facts,
+                None,
+                None,
+                None,
+                diagnostics,
+            );
+        }
         let drc = match DrcPass::run(
             eir.as_ref().expect("EIR stage must exist"),
             driver_facts
@@ -247,6 +398,21 @@ impl<'tir_stage> TirStageRunner<'tir_stage> {
                 );
             }
         };
+        if (self.cancellation)() {
+            return finish(
+                const_mir,
+                map_ir,
+                eir_build,
+                eir_validation,
+                eir_facts,
+                eir,
+                driver_facts,
+                drc,
+                None,
+                None,
+                diagnostics,
+            );
+        }
         let metadata = match HardwareMetadataPass::run(
             driver_facts
                 .as_ref()
@@ -259,6 +425,21 @@ impl<'tir_stage> TirStageRunner<'tir_stage> {
                 None
             }
         };
+        if (self.cancellation)() {
+            return finish(
+                const_mir,
+                map_ir,
+                eir_build,
+                eir_validation,
+                eir_facts,
+                eir,
+                driver_facts,
+                drc,
+                metadata,
+                None,
+                diagnostics,
+            );
+        }
         let hwir = match HwLoweringPass::run(eir.as_ref().expect("EIR stage must exist")) {
             Ok(hwir) => Some(hwir),
             Err(error) => {

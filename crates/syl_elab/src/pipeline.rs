@@ -52,17 +52,52 @@ impl HardwareCompiler {
 
     /// Compiles TIR analysis into a `ParametricHwDesign`.
     pub fn compile_tir(&self, tir: &TirAnalysis) -> Result<ParametricHwDesign, CompileError> {
-        TirStageRunner::new(tir, &self.opaque_summaries).compile_hwir()
+        let cancellation = || false;
+        Ok(
+            self.compile_tir_with_token(tir, &cancellation)?
+                .expect("non-cancelable compile_tir must not observe cancellation"),
+        )
+    }
+
+    /// Compiles TIR analysis into a `ParametricHwDesign` while honoring cooperative cancellation.
+    ///
+    /// Returns `Ok(None)` when cancellation is observed between pipeline stages.
+    pub fn compile_tir_with_token<F: Fn() -> bool + ?Sized>(
+        &self,
+        tir: &TirAnalysis,
+        cancellation: &F,
+    ) -> Result<Option<ParametricHwDesign>, CompileError> {
+        TirStageRunner::new(tir, &self.opaque_summaries, cancellation).compile_hwir()
     }
 
     /// Returns the full pipeline output (all stages) for a given TIR.
     pub fn output_for_tir(&self, tir: &TirAnalysis) -> ElaborationOutput {
-        TirStageRunner::new(tir, &self.opaque_summaries).stage_output()
+        let cancellation = || false;
+        TirStageRunner::new(tir, &self.opaque_summaries, &cancellation).stage_output()
+    }
+
+    /// Returns the full pipeline output while honoring cooperative cancellation.
+    pub fn output_for_tir_with_token<F: Fn() -> bool + ?Sized>(
+        &self,
+        tir: &TirAnalysis,
+        cancellation: &F,
+    ) -> ElaborationOutput {
+        TirStageRunner::new(tir, &self.opaque_summaries, cancellation).stage_output()
     }
 
     /// Returns diagnostics from the elaboration pipeline.
     pub fn diagnostics(&self, tir: &TirAnalysis) -> Vec<Diagnostic> {
-        TirStageRunner::new(tir, &self.opaque_summaries).diagnostics()
+        let cancellation = || false;
+        TirStageRunner::new(tir, &self.opaque_summaries, &cancellation).diagnostics()
+    }
+
+    /// Returns diagnostics from the elaboration pipeline while honoring cooperative cancellation.
+    pub fn diagnostics_with_token<F: Fn() -> bool + ?Sized>(
+        &self,
+        tir: &TirAnalysis,
+        cancellation: &F,
+    ) -> Vec<Diagnostic> {
+        TirStageRunner::new(tir, &self.opaque_summaries, cancellation).diagnostics()
     }
 }
 

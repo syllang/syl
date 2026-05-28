@@ -379,11 +379,18 @@ subtle type errors.
 
 ---
 
-## [ ] 10. Missing `CancellationToken` checks between compilation stages
+## [x] 10. Missing `CancellationToken` checks between compilation stages
 
 **File:** `crates/syl_elab/src/pipeline.rs` (and related)
 **Severity:** 🧠 design note
 **Tags:** cancellation, UX
+**Log:**
+- Issue created.
+- 2026-05-28 Audit (gpt-5.4-mini): issue remains valid; snapshot-driven elaboration still had no cancellation checks between elaboration sub-stages.
+- 2026-05-28 Worker (gpt-5.4-mini): threaded cooperative cancellation through `TirStageRunner`, added token-aware compiler entry points in `crates/syl_elab/src/pipeline.rs`, preserved `CancellationToken`-based session APIs in `crates/syl_session/src/snapshot/semantic_cache.rs`, and added focused cancellation tests.
+- 2026-05-28 Main: fixed the follow-up review findings by adding `HardwareCompiler::compile_tir_with_token(...) -> Result<Option<ParametricHwDesign>, CompileError>`, checking cancellation between each `compile_hwir()` stage, replacing unstable `OnceLock::get_or_try_init` usage with an init lock around elaboration cache publication, and unblocking verification with the duplicate `ParametricHwItem` derive cleanup in `crates/syl_hw/src/parametric.rs`.
+- 2026-05-28 Main: verified with `cargo test -p syl_elab --test cancellation -- --nocapture`, `cargo test -p syl_session elaboration_output_with_token_returns_cancelled_without_caching -- --nocapture`, and `cargo check -p syl_session`.
+- 2026-05-28 Review (gpt-5.4-mini): accepted; cancellation now reaches both the direct elaboration compile path and the snapshot-driven cache path. Remaining limitation is stage-boundary granularity only.
 
 `AnalysisHost` accepts a `CancellationToken`, but `HardwareCompiler::compile_tir`
 does not. Elaboration can be a long-running operation (especially with large

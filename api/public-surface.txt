@@ -75,10 +75,13 @@ syl_elab|method|syl_elab::pipeline::ElaborationOutput::hwir|fn(self: &Self) -> O
 syl_elab|method|syl_elab::pipeline::ElaborationOutput::map_ir|fn(self: &Self) -> Option<&MapIrStage>
 syl_elab|method|syl_elab::pipeline::ElaborationOutput::metadata|fn(self: &Self) -> Option<&HardwareMetadata>
 syl_elab|method|syl_elab::pipeline::ElaborationOutput::opaque_summaries|fn(self: &Self) -> Option<&OpaqueSummaryTable>
+syl_elab|method|syl_elab::pipeline::HardwareCompiler::compile_tir_with_token|fn(self: &Self, tir: &TirAnalysis, cancellation: &F) -> Result<Option<ParametricHwDesign>, CompileError>
 syl_elab|method|syl_elab::pipeline::HardwareCompiler::compile_tir|fn(self: &Self, tir: &TirAnalysis) -> Result<ParametricHwDesign, CompileError>
+syl_elab|method|syl_elab::pipeline::HardwareCompiler::diagnostics_with_token|fn(self: &Self, tir: &TirAnalysis, cancellation: &F) -> Vec<Diagnostic>
 syl_elab|method|syl_elab::pipeline::HardwareCompiler::diagnostics|fn(self: &Self, tir: &TirAnalysis) -> Vec<Diagnostic>
 syl_elab|method|syl_elab::pipeline::HardwareCompiler::new|fn() -> Self
 syl_elab|method|syl_elab::pipeline::HardwareCompiler::opaque_summaries|fn(self: &Self) -> &OpaqueSummaryTable
+syl_elab|method|syl_elab::pipeline::HardwareCompiler::output_for_tir_with_token|fn(self: &Self, tir: &TirAnalysis, cancellation: &F) -> ElaborationOutput
 syl_elab|method|syl_elab::pipeline::HardwareCompiler::output_for_tir|fn(self: &Self, tir: &TirAnalysis) -> ElaborationOutput
 syl_elab|method|syl_elab::pipeline::HardwareCompiler::register_opaque_summary|fn(self: &mut Self, summary: OpaqueItemSummary)
 syl_elab|method|syl_elab::pipeline::HardwareCompiler::with_opaque_summaries|fn(opaque_summaries: OpaqueSummaryTable) -> Self

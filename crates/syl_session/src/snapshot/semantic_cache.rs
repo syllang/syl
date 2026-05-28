@@ -1,5 +1,8 @@
 use crate::{CancellationToken, ProjectError};
-use std::{fmt, sync::OnceLock};
+use std::{
+    fmt,
+    sync::{Mutex, OnceLock},
+};
 use syl_elab::{ElaborationOutput, HardwareCompiler};
 use syl_sema::{
     HirAnalysis, HirAnalysisOutput, OpaqueSummaryTable, SemanticCompiler, SemanticSourceFile,
@@ -17,6 +20,7 @@ pub struct SemanticCache {
     hir: OnceLock<HirAnalysisOutput>,
     tir: OnceLock<StageOutput<TirAnalysis>>,
     opaque_summaries: OnceLock<OpaqueSummaryTable>,
+    elaboration_init: Mutex<()>,
     elaboration: OnceLock<ElaborationOutput>,
     diagnostics: OnceLock<Vec<Diagnostic>>,
 }
@@ -32,6 +36,7 @@ impl SemanticCache {
             hir: OnceLock::new(),
             tir: OnceLock::new(),
             opaque_summaries: OnceLock::new(),
+            elaboration_init: Mutex::new(()),
             elaboration: OnceLock::new(),
             diagnostics: OnceLock::new(),
         }
@@ -49,6 +54,14 @@ impl SemanticCache {
     pub(crate) fn hir_output_with_token(
         &self,
         token: &CancellationToken,
+    ) -> Result<&HirAnalysisOutput, ProjectError> {
+        let cancellation = || token.is_cancelled();
+        self.hir_output_with_probe(&cancellation)
+    }
+
+    fn hir_output_with_probe<F: Fn() -> bool + ?Sized>(
+        &self,
+        token: &F,
     ) -> Result<&HirAnalysisOutput, ProjectError> {
         let cached = self.hir.get().is_some();
         self.check_cancellation_before(token, cached)?;
@@ -78,7 +91,15 @@ impl SemanticCache {
         &self,
         token: &CancellationToken,
     ) -> Result<&StageOutput<TirAnalysis>, ProjectError> {
-        let _ = self.hir_output_with_token(token)?;
+        let cancellation = || token.is_cancelled();
+        self.tir_output_with_probe(&cancellation)
+    }
+
+    fn tir_output_with_probe<F: Fn() -> bool + ?Sized>(
+        &self,
+        token: &F,
+    ) -> Result<&StageOutput<TirAnalysis>, ProjectError> {
+        let _ = self.hir_output_with_probe(token)?;
         let cached = self.tir.get().is_some();
         self.check_cancellation_before(token, cached)?;
         let output = self.tir_output();
@@ -139,10 +160,18 @@ impl SemanticCache {
         &self,
         token: &CancellationToken,
     ) -> Result<Option<&ElaborationOutput>, ProjectError> {
-        if !self.hir_output_with_token(token)?.diagnostics().is_empty() {
+        let cancellation = || token.is_cancelled();
+        self.elaboration_output_with_probe(&cancellation)
+    }
+
+    fn elaboration_output_with_probe<F: Fn() -> bool + ?Sized>(
+        &self,
+        token: &F,
+    ) -> Result<Option<&ElaborationOutput>, ProjectError> {
+        if !self.hir_output_with_probe(token)?.diagnostics().is_empty() {
             return Ok(None);
         }
-        let tir = self.tir_output_with_token(token)?;
+        let tir = self.tir_output_with_probe(token)?;
         if !tir.diagnostics().is_empty() {
             return Ok(None);
         }
@@ -151,14 +180,31 @@ impl SemanticCache {
         };
         let cached = self.elaboration.get().is_some();
         self.check_cancellation_before(token, cached)?;
-        let output = self.elaboration.get_or_init(|| {
-            HardwareCompiler::with_opaque_summaries(self.opaque_summary_overlay.clone())
-                .output_for_tir(tir)
-        });
-        if !cached {
-            self.check_cancellation_after_uncached_stage(token)?;
+        if cached {
+            return Ok(Some(
+                self.elaboration
+                    .get()
+                    .expect("cached elaboration output must exist before returning it"),
+            ));
         }
-        Ok(Some(output))
+
+        let _guard = self
+            .elaboration_init
+            .lock()
+            .expect("semantic elaboration init lock poisoned; cache state may be inconsistent");
+        if let Some(output) = self.elaboration.get() {
+            return Ok(Some(output));
+        }
+
+        let output = HardwareCompiler::with_opaque_summaries(self.opaque_summary_overlay.clone())
+            .output_for_tir_with_token(tir, token);
+        self.check_cancellation_after_uncached_stage(token)?;
+        let _ = self.elaboration.set(output);
+        Ok(Some(
+            self.elaboration
+                .get()
+                .expect("elaboration cache must be initialized before returning output"),
+        ))
     }
 
     pub(crate) fn diagnostics(&self) -> Vec<Diagnostic> {
@@ -214,30 +260,30 @@ impl SemanticCache {
         self.elaboration.get().is_some()
     }
 
-    fn check_cancellation_before(
+    fn check_cancellation_before<F: Fn() -> bool + ?Sized>(
         &self,
-        token: &CancellationToken,
+        token: &F,
         cached: bool,
     ) -> Result<(), ProjectError> {
-        if cached || !token.is_cancelled() {
+        if cached || !token() {
             return Ok(());
         }
         Err(ProjectError::Cancelled)
     }
 
-    fn check_cancellation_after_uncached_stage(
+    fn check_cancellation_after_uncached_stage<F: Fn() -> bool + ?Sized>(
         &self,
-        token: &CancellationToken,
+        token: &F,
     ) -> Result<(), ProjectError> {
         // Stage bodies are synchronous; give a peer request that observed the newly-filled cache a
         // bounded handoff window to publish cancellation before the next expensive stage starts.
         for _ in 0..CANCELLATION_HANDOFF_YIELDS {
-            if token.is_cancelled() {
+            if token() {
                 return Err(ProjectError::Cancelled);
             }
             std::thread::yield_now();
         }
-        if token.is_cancelled() {
+        if token() {
             return Err(ProjectError::Cancelled);
         }
         Ok(())
@@ -284,5 +330,43 @@ impl fmt::Debug for SemanticCache {
             .field("elaboration_cached", &self.is_elaboration_cached())
             .field("diagnostics_cached", &self.diagnostics.get().is_some())
             .finish()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::cell::Cell;
+    use syl_sema::OpaqueSummaryTable;
+    use syl_syntax::SourceParser;
+
+    fn cache_from_source(source: &str) -> SemanticCache {
+        let ast = SourceParser::new(source)
+            .parse_file()
+            .expect("test source must parse");
+        SemanticCache::new_sources(
+            vec![SemanticCacheSource::new(vec!["top".to_string()], ast)],
+            OpaqueSummaryTable::new(),
+        )
+    }
+
+    #[test]
+    fn elaboration_output_with_token_returns_cancelled_without_caching() {
+        let cache = cache_from_source("cell Top(y: out Bit) { y := 1 }\n");
+        let _ = cache.hir_output();
+        let _ = cache.tir_output();
+        let checks = Cell::new(0);
+        let token = || {
+            let next = checks.get() + 1;
+            checks.set(next);
+            next > 2
+        };
+
+        let err = cache
+            .elaboration_output_with_probe(&token)
+            .expect_err("mid-pipeline cancellation must bubble out of elaboration");
+
+        assert!(matches!(err, ProjectError::Cancelled));
+        assert!(!cache.is_elaboration_cached());
     }
 }
