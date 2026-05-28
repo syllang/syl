@@ -22,10 +22,23 @@ pub struct ParseOutput {
 
 impl ParseOutput {
     pub fn new(file: AstFile, diagnostics: Vec<Diagnostic>) -> Self {
+        let node_index = file.build_node_index("");
         Self {
             file,
             diagnostics,
-            node_index: crate::AstNodeIndex::default(),
+            node_index,
+        }
+    }
+
+    pub(crate) fn with_node_index(
+        file: AstFile,
+        diagnostics: Vec<Diagnostic>,
+        node_index: crate::AstNodeIndex,
+    ) -> Self {
+        Self {
+            file,
+            diagnostics,
+            node_index,
         }
     }
 
@@ -42,9 +55,5 @@ impl ParseOutput {
     /// Returns the node index that maps AST node kinds to their source locations.
     pub fn node_index(&self) -> &crate::AstNodeIndex {
         &self.node_index
-    }
-
-    pub(crate) fn attach_node_index(&mut self, source: &str) {
-        self.node_index = self.file.build_node_index(source);
     }
 }

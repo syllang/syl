@@ -70,10 +70,9 @@ impl<'a> SourceParser<'a> {
             prepared.doc_comments,
             prepared.module_doc,
         )
-        .parse_file_partial();
+        .parse_file_partial_with_source(self.source);
         parsed.diagnostics.extend(output.diagnostics);
         parsed.diagnostics.extend(prepared.diagnostics);
-        parsed.attach_node_index(self.source);
         parsed
     }
 
@@ -91,10 +90,9 @@ impl<'a> SourceParser<'a> {
             prepared.doc_comments,
             prepared.module_doc,
         )
-        .parse_file_partial();
+        .parse_file_partial_with_source(self.source);
         parsed.diagnostics.extend(output.diagnostics);
         parsed.diagnostics.extend(prepared.diagnostics);
-        parsed.attach_node_index(self.source);
         let syntax = lossless_tree::build_lossless_syntax_file(
             self.source_id,
             self.source.len(),
@@ -179,6 +177,17 @@ impl Parser {
     }
 
     pub fn parse_file_partial(mut self) -> ParseOutput {
+        let (file, diagnostics) = self.parse_file_parts();
+        ParseOutput::new(file, diagnostics)
+    }
+
+    pub(crate) fn parse_file_partial_with_source(mut self, source: &str) -> ParseOutput {
+        let (file, diagnostics) = self.parse_file_parts();
+        let node_index = file.build_node_index(source);
+        ParseOutput::with_node_index(file, diagnostics, node_index)
+    }
+
+    fn parse_file_parts(&mut self) -> (AstFile, Vec<Diagnostic>) {
         let mut items = Vec::new();
         while !self.is_eof() {
             let start_pos = self.pos;
@@ -197,9 +206,9 @@ impl Parser {
                 "`///` doc comment must attach to a following declaration",
             );
         }
-        ParseOutput::new(
+        (
             AstFile::with_source_doc(self.eof_span.source, self.module_doc.take(), items),
-            self.diagnostics,
+            std::mem::take(&mut self.diagnostics),
         )
     }
 
