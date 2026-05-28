@@ -48,13 +48,11 @@ class ScopePolicy:
         self.selection_policy = self.expect_object("selection_policy")
         self.atomic_payload = self.expect_object("atomic_scopes")
         self.composite_payload = self.expect_object("composite_scopes")
-        self.atomic_names = set(self.atomic_payload)
-        self.composite_names = set(self.composite_payload)
         self.definitions = self.build_definitions()
 
     def build_definitions(self) -> dict[str, ScopeDefinition]:
         definitions: dict[str, ScopeDefinition] = {}
-        for name, entry in self.atomic_payload.items():
+        for name in self.atomic_payload:
             item = self.expect_nested_object(self.atomic_payload, name)
             definitions[name] = ScopeDefinition(
                 name=name,
@@ -62,7 +60,7 @@ class ScopePolicy:
                 tier="atomic",
                 paths=tuple(self.expect_list_from(item, "paths")),
             )
-        for name, entry in self.composite_payload.items():
+        for name in self.composite_payload:
             item = self.expect_nested_object(self.composite_payload, name)
             members = self.expect_list_from(item, "members")
             paths: list[str] = []
@@ -137,7 +135,7 @@ class ScopePolicy:
         if narrower:
             suggestions = [self.render_scope(candidate) for candidate in narrower]
             raise ValidationError(
-                f"scope {self.render_scope(requested)!r} is broader than necessary for staged paths",
+                f"scope {self.render_scope(requested)!r} is broader than necessary for changed paths",
                 "Use the narrowest covering scope.",
                 "",
                 "Suggested scopes:",
@@ -163,9 +161,7 @@ class ScopePolicy:
         best_candidates = [candidate for candidate in sorted_candidates if self.sort_key(candidate) == best_score]
         return best_candidates[:5]
 
-    def enumerate_covering_candidates(
-        self, changed_paths: list[str]
-    ) -> list[tuple[str, ...]]:
+    def enumerate_covering_candidates(self, changed_paths: list[str]) -> list[tuple[str, ...]]:
         names = sorted(self.definitions)
         candidates: list[tuple[str, ...]] = []
         for size in range(1, self.max_members + 1):
@@ -272,13 +268,6 @@ def run_git(*args: str, cwd: Path | None = None, check: bool = True) -> subproce
     )
 
 
-def staged_paths(repo: Path) -> list[str]:
-    result = run_git("diff", "--cached", "--name-only", "-z", cwd=repo)
-    if not result.stdout:
-        return []
-    return [path for path in result.stdout.split("\0") if path]
-
-
 def commit_paths(repo: Path, commit: str) -> list[str]:
     result = run_git("show", "--pretty=", "--name-only", "-z", commit, cwd=repo)
     if not result.stdout:
@@ -288,6 +277,13 @@ def commit_paths(repo: Path, commit: str) -> list[str]:
 
 def range_paths(repo: Path, rev_range: str) -> list[str]:
     result = run_git("diff", "--name-only", "-z", rev_range, cwd=repo)
+    if not result.stdout:
+        return []
+    return [path for path in result.stdout.split("\0") if path]
+
+
+def staged_paths(repo: Path) -> list[str]:
+    result = run_git("diff", "--cached", "--name-only", "-z", cwd=repo)
     if not result.stdout:
         return []
     return [path for path in result.stdout.split("\0") if path]
@@ -315,16 +311,29 @@ def validate_header(policy: ScopePolicy, subject: str, changed_paths: list[str])
             "  type(scope)!: subject",
             "",
             "Examples:",
-            "  feat(syl_span): add source spans",
-            "  feat(syl_query+syl_lsp): tighten completion contexts",
-            "  chore(toolchain): update repository hooks",
+            "  feat(core): add source spans",
+            "  feat(core+docs): tighten completion contexts",
+            "  chore(tooling): update repository hooks",
         )
     scope_text = match.group("scope")
+    is_breaking = match.group("breaking") is not None
     members = policy.parse_scope_expression(scope_text)
+    covered_paths = policy.covered_paths(members)
+    in_scope_paths = [path for path in changed_paths if path_is_covered(path, covered_paths)]
+    if is_breaking:
+        if changed_paths and not in_scope_paths:
+            raise ValidationError(
+                f"breaking change scope {scope_text!r} must cover at least one changed path",
+                "",
+                "Changed paths do not match the declared breaking-change scope:",
+                *[f"  - {path}" for path in changed_paths],
+                "",
+                "Use a scope that covers the primary breaking change or split unrelated work into separate commits.",
+            )
+        policy.validate_minimality(members, in_scope_paths)
+        return
     if not policy.covers_all(members, changed_paths):
-        uncovered = [
-            path for path in changed_paths if not path_is_covered(path, policy.covered_paths(members))
-        ]
+        uncovered = [path for path in changed_paths if not path_is_covered(path, covered_paths)]
         raise ValidationError(
             f"scope {scope_text!r} does not cover all changed paths",
             "",
@@ -347,6 +356,9 @@ def parse_args() -> argparse.Namespace:
     subject.add_argument("message_file")
     subject.add_argument("--rev-range", required=True)
 
+    header = subparsers.add_parser("header")
+    header.add_argument("message_file")
+
     commit = subparsers.add_parser("commit")
     commit.add_argument("commit")
 
@@ -358,24 +370,22 @@ def main() -> int:
     args = parse_args()
     repo = Path(args.repo).resolve() if args.repo else repo_root()
     policy = load_policy(repo)
-
     try:
         if args.mode == "commit-msg":
-            message_path = Path(args.message_file)
-            subject = first_line(message_path.read_text(encoding="utf-8"))
-            changed = staged_paths(repo)
-            validate_header(policy, subject, changed)
+            subject = first_line(Path(args.message_file).read_text(encoding="utf-8"))
+            validate_header(policy, subject, staged_paths(repo))
             return 0
         if args.mode == "commit":
             subject = run_git("log", "--format=%s", "-n", "1", args.commit, cwd=repo).stdout.strip()
-            changed = commit_paths(repo, args.commit)
-            validate_header(policy, subject, changed)
+            validate_header(policy, subject, commit_paths(repo, args.commit))
             return 0
         if args.mode == "subject":
-            message_path = Path(args.message_file)
-            subject = first_line(message_path.read_text(encoding="utf-8"))
-            changed = range_paths(repo, args.rev_range)
-            validate_header(policy, subject, changed)
+            subject = first_line(Path(args.message_file).read_text(encoding="utf-8"))
+            validate_header(policy, subject, range_paths(repo, args.rev_range))
+            return 0
+        if args.mode == "header":
+            subject = first_line(Path(args.message_file).read_text(encoding="utf-8"))
+            validate_header(policy, subject, [])
             return 0
     except ValidationError as error:
         print("\n".join(error.lines), file=sys.stderr)

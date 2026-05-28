@@ -122,6 +122,12 @@
         "examples"
       ]
     },
+    "tests": {
+      "kind": "path",
+      "paths": [
+        "tests"
+      ]
+    },
     "fuzz": {
       "kind": "path",
       "paths": [
