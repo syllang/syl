@@ -1,6 +1,28 @@
 use super::*;
 
 #[test]
+fn node_index_find_by_span_requires_matching_source_id() {
+    let source = "const A = 1;\n";
+    let output = SourceParser::new_in(source, SourceId::new(7)).parse_file_partial();
+    let item = match &output.file.items[0] {
+        Item::Const(item) => item,
+        other => panic!("unexpected item: {other:?}"),
+    };
+
+    assert!(
+        output.node_index().find_by_span(item.span).is_some(),
+        "the exact span from the parsed file should resolve"
+    );
+    assert!(
+        output
+            .node_index()
+            .find_by_span(Span::new_in(SourceId::new(8), item.span.start, item.span.end))
+            .is_none(),
+        "changing only Span::source must prevent an exact match"
+    );
+}
+
+#[test]
 fn spans_cover_param_field_and_named_expr_prefixes() {
     let source = r#"
 bundle Pair {

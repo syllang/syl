@@ -192,6 +192,10 @@ impl AstNodeIndex {
     }
 
     /// Finds the first node whose span matches exactly.
+    ///
+    /// Matching is strict on the full `Span` value, including `source`, so a
+    /// span with the same byte offsets but a different `SourceId` will not
+    /// match.
     pub fn find_by_span(&self, span: Span) -> Option<&AstNodeRecord> {
         self.nodes.iter().find(|record| record.span() == span)
     }
