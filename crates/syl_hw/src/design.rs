@@ -93,6 +93,13 @@ impl HwGuardFrame {
 ///
 /// Tracks the original source span plus any expansion stack from
 /// elaboration (which cell instantiations produced this object).
+///
+/// **Immutable sharing caveat:** the expansion stack is captured by value
+/// when `HwOrigin` is constructed and is never extended afterward. Cloning
+/// a `HwOrigin` for multiple hardware facts or summaries preserves the same
+/// stack snapshot; it does not pick up later outer expansions added elsewhere
+/// in the elaboration pipeline. Downstream code should treat the stack as the
+/// exact instantiation path known at construction time, not as a live view.
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct HwOrigin {
