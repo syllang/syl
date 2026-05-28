@@ -83,18 +83,13 @@ impl ParametricHwModule {
     }
 }
 
-#[derive(Debug)]
-#[non_exhaustive]
 /// An item in a parametric module, wrapping `HwItem` with source origin
 /// and the static-if/static-for constructs that drive elaboration.
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum ParametricHwItem {
     /// A core hardware item with its source origin.
-    Core {
-        item: HwItem,
-        origin: HwOrigin,
-    },
+    Core { item: HwItem, origin: HwOrigin },
     /// Conditional elaboration: `if (cond) then_items else else_items`.
     StaticIf {
         cond: HwExpr,
