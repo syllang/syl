@@ -121,7 +121,11 @@ fn architecture_elab_public_surface_stays_out_of_frontend_semantic_api() {
         );
     }
 
-    let elab_source = read_text(&workspace_root().join("crates/syl_elab/src/pipeline.rs"));
+    let elab_source = format!(
+        "{}\n{}",
+        read_text(&workspace_root().join("crates/syl_elab/src/pipeline/mod.rs")),
+        read_text(&workspace_root().join("crates/syl_elab/src/pipeline/compiler.rs"))
+    );
     for forbidden in [
         "pub struct MiddleSession",
         "pub struct HirStage",

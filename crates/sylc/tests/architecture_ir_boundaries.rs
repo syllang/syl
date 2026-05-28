@@ -55,10 +55,32 @@ fn architecture_ir_owners_stay_single_source() {
         );
     }
 
-    let elab_const_eval = read_text(&workspace.join("crates/syl_elab/src/const_eval.rs"));
+    let elab_const_eval = read_text(&workspace.join("crates/syl_elab/src/const_eval/mod.rs"));
     assert!(
         elab_const_eval.contains("pub(crate) use syl_sema::ir::const_mir"),
-        "syl_elab const_eval wrapper must source sema-owned const evaluation types"
+        "syl_elab const_eval owner must source sema-owned const evaluation types"
+    );
+    assert!(
+        elab_const_eval.contains("trait ConstMirElabExt"),
+        "syl_elab const_eval owner must carry the elaboration extension trait"
+    );
+    assert!(
+        elab_const_eval.contains("trait ConstValueElaborator"),
+        "syl_elab const_eval owner must expose a const elaboration boundary for EIR build"
+    );
+
+    let elab_program_lower = read_text(&workspace.join("crates/syl_elab/src/program/lower.rs"));
+    assert!(
+        elab_program_lower.contains("trait ProgramLoweringInput"),
+        "syl_elab program lowering must define a local lowering-input trait"
+    );
+    assert!(
+        elab_program_lower.contains("fn from_input<I>"),
+        "syl_elab program lowering must support non-TIR table-backed inputs"
+    );
+    assert!(
+        !elab_program_lower.contains("tir: &'a TirDesign"),
+        "ElabProgramBuilder must not own TirDesign directly after introducing ProgramLoweringInput"
     );
 
     let elab_map_ir = read_text(&workspace.join("crates/syl_elab/src/map_ir.rs"));
@@ -132,21 +154,30 @@ fn architecture_ir_owners_stay_single_source() {
         );
     }
 
-    let eir_builder = read_text(&workspace.join("crates/syl_elab/src/eir_builder/mod.rs"));
+    let eir_build_dir = workspace.join("crates/syl_elab/src/eir/build");
+    let eir_build = read_rust_tree(&eir_build_dir);
     assert!(
-        eir_builder.contains("EirRawDesign::new(modules)"),
-        "EIR builder must stop at raw EIR construction"
+        eir_build.contains("EirRawDesign::new(modules)"),
+        "EIR build owner must stop at raw EIR construction"
     );
-    for forbidden in [
-        "EirDesignComposer::compose",
-        "EirValidator::new",
-        "EirFactCollector::collect",
-    ] {
-        assert!(
-            !eir_builder.contains(forbidden),
-            "EIR builder must not inline validation/facts composition: {forbidden}"
-        );
-    }
+    assert_no_rust_tree_fragments(
+        &eir_build_dir,
+        &[
+            "EirDesignComposer::compose",
+            "EirValidator::new",
+            "EirFactCollector::collect",
+        ],
+        "EIR build owner must not inline validation/facts composition",
+    );
+    let eir_build_callable = read_text(&workspace.join("crates/syl_elab/src/eir/build/callable.rs"));
+    assert!(
+        eir_build_callable.contains("ConstValueElaborator"),
+        "EIR build owner must depend on the local const elaboration boundary"
+    );
+    assert!(
+        !eir_build_callable.contains("ConstMirProgram"),
+        "EIR build owner must not own a direct ConstMirProgram dependency once the boundary exists"
+    );
 
     let tir_source = read_text(&workspace.join("crates/syl_sema/src/tir/design.rs"));
     for required in [
@@ -319,6 +350,14 @@ fn workspace_root() -> PathBuf {
 fn read_text(path: &Path) -> String {
     fs::read_to_string(path)
         .unwrap_or_else(|error| panic!("failed to read {}: {error}", path.display()))
+}
+
+fn read_rust_tree(dir: &Path) -> String {
+    rust_files_under(dir)
+        .into_iter()
+        .map(|file| read_text(&file))
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 fn assert_no_rust_tree_fragments(dir: &Path, forbidden: &[&str], context: &str) {

@@ -2,12 +2,11 @@ use super::{ElabPortDirection, ElabViewDirection, body::ElabBlock, body::ElabExp
 use crate::{
     mir::MirTypeRef,
     source::{
-        HirBundleItem, HirCallable, HirCallableItem, HirConstItem, HirEnumItem, HirEnumVariantKey,
-        HirExternCellItem, HirFieldDecl, HirInterfaceItem, HirSignatureGenericParam,
-        HirSignatureParam, HirSignatureResultBinding, HirViewDecl, HirViewField,
+        HirBundleItem, HirCallable, HirCallableItem, HirConstItem, HirEnumItem, HirExternCellItem,
+        HirFieldDecl, HirInterfaceItem, HirSignatureGenericParam, HirSignatureParam,
+        HirSignatureResultBinding, HirViewDecl, HirViewField,
     },
 };
-use syl_hir::DefId;
 use syl_span::Span;
 
 #[derive(Clone)]
@@ -99,28 +98,6 @@ impl ElabEnumItem {
             width: value.width.clone(),
             max_value,
         }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-#[non_exhaustive]
-pub(super) struct ElabEnumVariantKey {
-    enum_def: DefId,
-    name: String,
-}
-
-impl ElabEnumVariantKey {
-    pub(super) fn new(enum_def: DefId, name: impl Into<String>) -> Self {
-        Self {
-            enum_def,
-            name: name.into(),
-        }
-    }
-}
-
-impl From<&HirEnumVariantKey> for ElabEnumVariantKey {
-    fn from(value: &HirEnumVariantKey) -> Self {
-        Self::new(value.enum_def, &value.name)
     }
 }
 

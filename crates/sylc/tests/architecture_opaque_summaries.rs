@@ -65,7 +65,7 @@ fn architecture_opaque_public_summary_surface_stays_explicit() {
     let session_model = read_text(&workspace.join("crates/syl_session/src/snapshot/model.rs"));
     let session_host = read_text(&workspace.join("crates/syl_session/src/host.rs"));
     let query_api = read_text(&workspace.join("crates/syl_query/src/snapshot/api.rs"));
-    let pipeline = read_text(&workspace.join("crates/syl_elab/src/pipeline.rs"));
+    let pipeline = read_text(&workspace.join("crates/syl_elab/src/pipeline/output.rs"));
 
     for required in [
         "pub fn opaque_summaries(&self) -> Option<&OpaqueSummaryTable>",

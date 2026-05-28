@@ -6,6 +6,7 @@
 //! - `signal` - signal objects and their behavior
 //! - `module` - module structure, ports, parameters, instantiation
 
+pub(crate) mod build;
 mod core;
 mod design;
 mod module;
@@ -21,7 +22,8 @@ pub(crate) use core::{
 };
 pub(crate) use design::{EirDesign, EirDesignFacts, EirRawDesign};
 pub(crate) use module::{
-    EirConnection, EirDirection, EirInstance, EirItem, EirModule, EirParam, EirParamBind, EirPort,
+    EirCellExpansion, EirConnection, EirDirection, EirInstance, EirItem, EirModule, EirParam,
+    EirParamBind, EirPort,
 };
 pub(crate) use signal::{
     EirDrive, EirDriveInput, EirDriveKind, EirObject, EirObjectInput, EirObjectKind, EirRead,

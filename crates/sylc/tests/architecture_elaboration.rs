@@ -13,7 +13,11 @@ use syl_syntax::SourceParser;
 #[test]
 fn architecture_elaboration_pipeline_passes_stay_explicit() {
     let workspace = workspace_root();
-    let pipeline = read_text(&workspace.join("crates/syl_elab/src/pipeline.rs"));
+    let pipeline = format!(
+        "{}\n{}",
+        read_text(&workspace.join("crates/syl_elab/src/pipeline/mod.rs")),
+        read_text(&workspace.join("crates/syl_elab/src/pipeline/output.rs"))
+    );
     for required in [
         "pub struct EirBuildStage",
         "pub struct EirValidationStage",
@@ -32,7 +36,7 @@ fn architecture_elaboration_pipeline_passes_stay_explicit() {
         );
     }
 
-    let stage_runner = read_text(&workspace.join("crates/syl_elab/src/pipeline/stage_runner.rs"));
+    let stage_runner = read_text(&workspace.join("crates/syl_elab/src/pipeline/runner.rs"));
     for required in [
         "struct ConstMirPass",
         "struct MapIrPass",
@@ -98,11 +102,11 @@ fn architecture_elaboration_pipeline_passes_stay_explicit() {
         "EirFactsPass must not re-run validation"
     );
 
-    let facts = normalize_whitespace(&read_text(
-        &workspace.join("crates/syl_elab/src/driver/facts.rs"),
+    let facts = normalize_whitespace(&read_rust_tree(
+        &workspace.join("crates/syl_elab/src/driver/facts"),
     ));
-    let drc = normalize_whitespace(&read_text(
-        &workspace.join("crates/syl_elab/src/driver/drc.rs"),
+    let drc = normalize_whitespace(&read_rust_tree(
+        &workspace.join("crates/syl_elab/src/driver/drc"),
     ));
     assert!(
         facts.contains("struct DriverFactsCollector"),
@@ -332,6 +336,17 @@ fn read_text(path: &Path) -> String {
         .unwrap_or_else(|error| panic!("failed to read {}: {error}", path.display()))
 }
 
+fn read_rust_tree(dir: &Path) -> String {
+    let mut files = Vec::new();
+    walk_rust_files(dir, &mut files);
+    files.sort();
+    files
+        .into_iter()
+        .map(|file| read_text(&file))
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
 fn normalize_whitespace(text: &str) -> String {
     text.split_whitespace().collect::<Vec<_>>().join(" ")
 }
@@ -344,4 +359,25 @@ fn section_between<'a>(text: &'a str, start: &str, end: &str) -> &'a str {
         .split_once(end)
         .unwrap_or_else(|| panic!("missing section end {end:?}"));
     section
+}
+
+fn walk_rust_files(dir: &Path, files: &mut Vec<PathBuf>) {
+    let entries = fs::read_dir(dir)
+        .unwrap_or_else(|error| panic!("failed to read directory {}: {error}", dir.display()));
+    for entry in entries {
+        let entry = entry.unwrap_or_else(|error| {
+            panic!(
+                "failed to read directory entry in {}: {error}",
+                dir.display()
+            )
+        });
+        let path = entry.path();
+        if path.is_dir() {
+            walk_rust_files(&path, files);
+            continue;
+        }
+        if path.extension().is_some_and(|extension| extension == "rs") {
+            files.push(path);
+        }
+    }
 }

@@ -6,21 +6,17 @@ pub(crate) use syl_sema::{ConstEvalError, DriverError, EirError, TirError};
 mod const_eval;
 mod const_mir;
 mod driver;
-mod driver_place;
 mod eir;
-mod eir_builder;
-mod eir_cell;
-mod hardware_metadata;
-mod hardware_metadata_lower;
-mod hw_lower;
+mod hw;
 mod map_ir;
+mod metadata;
 mod mir;
 mod pipeline;
 mod program;
 mod source;
 mod tir;
 
-pub use hardware_metadata::{
+pub use metadata::{
     HardwareCellSummary, HardwareCellSummaryBuilder, HardwareCreateFact, HardwareCreateKind,
     HardwareDriveFact, HardwareMetadata, HardwareReadFact,
 };
