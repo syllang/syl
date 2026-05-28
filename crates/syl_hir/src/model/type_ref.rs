@@ -30,7 +30,7 @@ impl From<UnaryOp> for MirUnaryOp {
 
 /// Binary operator in the MIR (mid-level IR) type system.
 ///
-/// Includes comparison, arithmetic, bitwise, and wiring operators.
+/// Includes assignment, comparison, arithmetic, bitwise, and word operators.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, IntoStaticStr)]
 #[non_exhaustive]
 pub enum MirBinaryOp {
@@ -64,8 +64,6 @@ pub enum MirBinaryOp {
     Rem,
     #[strum(serialize = "<<")]
     Shl,
-    #[strum(serialize = ".")]
-    Field,
     #[strum(serialize = "and")]
     BitAnd,
     #[strum(serialize = "or")]
@@ -93,7 +91,6 @@ impl From<BinaryOp> for MirBinaryOp {
             BinaryOp::Div => Self::Div,
             BinaryOp::Rem => Self::Rem,
             BinaryOp::Shl => Self::Shl,
-            BinaryOp::Field => Self::Field,
             BinaryOp::AndWord => Self::BitAnd,
             BinaryOp::OrWord => Self::BitOr,
             BinaryOp::XorWord => Self::BitXor,

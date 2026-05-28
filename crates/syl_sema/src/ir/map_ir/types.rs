@@ -74,8 +74,6 @@ pub enum MapBinaryOp {
     Rem,
     #[strum(serialize = "<<")]
     Shl,
-    #[strum(serialize = ".")]
-    Field,
     #[strum(serialize = "and")]
     BitAnd,
     #[strum(serialize = "or")]
@@ -103,7 +101,6 @@ impl From<BinaryOp> for MapBinaryOp {
             BinaryOp::Div => Self::Div,
             BinaryOp::Rem => Self::Rem,
             BinaryOp::Shl => Self::Shl,
-            BinaryOp::Field => Self::Field,
             BinaryOp::AndWord => Self::BitAnd,
             BinaryOp::OrWord => Self::BitOr,
             BinaryOp::XorWord => Self::BitXor,
@@ -129,7 +126,6 @@ impl From<MirBinaryOp> for MapBinaryOp {
             MirBinaryOp::Div => Self::Div,
             MirBinaryOp::Rem => Self::Rem,
             MirBinaryOp::Shl => Self::Shl,
-            MirBinaryOp::Field => Self::Field,
             MirBinaryOp::BitAnd => Self::BitAnd,
             MirBinaryOp::BitOr => Self::BitOr,
             MirBinaryOp::BitXor => Self::BitXor,

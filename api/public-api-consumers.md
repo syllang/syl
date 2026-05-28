@@ -699,7 +699,6 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_hir|variant|syl_hir::model::type_ref::MirBinaryOp::BitXor|unit` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|variant|syl_hir::model::type_ref::MirBinaryOp::Div|unit` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|variant|syl_hir::model::type_ref::MirBinaryOp::Eq|unit` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
-- `syl_hir|variant|syl_hir::model::type_ref::MirBinaryOp::Field|unit` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|variant|syl_hir::model::type_ref::MirBinaryOp::GtEq|unit` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|variant|syl_hir::model::type_ref::MirBinaryOp::Gt|unit` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|variant|syl_hir::model::type_ref::MirBinaryOp::LtEq|unit` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.

@@ -629,7 +629,6 @@ syl_hir|variant|syl_hir::model::type_ref::MirBinaryOp::BitOr|unit
 syl_hir|variant|syl_hir::model::type_ref::MirBinaryOp::BitXor|unit
 syl_hir|variant|syl_hir::model::type_ref::MirBinaryOp::Div|unit
 syl_hir|variant|syl_hir::model::type_ref::MirBinaryOp::Eq|unit
-syl_hir|variant|syl_hir::model::type_ref::MirBinaryOp::Field|unit
 syl_hir|variant|syl_hir::model::type_ref::MirBinaryOp::GtEq|unit
 syl_hir|variant|syl_hir::model::type_ref::MirBinaryOp::Gt|unit
 syl_hir|variant|syl_hir::model::type_ref::MirBinaryOp::LtEq|unit

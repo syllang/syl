@@ -1,4 +1,5 @@
 use super::*;
+use syl_span::{SourceFile, SourceId, SourcePosition, SourceRange};
 
 mod node_index;
 
@@ -64,6 +65,58 @@ fn parses_source_from_lexer() {
         },
         other => panic!("unexpected item: {other:?}"),
     }
+}
+
+#[test]
+fn parses_field_access_as_a_field_expression() {
+    let expr = SourceParser::new("foo.bar").parse_expr().unwrap();
+
+    match expr {
+        Expr::Field { base, field, .. } => {
+            assert_eq!(field, "bar");
+            assert!(matches!(*base, Expr::Ident(name, _) if name == "foo"));
+        }
+        other => panic!("unexpected expr: {other:?}"),
+    }
+}
+
+#[test]
+fn parse_output_new_builds_a_usable_node_index() {
+    let span = Span::new(3, 9);
+    let file = AstFile::new(vec![Item::Error(ErrorItem::new(span))]);
+    let output = ParseOutput::new(file, Vec::new());
+
+    let record = output
+        .node_index()
+        .find_by_span(span)
+        .expect("manual ParseOutput construction should populate the node index");
+
+    assert_eq!(
+        record.range(),
+        SourceRange::new(SourcePosition::new(0, 0), SourcePosition::new(0, 0))
+    );
+}
+
+#[test]
+fn source_parser_keeps_utf16_ranges() {
+    let source = "const X = \"é\";\n";
+    let output = SourceParser::new(source).parse_file_partial();
+    let item = match &output.file.items[0] {
+        Item::Const(item) => item,
+        other => panic!("unexpected item: {other:?}"),
+    };
+
+    let record = output
+        .node_index()
+        .find_by_span(item.span)
+        .expect("parsed item should be present in the node index");
+
+    let expected = SourceFile::new(SourceId::default(), "test.syl", source)
+        .utf16_range(item.span)
+        .expect("matching source id should produce a UTF-16 range");
+
+    assert_eq!(record.range(), expected);
+    assert_eq!(record.range().start, SourcePosition::new(0, 0));
 }
 
 #[test]

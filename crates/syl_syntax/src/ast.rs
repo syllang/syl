@@ -736,7 +736,7 @@ pub enum UnaryOp {
 /// A binary operator combining two sub-expressions.
 ///
 /// Includes comparison (`==`, `<`, …), arithmetic (`+`, `-`, …),
-/// bitwise (`and`, `or`, `xor`), and wiring (`.`, `eq`) operators.
+/// bitwise (`and`, `or`, `xor`), and equality-word (`eq`) operators.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, IntoStaticStr)]
 #[non_exhaustive]
 pub enum BinaryOp {
@@ -768,8 +768,6 @@ pub enum BinaryOp {
     Rem,
     #[strum(serialize = "<<")]
     Shl,
-    #[strum(serialize = ".")]
-    Field,
     #[strum(serialize = "and")]
     AndWord,
     #[strum(serialize = "or")]

@@ -115,21 +115,9 @@ impl TypePhaseChecker {
             HirExprNode::Binary {
                 op, left, right, ..
             } => {
-                if matches!(op, BinaryOp::Field) {
-                    errors.push(CompileError::lowering_at(
-                        EirError::UnsupportedHardwareValueExpression,
-                        expr.span(),
-                    ));
-                    self.check_hardware_value_expr(left, errors)?;
-                    self.check_hardware_value_expr(right, errors)
-                } else {
-                    Self::record_recoverable(
-                        errors,
-                        self.check_hardware_binary_op(*op, expr.span()),
-                    );
-                    self.check_hardware_value_expr(left, errors)?;
-                    self.check_hardware_value_expr(right, errors)
-                }
+                Self::record_recoverable(errors, self.check_hardware_binary_op(*op, expr.span()));
+                self.check_hardware_value_expr(left, errors)?;
+                self.check_hardware_value_expr(right, errors)
             }
             HirExprNode::Call { callee, args } => {
                 self.check_hardware_value_call(callee, args, errors)

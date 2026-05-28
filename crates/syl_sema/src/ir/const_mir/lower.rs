@@ -100,10 +100,7 @@ impl<'a> ExprLowerer<'a> {
                 op, left, right, ..
             } => {
                 let op = MirBinaryOp::from(*op);
-                if matches!(
-                    op,
-                    MirBinaryOp::Assign | MirBinaryOp::Field | MirBinaryOp::Unsupported
-                ) {
+                if matches!(op, MirBinaryOp::Assign | MirBinaryOp::Unsupported) {
                     return self.unsupported_expr(expr.span(), expr.id());
                 }
                 ConstExpr::binary(

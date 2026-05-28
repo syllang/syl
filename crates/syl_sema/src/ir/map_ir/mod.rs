@@ -395,7 +395,7 @@ impl<'a> MapIrBuilder<'a> {
                 op, left, right, ..
             } => {
                 let op = MapBinaryOp::from(*op);
-                if matches!(op, MapBinaryOp::Unsupported | MapBinaryOp::Field) {
+                if matches!(op, MapBinaryOp::Unsupported) {
                     return Err(CompileError::lowering_at(
                         TirError::InvalidElaborationExpression,
                         expr.span(),

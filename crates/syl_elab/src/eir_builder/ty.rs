@@ -94,7 +94,6 @@ impl MapTypeLowerer {
                 MapBinaryOp::Div => MirBinaryOp::Div,
                 MapBinaryOp::Rem => MirBinaryOp::Rem,
                 MapBinaryOp::Shl => MirBinaryOp::Shl,
-                MapBinaryOp::Field => MirBinaryOp::Field,
                 MapBinaryOp::BitAnd => MirBinaryOp::BitAnd,
                 MapBinaryOp::BitOr => MirBinaryOp::BitOr,
                 MapBinaryOp::BitXor => MirBinaryOp::BitXor,
