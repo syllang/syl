@@ -1,5 +1,14 @@
 use super::{HirCallableItem, HirExternCellItem, HirSignatureParam, HirSignatureResultBinding};
 
+// Stable internal summary tags for the callable fingerprint.
+//
+// These values are part of the cache contract for `summary_count()`: changing
+// them changes the semantic fingerprint for every callable. The gap between
+// the tags is intentional so a future variant can be inserted without
+// renumbering the existing ones.
+const SUMMARY_TAG_CELL: usize = 1;
+const SUMMARY_TAG_EXTERN: usize = 3;
+
 /// A cell or extern cell definition in the HIR.
 ///
 /// Wraps `HirCallableItem` (with body) or `HirExternCellItem` (without body).
@@ -37,8 +46,8 @@ impl HirCallable {
 
     pub(crate) fn summary_count(&self) -> usize {
         match self {
-            Self::Cell(item) => 1 + item.summary_count(),
-            Self::Extern(item) => 3 + item.summary_count(),
+            Self::Cell(item) => SUMMARY_TAG_CELL + item.summary_count(),
+            Self::Extern(item) => SUMMARY_TAG_EXTERN + item.summary_count(),
         }
     }
 }

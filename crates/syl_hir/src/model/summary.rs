@@ -23,6 +23,21 @@ use super::{
     HirMemberKind, HirTypeRef,
 };
 
+// Stable internal summary tags for the definition fingerprint.
+//
+// These values are part of the cache contract for `summary_count()`: changing
+// them changes the semantic fingerprint for every definition. The gap between
+// `Cell` and `ExternCell` is intentional so a future variant can be inserted
+// without renumbering the existing tags.
+const SUMMARY_TAG_DEF_CONST: usize = 1;
+const SUMMARY_TAG_DEF_FN: usize = 2;
+const SUMMARY_TAG_DEF_ENUM: usize = 3;
+const SUMMARY_TAG_DEF_BUNDLE: usize = 4;
+const SUMMARY_TAG_DEF_INTERFACE: usize = 5;
+const SUMMARY_TAG_DEF_MAP: usize = 6;
+const SUMMARY_TAG_DEF_CELL: usize = 7;
+const SUMMARY_TAG_DEF_EXTERN_CELL: usize = 9;
+
 impl HirDesign {
     pub fn semantic_summary_count(&self) -> usize {
         self.package_sum()
@@ -122,14 +137,14 @@ impl HirDef {
 impl HirDefKind {
     pub(super) fn summary_count(&self) -> usize {
         match self {
-            Self::Const => 1,
-            Self::Fn => 2,
-            Self::Enum => 3,
-            Self::Bundle => 4,
-            Self::Interface => 5,
-            Self::Map => 6,
-            Self::Cell => 7,
-            Self::ExternCell => 9,
+            Self::Const => SUMMARY_TAG_DEF_CONST,
+            Self::Fn => SUMMARY_TAG_DEF_FN,
+            Self::Enum => SUMMARY_TAG_DEF_ENUM,
+            Self::Bundle => SUMMARY_TAG_DEF_BUNDLE,
+            Self::Interface => SUMMARY_TAG_DEF_INTERFACE,
+            Self::Map => SUMMARY_TAG_DEF_MAP,
+            Self::Cell => SUMMARY_TAG_DEF_CELL,
+            Self::ExternCell => SUMMARY_TAG_DEF_EXTERN_CELL,
         }
     }
 }
@@ -194,3 +209,6 @@ impl HirMemberKind {
         }
     }
 }
+
+#[cfg(test)]
+mod tests;
