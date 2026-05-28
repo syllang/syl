@@ -160,9 +160,8 @@ impl SourceFile {
     /// This means the returned position always points to a valid character
     /// start, never to a continuation byte.
     ///
-    /// **Edge case — empty file:** `partition_point` returns 0 for offset 0,
-    /// `saturating_sub(1)` yields `usize::MAX`, then `.get(usize::MAX)` returns
-    /// `None` and `unwrap_or_default()` backtracks to line 0.
+    /// **Empty file:** return the origin directly instead of depending on the
+    /// line lookup fallback chain.
     ///
     /// ```ignore
     /// # let file = SourceFile::new(SourceId::new(0), "test.syl", "abc");
@@ -170,6 +169,10 @@ impl SourceFile {
     /// // byte offset 3 → (line 0, character 3)
     /// ```
     fn utf16_position(&self, offset: usize) -> SourcePosition {
+        if self.text.is_empty() {
+            return SourcePosition::new(0, 0);
+        }
+
         let offset = self.clamp_to_char_boundary(offset.min(self.text.len()));
         let line = self
             .line_starts
@@ -359,5 +362,36 @@ impl DiagnosticRelatedInfo {
             span,
             message: message.into(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn empty_file_utf16_range_maps_to_origin() {
+        let file = SourceFile::new(SourceId::new(7), "empty.syl", "");
+        let span = Span::new_in(file.id(), 0, 0);
+
+        let range = file
+            .utf16_range(span)
+            .expect("empty-file span with matching source must still resolve");
+
+        assert_eq!(range.start, SourcePosition::new(0, 0));
+        assert_eq!(range.end, SourcePosition::new(0, 0));
+    }
+
+    #[test]
+    fn empty_file_clamps_any_offset_to_origin() {
+        let file = SourceFile::new(SourceId::new(8), "empty.syl", "");
+        let span = Span::new_in(file.id(), 12, 34);
+
+        let range = file
+            .utf16_range(span)
+            .expect("empty-file span with matching source must still resolve");
+
+        assert_eq!(range.start, SourcePosition::new(0, 0));
+        assert_eq!(range.end, SourcePosition::new(0, 0));
     }
 }
