@@ -221,6 +221,7 @@ a clear `#[allow(dead_code)]` with reason.
 - 2026-05-28 Worker (gpt-5.4-mini): documented the immutable sharing caveat on `HwOrigin`.
 - 2026-05-28 Review (gpt-5.4-mini): accepted; wording matches `HwOrigin`'s frozen expansion-stack semantics.
 - 2026-05-28 Main: `cargo test -p syl_hw --lib` remains blocked by an unrelated existing compile error in `crates/syl_hw/src/parametric.rs` (duplicate `Debug` impl on `ParametricHwItem`).
+- 2026-05-28 Main: later re-verified with `cargo test -p syl_hw --lib` after the duplicate `ParametricHwItem` derive cleanup removed the temporary crate-level blocker.
 
 `EirOrigin` was recently documented with the caveat that `env.insert` shares
 the same origin across different instantiation paths. `HwOrigin` (in `syl_hw`)
