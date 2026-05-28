@@ -36,6 +36,13 @@ struct EnumValueResolver<'a> {
     const_stack: BTreeSet<DefId>,
 }
 
+/// Arguments for a binary expression within enum value evaluation.
+struct BinaryExpr<'a> {
+    op: BinaryOp,
+    left: &'a HirBodyExpr,
+    right: &'a HirBodyExpr,
+}
+
 impl<'a> EnumValueResolver<'a> {
     fn new(
         checker: &'a TypePhaseChecker,
@@ -189,7 +196,15 @@ impl<'a> EnumValueResolver<'a> {
             HirExprNode::Field { .. } => self.eval_enum_variant(expr, variant_name),
             HirExprNode::Binary {
                 op, left, right, ..
-            } => self.eval_binary(expr, *op, left, right, variant_name),
+            } => self.eval_binary(
+                expr,
+                &BinaryExpr {
+                    op: *op,
+                    left,
+                    right,
+                },
+                variant_name,
+            ),
             _ => Err(self.nat_error(expr.span(), variant_name)),
         }
     }
@@ -197,14 +212,12 @@ impl<'a> EnumValueResolver<'a> {
     fn eval_binary(
         &mut self,
         expr: &HirBodyExpr,
-        op: BinaryOp,
-        left: &HirBodyExpr,
-        right: &HirBodyExpr,
+        args: &BinaryExpr<'_>,
         variant_name: &str,
     ) -> Result<u64, CompileError> {
-        let lhs = self.eval_nat_expr(left, variant_name)?;
-        let rhs = self.eval_nat_expr(right, variant_name)?;
-        let value = match op {
+        let lhs = self.eval_nat_expr(args.left, variant_name)?;
+        let rhs = self.eval_nat_expr(args.right, variant_name)?;
+        let value = match args.op {
             BinaryOp::Add => lhs.checked_add(rhs),
             BinaryOp::Sub => Some(lhs.saturating_sub(rhs)),
             BinaryOp::Mul => lhs.checked_mul(rhs),

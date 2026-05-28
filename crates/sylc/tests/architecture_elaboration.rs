@@ -238,7 +238,7 @@ cell Top(z: out Bit) {
     // Inplace expansions don't produce call-stack related spans for driver conflicts
     // within the expanded cell. The conflict is detected within the cell's own body.
     assert!(
-        diagnostic.related.len() >= 1,
+        !diagnostic.related.is_empty(),
         "driver conflict diagnostics must include related information"
     );
 }

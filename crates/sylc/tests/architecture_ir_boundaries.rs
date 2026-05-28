@@ -169,7 +169,8 @@ fn architecture_ir_owners_stay_single_source() {
         ],
         "EIR build owner must not inline validation/facts composition",
     );
-    let eir_build_callable = read_text(&workspace.join("crates/syl_elab/src/eir/build/callable.rs"));
+    let eir_build_callable =
+        read_text(&workspace.join("crates/syl_elab/src/eir/build/callable.rs"));
     assert!(
         eir_build_callable.contains("ConstValueElaborator"),
         "EIR build owner must depend on the local const elaboration boundary"

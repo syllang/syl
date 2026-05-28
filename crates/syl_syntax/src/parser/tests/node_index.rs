@@ -16,7 +16,11 @@ fn node_index_find_by_span_requires_matching_source_id() {
     assert!(
         output
             .node_index()
-            .find_by_span(Span::new_in(SourceId::new(8), item.span.start, item.span.end))
+            .find_by_span(Span::new_in(
+                SourceId::new(8),
+                item.span.start,
+                item.span.end
+            ))
             .is_none(),
         "changing only Span::source must prevent an exact match"
     );

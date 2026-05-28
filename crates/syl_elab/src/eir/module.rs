@@ -279,6 +279,7 @@ pub(crate) struct EirInstance {
 }
 
 impl EirInstance {
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         module: impl Into<String>,
         params: Vec<EirParamBind>,

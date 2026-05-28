@@ -181,11 +181,9 @@ impl SemanticCache {
         let cached = self.elaboration.get().is_some();
         self.check_cancellation_before(token, cached)?;
         if cached {
-            return Ok(Some(
-                self.elaboration
-                    .get()
-                    .expect("cached elaboration output must exist before returning it"),
-            ));
+            return Ok(Some(self.elaboration.get().expect(
+                "cached elaboration output must exist before returning it",
+            )));
         }
 
         let _guard = self
@@ -200,11 +198,9 @@ impl SemanticCache {
             .output_for_tir_with_token(tir, token);
         self.check_cancellation_after_uncached_stage(token)?;
         let _ = self.elaboration.set(output);
-        Ok(Some(
-            self.elaboration
-                .get()
-                .expect("elaboration cache must be initialized before returning output"),
-        ))
+        Ok(Some(self.elaboration.get().expect(
+            "elaboration cache must be initialized before returning output",
+        )))
     }
 
     pub(crate) fn diagnostics(&self) -> Vec<Diagnostic> {

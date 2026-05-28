@@ -346,25 +346,13 @@ pub enum HwDirection {
 #[non_exhaustive]
 pub enum HwItem {
     /// A compile-time parameter assignment within the module.
-    StaticParam {
-        name: String,
-        value: HwExpr,
-    },
+    StaticParam { name: String, value: HwExpr },
     /// A combinational signal declaration.
-    SignalDecl {
-        width: String,
-        name: String,
-    },
+    SignalDecl { width: String, name: String },
     /// A storage element (register) declaration.
-    StorageDecl {
-        width: String,
-        name: String,
-    },
+    StorageDecl { width: String, name: String },
     /// A continuous assignment: `lhs = rhs`.
-    ContinuousDrive {
-        lhs: HwExpr,
-        rhs: HwExpr,
-    },
+    ContinuousDrive { lhs: HwExpr, rhs: HwExpr },
     /// A clocked storage element with optional reset.
     ClockedStorage {
         clock: HwExpr,
@@ -390,9 +378,7 @@ pub enum HwItem {
         items: Vec<HwItem>,
     },
     /// An error marker — elaborating this item produces a compile error.
-    InitialError {
-        message: HwExpr,
-    },
+    InitialError { message: HwExpr },
 }
 
 /// Reset specification for a clocked storage element.

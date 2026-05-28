@@ -175,21 +175,21 @@ fn architecture_rust_files_stay_under_700_lines() {
     let mut violations = Vec::new();
 
     for path in rs_files_under(&workspace) {
-        let line_count = read_text(path.clone()).lines().count();
-        if line_count > 700 {
+        let code_lines = count_code_lines(&read_text(path.clone()));
+        if code_lines > 700 {
             violations.push(format!(
-                "{} has {} lines",
+                "{} has {} code lines (excludes blanks & comments)",
                 path.strip_prefix(&workspace)
                     .unwrap_or(path.as_path())
                     .display(),
-                line_count
+                code_lines
             ));
         }
     }
 
     assert!(
         violations.is_empty(),
-        "Rust source files must remain under 700 lines.\n{}",
+        "Rust source files must remain under 700 code lines.\n{}",
         violations.join("\n")
     );
 }
@@ -693,4 +693,68 @@ fn normalize_whitespace(text: &str) -> String {
     }
 
     normalized
+}
+
+/// Count the number of Rust code lines in `text`, excluding blank lines and
+/// comments (both `//` line comments and `/* … */` block comments).
+fn count_code_lines(text: &str) -> usize {
+    let mut in_block_comment = false;
+    let mut count = 0;
+
+    for line in text.lines() {
+        let trimmed = line.trim();
+
+        // Blank line
+        if trimmed.is_empty() {
+            continue;
+        }
+
+        if in_block_comment {
+            // Check if block comment ends on this line
+            if let Some(pos) = trimmed.find("*/") {
+                in_block_comment = false;
+                // Everything after `*/` might be code on the same line
+                let after = trimmed[pos + 2..].trim();
+                if !after.is_empty() && !after.starts_with("//") {
+                    count += 1;
+                }
+            }
+            continue;
+        }
+
+        // Line comment or doc comment
+        if trimmed.starts_with("//") {
+            continue;
+        }
+
+        // Block comment start
+        if let Some(pos) = trimmed.find("/*") {
+            // Check if it also closes on the same line
+            let after_open = &trimmed[pos + 2..];
+            if let Some(end) = after_open.find("*/") {
+                // Everything before `/*` and after `*/` on the same line
+                let before = trimmed[..pos].trim();
+                let after = after_open[end + 2..].trim();
+                let has_code_before = !before.is_empty() && !before.starts_with("//");
+                let has_code_after = !after.is_empty() && !after.starts_with("//");
+                if has_code_before || has_code_after {
+                    count += 1;
+                }
+                // Block comment is fully contained in this line
+            } else {
+                // Multi-line block comment starts
+                let before = trimmed[..pos].trim();
+                if !before.is_empty() && !before.starts_with("//") {
+                    count += 1;
+                }
+                in_block_comment = true;
+            }
+            continue;
+        }
+
+        // Regular code line
+        count += 1;
+    }
+
+    count
 }

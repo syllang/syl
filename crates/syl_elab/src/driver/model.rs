@@ -124,6 +124,7 @@ pub(crate) struct CreateFact {
 }
 
 impl CreateFact {
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         module: impl Into<String>,
         name: impl Into<String>,
