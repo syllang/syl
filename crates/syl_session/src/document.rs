@@ -1,9 +1,11 @@
 use crate::DocumentUri;
 use std::path::{Path, PathBuf};
 
+/// A document version identifier — monotonic numeric counter.
+///
+/// Versions are compared and hashed by their numeric value only.
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 #[non_exhaustive]
-/// Document versions are compared and hashed by their numeric revision value only.
 pub struct DocumentVersion {
     value: u64,
 }
@@ -32,6 +34,7 @@ impl Default for DocumentVersion {
     }
 }
 
+/// Where a document was loaded from — the real filesystem or an in-memory overlay.
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum DocumentOrigin {
@@ -39,6 +42,7 @@ pub enum DocumentOrigin {
     Overlay,
 }
 
+/// A source document loaded into the session — tracks URI, version, text, and origin.
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct SourceDocument {

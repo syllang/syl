@@ -10,6 +10,7 @@ use syl_syntax::{
 
 mod summary;
 
+/// Direction of a hardware port in the HIR.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, IntoStaticStr)]
 #[non_exhaustive]
 pub enum HirPortDirection {
@@ -59,6 +60,7 @@ impl From<Option<&ParamDirection>> for HirPortDirection {
     }
 }
 
+/// Whether a HIR port or signal can be read, written, or both.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, IntoStaticStr)]
 #[non_exhaustive]
 pub enum HirDriveCapability {
@@ -81,6 +83,7 @@ impl From<&DriveCapability> for HirDriveCapability {
     }
 }
 
+/// A generic type or const parameter on a HIR definition signature.
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct HirSignatureGenericParam {
@@ -105,6 +108,7 @@ impl From<&GenericParam> for HirSignatureGenericParam {
     }
 }
 
+/// A single parameter on a HIR definition signature (fn, map, or cell).
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct HirSignatureParam {
@@ -118,11 +122,13 @@ pub struct HirSignatureParam {
 }
 
 impl HirSignatureParam {
+    /// Returns `true` if this parameter is the `this` receiver.
     pub fn is_receiver(&self) -> bool {
         matches!(self.role, HirParamRole::Receiver)
     }
 }
 
+/// Whether a parameter is an ordinary value or the implicit receiver.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum HirParamRole {
@@ -154,6 +160,7 @@ impl From<&Param> for HirSignatureParam {
     }
 }
 
+/// The named result binding of a cell: `-> (name: T)`.
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct HirSignatureResultBinding {
@@ -192,6 +199,7 @@ impl From<&TypeExpr> for HirReturnType {
     }
 }
 
+/// Direction of a field within an interface view in the HIR.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, IntoStaticStr)]
 #[non_exhaustive]
 pub enum HirViewDirection {
@@ -214,6 +222,7 @@ impl From<&ViewDirection> for HirViewDirection {
     }
 }
 
+/// Encoding scheme for an enum's hardware representation in the HIR.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, IntoStaticStr)]
 #[non_exhaustive]
 pub enum HirEnumLayout {
@@ -236,6 +245,7 @@ impl From<&SyntaxEnumLayout> for HirEnumLayout {
     }
 }
 
+/// A variant declaration within an enum definition.
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct HirEnumVariantDecl {
@@ -256,6 +266,7 @@ impl From<&syl_syntax::EnumVariant> for HirEnumVariantDecl {
     }
 }
 
+/// A named field in a bundle, interface, or struct type.
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct HirFieldDecl {
@@ -276,6 +287,7 @@ impl From<&FieldDecl> for HirFieldDecl {
     }
 }
 
+/// A metadata annotation on a bundle or interface.
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct HirAttribute {
@@ -296,6 +308,7 @@ impl From<&syl_syntax::Attribute> for HirAttribute {
     }
 }
 
+/// A named view declaration within an interface.
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct HirViewDecl {
@@ -314,6 +327,7 @@ impl From<&syl_syntax::ViewDecl> for HirViewDecl {
     }
 }
 
+/// A field within a view declaration.
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct HirViewField {
@@ -334,6 +348,7 @@ impl From<&syl_syntax::ViewField> for HirViewField {
     }
 }
 
+/// A hardware port declaration on a cell's interface.
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct HirPortDecl {
@@ -358,6 +373,7 @@ impl From<&PortDecl> for HirPortDecl {
     }
 }
 
+/// A compiled `const` item in the HIR.
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct HirConstItem {
@@ -380,6 +396,7 @@ impl From<&ConstItem> for HirConstItem {
     }
 }
 
+/// A compiled `fn` item in the HIR.
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct HirFnItem {
@@ -404,6 +421,7 @@ impl From<&FnItem> for HirFnItem {
     }
 }
 
+/// A compiled `enum` item in the HIR.
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct HirEnumItem {
@@ -428,6 +446,7 @@ impl From<&EnumItem> for HirEnumItem {
     }
 }
 
+/// A compiled `bundle` item in the HIR.
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct HirBundleItem {
@@ -456,6 +475,7 @@ impl From<&BundleItem> for HirBundleItem {
     }
 }
 
+/// A compiled `interface` item in the HIR.
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct HirInterfaceItem {
@@ -484,6 +504,7 @@ impl From<&InterfaceItem> for HirInterfaceItem {
     }
 }
 
+/// A compiled `map` item in the HIR (a pure expression function).
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct HirMapItem {
@@ -514,6 +535,7 @@ impl From<&MapItem> for HirMapItem {
     }
 }
 
+/// A compiled `cell` item in the HIR — a hardware module with body.
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct HirCallableItem {
@@ -546,6 +568,7 @@ impl From<&syl_syntax::CallableItem> for HirCallableItem {
     }
 }
 
+/// A compiled `extern cell` item in the HIR (no body).
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct HirExternCellItem {

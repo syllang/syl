@@ -1,6 +1,7 @@
 use crate::DefId;
 use syl_span::Span;
 
+/// Composite key identifying an enum variant by its parent definition and name.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 #[non_exhaustive]
 pub struct HirEnumVariantKey {
@@ -8,6 +9,7 @@ pub struct HirEnumVariantKey {
     pub name: String,
 }
 
+/// A resolved enum variant with its concrete numeric value.
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct HirEnumVariant {
@@ -18,6 +20,7 @@ pub struct HirEnumVariant {
 }
 
 impl HirEnumVariantKey {
+    /// Creates a new variant key.
     pub fn new(enum_def: DefId, name: impl Into<String>) -> Self {
         Self {
             enum_def,
@@ -27,6 +30,7 @@ impl HirEnumVariantKey {
 }
 
 impl HirEnumVariant {
+    /// Creates a new variant with a resolved numeric value.
     pub fn new(enum_def: DefId, name: impl Into<String>, value: u64, span: Span) -> Self {
         Self {
             enum_def,

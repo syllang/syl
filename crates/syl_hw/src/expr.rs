@@ -1,5 +1,9 @@
 use strum_macros::IntoStaticStr;
 
+/// An expression in the elaborated hardware IR.
+///
+/// Covers identifiers, literals, operations, mux, select, concatenation,
+/// slicing, indexing, and function calls.
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum HwExpr {
@@ -49,6 +53,7 @@ pub enum HwExpr {
     },
 }
 
+/// A unary operator in the HW IR.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, IntoStaticStr)]
 #[non_exhaustive]
 pub enum HwUnaryOp {
@@ -58,6 +63,7 @@ pub enum HwUnaryOp {
     Not,
 }
 
+/// A binary operator in the HW IR.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, IntoStaticStr)]
 #[non_exhaustive]
 pub enum HwBinaryOp {
@@ -97,6 +103,7 @@ pub enum HwBinaryOp {
     BitXor,
 }
 
+/// Select evaluation mode in the HW IR.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, IntoStaticStr)]
 #[non_exhaustive]
 pub enum HwSelectMode {
@@ -107,11 +114,13 @@ pub enum HwSelectMode {
 }
 
 impl HwSelectMode {
+    /// Returns `true` if this is `Unique` mode.
     pub fn is_unique(&self) -> bool {
         matches!(self, Self::Unique)
     }
 }
 
+/// A single arm in a hardware select expression.
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct HwSelectArm {
@@ -124,10 +133,12 @@ impl HwSelectArm {
         Self { guard, value }
     }
 
+    /// Returns the guard (condition) expression.
     pub fn guard(&self) -> &HwExpr {
         &self.guard
     }
 
+    /// Returns the value expression for this arm.
     pub fn value(&self) -> &HwExpr {
         &self.value
     }

@@ -18,6 +18,10 @@ mod stage_runner;
 pub use stage::ElabStage;
 use stage_runner::TirStageRunner;
 
+/// The top-level compiler for hardware elaboration.
+///
+/// Drives the pipeline from TIR through ConstMIR, MapIR, EIR,
+/// DRC, and HW emission, producing a `ParametricHwDesign`.
 #[derive(Debug, Default)]
 #[non_exhaustive]
 pub struct HardwareCompiler {
@@ -31,26 +35,32 @@ impl HardwareCompiler {
         }
     }
 
+    /// Creates a compiler pre-loaded with opaque (external cell) summaries.
     pub fn with_opaque_summaries(opaque_summaries: OpaqueSummaryTable) -> Self {
         Self { opaque_summaries }
     }
 
+    /// Registers a single opaque summary for an external cell definition.
     pub fn register_opaque_summary(&mut self, summary: OpaqueItemSummary) {
         self.opaque_summaries.register(summary);
     }
 
+    /// Returns the current opaque summary table.
     pub fn opaque_summaries(&self) -> &OpaqueSummaryTable {
         &self.opaque_summaries
     }
 
+    /// Compiles TIR analysis into a `ParametricHwDesign`.
     pub fn compile_tir(&self, tir: &TirAnalysis) -> Result<ParametricHwDesign, CompileError> {
         TirStageRunner::new(tir, &self.opaque_summaries).compile_hwir()
     }
 
+    /// Returns the full pipeline output (all stages) for a given TIR.
     pub fn output_for_tir(&self, tir: &TirAnalysis) -> ElaborationOutput {
         TirStageRunner::new(tir, &self.opaque_summaries).stage_output()
     }
 
+    /// Returns diagnostics from the elaboration pipeline.
     pub fn diagnostics(&self, tir: &TirAnalysis) -> Vec<Diagnostic> {
         TirStageRunner::new(tir, &self.opaque_summaries).diagnostics()
     }
@@ -128,6 +138,7 @@ impl ElaborationOutput {
 }
 
 #[non_exhaustive]
+/// Output of the ConstMIR stage — constant-folding and const evaluation.
 pub struct ConstMirStage {
     program: ConstMirProgram,
 }
@@ -155,6 +166,7 @@ impl ConstMirStage {
 }
 
 #[non_exhaustive]
+/// Output of the MapIR stage — pure function lowering.
 pub struct MapIrStage {
     program: MapIrProgram,
 }
@@ -189,6 +201,7 @@ impl MapIrStage {
     }
 }
 
+/// Output of the EIR build stage — raw elaborated IR before optimization.
 #[non_exhaustive]
 pub struct EirBuildStage {
     design: Arc<EirRawDesign>,
@@ -278,6 +291,7 @@ impl EirBuildStage {
     }
 }
 
+/// Output of the EIR validation stage — checks structural correctness.
 #[non_exhaustive]
 pub struct EirValidationStage {
     module_count: usize,
@@ -297,6 +311,7 @@ impl EirValidationStage {
     }
 }
 
+/// Output of the EIR facts stage — analyzed driver/read/create facts.
 #[non_exhaustive]
 pub struct EirFactsStage {
     facts: Arc<EirDesignFacts>,
@@ -345,6 +360,7 @@ impl EirFactsStage {
     }
 }
 
+/// Output of the EIR stage — the fully constructed EIR design with facts.
 #[non_exhaustive]
 pub struct EirStage {
     design: EirDesign,
@@ -368,6 +384,7 @@ impl EirStage {
     }
 }
 
+/// Output of the driver facts analysis stage.
 #[non_exhaustive]
 pub struct DriverFactsStage {
     facts: DriverFacts,
@@ -395,6 +412,7 @@ impl DriverFactsStage {
     }
 }
 
+/// Output of the DRC (design rule check) stage.
 #[non_exhaustive]
 pub struct DrcStage {
     report: DriverDrcReport,

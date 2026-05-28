@@ -1,6 +1,8 @@
 use derive_builder::Builder;
 use std::path::PathBuf;
 
+/// Configuration for a Syl project — sets workspace, standard library,
+/// and package search roots.
 #[derive(Clone, Debug, Default, Builder)]
 #[builder(pattern = "owned", build_fn(name = "try_build"))]
 #[non_exhaustive]

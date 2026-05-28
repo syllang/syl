@@ -2,6 +2,17 @@ use super::SemanticCache;
 use crate::DocumentUri;
 use std::{collections::BTreeMap, sync::Arc};
 
+/// Probe interface for checking what analysis stages have cached results.
+///
+/// This is the public face of the semantic cache. Callers can check whether
+/// HIR or TIR analysis is already cached without triggering a re-analysis.
+/// The cache uses `HirDesign::semantic_summary_count` as a fast fingerprint
+/// to detect staleness.
+///
+/// **Typical workflow:**
+/// 1. Get a `PackageSemanticCacheProbe` from the snapshot.
+/// 2. Check `is_hir_cached()` / `is_tir_cached()`.
+/// 3. If cached, skip analysis; otherwise, run the stage.
 #[derive(Clone, Debug)]
 #[non_exhaustive]
 pub struct PackageSemanticCacheProbe {
@@ -13,10 +24,12 @@ impl PackageSemanticCacheProbe {
         Self { semantic }
     }
 
+    /// Returns `true` if HIR analysis results are cached and up-to-date.
     pub fn is_hir_cached(&self) -> bool {
         self.semantic.is_hir_cached()
     }
 
+    /// Returns `true` if TIR (type-inferred) analysis results are cached.
     pub fn is_tir_cached(&self) -> bool {
         self.semantic.is_tir_cached()
     }

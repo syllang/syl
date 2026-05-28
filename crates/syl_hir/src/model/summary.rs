@@ -1,3 +1,22 @@
+//! Deterministic semantic fingerprint for the HIR design.
+//!
+//! `semantic_summary_count()` computes a single `usize` that changes when
+//! the *semantic content* of the design changes (definitions, locals, exprs,
+//! type refs, etc.). It is NOT a hash or a cryptographic digest — it's a
+//! best-effort ordering-friendly sum used by the session layer to decide
+//! whether cached analysis results are stale.
+//!
+//! **How it works:** Each type contributes a mix of name lengths, span
+//! positions, enum discriminants, and arena IDs. These are chosen to be:
+//! 1. Deterministic — same source always produces the same count.
+//! 2. Sensitive to semantic changes — adding a field, renaming a def, or
+//!    inserting a statement changes the count.
+//! 3. Cheap to compute — no heap allocations, just integer arithmetic.
+//!
+//! **Limitation:** Collisions are possible (two different designs may produce
+//! the same count). This is acceptable because the caller uses the count as a
+//! fast "probabilistic freshness check" before doing a full comparison.
+
 use super::{
     HirBundleItem, HirCallable, HirConstItem, HirDef, HirDefKind, HirDesign, HirEnumItem, HirExpr,
     HirFieldAccess, HirFnItem, HirInterfaceItem, HirLocal, HirLocalKind, HirMapItem, HirMemberDecl,

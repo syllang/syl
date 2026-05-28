@@ -3,6 +3,8 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use syl_syntax::Item;
 
+/// The workspace structure of the project — root directories, source database,
+/// and package dependency graph.
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct WorkspaceSnapshot {
@@ -29,6 +31,7 @@ impl WorkspaceSnapshot {
     }
 }
 
+/// Collection of all source documents known to the workspace.
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct SourceDatabase {
@@ -81,6 +84,7 @@ impl SourceDatabaseDocument {
     }
 }
 
+/// The package dependency graph for the workspace.
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct PackageGraph {
@@ -156,6 +160,7 @@ impl WorkspacePackage {
     }
 }
 
+/// A single package import edge in the dependency graph.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 #[non_exhaustive]
 pub struct PackageImport {

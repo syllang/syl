@@ -29,6 +29,11 @@ pub use item::{
     HirViewDirection, HirViewField,
 };
 
+/// The complete HIR representation of a compiled Syl design.
+///
+/// `HirDesign` is the top-level container holding every definition,
+/// expression, type reference, and resolution produced during semantic
+/// analysis. It is the input to elaboration.
 #[non_exhaustive]
 pub struct HirDesign {
     pub packages: Vec<HirPackage>,
@@ -55,6 +60,7 @@ pub struct HirDesign {
 }
 
 impl HirDesign {
+    /// Creates an empty design with no packages, definitions, or expressions.
     pub fn empty() -> Self {
         Self {
             packages: Vec::new(),
@@ -81,10 +87,12 @@ impl HirDesign {
         }
     }
 
+    /// Returns the name of a definition by its ID.
     pub fn def_name(&self, id: DefId) -> Option<&str> {
         self.defs.get(id.get()).map(|def| def.name.as_str())
     }
 
+    /// Returns all definition IDs visible from the given owner's package.
     pub fn visible_def_ids(&self, owner: DefId) -> Vec<DefId> {
         let Some(package) = self.package_path_for_def(owner) else {
             return Vec::new();
@@ -108,6 +116,7 @@ impl HirDesign {
         defs
     }
 
+    /// Returns all definition IDs that belong to a given source file.
     pub fn source_def_ids(&self, source: syl_span::SourceId) -> Vec<DefId> {
         self.defs
             .iter()
@@ -116,10 +125,13 @@ impl HirDesign {
             .collect()
     }
 
+    /// Returns the doc comment for a source module, if any.
     pub fn doc_for_module(&self, source: SourceId) -> Option<&str> {
         self.module_docs.get(&source).map(String::as_str)
     }
 
+    /// Returns the doc comment for a definition item, searching across
+    /// all item kinds (const, fn, enum, bundle, interface, map, cell).
     pub fn doc_for_item(&self, def: DefId) -> Option<&str> {
         self.consts
             .get(&def)
@@ -143,6 +155,7 @@ impl HirDesign {
             })
     }
 
+    /// Returns the doc comment for a specific field of a bundle or interface definition.
     pub fn doc_for_field(&self, def: DefId, field: &str) -> Option<&str> {
         self.bundles
             .get(&def)
@@ -162,6 +175,7 @@ impl HirDesign {
             })
     }
 
+    /// Finds the definition that an import statement at the given span resolves to.
     pub fn import_def_at(&self, span: Span) -> Option<DefId> {
         self.imports
             .iter()
@@ -174,6 +188,7 @@ impl HirDesign {
             })
     }
 
+    /// Finds the member declaration at a span within a given owner definition.
     pub fn member_field_def_at(&self, owner: DefId, span: Span) -> Option<&HirMemberDecl> {
         self.member_decls
             .iter()
@@ -181,6 +196,7 @@ impl HirDesign {
             .min_by_key(|member| span_width(member.span))
     }
 
+    /// Finds any member declaration whose span contains the given cursor position.
     pub fn member_decl_definition_at(&self, span: Span) -> Option<&HirMemberDecl> {
         self.member_decls
             .iter()
@@ -188,6 +204,7 @@ impl HirDesign {
             .min_by_key(|member| span_width(member.span))
     }
 
+    /// Finds a type reference belonging to the given owner that contains this span.
     pub fn type_ref_at(&self, owner: DefId, span: Span) -> Option<&HirTypeRef> {
         self.type_refs
             .iter()
@@ -195,14 +212,17 @@ impl HirDesign {
             .min_by_key(|type_ref| span_width(type_ref.span))
     }
 
+    /// Returns the extension methods available for a given receiver type and method name.
     pub fn extension_methods_for(&self, receiver: DefId, name: &str) -> &[DefId] {
         self.extension_methods.methods_for(receiver, name)
     }
 
+    /// Registers an extension method for a receiver type.
     pub fn register_extension_method(&mut self, receiver: DefId, name: String, method: DefId) {
         self.extension_methods.register(receiver, name, method);
     }
 
+    /// Resolves the view member for a `ViewSelect` type reference at the given span.
     pub fn view_def_for_type_ref(
         &self,
         owner: DefId,
@@ -221,10 +241,12 @@ impl HirDesign {
         })
     }
 
+    /// Resolves a type reference to its canonical definition ID.
     pub fn resolved_type_def_for_ref(&self, type_ref: &HirTypeRef) -> Option<DefId> {
         self.type_def_for_mir_type(type_ref.owner, &type_ref.ty)
     }
 
+    /// Returns all member declarations for a given owner (for autocompletion).
     pub fn member_completion_fields_at(&self, owner: DefId, _span: Span) -> Vec<&HirMemberDecl> {
         self.member_decls
             .iter()
@@ -232,6 +254,7 @@ impl HirDesign {
             .collect()
     }
 
+    /// Resolves a `MirTypeRef` to its canonical definition ID.
     pub fn type_def_for_mir_type(&self, _owner: DefId, ty: &MirTypeRef) -> Option<DefId> {
         if let Some(path) = ty.path() {
             if path.len() == 1 {
@@ -258,12 +281,15 @@ impl HirDesign {
         None
     }
 
+    /// Returns the package path containing the given definition.
     pub fn package_path_for_def(&self, owner: DefId) -> Option<HirPath> {
         self.defs
             .get(owner.get())
             .map(|def| def.canonical_path.parent())
     }
 
+    /// If `expr` is a field access on an enum, returns the enum's definition ID
+    /// and the variant name.
     pub fn enum_variant_expr<'a>(&self, expr: &'a HirBodyExpr) -> Option<(DefId, &'a str)> {
         let (base, variant) = match &expr.node {
             HirExprNode::Field { base, field } => (base.as_ref(), field.as_str()),
@@ -304,6 +330,9 @@ fn span_width(span: Span) -> usize {
     span.end.saturating_sub(span.start)
 }
 
+/// Index mapping receiver type → method name → list of extension method defs.
+///
+/// Used during resolution to find extension methods for a given type.
 #[derive(Clone, Default)]
 #[non_exhaustive]
 pub struct HirExtensionMethodIndex {
@@ -315,6 +344,7 @@ impl HirExtensionMethodIndex {
         Self::default()
     }
 
+    /// Returns all extension methods with `name` that apply to `receiver`.
     pub fn methods_for(&self, receiver: DefId, name: &str) -> &[DefId] {
         self.methods
             .get(&receiver)
@@ -323,6 +353,7 @@ impl HirExtensionMethodIndex {
             .unwrap_or(&[])
     }
 
+    /// Registers an extension method for the given receiver type.
     pub fn register(&mut self, receiver: DefId, name: String, method: DefId) {
         self.methods
             .entry(receiver)
@@ -333,6 +364,9 @@ impl HirExtensionMethodIndex {
     }
 }
 
+/// A package in the HIR — a namespace containing definitions.
+///
+/// `path` is the segmented namespace path (e.g. `["std", "logic"]`).
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct HirPackage {
@@ -347,6 +381,7 @@ impl HirPackage {
     }
 }
 
+/// A resolved import binding a short name path to its canonical package path.
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct HirImport {
@@ -365,6 +400,11 @@ impl HirImport {
     }
 }
 
+/// A single named definition in the HIR.
+///
+/// Every item declaration (`const`, `fn`, `enum`, etc.) becomes a `HirDef`
+/// with a unique `DefId`, a human-readable `name`, a `canonical_path` for
+/// cross-referencing, and a `kind` that dispatches to the item's body.
 #[non_exhaustive]
 pub struct HirDef {
     pub id: DefId,
@@ -392,6 +432,7 @@ impl HirDef {
     }
 }
 
+/// What kind of declaration a `HirDef` represents.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, IntoStaticStr)]
 #[non_exhaustive]
 #[strum(serialize_all = "snake_case")]
@@ -407,6 +448,10 @@ pub enum HirDefKind {
     ExternCell,
 }
 
+/// A local variable or binding within a definition body.
+///
+/// Locals cover parameters, let-bindings, variables, signals, registers,
+/// loop variables, and instance names defined inside a function or cell.
 #[non_exhaustive]
 pub struct HirLocal {
     pub id: LocalId,
@@ -428,6 +473,7 @@ impl HirLocal {
     }
 }
 
+/// The syntactic role of a `HirLocal`.
 #[derive(Clone, Copy, IntoStaticStr)]
 #[non_exhaustive]
 #[strum(serialize_all = "snake_case")]
@@ -444,6 +490,10 @@ pub enum HirLocalKind {
     Loop,
 }
 
+/// A single expression occurrence in the HIR, identified by its arena ID.
+///
+/// The expression's actual node data is stored in `HirDesign::exprs`
+/// or in `HirBodyExpr` for body-local expressions.
 #[derive(Clone, Copy)]
 #[non_exhaustive]
 pub struct HirExpr {
@@ -458,6 +508,7 @@ impl HirExpr {
     }
 }
 
+/// A field access expression `base.field` in the HIR.
 #[non_exhaustive]
 pub struct HirFieldAccess {
     pub owner: DefId,
@@ -477,6 +528,10 @@ impl HirFieldAccess {
     }
 }
 
+/// A declaration of a field, view, or view-field member within a type.
+///
+/// Member declarations associate field/view names with their owner type
+/// and provide the information needed for name resolution and completion.
 #[non_exhaustive]
 pub struct HirMemberDecl {
     pub owner: DefId,
@@ -514,6 +569,11 @@ impl HirMemberDecl {
     }
 }
 
+/// The kind of a member declaration within a type.
+///
+/// `Field` — a data field with its type.
+/// `View` — a named view (interface directional subgroup).
+/// `ViewField` — a field within a named view.
 #[derive(Clone, Debug, PartialEq, IntoStaticStr)]
 #[non_exhaustive]
 pub enum HirMemberKind {
@@ -531,6 +591,8 @@ impl HirMemberKind {
     }
 }
 
+/// A type annotation occurrence in the HIR, linking a type expression
+/// to the definition body that owns it.
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct HirTypeRef {

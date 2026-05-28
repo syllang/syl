@@ -145,6 +145,7 @@ pub enum TokenKind {
     RBracket,
 }
 
+/// A single lexed token with its kind and source span.
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct Token {
@@ -153,6 +154,7 @@ pub struct Token {
 }
 
 impl Token {
+    /// Creates a new token with the given kind and source span.
     pub fn new(kind: TokenKind, span: Span) -> Self {
         Self { kind, span }
     }

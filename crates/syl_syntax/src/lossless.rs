@@ -1,5 +1,11 @@
 use syl_span::Span;
 
+/// A complete syntax tree that preserves every token and all trivia
+/// (whitespace, comments) as they appear in the source.
+///
+/// Unlike the typed AST (`AstFile`), the lossless tree stores exact
+/// token text and can reproduce the original source file exactly.
+/// Used by the formatter and language server.
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct LosslessSyntaxFile {
@@ -8,23 +14,28 @@ pub struct LosslessSyntaxFile {
 }
 
 impl LosslessSyntaxFile {
+    /// Creates a new lossless file with a root node and token list.
     pub fn new(root: LosslessSyntaxNode, tokens: Vec<LosslessToken>) -> Self {
         debug_assert!(matches!(root.kind(), LosslessNodeKind::File));
         Self { root, tokens }
     }
 
+    /// Returns the root syntax node of this file.
     pub fn root(&self) -> &LosslessSyntaxNode {
         &self.root
     }
 
+    /// Returns every token in order, including trivia tokens.
     pub fn tokens(&self) -> &[LosslessToken] {
         &self.tokens
     }
 
+    /// Writes the exact source text reconstructed from tokens into `out`.
     pub fn write_source(&self, out: &mut String) {
         self.root.write_source(out);
     }
 
+    /// Reconstructs and returns the exact source text.
     pub fn source_text(&self) -> String {
         let mut source =
             String::with_capacity(self.tokens.iter().map(|token| token.text.len()).sum());
@@ -33,6 +44,8 @@ impl LosslessSyntaxFile {
     }
 }
 
+/// A single node in the lossless syntax tree, representing a non-terminal
+/// with a kind, source span, and ordered children (nodes or tokens).
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct LosslessSyntaxNode {
@@ -42,6 +55,7 @@ pub struct LosslessSyntaxNode {
 }
 
 impl LosslessSyntaxNode {
+    /// Creates a new syntax node.
     pub fn new(kind: LosslessNodeKind, span: Span, children: Vec<LosslessSyntaxElement>) -> Self {
         Self {
             kind,
@@ -50,14 +64,17 @@ impl LosslessSyntaxNode {
         }
     }
 
+    /// Returns the kind of this node (File, Item, or Trivia).
     pub fn kind(&self) -> &LosslessNodeKind {
         &self.kind
     }
 
+    /// Returns the combined source span covering all children.
     pub fn span(&self) -> Span {
         self.span
     }
 
+    /// Returns the ordered child elements (tokens and sub-nodes).
     pub fn children(&self) -> &[LosslessSyntaxElement] {
         &self.children
     }
@@ -69,6 +86,7 @@ impl LosslessSyntaxNode {
     }
 }
 
+/// Either a non-terminal node or a terminal token in the lossless tree.
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum LosslessSyntaxElement {
@@ -77,6 +95,7 @@ pub enum LosslessSyntaxElement {
 }
 
 impl LosslessSyntaxElement {
+    /// Returns the source span of this element.
     pub fn span(&self) -> Span {
         match self {
             Self::Node(node) => node.span(),
@@ -92,6 +111,11 @@ impl LosslessSyntaxElement {
     }
 }
 
+/// The kind of a lossless syntax node.
+///
+/// `File` — the root of the source file.
+/// `Item(item_kind)` — a top-level declaration.
+/// `Trivia` — whitespace, comments, or other non-semantic content.
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum LosslessNodeKind {
@@ -100,6 +124,7 @@ pub enum LosslessNodeKind {
     Trivia,
 }
 
+/// Which top-level declaration kind a lossless item node represents.
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum LosslessItemKind {
@@ -115,6 +140,9 @@ pub enum LosslessItemKind {
     Error,
 }
 
+/// A single token in the lossless tree, including trivia tokens.
+///
+/// Unlike `Token`, this stores the exact source text as a string.
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct LosslessToken {
@@ -124,6 +152,7 @@ pub struct LosslessToken {
 }
 
 impl LosslessToken {
+    /// Creates a new lossless token with the given kind, span, and text.
     pub fn new(kind: LosslessTokenKind, span: Span, text: impl Into<Box<str>>) -> Self {
         Self {
             kind,

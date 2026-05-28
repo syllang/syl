@@ -5,6 +5,7 @@ mod sv_ir;
 use syl_hw::{HwNormalizer, ParametricHwDesign};
 use thiserror::Error;
 
+/// Errors that can occur during SystemVerilog backend compilation.
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum CompileError {
@@ -17,14 +18,17 @@ pub enum CompileError {
 }
 
 impl CompileError {
+    /// Creates an error for invalid HWIR input.
     pub fn invalid_hwir(report: syl_hw::HwValidationReport) -> Self {
         Self::InvalidHwir { report }
     }
 
+    /// Creates an error for SystemVerilog syntax-level issues.
     pub fn verilog(kind: VerilogError) -> Self {
         Self::Verilog { kind }
     }
 
+    /// Creates an error for HWIR constructs not yet supported by the backend.
     pub fn unsupported_hwir(message: impl Into<String>) -> Self {
         Self::UnsupportedHwir {
             message: message.into(),
@@ -32,6 +36,7 @@ impl CompileError {
     }
 }
 
+/// Errors representing malformed or unsupported SystemVerilog during emission.
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum VerilogError {
@@ -64,6 +69,10 @@ pub enum VerilogError {
     UnsupportedFunctionCall { module: String, name: String },
 }
 
+/// The SystemVerilog code generation backend.
+///
+/// Transforms an elaborated `ParametricHwDesign` into synthesizable
+/// SystemVerilog text. Performs structural validation before emission.
 #[derive(Debug)]
 #[non_exhaustive]
 pub struct SystemVerilogBackend;
@@ -73,11 +82,14 @@ impl SystemVerilogBackend {
         Self
     }
 
+    /// Emits a debug dump of the generated SV module structure.
     pub fn debug_dump(&self, hwir: &ParametricHwDesign) -> Result<String, CompileError> {
         let design = self.compile_sv_design(hwir)?;
         Ok(design.debug_dump())
     }
 
+    /// Compiles the design into a SystemVerilog source string.
+    /// Validates both the backend output and the SV syntax.
     pub fn emit(&self, hwir: &ParametricHwDesign) -> Result<String, CompileError> {
         let design = self.compile_sv_design(hwir)?;
         let text = design.emit_text();

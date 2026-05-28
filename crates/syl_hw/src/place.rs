@@ -1,5 +1,6 @@
 use crate::ObjectId;
 
+/// A hardware signal location — identifies a signal by name, slice, index, or part-select.
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum HwPlace {
@@ -41,6 +42,7 @@ impl HwPlace {
     }
 }
 
+/// An expression used in a place (location) — restricted to compile-time evaluable forms.
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum HwPlaceExpr {

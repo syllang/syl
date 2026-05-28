@@ -5,8 +5,24 @@ use std::{
 };
 use url::Url;
 
-/// Session document identity is the normalized URI string. Two values are equal
-/// when their stored URI strings are byte-for-byte equal.
+/// A normalized document URI (always `file://` with absolute path).
+///
+/// **Normalization guarantees:**
+/// - Input `"file:///home/user/foo.syl"` and `"/home/user/foo.syl"` produce
+///   the same normalized URI (the latter is converted to file:// form).
+/// - Symlinks are resolved via `canonicalize` when the path exists on disk.
+/// - Relative paths are resolved against `env::current_dir()`.
+/// - Two `DocumentUri` values are `Eq`/`Hash` when their normalized strings
+///   are byte-for-byte equal, making them suitable as map keys.
+///
+/// **Round-trip invariant:** `DocumentUri::from_file_path(uri.to_file_path())`
+/// should be identity for file:// URIs, but may differ for non-file schemes.
+///
+/// ```ignore
+/// let a = DocumentUri::new("file:///home/x/test.syl");
+/// let b = DocumentUri::from_file_path(Path::new("/home/x/test.syl"));
+/// assert_eq!(a, b);  // Both normalize to the same canonical path
+/// ```
 #[derive(Clone, Debug, PartialOrd, Ord)]
 #[non_exhaustive]
 pub struct DocumentUri {
@@ -14,6 +30,8 @@ pub struct DocumentUri {
 }
 
 impl DocumentUri {
+    /// Creates a URI from any string — normalizes `file://` paths and
+    /// canonicalizes the underlying file path if it exists on disk.
     pub fn new(value: impl Into<String>) -> Self {
         Self {
             value: DocumentUriValue::new(value.into()).normalized(),

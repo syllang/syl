@@ -1,6 +1,10 @@
 use crate::HwExpr;
 use syl_span::SourceId;
 
+/// A complete elaborated hardware design: an ordered collection of modules.
+///
+/// Produced by elaboration from the HIR, this is the input to the
+/// SystemVerilog backend.
 #[non_exhaustive]
 pub struct HwDesign {
     modules: Vec<HwModule>,
@@ -11,6 +15,7 @@ impl HwDesign {
         Self { modules }
     }
 
+    /// Returns a summary string for debugging.
     pub fn debug_dump(&self) -> String {
         let modules = self
             .modules
@@ -21,11 +26,16 @@ impl HwDesign {
         format!("hw_design modules={} [{}]", self.modules.len(), modules)
     }
 
+    /// Returns all modules in this design.
     pub fn modules(&self) -> &[HwModule] {
         &self.modules
     }
 }
 
+/// Enable condition (guard) attached to a hardware signal or assignment.
+///
+/// Guards form a stack of scopes — each `if`/`else`/loop pushes a frame
+/// that controls whether the enclosed hardware is active.
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct HwGuard {
@@ -37,14 +47,17 @@ impl HwGuard {
         Self { frames }
     }
 
+    /// Returns the guard frames from innermost to outermost.
     pub fn frames(&self) -> &[HwGuardFrame] {
         &self.frames
     }
 
+    /// Returns `true` if this guard is always active (no enclosing scope).
     pub fn is_root(&self) -> bool {
         self.frames.is_empty()
     }
 
+    /// Formats the guard as a path string (e.g. `label:then/loop_label`).
     pub fn display(&self) -> String {
         if self.frames.is_empty() {
             return "root".to_string();
@@ -57,6 +70,7 @@ impl HwGuard {
     }
 }
 
+/// A single scope frame in a guard condition.
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum HwGuardFrame {
@@ -75,6 +89,10 @@ impl HwGuardFrame {
     }
 }
 
+/// Source location origin for an elaborated hardware object.
+///
+/// Tracks the original source span plus any expansion stack from
+/// elaboration (which cell instantiations produced this object).
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct HwOrigin {
@@ -116,6 +134,7 @@ impl HwOrigin {
     }
 }
 
+/// A single level of elaboration expansion (which cell call produced this).
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct HwExpansion {
@@ -164,6 +183,7 @@ impl HwExpansion {
     }
 }
 
+/// A single elaborated hardware module with parameters, ports, and internal items.
 #[derive(Debug)]
 #[non_exhaustive]
 pub struct HwModule {
@@ -199,23 +219,28 @@ impl HwModule {
         self.doc.as_deref()
     }
 
+    /// Returns the module name.
     pub fn name(&self) -> &str {
         &self.name
     }
 
+    /// Returns the module parameters.
     pub fn params(&self) -> &[HwParam] {
         &self.params
     }
 
+    /// Returns the module ports.
     pub fn ports(&self) -> &[HwPort] {
         &self.ports
     }
 
+    /// Returns the internal items (signals, instances, drives, etc.).
     pub fn items(&self) -> &[HwItem] {
         &self.items
     }
 }
 
+/// A parameter on an elaborated hardware module.
 #[derive(Debug)]
 #[non_exhaustive]
 pub struct HwParam {
@@ -238,19 +263,23 @@ impl HwParam {
         self
     }
 
+    /// Returns the doc comment for this parameter, if any.
     pub fn doc(&self) -> Option<&str> {
         self.doc.as_deref()
     }
 
+    /// Returns the parameter name.
     pub fn name(&self) -> &str {
         &self.name
     }
 
+    /// Returns the default value string.
     pub fn default(&self) -> &str {
         &self.default
     }
 }
 
+/// A port on an elaborated hardware module.
 #[derive(Debug)]
 #[non_exhaustive]
 pub struct HwPort {
@@ -275,23 +304,28 @@ impl HwPort {
         self
     }
 
+    /// Returns the doc comment for this port, if any.
     pub fn doc(&self) -> Option<&str> {
         self.doc.as_deref()
     }
 
+    /// Returns the port direction.
     pub fn direction(&self) -> HwDirection {
         self.direction
     }
 
+    /// Returns the port width expression (e.g. `"(N)-1:0"`).
     pub fn width(&self) -> &str {
         &self.width
     }
 
+    /// Returns the port name.
     pub fn name(&self) -> &str {
         &self.name
     }
 }
 
+/// Port direction for an elaborated hardware design.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum HwDirection {
@@ -300,38 +334,47 @@ pub enum HwDirection {
     Out,
 }
 
+/// An item inside an elaborated hardware module body.
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum HwItem {
+    /// A compile-time parameter assignment within the module.
     StaticParam {
         name: String,
         value: HwExpr,
     },
+    /// A combinational signal declaration.
     SignalDecl {
         width: String,
         name: String,
     },
+    /// A storage element (register) declaration.
     StorageDecl {
         width: String,
         name: String,
     },
+    /// A continuous assignment: `lhs = rhs`.
     ContinuousDrive {
         lhs: HwExpr,
         rhs: HwExpr,
     },
+    /// A clocked storage element with optional reset.
     ClockedStorage {
         clock: HwExpr,
         target: HwExpr,
         reset: Option<HwReset>,
         next: HwExpr,
     },
+    /// A sub-module instance.
     Instance(HwInstance),
+    /// Conditional elaboration: `if (cond) then_items else else_items`.
     StaticIf {
         cond: HwExpr,
         label: String,
         then_items: Vec<HwItem>,
         else_items: Vec<HwItem>,
     },
+    /// Replicated elaboration: `for index in start..end`.
     StaticFor {
         index: String,
         start: HwExpr,
@@ -339,11 +382,13 @@ pub enum HwItem {
         label: String,
         items: Vec<HwItem>,
     },
+    /// An error marker — elaborating this item produces a compile error.
     InitialError {
         message: HwExpr,
     },
 }
 
+/// Reset specification for a clocked storage element.
 #[derive(Debug)]
 #[non_exhaustive]
 pub struct HwReset {
@@ -365,6 +410,7 @@ impl HwReset {
     }
 }
 
+/// A sub-module instance within an elaborated module.
 #[derive(Debug)]
 #[non_exhaustive]
 pub struct HwInstance {
@@ -389,23 +435,28 @@ impl HwInstance {
         }
     }
 
+    /// Returns the instantiated module name.
     pub fn module(&self) -> &str {
         &self.module
     }
 
+    /// Returns the parameter bindings for this instance.
     pub fn params(&self) -> &[HwParamBind] {
         &self.params
     }
 
+    /// Returns the instance name.
     pub fn name(&self) -> &str {
         &self.name
     }
 
+    /// Returns the port connections for this instance.
     pub fn connections(&self) -> &[HwConnection] {
         &self.connections
     }
 }
 
+/// A parameter binding: `name = value` in an instance.
 #[derive(Debug)]
 #[non_exhaustive]
 pub struct HwParamBind {
@@ -421,15 +472,18 @@ impl HwParamBind {
         }
     }
 
+    /// Returns the parameter name.
     pub fn name(&self) -> &str {
         &self.name
     }
 
+    /// Returns the parameter value string.
     pub fn value(&self) -> &str {
         &self.value
     }
 }
 
+/// A port connection on a module instance: `formal = actual`.
 #[derive(Debug)]
 #[non_exhaustive]
 pub struct HwConnection {
@@ -445,10 +499,12 @@ impl HwConnection {
         }
     }
 
+    /// Returns the formal port name.
     pub fn formal(&self) -> &str {
         &self.formal
     }
 
+    /// Returns the actual expression connected to this port.
     pub fn actual(&self) -> &HwExpr {
         &self.actual
     }

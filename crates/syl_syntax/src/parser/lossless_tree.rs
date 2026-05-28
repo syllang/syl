@@ -4,6 +4,22 @@ use crate::{
 };
 use syl_span::{SourceId, Span};
 
+/// Build a lossless syntax tree from the flat token list and AST items.
+///
+/// **Token distribution logic:** Tokens are assigned to items by span comparison:
+/// 1. **Leading trivia** (tokens ending before the item starts) goes to the item
+///    as trivia children, preserving whitespace and comments before declarations.
+/// 2. **Interior tokens** (tokens starting before the item ends) are the item's
+///    body tokens — keywords, identifiers, punctuation, etc.
+/// 3. **Trailing tokens** (any tokens after the last item) become a `Trivia` node.
+///
+/// **Invariant:** Every token is placed into exactly one item or trailing trivia.
+/// No tokens are dropped. This guarantees exact source reconstruction via
+/// `LosslessSyntaxFile::write_source` / `source_text`.
+///
+/// **Empty source edge case:** If `file.items` is empty, all tokens become
+/// trailing trivia under a single `Trivia` node. The file root always spans
+/// `[0, source_len)`.
 pub(super) fn build_lossless_syntax_file(
     source_id: SourceId,
     source_len: usize,

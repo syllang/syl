@@ -2,6 +2,17 @@ use super::scanner::Scanner;
 use crate::token::{Token, TokenKind};
 use syl_span::{Diagnostic, SourceId, Span};
 
+/// The kind of a lexeme produced by the lossless lexer.
+///
+/// Unlike `TokenKind` (which only covers syntax-significant tokens),
+/// `LexemeKind` distinguishes between tokens, whitespace, comments,
+/// doc comments, and unknown fragments. This enables exact source
+/// reconstruction from the lossless token stream.
+///
+/// **Doc comment attachment:** `DocComment` lexemes are attached to the
+/// *next* declaration by the parser's doc comment prepass.
+/// `InnerDocComment` lexemes are file-level (`//!`) and belong to the
+/// module as a whole.
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum LexemeKind {
@@ -11,14 +22,20 @@ pub enum LexemeKind {
     Whitespace,
     /// Line comment preserved as trivia.
     LineComment,
-    /// Outer documentation comment attached to the next declaration.
+    /// Outer documentation comment (`///`) attached to the next declaration.
     DocComment,
-    /// File-level documentation comment.
+    /// File-level documentation comment (`//!`).
     InnerDocComment,
-    /// Unrecognized source fragment.
+    /// Unrecognized source fragment (unexpected byte or syntax error recovery).
     Unknown,
 }
 
+/// A single lexeme from the lossless lexer, preserving its kind, span, and exact text.
+///
+/// Every character in the source produces exactly one `Lexeme`. Adjacent
+/// whitespace or comment characters are merged into a single `Lexeme`.
+/// This 1:1 mapping between characters and lexemes is what makes exact
+/// source reconstruction possible.
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct Lexeme {
@@ -36,6 +53,8 @@ impl Lexeme {
         }
     }
 
+    /// Converts this lexeme into a semantic `Token`, returning `None` if it
+    /// is trivia (whitespace, comment, or unknown).
     pub fn into_token(self) -> Option<Token> {
         match self.kind {
             LexemeKind::Token(kind) => Some(Token::new(kind, self.span)),

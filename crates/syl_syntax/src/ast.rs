@@ -3,8 +3,15 @@ use derive_builder::Builder;
 use strum_macros::IntoStaticStr;
 use syl_span::{SourceId, Span};
 
+// `span` only holds span accessors for AST node types. Keep it separate from
+// the type definitions below to avoid mixing data layout with derived helpers.
 mod span;
 
+/// Top-level parsed source file.
+///
+/// Models one `.syl` source file as an ordered list of top-level items
+/// (`use`, `const`, `fn`, `enum`, `bundle`, `interface`, `map`, `cell`,
+/// `extern cell`) and an optional module-level doc comment.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct AstFile {
@@ -13,6 +20,10 @@ pub struct AstFile {
     pub items: Vec<Item>,
 }
 
+/// Any top-level item that can appear in a `.syl` source file.
+///
+/// Each variant wraps the corresponding item struct. Dispatch on this
+/// when you need to handle all possible declarations generically.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub enum Item {
@@ -29,6 +40,7 @@ pub enum Item {
 }
 
 impl Item {
+    /// Returns the source span of the underlying item.
     pub fn span(&self) -> Span {
         match self {
             Self::Error(item) => item.span,
@@ -44,6 +56,7 @@ impl Item {
         }
     }
 
+    /// Returns the lossless syntax tree item kind for this declaration.
     pub fn lossless_kind(&self) -> LosslessItemKind {
         match self {
             Self::Error(_) => LosslessItemKind::Error,
@@ -60,12 +73,19 @@ impl Item {
     }
 }
 
+/// Placeholder item produced when the parser encounters a syntax error.
+///
+/// Keeps the span of the malformed region so downstream passes can still
+/// report sensible error locations.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct ErrorItem {
     pub span: Span,
 }
 
+/// A `use` declaration that imports symbols from another module.
+///
+/// `path` is a segmented identifier (e.g. `["std", "logic"]` for `use std::logic`).
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct UseItem {
@@ -74,6 +94,9 @@ pub struct UseItem {
     pub span: Span,
 }
 
+/// A `const` declaration that binds a name to a compile-time evaluable expression.
+///
+/// The type can be inferred when `ty` is `None`.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct ConstItem {
@@ -84,6 +107,10 @@ pub struct ConstItem {
     pub span: Span,
 }
 
+/// A function declaration — a named, reusable block with parameters and an optional return type.
+///
+/// Functions are elaboration-time combinators that produce hardware.
+/// The body is a `Block` containing statements and an optional tail expression.
 #[derive(Clone, Debug, PartialEq, Builder)]
 #[builder(pattern = "owned", build_fn(name = "try_build"))]
 #[non_exhaustive]
@@ -100,6 +127,10 @@ pub struct FnItem {
     pub span: Span,
 }
 
+/// An `enum` declaration — a named set of symbolic states backed by a hardware-encoded value.
+///
+/// `width` controls the bit-width of the encoding; `layout` selects the
+/// encoding scheme (ordinal, flags, or one-hot).
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct EnumItem {
@@ -111,6 +142,10 @@ pub struct EnumItem {
     pub span: Span,
 }
 
+/// A single variant within an `enum` declaration.
+///
+/// `value` is the explicit encoding expression (e.g. `1 << 2`).
+/// When `None`, the layout strategy assigns an implicit value.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct EnumVariant {
@@ -120,6 +155,11 @@ pub struct EnumVariant {
     pub span: Span,
 }
 
+/// Encoding scheme for an enum's hardware representation.
+///
+/// - `Ordinal`: sequential binary encoding (0, 1, 2, …).
+/// - `Flags`: bit-field where each variant is a single bit.
+/// - `OneHot`: exactly one bit set at any time.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, IntoStaticStr)]
 #[non_exhaustive]
 pub enum EnumLayout {
@@ -131,6 +171,10 @@ pub enum EnumLayout {
     OneHot,
 }
 
+/// A `bundle` declaration — a named group of named fields (struct-like).
+///
+/// Bundles are the primary way to compose related signals into a single
+/// named type, analogous to a `struct` in software languages.
 #[derive(Clone, Debug, PartialEq, Builder)]
 #[builder(pattern = "owned", build_fn(name = "try_build"))]
 #[non_exhaustive]
@@ -148,6 +192,10 @@ pub struct BundleItem {
     pub span: Span,
 }
 
+/// An `interface` declaration — a bundle with multiple *views* for directional access.
+///
+/// Interfaces extend bundles by associating each field subset with a named
+/// view that specifies which fields are readable or writable from that side.
 #[derive(Clone, Debug, PartialEq, Builder)]
 #[builder(pattern = "owned", build_fn(name = "try_build"))]
 #[non_exhaustive]
@@ -165,6 +213,10 @@ pub struct InterfaceItem {
     pub span: Span,
 }
 
+/// A `map` declaration — a pure function whose body is a single expression.
+///
+/// Maps are elaboration-time combinators that must be side-effect-free.
+/// Unlike `fn`, a map's body is exactly one expression (no statements).
 #[derive(Clone, Debug, PartialEq, Builder)]
 #[builder(pattern = "owned", build_fn(name = "try_build"))]
 #[non_exhaustive]
@@ -183,6 +235,11 @@ pub struct MapItem {
     pub span: Span,
 }
 
+/// A `cell` declaration — a hardware module with parameter inputs and port-based IO.
+///
+/// Cells are the central building block of hardware design in Syl: they
+/// have elaboration-time parameters (`params`) and hardware ports (`ports`)
+/// that become wires in the generated circuit.
 #[derive(Clone, Debug, PartialEq, Builder)]
 #[builder(pattern = "owned", build_fn(name = "try_build"))]
 #[non_exhaustive]
@@ -203,6 +260,11 @@ pub struct CallableItem {
     pub span: Span,
 }
 
+/// An `extern cell` declaration — a hardware module with no body (imported).
+///
+/// Extern cells describe the interface of a module defined externally,
+/// typically in SystemVerilog or another source. The compiler uses this
+/// to type-check connections without seeing the implementation.
 #[derive(Clone, Debug, PartialEq, Builder)]
 #[builder(pattern = "owned", build_fn(name = "try_build"))]
 #[non_exhaustive]
@@ -222,6 +284,10 @@ pub struct ExternCellItem {
     pub span: Span,
 }
 
+/// The named result of a cell's combined output port.
+///
+/// In `cell foo -> (result: T)`, the `ResultBinding` captures the name,
+/// type, and drive capability of the result signal produced by the cell.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct ResultBinding {
@@ -232,6 +298,10 @@ pub struct ResultBinding {
     pub span: Span,
 }
 
+/// A single port declaration on a cell's interface.
+///
+/// Ports are the hardware-level IO of a module: direction (`in`, `inout`, `out`),
+/// type, and drive capability describe how the port connects to other modules.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct PortDecl {
@@ -243,6 +313,11 @@ pub struct PortDecl {
     pub span: Span,
 }
 
+/// How a signal is allowed to be driven on a particular connection.
+///
+/// `ReadOnly` — the receiver can only observe the value.
+/// `ReadWrite` — the receiver can both observe and drive.
+/// `WriteOnly` — the receiver can only drive (e.g. an output wire).
 #[derive(Clone, Debug, PartialEq, Eq, IntoStaticStr)]
 #[non_exhaustive]
 pub enum DriveCapability {
@@ -255,15 +330,21 @@ pub enum DriveCapability {
 }
 
 impl DriveCapability {
+    /// Returns `true` if this capability permits reading the signal value.
     pub fn can_read(&self) -> bool {
         matches!(self, Self::ReadOnly | Self::ReadWrite)
     }
 
+    /// Returns `true` if this capability permits driving (writing) the signal.
     pub fn can_write(&self) -> bool {
         matches!(self, Self::ReadWrite | Self::WriteOnly)
     }
 }
 
+/// A single parameter on a function, map, or cell declaration.
+///
+/// Parameters are elaboration-time values. The `dir` field is `Some` only
+/// when the parameter has an explicit direction annotation (e.g. `in`).
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct Param {
@@ -275,6 +356,10 @@ pub struct Param {
     pub span: Span,
 }
 
+/// Whether a parameter is an ordinary value or the implicit receiver (`this`).
+///
+/// `Receiver` marks the special `this` binding that refers to the enclosing
+/// bundle/interface instance in extension methods.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum ParamRole {
@@ -282,6 +367,9 @@ pub enum ParamRole {
     Receiver,
 }
 
+/// Direction qualifier for a parameter or port.
+///
+/// Mirrors SystemVerilog port directions.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, IntoStaticStr)]
 #[non_exhaustive]
 pub enum ParamDirection {
@@ -293,6 +381,10 @@ pub enum ParamDirection {
     Out,
 }
 
+/// A type or const generic parameter on a declaration.
+///
+/// `kind` constrains the parameter to a specific type (e.g. `Int<4>`).
+/// `default` provides an optional default expression when omitted at the call site.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct GenericParam {
@@ -303,6 +395,9 @@ pub struct GenericParam {
     pub span: Span,
 }
 
+/// A named field in a bundle, interface, or hardware struct type.
+///
+/// Analogous to a struct field in software — it pairs a name with a type.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct FieldDecl {
@@ -312,6 +407,10 @@ pub struct FieldDecl {
     pub span: Span,
 }
 
+/// An annotation attached to a bundle or interface declaration.
+///
+/// Attributes provide metadata (e.g. register inference hints) and have
+/// a name plus optional argument expressions.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct Attribute {
@@ -321,6 +420,8 @@ pub struct Attribute {
     pub span: Span,
 }
 
+/// A named *view* inside an interface — describes which fields are visible
+/// from a particular connection side and with what directionality.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct ViewDecl {
@@ -329,6 +430,7 @@ pub struct ViewDecl {
     pub span: Span,
 }
 
+/// A single field within a view declaration, annotated with its visible direction.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct ViewField {
@@ -338,6 +440,7 @@ pub struct ViewField {
     pub span: Span,
 }
 
+/// Direction qualifier for a view field's access from that view's connection side.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, IntoStaticStr)]
 #[non_exhaustive]
 pub enum ViewDirection {
@@ -349,6 +452,10 @@ pub enum ViewDirection {
     Out,
 }
 
+/// A braced block of statements with an optional tail expression.
+///
+/// Every statement list is terminated by `;`. Any expression that
+/// appears without a trailing `;` becomes the block's tail value.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct Block {
@@ -357,6 +464,11 @@ pub struct Block {
     pub span: Span,
 }
 
+/// A single statement within a block body.
+///
+/// Covers control flow (`while`, `if`/`else`, `for`), variable-like
+/// declarations (`let`, `var`, `signal`, `reg`, `const`), assignments,
+/// drive statements, and plain expressions evaluated for side effects.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub enum Stmt {
@@ -429,6 +541,10 @@ pub enum Stmt {
     Return(Option<Expr>, Span),
 }
 
+/// Reset specification for a register declaration.
+///
+/// `domain` is the optional reset clock/domain expression. `value` is
+/// the value the register assumes when reset is asserted.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct RegReset {
@@ -437,6 +553,10 @@ pub struct RegReset {
     pub span: Span,
 }
 
+/// Any expression in the Syl language.
+///
+/// Expressions cover literals, operators, function calls, type application,
+/// field/index access, match/select, and inline blocks.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub enum Expr {
@@ -515,6 +635,7 @@ pub enum Expr {
     },
 }
 
+/// A named (key-value) expression, e.g. `field = value` in an aggregate literal.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct NamedExpr {
@@ -523,6 +644,9 @@ pub struct NamedExpr {
     pub span: Span,
 }
 
+/// A single argument in a function or cell call, optionally named.
+///
+/// Named arguments (`name: expr`) allow out-of-order parameter binding.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct CallArg {
@@ -531,6 +655,10 @@ pub struct CallArg {
     pub span: Span,
 }
 
+/// Whether a `select` expression uses priority or unique evaluation semantics.
+///
+/// `Priority` — evaluates arms in order, first match wins.
+/// `Unique` — exactly one arm must match (parallel, checked by semantics).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, IntoStaticStr)]
 #[non_exhaustive]
 pub enum SelectMode {
@@ -540,6 +668,7 @@ pub enum SelectMode {
     Unique,
 }
 
+/// A single arm in a `select` expression: pattern expression → result value.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct SelectArm {
@@ -549,6 +678,7 @@ pub struct SelectArm {
     pub span: Span,
 }
 
+/// A single arm in a `match` expression: structured pattern → result value.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct MatchArm {
@@ -558,6 +688,7 @@ pub struct MatchArm {
     pub span: Span,
 }
 
+/// A pattern in a `match` arm — describes the shape of values to match.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub enum Pattern {
@@ -568,6 +699,7 @@ pub enum Pattern {
     Path(Vec<String>, Span),
 }
 
+/// A type expression, referencing a named type, array, generic, or view selection.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub enum TypeExpr {
@@ -589,6 +721,7 @@ pub enum TypeExpr {
     },
 }
 
+/// A unary operator applied to a single expression.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, IntoStaticStr)]
 #[non_exhaustive]
 pub enum UnaryOp {
@@ -600,6 +733,10 @@ pub enum UnaryOp {
     NotWord,
 }
 
+/// A binary operator combining two sub-expressions.
+///
+/// Includes comparison (`==`, `<`, …), arithmetic (`+`, `-`, …),
+/// bitwise (`and`, `or`, `xor`), and wiring (`.`, `eq`) operators.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, IntoStaticStr)]
 #[non_exhaustive]
 pub enum BinaryOp {

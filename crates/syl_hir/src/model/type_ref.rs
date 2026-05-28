@@ -3,6 +3,7 @@ use strum_macros::IntoStaticStr;
 use syl_span::Span;
 use syl_syntax::{BinaryOp, Expr, Pattern, SelectMode, TypeExpr, UnaryOp};
 
+/// Unary operator in the MIR (mid-level IR) type system.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, IntoStaticStr)]
 #[non_exhaustive]
 pub enum MirUnaryOp {
@@ -27,6 +28,9 @@ impl From<UnaryOp> for MirUnaryOp {
     }
 }
 
+/// Binary operator in the MIR (mid-level IR) type system.
+///
+/// Includes comparison, arithmetic, bitwise, and wiring operators.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, IntoStaticStr)]
 #[non_exhaustive]
 pub enum MirBinaryOp {
@@ -98,6 +102,7 @@ impl From<BinaryOp> for MirBinaryOp {
     }
 }
 
+/// Select evaluation mode in the MIR: priority or unique.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, IntoStaticStr)]
 #[non_exhaustive]
 pub enum MirSelectMode {
@@ -117,6 +122,7 @@ impl From<SelectMode> for MirSelectMode {
     }
 }
 
+/// A pattern in the MIR, used in match arms.
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum MirPattern {
@@ -141,6 +147,11 @@ impl From<&Pattern> for MirPattern {
     }
 }
 
+/// A type reference in the MIR — a resolved type expression.
+///
+/// `MirTypeRef` is a lightweight handle that wraps `MirTypeKind` with a
+/// source span. It supports path lookup, generic instantiation, array
+/// decomposition, and view selection.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct MirTypeRef {
@@ -153,6 +164,7 @@ pub struct MirTypeRef {
     reason = "Internal lowering helpers are retained here until the sema-side replacement lands."
 )]
 impl MirTypeRef {
+    /// Creates a path-based type reference (e.g. `UInt`).
     pub fn path_type(path: Vec<String>, span: Span) -> Self {
         Self {
             kind: MirTypeKind::Path(path),
@@ -160,6 +172,7 @@ impl MirTypeRef {
         }
     }
 
+    /// Creates an array type reference: `[len]elem`.
     pub fn array_type(len: MirConstExpr, elem: MirTypeRef, span: Span) -> Self {
         Self {
             kind: MirTypeKind::Array {
@@ -170,6 +183,7 @@ impl MirTypeRef {
         }
     }
 
+    /// Creates a generic type reference: `Base<Arg1, Arg2>`.
     pub fn generic_type(base: MirTypeRef, args: Vec<MirTypeRef>, span: Span) -> Self {
         Self {
             kind: MirTypeKind::Generic {
@@ -180,6 +194,7 @@ impl MirTypeRef {
         }
     }
 
+    /// Creates a view-select type reference: `Base::View`.
     pub fn view_select_type(base: MirTypeRef, view: String, span: Span) -> Self {
         Self {
             kind: MirTypeKind::ViewSelect {
@@ -190,6 +205,7 @@ impl MirTypeRef {
         }
     }
 
+    /// Creates a placeholder for unsupported type expressions.
     pub fn unsupported(span: Span) -> Self {
         Self {
             kind: MirTypeKind::Unsupported,
@@ -197,10 +213,12 @@ impl MirTypeRef {
         }
     }
 
+    /// Returns the source span of this type reference.
     pub fn span(&self) -> Span {
         self.span
     }
 
+    /// If this is a path type, returns the path segments.
     pub fn path(&self) -> Option<&[String]> {
         match &self.kind {
             MirTypeKind::Path(path) => Some(path),
@@ -208,10 +226,13 @@ impl MirTypeRef {
         }
     }
 
+    /// Returns the last segment of a path type (the type name).
     pub fn path_name(&self) -> Option<&str> {
         self.path()?.last().map(String::as_str)
     }
 
+    /// Returns the human-readable name of this type, following through
+    /// generics, view-selects, and arrays to find a leaf name.
     pub fn type_name(&self) -> Option<&str> {
         match &self.kind {
             MirTypeKind::Path(path) => path.last().map(String::as_str),
@@ -223,6 +244,7 @@ impl MirTypeRef {
         }
     }
 
+    /// Returns the generic type arguments, if this is a generic or view-select type.
     pub fn args(&self) -> Option<&[MirTypeRef]> {
         match &self.kind {
             MirTypeKind::Generic { args, .. } => Some(args),
@@ -231,6 +253,7 @@ impl MirTypeRef {
         }
     }
 
+    /// If this is a generic type, returns the base type being parameterized.
     pub fn generic_base(&self) -> Option<&MirTypeRef> {
         match &self.kind {
             MirTypeKind::Generic { base, .. } => Some(base),
@@ -238,6 +261,7 @@ impl MirTypeRef {
         }
     }
 
+    /// If this is an array type, returns (length, element type).
     pub fn array(&self) -> Option<(&MirConstExpr, &MirTypeRef)> {
         match &self.kind {
             MirTypeKind::Array { len, elem } => Some((len, elem)),
@@ -245,6 +269,7 @@ impl MirTypeRef {
         }
     }
 
+    /// If this is a view-select type, returns (base type, view name).
     pub fn view_select(&self) -> Option<(&MirTypeRef, &str)> {
         match &self.kind {
             MirTypeKind::ViewSelect { base, view } => Some((base, view)),
@@ -252,6 +277,22 @@ impl MirTypeRef {
         }
     }
 
+    /// Substitutes type variables using the given replacement map.
+    ///
+    /// **Critical — single-segment heuristic:** Only `Path` types with exactly
+    /// one segment are treated as type variables eligible for substitution.
+    /// A path like `["UInt"]` is replaced if `"UInt"` is a key; a path like
+    /// `["std", "logic", "UInt"]` is **never** substituted, even if the same
+    /// name `"UInt"` exists in the map. This prevents accidental replacement
+    /// of fully-qualified type names that happen to match a generic parameter
+    /// name.
+    ///
+    /// ```ignore
+    /// let mut map = HashMap::new();
+    /// map.insert("T".into(), MirTypeRef::path_type(vec!["UInt".into()], span));
+    /// // Path(["T"])       → Path(["UInt"])   — single segment, substituted
+    /// // Path(["Foo","T"]) → Path(["Foo","T"]) — multi segment, unchanged
+    /// ```
     pub fn subst(&self, replacements: &HashMap<String, MirTypeRef>) -> Self {
         match &self.kind {
             MirTypeKind::Path(path) if path.len() == 1 => replacements
@@ -275,11 +316,13 @@ impl MirTypeRef {
         }
     }
 
+    /// Wraps this type as an array of the given length: `[len]self`.
     pub fn with_array_len(self, len: MirConstExpr, span: Span) -> Self {
         Self::array_type(len, self, span)
     }
 }
 
+/// The inner kind of a `MirTypeRef`.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub enum MirTypeKind {
@@ -335,6 +378,7 @@ impl From<&TypeExpr> for MirTypeRef {
     }
 }
 
+/// A constant expression in the MIR: literal, identifier, or operation.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct MirConstExpr {
@@ -347,6 +391,7 @@ pub struct MirConstExpr {
     reason = "Internal lowering helpers are retained here until the sema-side replacement lands."
 )]
 impl MirConstExpr {
+    /// Creates a constant reference to a name.
     pub fn ident_expr(name: String, span: Span) -> Self {
         Self {
             kind: MirConstExprKind::Ident(name),
@@ -354,6 +399,7 @@ impl MirConstExpr {
         }
     }
 
+    /// Creates a natural number constant.
     pub fn nat(value: u64, span: Span) -> Self {
         Self {
             kind: MirConstExprKind::Nat(value),
@@ -361,6 +407,7 @@ impl MirConstExpr {
         }
     }
 
+    /// Creates a boolean constant.
     pub fn bool_value_expr(value: bool, span: Span) -> Self {
         Self {
             kind: MirConstExprKind::Bool(value),
@@ -368,6 +415,7 @@ impl MirConstExpr {
         }
     }
 
+    /// Creates a unary operation constant.
     pub fn unary_expr(op: MirUnaryOp, expr: MirConstExpr, span: Span) -> Self {
         Self {
             kind: MirConstExprKind::Unary {
@@ -378,6 +426,7 @@ impl MirConstExpr {
         }
     }
 
+    /// Creates a binary operation constant.
     pub fn binary_expr(
         op: MirBinaryOp,
         left: MirConstExpr,
@@ -394,10 +443,12 @@ impl MirConstExpr {
         }
     }
 
+    /// Returns the source span of this constant expression.
     pub fn span(&self) -> Span {
         self.span
     }
 
+    /// If this is an identifier constant, returns the name.
     pub fn ident(&self) -> Option<&str> {
         match &self.kind {
             MirConstExprKind::Ident(name) => Some(name),
@@ -405,6 +456,7 @@ impl MirConstExpr {
         }
     }
 
+    /// If this is a natural number constant, returns its value.
     pub fn nat_value(&self) -> Option<u64> {
         match &self.kind {
             MirConstExprKind::Nat(value) => Some(*value),
@@ -412,6 +464,7 @@ impl MirConstExpr {
         }
     }
 
+    /// If this is a boolean constant, returns its value.
     pub fn bool_value(&self) -> Option<bool> {
         match &self.kind {
             MirConstExprKind::Bool(value) => Some(*value),
@@ -419,6 +472,7 @@ impl MirConstExpr {
         }
     }
 
+    /// If this is a unary operation, returns (operator, operand).
     pub fn unary(&self) -> Option<(MirUnaryOp, &MirConstExpr)> {
         match &self.kind {
             MirConstExprKind::Unary { op, expr } => Some((*op, expr)),
@@ -426,6 +480,7 @@ impl MirConstExpr {
         }
     }
 
+    /// If this is a binary operation, returns (operator, left, right).
     pub fn binary(&self) -> Option<(MirBinaryOp, &MirConstExpr, &MirConstExpr)> {
         match &self.kind {
             MirConstExprKind::Binary { op, left, right } => Some((*op, left, right)),
@@ -433,6 +488,25 @@ impl MirConstExpr {
         }
     }
 
+    /// Substitute type variables in this const expression.
+    ///
+    /// Like `MirTypeRef::subst`, but operates on const-level `Ident` nodes.
+    /// The replacement is parsed via `from_type_arg` which may silently change
+    /// semantics: a replacement `MirTypeRef::path(vec!["8"])` becomes `Nat(8)`,
+    /// while `MirTypeRef::path(vec!["foo"])` stays as `Ident("foo")`.
+    ///
+    /// **Silent type erasure:** If the replacement type is a multi-segment path
+    /// like `["some", "W"]`, `path_name()` returns `Some("W")` which is treated
+    /// as an `Ident("W")` — the original path context is lost. This means
+    /// substituting a const with a type argument that happens to parse as a
+    /// number changes its semantic kind.
+    ///
+    /// ```ignore
+    /// // Replacement {"N" → MirTypeRef::path(vec!["8"])} on Ident("N")
+    /// //   → Nat(8)   // string "8" parsed as u64
+    /// // Replacement {"N" → MirTypeRef::path(vec!["foo"])} on Ident("N")
+    /// //   → Ident("foo")   // stays as identifier
+    /// ```
     fn subst_type_vars(&self, replacements: &HashMap<String, MirTypeRef>) -> Self {
         match &self.kind {
             MirConstExprKind::Ident(name) => replacements
@@ -454,6 +528,16 @@ impl MirConstExpr {
         }
     }
 
+    /// Try to interpret a `MirTypeRef` (used as a type argument) as a const expression.
+    ///
+    /// This is a **lossy conversion**: a type path like `["8"]` becomes `Nat(8)`,
+    /// `["true"]` becomes `Bool(true)`, and anything else becomes `Ident(name)`.
+    /// Multi-segment paths silently lose their prefix: `["pkg", "W"]` returns
+    /// `Ident("W")` via `path_name()`.
+    ///
+    /// Returns `None` only if the type has no `path_name` (e.g. an array or
+    /// generic type used as a const argument — which should not happen in
+    /// well-formed code).
     fn from_type_arg(ty: &MirTypeRef) -> Option<Self> {
         let name = ty.path_name()?;
         let kind = if let Ok(value) = name.parse::<u64>() {
@@ -472,6 +556,7 @@ impl MirConstExpr {
     }
 }
 
+/// The inner kind of a `MirConstExpr`.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub enum MirConstExprKind {

@@ -5,12 +5,23 @@ use syl_syntax::{
     BinaryOp, Block, CallArg, Expr, MatchArm, NamedExpr, RegReset, SelectArm, Stmt, UnaryOp,
 };
 
+/// Tracks whether a HIR block was lowered from a `fn` body (Software) or a
+/// `cell` body (Hardware). This affects which statements are valid:
+///
+/// - **Software** context: allows `let`, `var`, `while`, `return`, `ElabIf`,
+///   `ElabFor` — general-purpose software-like constructs for elaboration.
+/// - **Hardware** context: allows `signal`, `reg`, `drive`, `assign`, `next` —
+///   hardware-specific statements that generate physical circuits.
+///
+/// When lowering, invalid statement combinations produce `Stmt::Error` nodes.
+/// The distinction is dropped after HIR construction; EIR does not track it.
 #[derive(Clone, Copy)]
 enum HirBlockContext {
     Hardware,
     Software,
 }
 
+/// A block of HIR statements with an optional tail expression.
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct HirBlock {
@@ -44,6 +55,7 @@ impl HirBlock {
     }
 }
 
+/// A statement in the HIR, mirroring the AST `Stmt` with resolved IDs and types.
 #[derive(Clone)]
 #[non_exhaustive]
 pub enum HirStmt {
@@ -123,6 +135,7 @@ pub enum HirStmt {
 }
 
 impl HirStmt {
+    /// Returns the source span of this statement.
     pub fn span(&self) -> Span {
         match self {
             HirStmt::Error { span }
@@ -276,6 +289,7 @@ impl HirStmt {
     }
 }
 
+/// Reset specification for a register in the HIR.
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct HirRegReset {
@@ -297,6 +311,7 @@ impl HirRegReset {
     }
 }
 
+/// A single expression in the HIR with its node data and source span.
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct HirExpr {
@@ -415,6 +430,7 @@ impl HirExpr {
         }
     }
 
+    /// Returns the expression's arena ID.
     pub fn id(&self) -> ExprId {
         self.id
     }
@@ -432,11 +448,14 @@ impl HirExpr {
         self.id = id;
     }
 
+    /// Returns the source span of this expression.
     pub fn span(&self) -> Span {
         self.span
     }
 }
 
+/// The typed node of a HIR expression, analogous to AST `Expr` variants
+/// but with resolved types, IDs, and lowering adjustments.
 #[derive(Clone)]
 #[non_exhaustive]
 pub enum HirExprNode {
@@ -504,6 +523,7 @@ pub enum HirExprNode {
     Unsupported,
 }
 
+/// A named (key-value) expression within an aggregate in the HIR.
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct HirNamedExpr {
@@ -526,6 +546,7 @@ impl HirNamedExpr {
     }
 }
 
+/// A call argument in the HIR, optionally named.
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct HirCallArg {
@@ -547,11 +568,13 @@ impl HirCallArg {
         }
     }
 
+    /// Returns the source span of this argument.
     pub fn span(&self) -> Span {
         self.span
     }
 }
 
+/// An arm in a `match` expression within the HIR.
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct HirMatchArm {
@@ -576,6 +599,7 @@ impl HirMatchArm {
     }
 }
 
+/// An arm in a `select` expression within the HIR.
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct HirSelectArm {

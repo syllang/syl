@@ -1,6 +1,8 @@
 use std::path::PathBuf;
 use thiserror::Error;
 
+/// Errors that can occur during project loading, document operations,
+/// and analysis queries.
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum ProjectError {

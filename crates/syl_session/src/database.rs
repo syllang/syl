@@ -17,6 +17,10 @@ use syl_sema::{OpaqueItemSummary, OpaqueSummaryTable};
 
 pub use revision::DatabaseRevision;
 
+/// The central incremental analysis database.
+///
+/// Manages loaded documents, their versions, snapshot caches, and
+/// semantic analysis state. Supports cancel-safe incremental updates.
 #[derive(Debug)]
 #[non_exhaustive]
 pub struct AnalysisDatabase {

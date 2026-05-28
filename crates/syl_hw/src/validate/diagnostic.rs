@@ -1,6 +1,7 @@
 use std::{error::Error, fmt};
 use strum_macros::IntoStaticStr;
 
+/// What kind of named entity a validation binding error refers to.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, IntoStaticStr)]
 #[non_exhaustive]
 pub enum HwBindingKind {
@@ -24,6 +25,7 @@ pub enum HwBindingKind {
     GenerateIndex,
 }
 
+/// A diagnostic produced by HW validation.
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum HwValidationDiagnostic {

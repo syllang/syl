@@ -27,6 +27,12 @@ enum BlockContext {
     Hardware,
 }
 
+/// Entry-point for parsing a `.syl` source string into a typed AST.
+///
+/// `SourceParser` takes a source string and optionally a `SourceId`,
+/// then drives the lexer and parser. Use `parse_file` for simple
+/// one-shot parsing, or `parse_file_partial` to inspect warnings even
+/// when errors are present.
 #[derive(Debug, Clone)]
 #[non_exhaustive]
 pub struct SourceParser<'a> {
@@ -35,18 +41,24 @@ pub struct SourceParser<'a> {
 }
 
 impl<'a> SourceParser<'a> {
+    /// Creates a parser for the given source with a default `SourceId`.
     pub fn new(source: &'a str) -> Self {
         Self::new_in(source, SourceId::default())
     }
 
+    /// Creates a parser for the given source with an explicit source identity.
     pub fn new_in(source: &'a str, source_id: SourceId) -> Self {
         Self { source, source_id }
     }
 
+    /// Parses the source into a complete AST, returning an error on the first
+    /// diagnostic. Use `parse_file_partial` to inspect all diagnostics.
     pub fn parse_file(&self) -> Result<AstFile, Vec<Diagnostic>> {
         self.parse_file_partial().into_result()
     }
 
+    /// Parses the source and returns both the best-effort AST and any
+    /// diagnostics collected during lexing and parsing.
     pub fn parse_file_partial(&self) -> ParseOutput {
         let mut lexer = LosslessLexer::new_in(self.source, self.source_id);
         let output = lexer.lex_all_partial();
@@ -65,6 +77,8 @@ impl<'a> SourceParser<'a> {
         parsed
     }
 
+    /// Parses the source, returning the parse output together with a
+    /// trivia-preserving lossless syntax tree (for formatting, LSP, etc.).
     pub fn parse_file_with_lossless(&self) -> (ParseOutput, LosslessSyntaxFile) {
         let mut lexer = LosslessLexer::new_in(self.source, self.source_id);
         let output = lexer.lex_all_partial();
@@ -90,6 +104,8 @@ impl<'a> SourceParser<'a> {
         (parsed, syntax)
     }
 
+    /// Parses the source as a standalone expression (not a full file).
+    /// Useful for REPL, test helpers, or incremental compilation.
     pub fn parse_expr(&self) -> Result<Expr, Vec<Diagnostic>> {
         let tokens = Lexer::new_in(self.source, self.source_id).lex_all()?;
         Parser::new_at_end(tokens, self.source_id, self.source.len()).parse_expr(0)

@@ -1,5 +1,8 @@
 use super::{HirCallableItem, HirExternCellItem, HirSignatureParam, HirSignatureResultBinding};
 
+/// A cell or extern cell definition in the HIR.
+///
+/// Wraps `HirCallableItem` (with body) or `HirExternCellItem` (without body).
 #[derive(Clone)]
 #[non_exhaustive]
 pub enum HirCallable {
@@ -8,6 +11,7 @@ pub enum HirCallable {
 }
 
 impl HirCallable {
+    /// Returns the parameter list of this callable.
     pub fn params(&self) -> &[HirSignatureParam] {
         match self {
             Self::Cell(item) => &item.params,
@@ -15,6 +19,7 @@ impl HirCallable {
         }
     }
 
+    /// Returns the result binding of this callable, if any.
     pub fn result(&self) -> Option<&HirSignatureResultBinding> {
         match self {
             Self::Cell(item) => item.result.as_ref(),
@@ -22,6 +27,7 @@ impl HirCallable {
         }
     }
 
+    /// Returns the callable item if this is a cell with a body.
     pub fn callable_item(&self) -> Option<&HirCallableItem> {
         match self {
             Self::Cell(item) => Some(item),

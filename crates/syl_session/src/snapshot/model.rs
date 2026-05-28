@@ -13,6 +13,8 @@ use super::package_semantics::{PackageSemanticCacheProbe, PackageSemanticIndex};
 use super::semantic_cache::SemanticCache;
 use super::workspace::WorkspaceSnapshot;
 
+/// The fully resolved analysis snapshot — an immutable view of parsed,
+/// analyzed, and resolved source files for a project.
 #[derive(Debug)]
 #[non_exhaustive]
 pub struct ResolvedSnapshot {
@@ -58,6 +60,7 @@ impl ResolvedSnapshot {
     }
 }
 
+/// A parsed source file in the analysis snapshot with its AST and node index.
 #[derive(Clone, Debug)]
 #[non_exhaustive]
 pub struct AnalysisFile {
@@ -145,6 +148,10 @@ impl AnalysisFile {
     }
 }
 
+/// An immutable snapshot of the analysis state at one point in time.
+///
+/// Includes the source map, parsed files, diagnostics, and workspace
+/// structure. Produced by `AnalysisDatabase::load`.
 #[derive(Clone, Debug)]
 #[non_exhaustive]
 pub struct AnalysisSnapshot {
@@ -156,6 +163,7 @@ pub struct AnalysisSnapshot {
     pub(crate) workspace: WorkspaceSnapshot,
 }
 
+/// Diagnostics grouped by compilation stage (parse, HIR, TIR, elaboration).
 #[derive(Clone, Debug, Default)]
 #[non_exhaustive]
 pub struct PackageStageDiagnostics {

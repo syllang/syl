@@ -1,5 +1,7 @@
 use crate::{HwExpr, HwItem, HwOrigin, HwParam, HwPort};
 
+/// A parametric hardware design — like `HwDesign` but preserving origin
+/// information for each item before normalization.
 #[derive(Debug)]
 #[non_exhaustive]
 pub struct ParametricHwDesign {
@@ -11,6 +13,7 @@ impl ParametricHwDesign {
         Self { modules }
     }
 
+    /// Returns a summary string for debugging.
     pub fn debug_dump(&self) -> String {
         let modules = self
             .modules
@@ -21,11 +24,13 @@ impl ParametricHwDesign {
         format!("hwir modules={} [{}]", self.modules.len(), modules,)
     }
 
+    /// Returns all modules in this design.
     pub fn modules(&self) -> &[ParametricHwModule] {
         &self.modules
     }
 }
 
+/// A parametric hardware module with origin-tracked items.
 #[derive(Debug)]
 #[non_exhaustive]
 pub struct ParametricHwModule {
@@ -80,11 +85,17 @@ impl ParametricHwModule {
 
 #[derive(Debug)]
 #[non_exhaustive]
+/// An item in a parametric module, wrapping `HwItem` with source origin
+/// and the static-if/static-for constructs that drive elaboration.
+#[derive(Debug)]
+#[non_exhaustive]
 pub enum ParametricHwItem {
+    /// A core hardware item with its source origin.
     Core {
         item: HwItem,
         origin: HwOrigin,
     },
+    /// Conditional elaboration: `if (cond) then_items else else_items`.
     StaticIf {
         cond: HwExpr,
         label: String,
@@ -92,6 +103,7 @@ pub enum ParametricHwItem {
         else_items: Vec<ParametricHwItem>,
         origin: HwOrigin,
     },
+    /// Replicated elaboration: `for index in start..end`.
     StaticFor {
         index: String,
         start: HwExpr,

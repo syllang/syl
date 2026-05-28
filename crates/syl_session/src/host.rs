@@ -5,6 +5,10 @@ use crate::{
 use std::path::PathBuf;
 use syl_sema::{OpaqueItemSummary, OpaqueSummaryTable};
 
+/// High-level entry point for project-level analysis.
+///
+/// Wraps an `AnalysisDatabase` and provides convenience methods for
+/// loading source files and producing analysis snapshots.
 #[derive(Debug)]
 #[non_exhaustive]
 pub struct AnalysisHost {

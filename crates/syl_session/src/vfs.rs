@@ -4,6 +4,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+/// Abstract virtual file system — allows plugging in a real FS or a test VFS.
 pub trait Vfs: fmt::Debug {
     fn read_to_string(&self, path: &Path) -> Result<String, ProjectError>;
 
@@ -12,6 +13,7 @@ pub trait Vfs: fmt::Debug {
     fn canonicalize(&self, path: &Path) -> Result<PathBuf, ProjectError>;
 }
 
+/// The real filesystem Vfs implementation (delegates to `std::fs`).
 #[derive(Clone, Copy, Debug, Default)]
 #[non_exhaustive]
 pub struct FsVfs;

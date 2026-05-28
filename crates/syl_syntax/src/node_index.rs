@@ -406,6 +406,17 @@ impl AstNodeIndex {
 }
 
 impl AstFile {
+    /// Build a flat node index over this file's AST, mapping every AST node to
+    /// its kind, source span, UTF-16 range (for LSP), and parent ID.
+    ///
+    /// The index is used for LSP features (hover, go-to-definition, completion)
+    /// and for diagnostic source-mapping. It visits the entire AST recursively
+    /// — every `Block`, `Stmt`, `Expr`, `TypeExpr`, `Pattern`, and arm is
+    /// assigned a unique `AstNodeId`.
+    ///
+    /// **`source` parameter:** The raw source text is needed to compute UTF-16
+    /// positions. If you don't need UTF-16 ranges, pass an empty string — the
+    /// ranges will be zeroed but the span-based lookups still work.
     pub fn build_node_index(&self, source: &str) -> AstNodeIndex {
         AstNodeIndex::build(self, source)
     }

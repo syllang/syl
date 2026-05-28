@@ -33,6 +33,13 @@ impl Default for SourceId {
 
 /// Byte span in a registered source file.
 ///
+/// `start` and `end` are byte offsets into the file text, and the span is
+/// treated as a half-open range: `[start, end)`. `start` is inclusive and
+/// `end` is exclusive.
+///
+/// `source` identifies which file the offsets belong to. `Span::new` uses
+/// `SourceId::default()`, while `Span::new_in` records an explicit source id.
+///
 /// Equality, ordering, and hashing compare `(source, start, end)` exactly. This
 /// is a source-map coordinate, not a semantic node identity.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
@@ -104,6 +111,27 @@ impl SourceFile {
         ))
     }
 
+    /// Convert an LSP (line, UTF-16 character) position back to a byte offset.
+    ///
+    /// This is the inverse of `utf16_position`. It walks the line's characters,
+    /// counting UTF-16 code units, and returns the byte offset where the
+    /// `position.character`-th Unicode code point starts.
+    ///
+    /// **Rounding behavior:** If `position.character` falls in the middle of a
+    /// surrogate pair (a single Rust `char` that encodes as 2 UTF-16 code units),
+    /// this function returns the start of that character — it always rounds
+    /// *down*. This means round-tripping through `utf16_position` then
+    /// `byte_offset_for_utf16_position` is idempotent for positions at character
+    /// boundaries, but may shift if the input targets the interior of a surrogate.
+    ///
+    /// **Out-of-bounds line:** Returns `text.len()` (clamped to end of file).
+    ///
+    /// ```ignore
+    /// # let file = SourceFile::new(SourceId::new(0), "test.syl", "a\nbc");
+    /// // position (line 0, character 1) → byte offset 1 ('a' + 1)
+    /// // position (line 1, character 0) → byte offset 2 (start of line 1)
+    /// // position (line 9, character 0) → byte offset 4 (out of bounds → text.len())
+    /// ```
     pub fn byte_offset_for_utf16_position(&self, position: SourcePosition) -> usize {
         let line_start = match self.line_starts.get(position.line) {
             Some(start) => *start,
@@ -120,6 +148,27 @@ impl SourceFile {
         line_end
     }
 
+    /// Converts a byte offset to an LSP-compatible (line, UTF-16 character) position.
+    ///
+    /// `line` is 0-based and found via binary search on `line_starts`.
+    /// `character` is the number of UTF-16 code units from the start of the line
+    /// to the byte offset. Multi-byte characters contribute their UTF-16 length
+    /// (1 for BMP, 2 for supplementary chars via surrogate pairs).
+    ///
+    /// **Invariant:** If the offset falls in the middle of a multi-byte UTF-8
+    /// character, it is clamped *backward* to the character boundary first.
+    /// This means the returned position always points to a valid character
+    /// start, never to a continuation byte.
+    ///
+    /// **Edge case — empty file:** `partition_point` returns 0 for offset 0,
+    /// `saturating_sub(1)` yields `usize::MAX`, then `.get(usize::MAX)` returns
+    /// `None` and `unwrap_or_default()` backtracks to line 0.
+    ///
+    /// ```ignore
+    /// # let file = SourceFile::new(SourceId::new(0), "test.syl", "abc");
+    /// // byte offset 0 → (line 0, character 0)
+    /// // byte offset 3 → (line 0, character 3)
+    /// ```
     fn utf16_position(&self, offset: usize) -> SourcePosition {
         let offset = self.clamp_to_char_boundary(offset.min(self.text.len()));
         let line = self
@@ -134,6 +183,22 @@ impl SourceFile {
         SourcePosition::new(line, character)
     }
 
+    /// Walk backward from `offset` until a valid UTF-8 character boundary is found.
+    ///
+    /// This is necessary because the LSP protocol works in byte offsets that may
+    /// point into the middle of a multi-byte character. The returned offset is
+    /// always ≤ the input offset.
+    ///
+    /// **Panic safety:** `offset` 0 is already a valid char boundary (Rust
+    /// guarantees `is_char_boundary(0) == true`), so the loop always terminates.
+    /// However, if offset ≥ text.len(), it was clamped in `utf16_position` first,
+    /// so this function only sees in-bounds offsets.
+    ///
+    /// ```ignore
+    /// // For "é" (U+00E9, 2 UTF-8 bytes: 0xC3 0xA9):
+    /// //   clamp_to_char_boundary(1) → 0  (walks back from byte 1 to byte 0)
+    /// //   clamp_to_char_boundary(2) → 2  (already a boundary)
+    /// ```
     fn clamp_to_char_boundary(&self, mut offset: usize) -> usize {
         while offset > 0 && !self.text.is_char_boundary(offset) {
             offset = offset.saturating_sub(1);
