@@ -16,33 +16,33 @@ use std.stage.stage_to_stream
 use std.stage.halt_link
 use std.stage.drop_link
 
-const DATA_W: Nat = 32
+const DATA_W: nat = 32
 
 enum AluOp {
     Add,
     Xor,
 }
 
-bundle AluCmd<W: Nat> {
+bundle AluCmd<W: nat> {
     op: AluOp,
     a: UInt<W>,
     b: UInt<W>,
     last: Bit,
 }
 
-bundle Decoded<W: Nat> {
+bundle Decoded<W: nat> {
     add: Bit,
     a: UInt<W>,
     b: UInt<W>,
     last: Bit,
 }
 
-bundle AluRsp<W: Nat> {
+bundle AluRsp<W: nat> {
     data: UInt<W>,
     last: Bit,
 }
 
-map decode_cmd<W: Nat>(cmd: AluCmd<W>) -> Decoded<W> =
+map decode_cmd<W: nat>(cmd: AluCmd<W>) -> Decoded<W> =
     match cmd.op {
         .Add => Decoded<W> {
             add: 1,
@@ -58,19 +58,19 @@ map decode_cmd<W: Nat>(cmd: AluCmd<W>) -> Decoded<W> =
         },
     }
 
-map execute_cmd<W: Nat>(cmd: Decoded<W>) -> UInt<W> =
+map execute_cmd<W: nat>(cmd: Decoded<W>) -> UInt<W> =
     select unique {
         cmd.add => cmd.a + cmd.b,
         default => cmd.a xor cmd.b,
     }
 
-map execute_rsp<W: Nat>(cmd: Decoded<W>) -> AluRsp<W> =
+map execute_rsp<W: nat>(cmd: Decoded<W>) -> AluRsp<W> =
     AluRsp<W> {
         data: execute_cmd<W>(cmd),
         last: cmd.last,
     }
 
-cell PipelinedAlu<W: Nat = DATA_W, D: Domain>(
+cell PipelinedAlu<W: nat = DATA_W, D: Domain>(
     clk: in Clock<D>,
     rst: in Reset<D>,
     stall_decode: in Bit,

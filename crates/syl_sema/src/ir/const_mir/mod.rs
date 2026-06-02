@@ -60,8 +60,8 @@ struct BuiltinConstTypeOracle;
 impl ConstTypeOracle for BuiltinConstTypeOracle {
     fn const_kind_for_type(&self, ty: &crate::ir::mir::MirTypeRef) -> Option<ConstKind> {
         match ty.type_name() {
-            Some("Nat") => Some(ConstKind::Nat),
-            Some("Bool") => Some(ConstKind::Bool),
+            Some("nat") => Some(ConstKind::Nat),
+            Some("bool") => Some(ConstKind::Bool),
             _ => None,
         }
     }

@@ -10,9 +10,9 @@
 // Compiler-provided forms used here:
 // - package, const, enum, bundle, map, module
 // - in, signal, match
-// - Nat, Bit, UInt<W>, target-typed numeric literals
+// - nat, Bit, UInt<W>, target-typed numeric literals
 
-const DATA_W: Nat = 32
+const DATA_W: nat = 32
 
 enum AluOp {
     Add,
@@ -20,25 +20,25 @@ enum AluOp {
     PassA,
 }
 
-bundle AluReq<W: Nat> {
+bundle AluReq<W: nat> {
     op: AluOp,
     a: UInt<W>,
     b: UInt<W>,
 }
 
-bundle AluRsp<W: Nat> {
+bundle AluRsp<W: nat> {
     data: UInt<W>,
     zero: Bit,
 }
 
-map alu_data<W: Nat>(req: AluReq<W>) -> UInt<W> =
+map alu_data<W: nat>(req: AluReq<W>) -> UInt<W> =
     match req.op {
         .Add => req.a + req.b,
         .Xor => req.a xor req.b,
         .PassA => req.a,
     }
 
-cell CombAlu<W: Nat>(
+cell CombAlu<W: nat>(
     req: in AluReq<W>,
 ) -> rsp: AluRsp<W> {
     signal data: UInt<W> := alu_data<W>(req)

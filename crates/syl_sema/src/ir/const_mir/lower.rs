@@ -155,8 +155,8 @@ impl<'a> ExprLowerer<'a> {
         loop {
             if let Some(name) = current.path_name() {
                 return match name {
-                    "Nat" => Some(ConstKind::Nat),
-                    "Bool" => Some(ConstKind::Bool),
+                    "nat" => Some(ConstKind::Nat),
+                    "bool" => Some(ConstKind::Bool),
                     _ => None,
                 };
             }
@@ -272,7 +272,7 @@ mod tests {
             r#"
 const answer = 7
 
-fn use_answer() -> Nat {
+fn use_answer() -> nat {
     answer
 }
 "#,

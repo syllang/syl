@@ -90,6 +90,29 @@ fn choose(x: bool) -> bool {
 }
 
 #[test]
+fn rejects_uppercase_nat_and_bool_in_const_phase_items() {
+    let err = ConstResolutionHarness::new()
+        .compile_sources(&[r#"
+const ENABLE: Bool = true
+
+fn choose(x: Nat) -> Bool {
+    return x == 1
+}
+
+cell Top(y: out Bit) {
+    if choose(1) {
+        y := 1
+    } else {
+        y := 0
+    }
+}
+"#])
+        .expect_err("uppercase const-phase builtin names must be rejected");
+
+    assert!(err.contains("unknown type Bool") || err.contains("unknown type Nat"), "{err}");
+}
+
+#[test]
 fn enum_variants_are_scoped_by_enum_definition() {
     let verilog = ConstResolutionHarness::new()
         .compile_sources(&[r#"

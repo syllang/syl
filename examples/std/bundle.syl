@@ -1,24 +1,24 @@
 // Syl standard library: lightweight bundle helpers.
 
 @layout(packed)
-bundle ReadyValidWord<W: Nat> {
+bundle ReadyValidWord<W: nat> {
     payload: UInt<W>,
     valid: Bit,
     ready: Bit,
 }
 
-bundle MaybeWord<W: Nat> {
+bundle MaybeWord<W: nat> {
     value: UInt<W>,
     valid: Bit,
 }
 
-map valid_word<W: Nat>(value: UInt<W>) -> MaybeWord<W> =
+map valid_word<W: nat>(value: UInt<W>) -> MaybeWord<W> =
     MaybeWord<W> {
         value: value,
         valid: 1,
     }
 
-map invalid_word<W: Nat>() -> MaybeWord<W> =
+map invalid_word<W: nat>() -> MaybeWord<W> =
     MaybeWord<W> {
         value: 0,
         valid: 0,

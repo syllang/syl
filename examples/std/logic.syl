@@ -12,5 +12,5 @@ map bit_mux(sel: Bit, when_true: Bit, when_false: Bit) -> Bit =
 map bit_enable(value: Bit, enable: Bit) -> Bit =
     value and enable
 
-map word_increment<W: Nat>(value: UInt<W>) -> UInt<W> =
+map word_increment<W: nat>(value: UInt<W>) -> UInt<W> =
     value + 1

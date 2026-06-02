@@ -376,7 +376,7 @@ where
                 continue;
             };
             let kind_ref = kind.clone();
-            if !matches!(self.static_type_name(&kind_ref), Some("Nat" | "Bool")) {
+            if !matches!(self.static_type_name(&kind_ref), Some("nat" | "bool")) {
                 continue;
             }
             let value = actuals

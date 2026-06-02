@@ -9,9 +9,9 @@
 //
 // Compiler-provided forms used here:
 // - package, module, reg, signal, reset, next, select, priority
-// - Nat, Bit, UInt<W>, Domain, Clock<D>, Reset<D>
+// - nat, Bit, UInt<W>, Domain, Clock<D>, Reset<D>
 
-cell Counter<W: Nat, D: Domain>(
+cell Counter<W: nat, D: Domain>(
     clk: in Clock<D>,
     rst: in Reset<D>,
     enable: in Bit,
@@ -30,7 +30,7 @@ cell Counter<W: Nat, D: Domain>(
     value := count
 }
 
-cell CounterPair<W: Nat = 16, D: Domain>(
+cell CounterPair<W: nat = 16, D: Domain>(
     clk: in Clock<D>,
     rst: in Reset<D>,
     enable_left: in Bit,

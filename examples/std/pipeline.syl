@@ -84,8 +84,8 @@ cell map_stage<A, B>(
 cell stage_link<
     T,
     D: Domain,
-    HOLD_PAYLOAD: Bool = false,
-    COLLAPSE_BUBBLE: Bool = true,
+    HOLD_PAYLOAD: bool = false,
+    COLLAPSE_BUBBLE: bool = true,
 >(
     clk: in Clock<D>,
     rst: in Reset<D>,
