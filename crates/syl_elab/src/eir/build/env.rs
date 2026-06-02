@@ -12,6 +12,7 @@ use syl_span::Span;
 pub(crate) struct VarInfo {
     pub(crate) code: EirExpr,
     pub(crate) ty: MirTypeRef,
+    pub(crate) software_local: bool,
 }
 
 #[derive(Default, Clone)]
@@ -41,9 +42,35 @@ impl Env {
     }
 
     pub(crate) fn insert(&mut self, name: impl Into<String>, code: EirExpr, ty: MirTypeRef) {
+        self.insert_with_binding_kind(name, code, ty, false);
+    }
+
+    pub(crate) fn insert_software_local(
+        &mut self,
+        name: impl Into<String>,
+        code: EirExpr,
+        ty: MirTypeRef,
+    ) {
+        self.insert_with_binding_kind(name, code, ty, true);
+    }
+
+    fn insert_with_binding_kind(
+        &mut self,
+        name: impl Into<String>,
+        code: EirExpr,
+        ty: MirTypeRef,
+        software_local: bool,
+    ) {
         let name = name.into();
         let static_type = ty.type_name().map(ToOwned::to_owned);
-        if let Some(previous) = self.vars.insert(name.clone(), VarInfo { code, ty })
+        if let Some(previous) = self.vars.insert(
+            name.clone(),
+            VarInfo {
+                code,
+                ty,
+                software_local,
+            },
+        )
             && let Some(static_type) = previous.ty.type_name().map(ToOwned::to_owned)
             && let Some(names) = self.vars_by_static_type.get_mut(&static_type)
         {
@@ -58,6 +85,10 @@ impl Env {
                 .or_default()
                 .push(name);
         }
+    }
+
+    pub(crate) fn var(&self, name: &str) -> Option<&VarInfo> {
+        self.vars.get(name)
     }
 
     pub(crate) fn local_name(&self, name: &str) -> String {

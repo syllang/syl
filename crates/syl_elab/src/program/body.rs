@@ -5,7 +5,7 @@ use crate::{
         HirSelectArm, HirStmt,
     },
 };
-use syl_hir::ExprId;
+use syl_hir::{ExprId, LocalId};
 use syl_span::Span;
 
 #[derive(Clone)]
@@ -45,6 +45,15 @@ pub(crate) enum ElabStmt {
         span: Span,
     },
     Var {
+        id: Option<LocalId>,
+        name: String,
+        ty: Option<MirTypeRef>,
+        value: Option<ElabExpr>,
+        span: Span,
+    },
+    Assign {
+        target: ElabExpr,
+        value: ElabExpr,
         span: Span,
     },
     Signal {
@@ -115,7 +124,28 @@ impl From<&HirStmt> for ElabStmt {
                 value: value.as_ref().map(ElabExpr::from),
                 span: *span,
             },
-            HirStmt::Var { span, .. } => Self::Var { span: *span },
+            HirStmt::Var {
+                id,
+                name,
+                ty,
+                value,
+                span,
+            } => Self::Var {
+                id: *id,
+                name: name.clone(),
+                ty: ty.clone(),
+                value: value.as_ref().map(ElabExpr::from),
+                span: *span,
+            },
+            HirStmt::Assign {
+                target,
+                value,
+                span,
+            } => Self::Assign {
+                target: ElabExpr::from(target),
+                value: ElabExpr::from(value),
+                span: *span,
+            },
             HirStmt::Signal {
                 name,
                 ty,

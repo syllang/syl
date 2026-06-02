@@ -245,6 +245,40 @@ cell Top(y: out Pair) {
 }
 
 #[test]
+fn software_mutable_local_controls_elaboration_read_selection() {
+    let output = StaticFactHarness::new()
+        .compile_output(
+            r#"
+cell Top(a: in Bit, b: in Bit, y: out Bit) {
+    var choose_b: Bool = false
+    choose_b = true
+
+    if choose_b {
+        y := b
+    } else {
+        y := a
+    }
+}
+"#,
+        )
+        .expect("software-only mutable locals should select elaboration branches without becoming hardware values");
+    let metadata = output
+        .metadata()
+        .expect("successful elaboration must expose hardware metadata");
+
+    let top_reads = metadata
+        .read_facts()
+        .iter()
+        .filter(|fact| fact.module() == "Top")
+        .map(|fact| fact.source_place().display())
+        .collect::<Vec<_>>();
+
+    assert!(top_reads.iter().any(|read| read == "b"));
+    assert!(!top_reads.iter().any(|read| read == "a"));
+    assert!(!top_reads.iter().any(|read| read == "choose_b"));
+}
+
+#[test]
 fn duplicate_driver_diagnostic_has_primary_and_related_origins() {
     let source = r#"
 cell Bad(y: out Bit) {
