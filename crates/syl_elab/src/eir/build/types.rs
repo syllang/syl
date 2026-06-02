@@ -323,8 +323,8 @@ where
 
     fn path_width(&self, owner: Option<DefId>, ty: &MirTypeRef, path: &[String]) -> String {
         match path.last().map(String::as_str) {
-            Some("Bit" | "Bool" | "Clock" | "Reset") => "1".to_string(),
-            Some("Nat") => "32".to_string(),
+            Some("Bit" | "bool" | "Clock" | "Reset") => "1".to_string(),
+            Some("nat") => "32".to_string(),
             Some(name) => {
                 if let Some(enm) = self.enum_for_type(owner, ty) {
                     self.enum_width(owner, enm)
@@ -340,8 +340,8 @@ where
 
     fn path_width_expr(&self, owner: Option<DefId>, ty: &MirTypeRef, path: &[String]) -> EirExpr {
         match path.last().map(String::as_str) {
-            Some("Bit" | "Bool" | "Clock" | "Reset") => EirExpr::Int(1),
-            Some("Nat") => EirExpr::Int(32),
+            Some("Bit" | "bool" | "Clock" | "Reset") => EirExpr::Int(1),
+            Some("nat") => EirExpr::Int(32),
             Some(name) => {
                 if let Some(enm) = self.enum_for_type(owner, ty) {
                     self.enum_width_expr(owner, enm)

@@ -8,28 +8,28 @@
 // - imported interface capability checking per lane
 //
 // Compiler-provided forms used here:
-// - package, use, const, if, for, compile_error, module, let, signal, place // - Nat, Bit, UInt<W>, Domain, Clock<D>, Reset<D>, [N] T arrays
+// - package, use, const, if, for, compile_error, module, let, signal, place // - nat, Bit, UInt<W>, Domain, Clock<D>, Reset<D>, [N] T arrays
 
 use std.stream.Stream
 use std.stream.stream_skid_buffer
 
-const DEFAULT_W: Nat = 32
-const DEFAULT_LANES: Nat = 4
+const DEFAULT_W: nat = 32
+const DEFAULT_LANES: nat = 4
 
-bundle LaneWord<W: Nat> {
+bundle LaneWord<W: nat> {
     data: UInt<W>,
     lane: UInt<8>,
     last: Bit,
 }
 
-map tag_lane<W: Nat>(word: LaneWord<W>, lane_id: UInt<8>) -> LaneWord<W> =
+map tag_lane<W: nat>(word: LaneWord<W>, lane_id: UInt<8>) -> LaneWord<W> =
     LaneWord<W> {
         data: word.data + 1,
         lane: lane_id,
         last: word.last,
     }
 
-cell Lane<W: Nat, D: Domain>(
+cell Lane<W: nat, D: Domain>(
     clk: in Clock<D>,
     rst: in Reset<D>,
     lane_id: in UInt<8>,
@@ -54,8 +54,8 @@ cell Lane<W: Nat, D: Domain>(
 }
 
 cell LaneArray<
-    W: Nat = DEFAULT_W,
-    N: Nat = DEFAULT_LANES,
+    W: nat = DEFAULT_W,
+    N: nat = DEFAULT_LANES,
     D: Domain,
 >(
     clk: in Clock<D>,

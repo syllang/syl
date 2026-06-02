@@ -201,7 +201,7 @@ where
 
     pub(crate) fn insert_generic(&self, env: &mut Env, param: &ElabSignatureGenericParam) {
         if let Some(kind) = &param.kind
-            && matches!(self.static_type_name(kind), Some("Nat" | "Bool"))
+            && matches!(self.static_type_name(kind), Some("nat" | "bool"))
         {
             env.insert(
                 &param.name,

@@ -10,7 +10,7 @@
 // Compiler-provided forms used here:
 // - package, use, bundle, map, module, let, signal
 // - in, out through imported Stream views
-// - Nat, Bit, UInt<W>, Domain, Clock<D>, Reset<D>
+// - nat, Bit, UInt<W>, Domain, Clock<D>, Reset<D>
 
 use std.stream.Stream
 use std.stage.Stage
@@ -18,18 +18,18 @@ use std.stage.stage_from_stream
 use std.stage.stage_link
 use std.stage.stage_to_stream
 
-bundle Word<W: Nat> {
+bundle Word<W: nat> {
     data: UInt<W>,
     last: Bit,
 }
 
-map set_last_if_zero<W: Nat>(word: Word<W>) -> Word<W> =
+map set_last_if_zero<W: nat>(word: Word<W>) -> Word<W> =
     Word<W> {
         data: word.data,
         last: word.last or (word.data eq 0),
     }
 
-cell BufferedWordPipe<W: Nat = 32, D: Domain>(
+cell BufferedWordPipe<W: nat = 32, D: Domain>(
     clk: in Clock<D>,
     rst: in Reset<D>,
     up: in Stream<Word<W>>.sink,

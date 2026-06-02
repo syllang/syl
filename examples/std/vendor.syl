@@ -3,7 +3,7 @@
 // Extern declarations are ordinary public Syl declarations. Their summaries are
 // collected by sema and can be overlaid by trusted opaque-library metadata.
 
-extern cell VendorReadyValidSlice<W: Nat, D: Domain>(
+extern cell VendorReadyValidSlice<W: nat, D: Domain>(
     clk: in Clock<D>,
     rst: in Reset<D>,
     in_payload: in UInt<W>,

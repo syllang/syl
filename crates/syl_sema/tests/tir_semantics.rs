@@ -215,6 +215,46 @@ cell Bad(y: out Bit) {
 }
 
 #[test]
+fn rejects_uppercase_bool_in_const_condition() {
+    let err = SemanticHarness::new()
+        .compile(
+            r#"
+const ENABLE: Bool = true
+
+cell Bad(y: out Bit) {
+    if ENABLE {
+        y := 1
+    } else {
+        y := 0
+    }
+}
+"#,
+        )
+        .expect_err("uppercase Bool must not resolve as a language builtin");
+
+    assert!(err.contains("unknown type Bool"), "{err}");
+}
+
+#[test]
+fn rejects_uppercase_nat_in_function_signature() {
+    let err = SemanticHarness::new()
+        .compile(
+            r#"
+fn choose(x: Nat) -> nat {
+    return x
+}
+
+cell Bad(y: out Bit) {
+    y := choose(1) eq 1
+}
+"#,
+        )
+        .expect_err("uppercase Nat must not resolve as a language builtin");
+
+    assert!(err.contains("unknown type Nat"), "{err}");
+}
+
+#[test]
 fn rejects_proposition_operators_in_hardware_value_expr() {
     let err = SemanticHarness::new()
         .compile(

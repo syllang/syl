@@ -296,8 +296,8 @@ impl TypePhaseChecker {
         let const_terms = TirConstTermResolver::new(self, owner);
         if let Some(path) = ty.path() {
             return match path.last().map(String::as_str) {
-                Some("nat" | "Nat") => Ok(TirType::Nat),
-                Some("bool" | "Bool") => Ok(TirType::Bool),
+                Some("nat") => Ok(TirType::Nat),
+                Some("bool") => Ok(TirType::Bool),
                 Some("string" | "Str") => Ok(TirType::Str),
                 Some("Bit") => Ok(TirType::Bit),
                 Some("Clock") => Ok(TirType::Clock { domain: None }),
@@ -525,8 +525,8 @@ impl TypePhaseChecker {
         loop {
             if let Some(name) = current.path_name() {
                 return match name {
-                    "nat" | "Nat" => Some(TirConstKind::Nat),
-                    "bool" | "Bool" => Some(TirConstKind::Bool),
+                    "nat" => Some(TirConstKind::Nat),
+                    "bool" => Some(TirConstKind::Bool),
                     _ => None,
                 };
             }

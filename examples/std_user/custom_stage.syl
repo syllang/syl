@@ -6,18 +6,18 @@ use std.stage.stage_from_stream
 use std.stage.stage_link
 use std.stage.stage_to_stream
 
-bundle UserWord<W: Nat> {
+bundle UserWord<W: nat> {
     data: UInt<W>,
     last: Bit,
 }
 
-map mark_nonzero<W: Nat>(word: UserWord<W>) -> UserWord<W> =
+map mark_nonzero<W: nat>(word: UserWord<W>) -> UserWord<W> =
     UserWord<W> {
         data: word.data,
         last: word.last or not (word.data eq 0),
     }
 
-cell user_marking_stage<W: Nat, D: Domain>(
+cell user_marking_stage<W: nat, D: Domain>(
     clk: in Clock<D>,
     rst: in Reset<D>,
     up: in Stream<UserWord<W>>.sink,
@@ -41,7 +41,7 @@ cell user_marking_stage<W: Nat, D: Domain>(
     output_stream.ready := down.ready
 }
 
-cell UserPipeline<W: Nat = 32, D: Domain>(
+cell UserPipeline<W: nat = 32, D: Domain>(
     clk: in Clock<D>,
     rst: in Reset<D>,
     up: in Stream<UserWord<W>>.sink,

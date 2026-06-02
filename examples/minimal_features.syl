@@ -13,7 +13,7 @@
 // - package path components are namespace declarations, not external names
 //
 // Compiler-provided primitive types and type forms used here:
-// - Nat, Bool, Bit, UInt<W>, Domain, Clock<D>, Reset<D>
+// - nat, bool, Bit, UInt<W>, Domain, Clock<D>, Reset<D>
 // - [N] T array type, value[index] indexing, T.field projection
 // - Item<Args> generic application, .Variant enum shorthand
 // - Stream<T>.source/sink interface view selection syntax
@@ -27,18 +27,18 @@
 // - zero<T>(), compile_error(message)
 //
 // Semantic assumptions demonstrated here:
-// - Generic parameters use `W: Nat`; `const` is only used for value declarations.
+// - Generic parameters use `W: nat`; `const` is only used for value declarations.
 // - `D: Domain` is a generic kind parameter, not a runtime port or named argument.
 // - A declaration with `D: Domain` uses D as the default domain in its body.
 // - A domainless combinational extern cell is domain-agnostic at the call site.
-// - `if` conditions are const/proposition Bool expressions, not hardware Bit.
+// - `if` conditions are const/proposition bool expressions, not hardware Bit.
 // - `for` ranges are elaboration-time finite ranges.
 // - `let x = rhs` only binds a name; it does not create a driver.
 // - `signal x: T := expr` is a local continuous driver.
 // - `target := expr` is a compiler-owned continuous driver.
 // - `reg` values can be read, but only `next reg_name := expr` can update them.
 // - `return` is only valid inside fn, not inside map/cell/module bodies.
-// - Hardware Bit levels are written as 0/1; true/false are Bool proposition literals.
+// - Hardware Bit levels are written as 0/1; true/false are bool proposition literals.
 // - Hardware logic uses and/or/not/xor/eq; const/proposition logic uses &&/||/!/==.
 // - Interface field completeness is checked per field and per capability.
 // - Cell result endpoints expose connection capabilities, such as driving a
@@ -46,12 +46,12 @@
 // - Protocol rules, formal checks, timing relations, and user-visible effect
 //   annotations are intentionally deferred from this v0 syntax sketch.
 
-const DATA_W: Nat = 32
-const LANES: Nat = 2
+const DATA_W: nat = 32
+const LANES: nat = 2
 
-fn clog2(x: Nat) -> Nat {
-    var n: Nat = 0
-    var p: Nat = 1
+fn clog2(x: nat) -> nat {
+    var n: nat = 0
+    var p: nat = 1
 
     while p < x {
         p = p << 1
@@ -68,12 +68,12 @@ enum Op {
 
 // Stable bit layout is explicit. Ordinary bundles below remain structural.
 @layout(packed)
-bundle PackedWord<W: Nat> {
+bundle PackedWord<W: nat> {
     data: UInt<W>,
     last: Bit,
 }
 
-bundle Packet<W: Nat> {
+bundle Packet<W: nat> {
     data: UInt<W>,
     op: Op,
     last: Bit,
@@ -97,7 +97,7 @@ interface Stream<T> {
     }
 }
 
-map select_result<W: Nat>(
+map select_result<W: nat>(
     op: Op,
     base: UInt<W>,
     xor_value: UInt<W>,
@@ -107,7 +107,7 @@ map select_result<W: Nat>(
         .Xor => xor_value,
     }
 
-extern cell VendorXor<W: Nat>(
+extern cell VendorXor<W: nat>(
     a: in UInt<W>,
     b: in UInt<W>,
 ) -> y: UInt<W>
@@ -145,13 +145,13 @@ cell skid_buffer<T, D: Domain>(
         }
 }
 
-cell Lane<W: Nat, D: Domain>(
+cell Lane<W: nat, D: Domain>(
     clk: in Clock<D>,
     rst: in Reset<D>,
     in_stream: in Stream<Packet<W>>.sink,
     out_stream: out Stream<Packet<W>>.source,
 ) {
-    const IDX_W: Nat = clog2(W)
+    const IDX_W: nat = clog2(W)
 
     if IDX_W == 0 {
         compile_error("Lane width must require at least one index bit")
@@ -190,8 +190,8 @@ cell Lane<W: Nat, D: Domain>(
 }
 
 cell MiniTop<
-    W: Nat = DATA_W,
-    N: Nat = LANES,
+    W: nat = DATA_W,
+    N: nat = LANES,
     D: Domain,
 >(
     clk: in Clock<D>,

@@ -242,7 +242,7 @@ where
     ) -> Result<Vec<EirItem>, CompileError> {
         let ty = request
             .ty
-            .unwrap_or_else(|| MirTypeRef::path_type(vec!["Nat".to_string()], request.span));
+            .unwrap_or_else(|| MirTypeRef::path_type(vec!["nat".to_string()], request.span));
         let physical_name = env.local_name(request.name);
         let code = match self.elab_const_value(request.value, env)? {
             ConstValue::Nat(value) => EirExpr::Int(value),

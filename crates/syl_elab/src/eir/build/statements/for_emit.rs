@@ -51,7 +51,7 @@ where
             loop_env.insert(
                 request.name,
                 EirExpr::Int(value),
-                MirTypeRef::path_type(vec!["Nat".to_string()], request.range_expr.span()),
+                MirTypeRef::path_type(vec!["nat".to_string()], request.range_expr.span()),
             );
             items.extend(self.emit_for_iteration_body(
                 request.body,
@@ -75,7 +75,7 @@ where
         loop_env.insert(
             request.name,
             EirExpr::ident(&index),
-            MirTypeRef::path_type(vec!["Nat".to_string()], request.range_expr.span()),
+            MirTypeRef::path_type(vec!["nat".to_string()], request.range_expr.span()),
         );
         let body_items =
             self.emit_symbolic_for_body(request.body, &mut loop_env, request.name, &index)?;
