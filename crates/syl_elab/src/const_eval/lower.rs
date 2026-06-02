@@ -1,13 +1,14 @@
 use std::collections::BTreeMap;
 
 use syl_hir::DefId;
+use syl_sema::ir::const_mir::ConstNamedExpr;
 
 use super::{ConstEvalEnv, ConstKind, ConstValue, ConstValueElaborator};
 use crate::{
     CompileError, ConstEvalError, EirError, TirError,
     const_mir::{ConstExpr, ConstFunction, ConstMirProgram},
     mir::MirTypeRef,
-    program::{ElabCallArg, ElabExpr, ElabExprNode, ElabProgram, ElabResolution},
+    program::{ElabCallArg, ElabExpr, ElabExprNode, ElabNamedExpr, ElabProgram, ElabResolution},
 };
 
 impl ConstValueElaborator for ConstMirProgram {
@@ -125,10 +126,10 @@ impl<'program, 'env> ElabConstLowerer<'program, 'env> {
                 expr.span(),
             )),
             ElabExprNode::Call { callee, args } => self.call_expr(expr, callee, args),
+            ElabExprNode::Aggregate { ty, fields } => self.aggregate_expr(expr, ty, fields),
             ElabExprNode::Field { base, field } => self.field_expr(expr, base, field),
             ElabExprNode::Unsupported => Err(self.invalid(expr)),
             ElabExprNode::Str(_)
-            | ElabExprNode::Aggregate { .. }
             | ElabExprNode::Index { .. }
             | ElabExprNode::Block(_)
             | ElabExprNode::Match { .. }
@@ -155,19 +156,41 @@ impl<'program, 'env> ElabConstLowerer<'program, 'env> {
         ))
     }
 
+    fn aggregate_expr(
+        &self,
+        expr: &ElabExpr,
+        ty: &MirTypeRef,
+        fields: &[ElabNamedExpr],
+    ) -> Result<ConstExpr, CompileError> {
+        let Some(ConstKind::Struct(kind)) = self.const_mir.evaluator().kind_for_type(ty) else {
+            return Err(self.invalid(expr));
+        };
+        let fields = fields
+            .iter()
+            .map(|field| {
+                self.lower(&field.value)
+                    .map(|value| ConstNamedExpr::new(field.name.clone(), value))
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(ConstExpr::aggregate(kind, fields, expr.span()))
+    }
+
     fn field_expr(
         &self,
         expr: &ElabExpr,
         base: &ElabExpr,
         field: &str,
     ) -> Result<ConstExpr, CompileError> {
-        let Some(owner) = self.env.owner() else {
-            return Err(self.invalid(expr));
-        };
-        let Some(value) = self.program.enum_variant_field_value(owner, base, field) else {
-            return Err(self.invalid(expr));
-        };
-        Ok(ConstExpr::nat(value, expr.span()))
+        if let Some(owner) = self.env.owner()
+            && let Some(value) = self.program.enum_variant_field_value(owner, base, field)
+        {
+            return Ok(ConstExpr::nat(value, expr.span()));
+        }
+        Ok(ConstExpr::field(
+            self.lower(base)?,
+            field.to_string(),
+            expr.span(),
+        ))
     }
 
     fn resolved_const(&self, expr: &ElabExpr) -> Option<&crate::program::ElabConstItem> {

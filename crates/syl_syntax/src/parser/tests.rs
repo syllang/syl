@@ -137,6 +137,31 @@ fn parses_enum_layout_width_and_explicit_values() {
 }
 
 #[test]
+fn parses_struct_item_with_generics_and_fields() {
+    let file = SourceParser::new(
+        r#"
+struct Params<W: nat> {
+    width: W,
+    enabled: bool,
+}
+"#,
+    )
+    .parse_file()
+    .unwrap();
+
+    match &file.items[0] {
+        Item::Struct(item) => {
+            assert_eq!(item.name, "Params");
+            assert_eq!(item.generics.len(), 1);
+            assert_eq!(item.fields.len(), 2);
+            assert_eq!(item.fields[0].name, "width");
+            assert_eq!(item.fields[1].name, "enabled");
+        }
+        other => panic!("unexpected struct item: {other:?}"),
+    }
+}
+
+#[test]
 fn parses_inout_ports_and_view_fields() {
     let source = r#"
 interface Pad {

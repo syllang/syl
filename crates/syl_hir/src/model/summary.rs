@@ -17,7 +17,7 @@
 use super::{
     HirBundleItem, HirCallable, HirConstItem, HirDef, HirDefKind, HirDesign, HirEnumItem, HirExpr,
     HirFieldAccess, HirFnItem, HirInterfaceItem, HirLocal, HirLocalKind, HirMapItem, HirMemberDecl,
-    HirMemberKind, HirTypeRef,
+    HirMemberKind, HirStructItem, HirTypeRef,
 };
 
 // Stable internal summary tags for the definition fingerprint.
@@ -29,11 +29,12 @@ use super::{
 const SUMMARY_TAG_DEF_CONST: usize = 1;
 const SUMMARY_TAG_DEF_FN: usize = 2;
 const SUMMARY_TAG_DEF_ENUM: usize = 3;
-const SUMMARY_TAG_DEF_BUNDLE: usize = 4;
-const SUMMARY_TAG_DEF_INTERFACE: usize = 5;
-const SUMMARY_TAG_DEF_MAP: usize = 6;
-const SUMMARY_TAG_DEF_CELL: usize = 7;
-const SUMMARY_TAG_DEF_EXTERN_CELL: usize = 9;
+const SUMMARY_TAG_DEF_STRUCT: usize = 4;
+const SUMMARY_TAG_DEF_BUNDLE: usize = 5;
+const SUMMARY_TAG_DEF_INTERFACE: usize = 6;
+const SUMMARY_TAG_DEF_MAP: usize = 7;
+const SUMMARY_TAG_DEF_CELL: usize = 8;
+const SUMMARY_TAG_DEF_EXTERN_CELL: usize = 10;
 
 impl HirDesign {
     pub fn semantic_summary_count(&self) -> usize {
@@ -99,6 +100,11 @@ impl HirDesign {
                 .map(HirEnumItem::summary_count)
                 .sum::<usize>()
             + self
+                .structs
+                .values()
+                .map(HirStructItem::summary_count)
+                .sum::<usize>()
+            + self
                 .bundles
                 .values()
                 .map(HirBundleItem::summary_count)
@@ -137,6 +143,7 @@ impl HirDefKind {
             Self::Const => SUMMARY_TAG_DEF_CONST,
             Self::Fn => SUMMARY_TAG_DEF_FN,
             Self::Enum => SUMMARY_TAG_DEF_ENUM,
+            Self::Struct => SUMMARY_TAG_DEF_STRUCT,
             Self::Bundle => SUMMARY_TAG_DEF_BUNDLE,
             Self::Interface => SUMMARY_TAG_DEF_INTERFACE,
             Self::Map => SUMMARY_TAG_DEF_MAP,

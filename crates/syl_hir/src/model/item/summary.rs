@@ -1,7 +1,7 @@
 use super::{
     HirAttribute, HirBundleItem, HirCallableItem, HirConstItem, HirDriveCapability, HirEnumItem,
     HirEnumLayout, HirEnumVariantDecl, HirExternCellItem, HirFnItem, HirInterfaceItem, HirMapItem,
-    HirPortDecl, HirPortDirection, MirTypeRef,
+    HirPortDecl, HirPortDirection, HirStructItem, MirTypeRef,
 };
 
 impl HirEnumLayout {
@@ -97,6 +97,12 @@ impl HirBundleItem {
                 .map(HirAttribute::summary_count)
                 .sum::<usize>()
             + self.span.start
+    }
+}
+
+impl HirStructItem {
+    pub(crate) fn summary_count(&self) -> usize {
+        self.name.len() + self.generics.len() + self.fields.len() + self.span.start
     }
 }
 

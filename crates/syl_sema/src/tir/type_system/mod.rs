@@ -383,7 +383,7 @@ impl TypePhaseChecker {
         let kind = self.hir.def_kind(def);
         if !matches!(
             kind,
-            Some(HirDefKind::Enum | HirDefKind::Bundle | HirDefKind::Interface)
+            Some(HirDefKind::Enum | HirDefKind::Struct | HirDefKind::Bundle | HirDefKind::Interface)
         ) {
             return Err(CompileError::lowering_at(
                 TirError::UnknownType {
@@ -448,6 +448,12 @@ impl TypePhaseChecker {
             .bundles
             .get(&base_def)
             .and_then(|item| item.generics.get(index))
+            .or_else(|| {
+                self.hir
+                    .structs
+                    .get(&base_def)
+                    .and_then(|item| item.generics.get(index))
+            })
             .or_else(|| {
                 self.hir
                     .interfaces

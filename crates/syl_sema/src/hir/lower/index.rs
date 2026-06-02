@@ -2,7 +2,7 @@ use crate::{
     hir::lower::HirResolver,
     hir::{
         HirBlock, HirBodyExpr, HirBundleItem, HirCallableItem, HirConstItem, HirExpr, HirExprNode,
-        HirFieldAccess, HirFnItem, HirInterfaceItem, HirMapItem, HirRegReset,
+        HirFieldAccess, HirFnItem, HirInterfaceItem, HirMapItem, HirRegReset, HirStructItem,
         HirSignatureGenericParam, HirSignatureParam, HirStmt, HirTypeRef,
     },
     ir::mir::MirTypeRef,
@@ -30,6 +30,13 @@ impl<'files> HirResolver<'files> {
                 self.index_expr(owner, arg);
             }
         }
+        for field in &item.fields {
+            self.index_mir_type(owner, &field.ty);
+        }
+    }
+
+    pub(super) fn index_struct(&mut self, owner: DefId, item: &mut HirStructItem) {
+        self.index_generics(owner, &mut item.generics);
         for field in &item.fields {
             self.index_mir_type(owner, &field.ty);
         }

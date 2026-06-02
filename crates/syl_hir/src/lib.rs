@@ -14,8 +14,8 @@ pub use model::{
     HirInterfaceItem, HirLocal, HirLocalKind, HirMapItem, HirMatchArm, HirMemberDecl,
     HirMemberKind, HirNamedExpr, HirPackage, HirParamRole, HirPortDecl, HirPortDirection,
     HirRegReset, HirSelectArm, HirSignatureGenericParam, HirSignatureParam,
-    HirSignatureResultBinding, HirStmt, HirTypeRef, HirViewDecl, HirViewDirection, HirViewField,
-    MirBinaryOp, MirConstExpr, MirPattern, MirSelectMode, MirTypeRef, MirUnaryOp,
+    HirSignatureResultBinding, HirStmt, HirStructItem, HirTypeRef, HirViewDecl, HirViewDirection,
+    HirViewField, MirBinaryOp, MirConstExpr, MirPattern, MirSelectMode, MirTypeRef, MirUnaryOp,
 };
 pub use name::HirPath;
 pub use resolution::HirResolution;

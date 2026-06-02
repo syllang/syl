@@ -34,6 +34,7 @@ pub enum AstNodeKind {
     ConstItem,
     FnItem,
     EnumItem,
+    StructItem,
     EnumVariant,
     BundleItem,
     InterfaceItem,

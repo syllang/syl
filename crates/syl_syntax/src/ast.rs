@@ -10,7 +10,7 @@ mod span;
 /// Top-level parsed source file.
 ///
 /// Models one `.syl` source file as an ordered list of top-level items
-/// (`use`, `const`, `fn`, `enum`, `bundle`, `interface`, `map`, `cell`,
+/// (`use`, `const`, `fn`, `enum`, `struct`, `bundle`, `interface`, `map`, `cell`,
 /// `extern cell`) and an optional module-level doc comment.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
@@ -32,6 +32,7 @@ pub enum Item {
     Const(ConstItem),
     Fn(FnItem),
     Enum(EnumItem),
+    Struct(StructItem),
     Bundle(BundleItem),
     Interface(InterfaceItem),
     Map(MapItem),
@@ -48,6 +49,7 @@ impl Item {
             Self::Const(item) => item.span,
             Self::Fn(item) => item.span,
             Self::Enum(item) => item.span,
+            Self::Struct(item) => item.span,
             Self::Bundle(item) => item.span,
             Self::Interface(item) => item.span,
             Self::Map(item) => item.span,
@@ -64,6 +66,7 @@ impl Item {
             Self::Const(_) => LosslessItemKind::Const,
             Self::Fn(_) => LosslessItemKind::Fn,
             Self::Enum(_) => LosslessItemKind::Enum,
+            Self::Struct(_) => LosslessItemKind::Struct,
             Self::Bundle(_) => LosslessItemKind::Bundle,
             Self::Interface(_) => LosslessItemKind::Interface,
             Self::Map(_) => LosslessItemKind::Map,
@@ -169,6 +172,25 @@ pub enum EnumLayout {
     Flags,
     #[strum(serialize = "onehot")]
     OneHot,
+}
+
+/// A `bundle` declaration — a named group of named fields (struct-like).
+///
+/// Bundles are the primary way to compose related signals into a single
+/// named type, analogous to a `struct` in software languages.
+#[derive(Clone, Debug, PartialEq, Builder)]
+#[builder(pattern = "owned", build_fn(name = "try_build"))]
+#[non_exhaustive]
+pub struct StructItem {
+    #[builder(default)]
+    pub doc: Option<String>,
+    pub name: String,
+    #[builder(default)]
+    pub generics: Vec<GenericParam>,
+    #[builder(default)]
+    pub fields: Vec<FieldDecl>,
+    #[builder(default)]
+    pub span: Span,
 }
 
 /// A `bundle` declaration — a named group of named fields (struct-like).

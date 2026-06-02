@@ -66,6 +66,9 @@ impl TirConstEnv {
             HirExprNode::Int(_) => Some(TirConstKind::Nat),
             HirExprNode::Bool(_) => Some(TirConstKind::Bool),
             HirExprNode::Group(inner) => self.expr_kind(inner, checker),
+            HirExprNode::Field { base, field } => self
+                .field_value_expr(base, field, checker)
+                .and_then(|value| self.expr_kind(value, checker)),
             HirExprNode::Unary { op, expr } => {
                 let kind = self.expr_kind(expr, checker)?;
                 match (op, kind) {
@@ -80,7 +83,6 @@ impl TirConstEnv {
             HirExprNode::GenericApp { callee, .. } => self.expr_kind(callee, checker),
             HirExprNode::Range { .. }
             | HirExprNode::Str(_)
-            | HirExprNode::Field { .. }
             | HirExprNode::Index { .. }
             | HirExprNode::Place { .. }
             | HirExprNode::For { .. }
@@ -105,6 +107,9 @@ impl TirConstEnv {
                 .const_item(expr, checker)
                 .and_then(|item| self.const_bool_value(&item.value, checker)),
             HirExprNode::Group(expr) => self.const_bool_value(expr, checker),
+            HirExprNode::Field { base, field } => self
+                .field_value_expr(base, field, checker)
+                .and_then(|value| self.const_bool_value(value, checker)),
             HirExprNode::Unary {
                 op: syl_syntax::UnaryOp::Not,
                 expr,
@@ -201,6 +206,9 @@ impl TirConstEnv {
                     .and_then(|item| self.const_nat_value(&item.value, checker))
             }
             HirExprNode::Group(expr) => self.const_nat_value(expr, checker),
+            HirExprNode::Field { base, field } => self
+                .field_value_expr(base, field, checker)
+                .and_then(|value| self.const_nat_value(value, checker)),
             HirExprNode::Binary {
                 op, left, right, ..
             } => {
@@ -272,6 +280,33 @@ impl TirConstEnv {
         item.ret_ty
             .as_ref()
             .and_then(|ty| checker.mir_type_kind(&ty.ty))
+    }
+
+    fn field_value_expr<'a>(
+        &self,
+        base: &'a HirBodyExpr,
+        field: &str,
+        checker: &'a TypePhaseChecker,
+    ) -> Option<&'a HirBodyExpr> {
+        match &base.node {
+            HirExprNode::Group(inner) => self.field_value_expr(inner, field, checker),
+            HirExprNode::Ident(name) => {
+                if self.bindings.contains_key(name) {
+                    return None;
+                }
+                self.const_item(base, checker)
+                    .and_then(|item| self.field_value_expr(&item.value, field, checker))
+            }
+            HirExprNode::Aggregate { fields, .. } => fields
+                .iter()
+                .find(|named| named.name == field)
+                .map(|named| &named.value),
+            HirExprNode::Field { base, field: inner } => {
+                let value = self.field_value_expr(base, inner, checker)?;
+                self.field_value_expr(value, field, checker)
+            }
+            _ => None,
+        }
     }
 
     fn const_kind(&self, expr: &HirBodyExpr, checker: &TypePhaseChecker) -> Option<TirConstKind> {

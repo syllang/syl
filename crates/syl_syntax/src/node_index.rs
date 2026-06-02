@@ -6,8 +6,9 @@ pub use model::{AstNodeId, AstNodeIndex, AstNodeKind, AstNodeRecord};
 
 use crate::{
     AstFile, Attribute, BinaryOp, BundleItem, CallableItem, EnumItem, ErrorItem, ExternCellItem,
-    FieldDecl, FnItem, GenericParam, InterfaceItem, Item, MapItem, Param, ParamDirection, PortDecl,
-    ResultBinding, SelectMode, UnaryOp, UseItem, ViewDecl, ViewDirection, ViewField,
+    FieldDecl, FnItem, GenericParam, InterfaceItem, Item, MapItem, Param, ParamDirection,
+    PortDecl, ResultBinding, SelectMode, StructItem, UnaryOp, UseItem, ViewDecl, ViewDirection,
+    ViewField,
 };
 use anchor::{
     PendingNode, finalize_nodes, local_seed_bool, local_seed_int, local_seed_kind, local_seed_name,
@@ -180,6 +181,9 @@ impl<'a> AstNodeIndexBuilder<'a> {
             Item::Enum(item) => {
                 self.visit_enum_item(item, parent);
             }
+            Item::Struct(item) => {
+                self.visit_struct_item(item, parent);
+            }
             Item::Bundle(item) => {
                 self.visit_bundle_item(item, parent);
             }
@@ -239,6 +243,16 @@ impl<'a> AstNodeIndexBuilder<'a> {
         }
         for attr in &item.attrs {
             self.visit_attribute(attr, id);
+        }
+    }
+
+    fn visit_struct_item(&mut self, item: &StructItem, parent: NodeHandle) {
+        let id = self.push_name(AstNodeKind::StructItem, item.span, Some(parent), &item.name);
+        for generic in &item.generics {
+            self.visit_generic_param(generic, id);
+        }
+        for field in &item.fields {
+            self.visit_field_decl(field, id);
         }
     }
 

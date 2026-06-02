@@ -4,7 +4,7 @@ use crate::{
         HirBlock, HirBodyExpr, HirConstItem, HirDesign, HirEnumVariantKey, HirFnItem, HirStmt,
         resolve::HirResolution, view::HirDesignViewExt,
     },
-    ir::mir::{MirBinaryOp, MirUnaryOp},
+    ir::mir::{MirBinaryOp, MirTypeRef, MirUnaryOp},
     tir::TirDesign,
 };
 use std::collections::BTreeMap;
@@ -17,7 +17,170 @@ mod metrics;
 
 use lower::ExprLowerer;
 
-pub use eval::{ConstEvalEnv, ConstEvaluator, ConstKind, ConstValue};
+pub use eval::{ConstEvalEnv, ConstEvaluator};
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[non_exhaustive]
+pub enum ConstKind {
+    Nat,
+    Bool,
+    Struct(ConstStructKind),
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[non_exhaustive]
+pub struct ConstStructKind {
+    def: DefId,
+}
+
+impl ConstStructKind {
+    fn new(def: DefId) -> Self {
+        Self { def }
+    }
+
+    pub fn def(self) -> DefId {
+        self.def
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[non_exhaustive]
+pub enum ConstValue {
+    Unknown(ConstKind),
+    Nat(u64),
+    Bool(bool),
+    Struct(ConstStructValue),
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[non_exhaustive]
+pub struct ConstStructValue {
+    kind: ConstStructKind,
+    fields: Vec<ConstStructFieldValue>,
+}
+
+impl ConstStructValue {
+    pub fn new(kind: ConstStructKind, fields: Vec<ConstStructFieldValue>) -> Self {
+        Self { kind, fields }
+    }
+
+    pub fn kind(&self) -> ConstStructKind {
+        self.kind
+    }
+
+    pub fn fields(&self) -> &[ConstStructFieldValue] {
+        &self.fields
+    }
+
+    pub fn field_value(&self, field: &str) -> Option<&ConstValue> {
+        self.fields
+            .iter()
+            .find(|named| named.name == field)
+            .map(|named| &named.value)
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[non_exhaustive]
+pub struct ConstStructFieldValue {
+    name: String,
+    value: ConstValue,
+}
+
+impl ConstStructFieldValue {
+    pub fn new(name: impl Into<String>, value: ConstValue) -> Self {
+        Self {
+            name: name.into(),
+            value,
+        }
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn value(&self) -> &ConstValue {
+        &self.value
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[non_exhaustive]
+pub struct ConstStructDef {
+    kind: ConstStructKind,
+    name: String,
+    fields: Vec<ConstStructFieldDef>,
+}
+
+impl ConstStructDef {
+    fn new(kind: ConstStructKind, name: String, fields: Vec<ConstStructFieldDef>) -> Self {
+        Self { kind, name, fields }
+    }
+
+    pub fn kind(&self) -> ConstStructKind {
+        self.kind
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn fields(&self) -> &[ConstStructFieldDef] {
+        &self.fields
+    }
+
+    pub fn field(&self, field: &str) -> Option<&ConstStructFieldDef> {
+        self.fields.iter().find(|named| named.name == field)
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[non_exhaustive]
+pub struct ConstStructFieldDef {
+    name: String,
+    kind: Option<ConstKind>,
+}
+
+impl ConstStructFieldDef {
+    fn new(name: impl Into<String>, kind: Option<ConstKind>) -> Self {
+        Self {
+            name: name.into(),
+            kind,
+        }
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn kind(&self) -> Option<ConstKind> {
+        self.kind
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct ConstNamedExpr {
+    name: String,
+    value: ConstExpr,
+}
+
+impl ConstNamedExpr {
+    pub fn new(name: impl Into<String>, value: ConstExpr) -> Self {
+        Self {
+            name: name.into(),
+            value,
+        }
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn value(&self) -> &ConstExpr {
+        &self.value
+    }
+}
 
 /// Boundary for const evaluation so the evaluator can be tested with tiny
 /// function stores instead of a full `ConstMirProgram`.
@@ -28,7 +191,7 @@ trait ConstFunctionStore {
 /// Boundary for type-kind classification so callers can swap in fake
 /// classification rules during tests without rewriting const evaluation.
 trait ConstTypeOracle {
-    fn const_kind_for_type(&self, ty: &crate::ir::mir::MirTypeRef) -> Option<ConstKind>;
+    fn const_kind_for_type(&self, ty: &MirTypeRef) -> Option<ConstKind>;
 }
 
 pub(crate) trait ConstMirLoweringContext {
@@ -55,22 +218,13 @@ pub(crate) trait ConstMirLoweringContext {
     fn enum_variant_value(&self, expr: &HirBodyExpr) -> Option<u64>;
 }
 
-struct BuiltinConstTypeOracle;
-
-impl ConstTypeOracle for BuiltinConstTypeOracle {
-    fn const_kind_for_type(&self, ty: &crate::ir::mir::MirTypeRef) -> Option<ConstKind> {
-        match ty.type_name() {
-            Some("nat") => Some(ConstKind::Nat),
-            Some("bool") => Some(ConstKind::Bool),
-            _ => None,
-        }
-    }
-}
-
 #[non_exhaustive]
 pub struct ConstMirProgram {
     functions: Vec<ConstFunction>,
     function_index: BTreeMap<DefId, usize>,
+    structs: BTreeMap<DefId, ConstStructDef>,
+    struct_name_index: BTreeMap<String, DefId>,
+    struct_path_index: BTreeMap<Vec<String>, DefId>,
 }
 
 impl ConstMirProgram {
@@ -83,11 +237,57 @@ impl ConstMirProgram {
             .get(&id)
             .and_then(|idx| self.functions.get(*idx))
     }
+
+    pub fn struct_def(&self, id: DefId) -> Option<&ConstStructDef> {
+        self.structs.get(&id)
+    }
+
+    pub fn struct_kind(&self, id: DefId) -> Option<ConstStructKind> {
+        self.structs.get(&id).map(ConstStructDef::kind)
+    }
+
+    pub fn field_kind(&self, kind: ConstStructKind, field: &str) -> Option<ConstKind> {
+        self.structs
+            .get(&kind.def())
+            .and_then(|item| item.field(field))
+            .and_then(ConstStructFieldDef::kind)
+    }
+
+    fn struct_kind_for_type(&self, ty: &MirTypeRef) -> Option<ConstKind> {
+        if let Some(path) = ty.path() {
+            let def = self
+                .struct_path_index
+                .get(path)
+                .copied()
+                .or_else(|| path.last().and_then(|name| self.struct_name_index.get(name).copied()));
+            return def.map(ConstStructKind::new).map(ConstKind::Struct);
+        }
+        if let Some(base) = ty.generic_base() {
+            return self.struct_kind_for_type(base);
+        }
+        if let Some((base, _)) = ty.view_select() {
+            return self.struct_kind_for_type(base);
+        }
+        if let Some((_, elem)) = ty.array() {
+            return self.struct_kind_for_type(elem);
+        }
+        None
+    }
 }
 
 impl ConstFunctionStore for ConstMirProgram {
     fn function(&self, def: DefId) -> Option<&ConstFunction> {
         ConstMirProgram::function(self, def)
+    }
+}
+
+impl ConstTypeOracle for ConstMirProgram {
+    fn const_kind_for_type(&self, ty: &MirTypeRef) -> Option<ConstKind> {
+        match ty.type_name() {
+            Some("nat") => Some(ConstKind::Nat),
+            Some("bool") => Some(ConstKind::Bool),
+            _ => self.struct_kind_for_type(ty),
+        }
     }
 }
 
@@ -237,7 +437,7 @@ impl ConstLocal {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct ConstLocalRef {
     id: Option<LocalId>,
@@ -298,6 +498,7 @@ pub enum Terminator {
     Return(Option<ConstExpr>),
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct ConstExpr {
     kind: ConstExprKind,
@@ -332,6 +533,20 @@ impl ConstExpr {
 
     pub fn bool_value(value: bool, span: Span) -> Self {
         Self::new(ConstExprKind::Bool(value), span)
+    }
+
+    pub fn aggregate(kind: ConstStructKind, fields: Vec<ConstNamedExpr>, span: Span) -> Self {
+        Self::new(ConstExprKind::Aggregate { kind, fields }, span)
+    }
+
+    pub fn field(base: ConstExpr, field: impl Into<String>, span: Span) -> Self {
+        Self::new(
+            ConstExprKind::Field {
+                base: Box::new(base),
+                field: field.into(),
+            },
+            span,
+        )
     }
 
     pub fn unary(op: MirUnaryOp, expr: ConstExpr, span: Span) -> Self {
@@ -381,12 +596,21 @@ impl ConstExpr {
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum ConstExprKind {
     Local(ConstLocalRef),
     Unknown(ConstKind),
     Nat(u64),
     Bool(bool),
+    Aggregate {
+        kind: ConstStructKind,
+        fields: Vec<ConstNamedExpr>,
+    },
+    Field {
+        base: Box<ConstExpr>,
+        field: String,
+    },
     Unary {
         op: MirUnaryOp,
         expr: Box<ConstExpr>,
@@ -425,9 +649,48 @@ impl<'a> ConstMirBuilder<'a> {
             function_index.insert(*owner, functions.len());
             functions.push(self.lower_fn(*owner, item));
         }
+        let mut structs = BTreeMap::new();
+        let mut struct_name_index = BTreeMap::new();
+        let mut duplicate_struct_names = BTreeMap::new();
+        let mut struct_path_index = BTreeMap::new();
+        for (def, item) in &self.ctx.hir().structs {
+            let kind = ConstStructKind::new(*def);
+            let fields = item
+                .fields
+                .iter()
+                .map(|field| {
+                    let kind = self
+                        .ctx
+                        .hir()
+                        .type_def_for_mir_type(*def, &field.ty)
+                        .filter(|field_def| self.ctx.hir().structs.contains_key(field_def))
+                        .map(ConstStructKind::new)
+                        .map(ConstKind::Struct)
+                        .or_else(|| match field.ty.type_name() {
+                            Some("nat") => Some(ConstKind::Nat),
+                            Some("bool") => Some(ConstKind::Bool),
+                            _ => None,
+                        });
+                    ConstStructFieldDef::new(field.name.clone(), kind)
+                })
+                .collect();
+            structs.insert(*def, ConstStructDef::new(kind, item.name.clone(), fields));
+            if let Some(canonical) = self.ctx.hir().defs.get(def.get()) {
+                struct_path_index.insert(canonical.canonical_path.segments().to_vec(), *def);
+            }
+            if struct_name_index.insert(item.name.clone(), *def).is_some() {
+                duplicate_struct_names.insert(item.name.clone(), ());
+            }
+        }
+        for name in duplicate_struct_names.keys() {
+            struct_name_index.remove(name);
+        }
         Ok(ConstMirProgram {
             functions,
             function_index,
+            structs,
+            struct_name_index,
+            struct_path_index,
         })
     }
 
