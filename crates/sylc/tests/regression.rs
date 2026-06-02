@@ -153,7 +153,7 @@ cell Bad<W: nat>() {
 }
 "#,
         )
-        .expect_err("Nat generic must not be accepted as an if condition");
+        .expect_err("nat generic must not be accepted as an if condition");
 
     assert!(
         err.to_string()
@@ -172,7 +172,7 @@ cell Bad<B: bool>() {
 }
 "#,
         )
-        .expect_err("Bool generic must not be accepted as a for bound");
+        .expect_err("bool generic must not be accepted as a for bound");
 
     assert!(
         err.to_string()
@@ -316,11 +316,27 @@ cell Top(y: out Bit) {
 #[test]
 fn elaborates_struct_const_aggregate_field_access() {
     let verilog = TestCompiler::new()
-        .compile(
-            r#"
+        .compile_sources_with_paths(&[
+            (
+                path!("alpha"),
+                r#"
+struct Config {
+    width: nat
+}
+"#,
+            ),
+            (
+                path!("beta"),
+                r#"
 struct Config {
     enabled: bool
 }
+"#,
+            ),
+            (
+                path!("app"),
+                r#"
+use beta.Config;
 
 const DEFAULT: Config = Config { enabled: true }
 
@@ -332,7 +348,8 @@ cell Top(y: out Bit) {
     }
 }
 "#,
-        )
+            ),
+        ])
         .expect("software struct const aggregates must elaborate through field access");
 
     assert!(verilog.contains("assign y = 1;"));
