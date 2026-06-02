@@ -154,11 +154,11 @@ cell Top(pkt: in Word, arr: in [2] Bit, y: out Bit) {
 #[test]
 fn staged_middle_tir_hover_infers_generic_map_call_result() {
     let source = r#"
-bundle Word<W: Nat> {
+bundle Word<W: nat> {
     lo: UInt<W>,
 }
 
-map low<W: Nat>(pkt: Word<W>) -> UInt<W> =
+map low<W: nat>(pkt: Word<W>) -> UInt<W> =
     pkt.lo
 
 cell Top(pkt: in Word<4>, y: out Bit) {
@@ -318,10 +318,10 @@ cell Top(y: out Bit) {
 #[test]
 fn diagnostics_collects_multiple_duplicate_items_in_hir_index() {
     let source = r#"
-const WIDTH: Nat = 8
-const WIDTH: Nat = 16
-const DEPTH: Nat = 2
-const DEPTH: Nat = 4
+const WIDTH: nat = 8
+const WIDTH: nat = 16
+const DEPTH: nat = 2
+const DEPTH: nat = 4
 
 cell Top(y: out Bit) {
     y := 0

@@ -227,7 +227,7 @@ interface Stream<T> {
     }
 }
 
-cell Bad<ENABLE: Bool>(y: out Bit) {
+cell Bad<ENABLE: bool>(y: out Bit) {
     signal mid: Stream<Bit>.sink
     if ENABLE {
         signal mid: Stream<Bit>.sink

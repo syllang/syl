@@ -145,8 +145,8 @@ impl TirType {
     pub fn label(&self) -> String {
         match self {
             Self::Unknown => "<unknown>".to_string(),
-            Self::Nat => "Nat".to_string(),
-            Self::Bool => "Bool".to_string(),
+            Self::Nat => "nat".to_string(),
+            Self::Bool => "bool".to_string(),
             Self::Bit => "Bit".to_string(),
             Self::Clock { domain: None } => "Clock".to_string(),
             Self::Clock {
@@ -157,7 +157,7 @@ impl TirType {
                 domain: Some(domain),
             } => format!("Reset<{}>", domain.label()),
             Self::Domain => "Domain".to_string(),
-            Self::Str => "Str".to_string(),
+            Self::Str => "string".to_string(),
             Self::UInt { width } => format!("UInt<{width}>"),
             Self::Bits { width } => format!("Bits<{width}>"),
             Self::SInt { width } => format!("SInt<{width}>"),
@@ -296,8 +296,9 @@ impl TypePhaseChecker {
         let const_terms = TirConstTermResolver::new(self, owner);
         if let Some(path) = ty.path() {
             return match path.last().map(String::as_str) {
-                Some("Nat") => Ok(TirType::Nat),
-                Some("Bool") => Ok(TirType::Bool),
+                Some("nat" | "Nat") => Ok(TirType::Nat),
+                Some("bool" | "Bool") => Ok(TirType::Bool),
+                Some("string" | "Str") => Ok(TirType::Str),
                 Some("Bit") => Ok(TirType::Bit),
                 Some("Clock") => Ok(TirType::Clock { domain: None }),
                 Some("Reset") => Ok(TirType::Reset { domain: None }),
@@ -524,8 +525,8 @@ impl TypePhaseChecker {
         loop {
             if let Some(name) = current.path_name() {
                 return match name {
-                    "Nat" => Some(TirConstKind::Nat),
-                    "Bool" => Some(TirConstKind::Bool),
+                    "nat" | "Nat" => Some(TirConstKind::Nat),
+                    "bool" | "Bool" => Some(TirConstKind::Bool),
                     _ => None,
                 };
             }

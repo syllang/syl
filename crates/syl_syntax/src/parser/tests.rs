@@ -38,7 +38,7 @@ fn parses_const_and_fn_items() {
         t(TokenKind::LParen, 17, 18),
         t(TokenKind::Ident("x".into()), 18, 19),
         t(TokenKind::Colon, 19, 20),
-        t(TokenKind::Ident("Nat".into()), 21, 24),
+        t(TokenKind::Ident("nat".into()), 21, 24),
         t(TokenKind::RParen, 24, 25),
         t(TokenKind::LBrace, 26, 27),
         t(TokenKind::KwReturn, 28, 34),
@@ -173,7 +173,7 @@ fn parses_this_receiver_on_map_and_fn() {
 map fire<T>(this stage: Stage<T>.tap) -> Bit =
     stage.valid and stage.ready
 
-fn width(this word: Word) -> Nat {
+fn width(this word: Word) -> nat {
     return 1
 }
 "#;
@@ -424,13 +424,13 @@ const CARRY = 1;
 /// Adds one.
 fn inc(
     /// Input value.
-    x: Nat,
-) -> Nat {
+    x: nat,
+) -> nat {
     return x + 1
 }
 
 /// Packet bundle.
-bundle Packet<T: Nat> {
+bundle Packet<T: nat> {
     /// Payload bits.
     data: UInt<T>,
 }

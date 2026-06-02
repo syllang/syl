@@ -11,7 +11,7 @@ use syl_syntax::{AstFile, SourceParser};
 #[test]
 fn semantic_facts_bundle_exposes_queryable_tables() {
     let shared = r#"
-const WIDTH: Nat = 4 + 1
+const WIDTH: nat = 4 + 1
 
 interface Stream<D: Domain> {
     payload: UInt<WIDTH>
@@ -310,12 +310,12 @@ cell Bad(x: in Missing) {
 #[test]
 fn const_facts_are_deterministic_across_repeated_runs() {
     let source = r#"
-fn add_one(x: Nat) -> Nat {
+fn add_one(x: nat) -> nat {
     return x + 1
 }
 
-const WIDTH: Nat = add_one(4)
-const HEIGHT: Nat = add_one(4)
+const WIDTH: nat = add_one(4)
+const HEIGHT: nat = add_one(4)
 
 cell Top(y: out UInt<WIDTH>) {
 }
@@ -378,11 +378,11 @@ enum Op {
     Add,
 }
 
-fn rank(this op: Op) -> Nat {
+fn rank(this op: Op) -> nat {
     return 1
 }
 
-fn use_rank(op: Op) -> Nat {
+fn use_rank(op: Op) -> nat {
     return op.rank()
 }
 
@@ -412,8 +412,8 @@ cell Top(y: out UInt<1>) {
 #[test]
 fn const_evaluator_reports_structured_step_limit_for_long_running_const_fn() {
     let source = r#"
-fn burn_steps(limit: Nat) -> Nat {
-    var i: Nat = 0
+fn burn_steps(limit: nat) -> nat {
+    var i: nat = 0
 
     while i < limit {
         i = i + 1
@@ -422,7 +422,7 @@ fn burn_steps(limit: Nat) -> Nat {
     return i
 }
 
-const WIDTH: Nat = burn_steps(20000)
+const WIDTH: nat = burn_steps(20000)
 
 cell Top(y: out UInt<1>) {
 }

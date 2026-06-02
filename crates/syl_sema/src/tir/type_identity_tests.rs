@@ -77,7 +77,7 @@ fn fixed_width_builtin_types_keep_distinct_type_ids() {
         MapItem::builder("Kinds".to_string(), Expr::Int(1, Span::new(80, 81)))
             .generics(vec![GenericParam::new(
                 "W".to_string(),
-                Some(TypeExpr::Path(vec!["Nat".to_string()], Span::new(1, 2))),
+                Some(TypeExpr::Path(vec!["nat".to_string()], Span::new(1, 2))),
                 None,
                 Span::new(2, 3),
             )])
