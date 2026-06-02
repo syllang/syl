@@ -42,7 +42,10 @@ where
             return false;
         };
         if env.owner.is_none() {
-            return env.vars.contains_key(name);
+            return env.var(name).is_some_and(|var| !var.software_local);
+        }
+        if env.var(name).is_some_and(|var| var.software_local) {
+            return false;
         }
         let Some(kind) = self.read_root_kind(root, env) else {
             return false;
