@@ -314,6 +314,33 @@ cell Top(y: out Bit) {
 }
 
 #[test]
+fn elaborates_struct_const_aggregate_field_access() {
+    let verilog = TestCompiler::new()
+        .compile(
+            r#"
+struct Config {
+    enabled: bool
+}
+
+const DEFAULT: Config = Config { enabled: true }
+
+cell Top(y: out Bit) {
+    if DEFAULT.enabled {
+        y := 1
+    } else {
+        y := 0
+    }
+}
+"#,
+        )
+        .expect("software struct const aggregates must elaborate through field access");
+
+    assert!(verilog.contains("assign y = 1;"));
+    assert!(!verilog.contains("assign y = 0;"));
+    assert!(!verilog.contains("gen_if"));
+}
+
+#[test]
 fn rejects_duplicate_instance_arguments() {
     let err = TestCompiler::new()
         .compile(
