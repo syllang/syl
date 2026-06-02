@@ -70,9 +70,9 @@ impl HirError {
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum TirError {
-    #[error("elaboration if requires Bool condition")]
+    #[error("elaboration if requires bool condition")]
     ElaborationIfRequiresBool,
-    #[error("{context} requires Nat expression")]
+    #[error("{context} requires nat expression")]
     RequiresNatExpression { context: String },
     #[error("duplicate enum discriminant {value} in {enum_name}")]
     DuplicateEnumDiscriminant { enum_name: String, value: u64 },
@@ -93,7 +93,7 @@ pub enum TirError {
     UnknownType { name: String },
     #[error("expression is not valid in elaboration context")]
     InvalidElaborationExpression,
-    #[error("Bool is a const/proposition type and cannot be used as a hardware value")]
+    #[error("bool is a const/proposition type and cannot be used as a hardware value")]
     BoolInHardwareValue,
     #[error("hardware expressions cannot use const/proposition operator {op}")]
     SoftwareOperatorInHardware { op: String },

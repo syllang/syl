@@ -258,7 +258,7 @@ mod tests {
             .hover_at(valid_expr_span)
             .expect("valid item expression should still have typed hover");
 
-        assert_eq!(hover.text(), "Comb Nat");
+        assert_eq!(hover.text(), "Comb nat");
     }
 
     #[test]
@@ -324,7 +324,7 @@ mod tests {
             .hover_at(valid_span)
             .expect("later valid let expression should still have typed hover");
 
-        assert_eq!(hover.text(), "Hardware Nat");
+        assert_eq!(hover.text(), "Hardware nat");
     }
 
     #[test]
@@ -357,7 +357,7 @@ mod tests {
         assert_eq!(
             tir.binding_type_label(BindingRef::Local(param_id))
                 .as_deref(),
-            Some("Nat")
+            Some("nat")
         );
     }
 
@@ -375,7 +375,7 @@ mod tests {
                 .params(vec![syl_syntax::Param::new(
                     "x".to_string(),
                     None,
-                    TypeExpr::Path(vec!["Nat".to_string()], Span::new(12, 15)),
+                    TypeExpr::Path(vec!["nat".to_string()], Span::new(12, 15)),
                     Span::new(10, 15),
                 )])
                 .span(Span::new(0, 50))

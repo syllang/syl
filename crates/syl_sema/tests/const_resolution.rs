@@ -40,7 +40,7 @@ fn elaboration_const_uses_owner_scope_not_global_leaf_name() {
     let verilog = ConstResolutionHarness::new()
         .compile_sources(&[
             r#"
-const ENABLE: Bool = true
+const ENABLE: bool = true
 
 cell LibTop(y: out Bit) {
     if ENABLE {
@@ -51,7 +51,7 @@ cell LibTop(y: out Bit) {
 }
 "#,
             r#"
-const ENABLE: Nat = 0
+const ENABLE: nat = 0
 "#,
         ])
         .expect("same-leaf const in another package must not poison owner-scoped elaboration");
@@ -65,7 +65,7 @@ fn elaboration_fn_call_uses_owner_scope_not_global_leaf_name() {
     let verilog = ConstResolutionHarness::new()
         .compile_sources(&[
             r#"
-fn choose(x: Nat) -> Bool {
+fn choose(x: nat) -> bool {
     return x == 1
 }
 
@@ -78,7 +78,7 @@ cell LibTop(y: out Bit) {
 }
 "#,
             r#"
-fn choose(x: Bool) -> Bool {
+fn choose(x: bool) -> bool {
     return false
 }
 "#,

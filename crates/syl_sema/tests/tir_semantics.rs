@@ -209,9 +209,9 @@ cell Bad(y: out Bit) {
 }
 "#,
         )
-        .expect_err("Bool is not a hardware Bit literal");
+        .expect_err("bool is not a hardware Bit literal");
 
-    assert!(err.contains("Bool is a const/proposition type"));
+    assert!(err.contains("bool is a const/proposition type"));
 }
 
 #[test]
@@ -331,9 +331,9 @@ cell Bad(sel: in Bit, y: out Bit) {
 }
 "#,
         )
-        .expect_err("Bool match patterns must not be treated as hardware Bit patterns");
+        .expect_err("bool match patterns must not be treated as hardware Bit patterns");
 
-    assert!(err.contains("Bool is a const/proposition type"));
+    assert!(err.contains("bool is a const/proposition type"));
 }
 
 #[test]
