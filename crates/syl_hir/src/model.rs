@@ -266,14 +266,10 @@ impl HirDesign {
     }
 
     /// Resolves a `MirTypeRef` to its canonical definition ID.
-    pub fn type_def_for_mir_type(&self, _owner: DefId, ty: &MirTypeRef) -> Option<DefId> {
+    pub fn type_def_for_mir_type(&self, owner: DefId, ty: &MirTypeRef) -> Option<DefId> {
         if let Some(path) = ty.path() {
             if path.len() == 1 {
-                return self
-                    .def_names
-                    .get(&path[0])
-                    .and_then(|defs| defs.first())
-                    .copied();
+                return self.resolve_visible_def_id(owner, &path[0]);
             }
             return self
                 .canonical_def_names
@@ -281,13 +277,13 @@ impl HirDesign {
                 .copied();
         }
         if let Some(base) = ty.generic_base() {
-            return self.type_def_for_mir_type(_owner, base);
+            return self.type_def_for_mir_type(owner, base);
         }
         if let Some((base, _)) = ty.view_select() {
-            return self.type_def_for_mir_type(_owner, base);
+            return self.type_def_for_mir_type(owner, base);
         }
         if let Some((_, elem)) = ty.array() {
-            return self.type_def_for_mir_type(_owner, elem);
+            return self.type_def_for_mir_type(owner, elem);
         }
         None
     }
@@ -328,6 +324,28 @@ impl HirDesign {
             .get(def.get())
             .filter(|item| item.kind == HirDefKind::Enum)
             .map(|item| item.id)
+    }
+
+    fn resolve_visible_def_id(&self, owner: DefId, name: &str) -> Option<DefId> {
+        let package = self.package_path_for_def(owner)?;
+        if let Some(def) = self.canonical_def_names.get(&package.with_leaf(name)).copied() {
+            return Some(def);
+        }
+        let mut imported = self
+            .imports
+            .iter()
+            .filter(|import| import.package_path == package)
+            .filter(|import| import.path.last().is_some_and(|leaf| leaf == name))
+            .filter_map(|import| {
+                self.canonical_def_names
+                    .get(&HirPath::new(import.path.clone()))
+                    .copied()
+            });
+        let first = imported.next()?;
+        if imported.next().is_some() {
+            return None;
+        }
+        Some(first)
     }
 }
 
