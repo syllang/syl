@@ -62,7 +62,23 @@ where
                 } => {
                     items.extend(self.emit_let(name, value, env)?);
                 }
-                ElabStmt::Let { span, .. } | ElabStmt::Var { span } => {
+                ElabStmt::Var {
+                    name,
+                    ty,
+                    value,
+                    span,
+                    ..
+                } => {
+                    self.bind_var(name, ty.as_ref(), value.as_ref(), *span, env)?;
+                }
+                ElabStmt::Assign {
+                    target,
+                    value,
+                    span,
+                } => {
+                    self.emit_assign(target, value, *span, env)?;
+                }
+                ElabStmt::Let { span, .. } => {
                     return Err(CompileError::lowering_at(
                         EirError::LocalBindingLoweringUnsupported,
                         *span,
@@ -582,6 +598,53 @@ where
             MirTypeRef::path_type(vec!["Bit".to_string()], value.span()),
         );
         Vec::new()
+    }
+
+    fn bind_var(
+        &self,
+        name: &str,
+        ty: Option<&MirTypeRef>,
+        value: Option<&ElabExpr>,
+        span: Span,
+        env: &mut Env,
+    ) -> Result<(), CompileError> {
+        let ty = ty.cloned().unwrap_or_else(|| {
+            MirTypeRef::path_type(vec!["Bit".to_string()], span)
+        });
+        let code = value
+            .map(|expr| self.elab_expr(expr, env))
+            .unwrap_or_else(|| EirExpr::unsupported("uninitialized mutable local"));
+        env.insert_software_local(name, code, ty);
+        Ok(())
+    }
+
+    fn emit_assign(
+        &self,
+        target: &ElabExpr,
+        value: &ElabExpr,
+        span: Span,
+        env: &mut Env,
+    ) -> Result<(), CompileError> {
+        let ElabExprNode::Ident(name) = &target.node else {
+            return Err(CompileError::lowering_at(
+                EirError::InvalidElaborationExpression,
+                span,
+            ));
+        };
+        let Some(var) = env.var(name) else {
+            return Err(CompileError::lowering_at(
+                EirError::InvalidElaborationExpression,
+                span,
+            ));
+        };
+        if !var.software_local {
+            return Err(CompileError::lowering_at(
+                EirError::IllegalHardwareStatement,
+                span,
+            ));
+        }
+        env.insert_software_local(name, self.elab_expr(value, env), var.ty.clone());
+        Ok(())
     }
 
     fn emit_expr_stmt(
