@@ -2,8 +2,9 @@ use crate::{
     CompileError, ConstEvalError, LoweringError, TirError,
     ir::{
         const_mir::{
-            BuiltinConstTypeOracle, ConstExpr, ConstExprKind, ConstFunction, ConstFunctionStore,
-            ConstMirProgram, ConstStmt, ConstTypeOracle, Terminator,
+            ConstExpr, ConstExprKind, ConstFunction, ConstFunctionStore, ConstKind,
+            ConstMirProgram, ConstStmt, ConstStructFieldValue, ConstStructKind,
+            ConstStructValue, ConstTypeOracle, ConstValue, Terminator,
         },
         mir::{MirBinaryOp, MirTypeRef, MirUnaryOp},
     },
@@ -11,21 +12,6 @@ use crate::{
 use std::collections::BTreeMap;
 use syl_hir::{DefId, ExprId};
 use syl_span::Span;
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[non_exhaustive]
-pub enum ConstKind {
-    Nat,
-    Bool,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[non_exhaustive]
-pub enum ConstValue {
-    Unknown(ConstKind),
-    Nat(u64),
-    Bool(bool),
-}
 
 #[derive(Clone, Debug, Default)]
 #[non_exhaustive]
@@ -47,7 +33,7 @@ impl ConstEvalEnv {
     }
 
     pub fn value(&self, name: &str) -> Option<ConstValue> {
-        self.bindings.get(name).copied()
+        self.bindings.get(name).cloned()
     }
 
     pub fn owner(&self) -> Option<DefId> {
@@ -65,6 +51,7 @@ struct ConstCallKey {
 pub struct ConstEvaluator<'program> {
     program: &'program dyn ConstFunctionStore,
     oracle: &'program dyn ConstTypeOracle,
+    program_layout: Option<&'program ConstMirProgram>,
     call_stack: Vec<String>,
     step_limit: usize,
     remaining_steps: usize,
@@ -74,18 +61,26 @@ pub struct ConstEvaluator<'program> {
 
 impl<'program> ConstEvaluator<'program> {
     pub fn new(program: &'program ConstMirProgram) -> Self {
-        static BUILTIN_ORACLE: BuiltinConstTypeOracle = BuiltinConstTypeOracle;
-        Self::with_dependencies(program, &BUILTIN_ORACLE)
+        Self::with_program_layout(program, program, Some(program))
     }
 
     fn with_dependencies(
         program: &'program dyn ConstFunctionStore,
         oracle: &'program dyn ConstTypeOracle,
     ) -> Self {
+        Self::with_program_layout(program, oracle, None)
+    }
+
+    fn with_program_layout(
+        program: &'program dyn ConstFunctionStore,
+        oracle: &'program dyn ConstTypeOracle,
+        program_layout: Option<&'program ConstMirProgram>,
+    ) -> Self {
         let step_limit = 10_000;
         Self {
             program,
             oracle,
+            program_layout,
             call_stack: Vec::new(),
             step_limit,
             remaining_steps: step_limit,
@@ -130,10 +125,16 @@ impl<'program> ConstEvaluator<'program> {
             (MirBinaryOp::Eq, ConstValue::Bool(a), ConstValue::Bool(b)) => {
                 Ok(ConstValue::Bool(a == b))
             }
+            (MirBinaryOp::Eq, ConstValue::Struct(a), ConstValue::Struct(b)) => {
+                Ok(ConstValue::Bool(a == b))
+            }
             (MirBinaryOp::NotEq, ConstValue::Nat(a), ConstValue::Nat(b)) => {
                 Ok(ConstValue::Bool(a != b))
             }
             (MirBinaryOp::NotEq, ConstValue::Bool(a), ConstValue::Bool(b)) => {
+                Ok(ConstValue::Bool(a != b))
+            }
+            (MirBinaryOp::NotEq, ConstValue::Struct(a), ConstValue::Struct(b)) => {
                 Ok(ConstValue::Bool(a != b))
             }
             (MirBinaryOp::Lt, ConstValue::Nat(a), ConstValue::Nat(b)) => {
@@ -285,6 +286,12 @@ impl<'program> ConstEvaluator<'program> {
                             cond.span(),
                         ));
                     }
+                    ConstValue::Unknown(ConstKind::Struct(_)) | ConstValue::Struct(_) => {
+                        return Err(CompileError::lowering_at(
+                            TirError::ElaborationIfRequiresBool,
+                            cond.span(),
+                        ));
+                    }
                 },
                 Terminator::Return(Some(expr)) => return self.mir_expr_value(expr, env),
                 Terminator::Return(None) => {
@@ -326,6 +333,23 @@ impl<'program> ConstEvaluator<'program> {
             ConstExprKind::Unknown(kind) => Ok(ConstValue::Unknown(*kind)),
             ConstExprKind::Nat(value) => Ok(ConstValue::Nat(*value)),
             ConstExprKind::Bool(value) => Ok(ConstValue::Bool(*value)),
+            ConstExprKind::Aggregate { kind, fields } => Ok(ConstValue::Struct(
+                ConstStructValue::new(
+                    *kind,
+                    fields
+                        .iter()
+                        .map(|field| {
+                            self.mir_expr_value(field.value(), env).map(|value| {
+                                ConstStructFieldValue::new(field.name().to_string(), value)
+                            })
+                        })
+                        .collect::<Result<Vec<_>, _>>()?,
+                ),
+            )),
+            ConstExprKind::Field { base, field } => {
+                let base_value = self.mir_expr_value(base, env)?;
+                self.field_value(base_value, field, expr.span())
+            }
             ConstExprKind::Unary { op, expr: inner } => {
                 let value = self.mir_expr_value(inner, env)?;
                 match (*op, value) {
@@ -344,14 +368,14 @@ impl<'program> ConstEvaluator<'program> {
                 // Short-circuit &&: LHS = false
                 if *op == MirBinaryOp::AndAnd && matches!(lhs, ConstValue::Bool(false)) {
                     if let Some(origin) = expr.origin() {
-                        self.expr_values.insert(origin, lhs);
+                        self.expr_values.insert(origin, lhs.clone());
                     }
                     return Ok(lhs);
                 }
                 // Short-circuit ||: LHS = true
                 if *op == MirBinaryOp::OrOr && matches!(lhs, ConstValue::Bool(true)) {
                     if let Some(origin) = expr.origin() {
-                        self.expr_values.insert(origin, lhs);
+                        self.expr_values.insert(origin, lhs.clone());
                     }
                     return Ok(lhs);
                 }
@@ -370,7 +394,7 @@ impl<'program> ConstEvaluator<'program> {
                 let mut arg_values = Vec::new();
                 for (param, arg) in function.params().iter().zip(args) {
                     let value = self.mir_expr_value(arg, env)?;
-                    arg_values.push(value);
+                    arg_values.push(value.clone());
                     values.insert(param.clone(), value);
                 }
                 if values
@@ -388,11 +412,11 @@ impl<'program> ConstEvaluator<'program> {
                         callee: *callee,
                         args: arg_values,
                     };
-                    if let Some(value) = self.call_cache.get(&cache_key).copied() {
+                    if let Some(value) = self.call_cache.get(&cache_key).cloned() {
                         Ok(value)
                     } else {
                         let value = self.eval_function(function, values)?;
-                        self.call_cache.insert(cache_key, value);
+                        self.call_cache.insert(cache_key, value.clone());
                         Ok(value)
                     }
                 }
@@ -405,7 +429,7 @@ impl<'program> ConstEvaluator<'program> {
             }
         }?;
         if let Some(origin) = expr.origin() {
-            self.expr_values.insert(origin, value);
+            self.expr_values.insert(origin, value.clone());
         }
         Ok(value)
     }
@@ -427,8 +451,55 @@ impl<'program> ConstEvaluator<'program> {
         match value {
             ConstValue::Bool(_) => ConstKind::Bool,
             ConstValue::Nat(_) => ConstKind::Nat,
+            ConstValue::Struct(value) => ConstKind::Struct(value.kind()),
             ConstValue::Unknown(kind) => kind,
         }
+    }
+
+    fn field_value(
+        &self,
+        base: ConstValue,
+        field: &str,
+        span: Span,
+    ) -> Result<ConstValue, CompileError> {
+        match base {
+            ConstValue::Struct(value) => value
+                .field_value(field)
+                .cloned()
+                .ok_or_else(|| self.unknown_field_error(value.kind(), field, span)),
+            ConstValue::Unknown(ConstKind::Struct(kind)) => self
+                .program_layout
+                .and_then(|program| program.field_kind(kind, field))
+                .map(ConstValue::Unknown)
+                .ok_or_else(|| self.unknown_field_error(kind, field, span)),
+            ConstValue::Unknown(ConstKind::Nat)
+            | ConstValue::Unknown(ConstKind::Bool)
+            | ConstValue::Nat(_)
+            | ConstValue::Bool(_) => Err(CompileError::lowering_at(
+                ConstEvalError::InvalidElaborationExpression,
+                span,
+            )),
+        }
+    }
+
+    fn unknown_field_error(
+        &self,
+        kind: ConstStructKind,
+        field: &str,
+        span: Span,
+    ) -> CompileError {
+        let ty = self
+            .program_layout
+            .and_then(|program| program.struct_def(kind.def()))
+            .map(|def| def.name().to_string())
+            .unwrap_or_else(|| format!("def#{}", kind.def().get()));
+        CompileError::lowering_at(
+            TirError::UnknownAggregateField {
+                ty,
+                field: field.to_string(),
+            },
+            span,
+        )
     }
 
     fn require_kind(

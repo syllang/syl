@@ -124,6 +124,7 @@ impl Parser {
                 | TokenKind::KwConst
                 | TokenKind::KwFn
                 | TokenKind::KwEnum
+                | TokenKind::KwStruct
                 | TokenKind::KwBundle
                 | TokenKind::KwInterface
                 | TokenKind::KwMap

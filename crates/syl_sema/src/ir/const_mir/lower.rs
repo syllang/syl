@@ -1,7 +1,7 @@
-use super::{ConstExpr, ConstLocalRef};
+use super::{ConstExpr, ConstLocalRef, ConstNamedExpr, ConstStructKind};
 use crate::{
     hir::resolve::HirResolution,
-    hir::{HirBodyExpr, HirExprNode},
+    hir::{HirBodyExpr, HirExprNode, HirNamedExpr},
     ir::{
         const_mir::ConstKind,
         mir::{MirBinaryOp, MirTypeRef, MirUnaryOp},
@@ -137,9 +137,17 @@ impl<'a> ExprLowerer<'a> {
                 )
                 .with_origin(expr.id())
             }
-            HirExprNode::Field { .. } => self
-                .enum_variant_expr(expr)
-                .unwrap_or_else(|| self.unsupported_expr(expr.span(), expr.id())),
+            HirExprNode::Aggregate { ty, fields } => match self.const_kind_for_type(ty) {
+                Some(ConstKind::Struct(kind)) => {
+                    ConstExpr::aggregate(kind, self.lower_named_exprs(fields), expr.span())
+                        .with_origin(expr.id())
+                }
+                _ => self.unsupported_expr(expr.span(), expr.id()),
+            },
+            HirExprNode::Field { base, field } => self.enum_variant_expr(expr).unwrap_or_else(|| {
+                ConstExpr::field(self.lower_expr(base), field.clone(), expr.span())
+                    .with_origin(expr.id())
+            }),
             HirExprNode::GenericApp { callee, .. } => self.lower_expr(callee),
             HirExprNode::Unsupported => self.unsupported_expr(expr.span(), expr.id()),
             _ => self.unsupported_expr(expr.span(), expr.id()),
@@ -157,7 +165,7 @@ impl<'a> ExprLowerer<'a> {
                 return match name {
                     "nat" => Some(ConstKind::Nat),
                     "bool" => Some(ConstKind::Bool),
-                    _ => None,
+                    _ => self.struct_kind_for_type(current).map(ConstKind::Struct),
                 };
             }
             if let Some(base) = current.generic_base() {
@@ -185,6 +193,21 @@ impl<'a> ExprLowerer<'a> {
         self.ctx
             .enum_variant_value(expr)
             .map(|value| ConstExpr::nat(value, expr.span()).with_origin(expr.id()))
+    }
+
+    fn lower_named_exprs(&mut self, fields: &[HirNamedExpr]) -> Vec<ConstNamedExpr> {
+        fields
+            .iter()
+            .map(|field| ConstNamedExpr::new(field.name.clone(), self.lower_expr(&field.value)))
+            .collect()
+    }
+
+    fn struct_kind_for_type(&self, ty: &MirTypeRef) -> Option<ConstStructKind> {
+        self.ctx
+            .hir()
+            .type_def_for_mir_type(self.owner, ty)
+            .filter(|def| self.ctx.hir().structs.contains_key(def))
+            .map(ConstStructKind::new)
     }
 
     fn callee_root<'b>(&self, expr: &'b HirBodyExpr) -> Option<&'b HirBodyExpr> {
@@ -294,6 +317,82 @@ fn use_answer() -> nat {
             _ => panic!("expected nat const"),
         }
         assert_eq!(lowered.origin(), Some(lookup_id));
+    }
+
+    #[test]
+    fn lower_struct_aggregate_expr() {
+        let hir = resolve_hir(
+            r#"
+struct Params {
+    width: nat,
+    enabled: bool,
+}
+
+const params = Params { width: 7, enabled: true }
+"#,
+        );
+        let owner = def_id(&hir, "params");
+        let value_expr = hir
+            .consts
+            .get(&owner)
+            .map(|item| item.value.clone())
+            .expect("fixture const must exist");
+        let lowered = ConstMirBuilder::with_context(&FakeContext { hir }).lower_const_expr(owner, &value_expr);
+
+        match lowered.kind() {
+            ConstExprKind::Aggregate { kind, fields } => {
+                assert_eq!(kind.def(), def_id(&resolve_hir(
+                    r#"
+struct Params {
+    width: nat,
+    enabled: bool,
+}
+
+const params = Params { width: 7, enabled: true }
+"#,
+                ), "Params"));
+                assert_eq!(fields.len(), 2);
+                assert_eq!(fields[0].name(), "width");
+                assert!(matches!(fields[0].value().kind(), ConstExprKind::Nat(7)));
+                assert_eq!(fields[1].name(), "enabled");
+                assert!(matches!(fields[1].value().kind(), ConstExprKind::Bool(true)));
+            }
+            _ => panic!("expected aggregate const"),
+        }
+    }
+
+    #[test]
+    fn lower_struct_field_expr() {
+        let hir = resolve_hir(
+            r#"
+struct Params {
+    width: nat,
+    enabled: bool,
+}
+
+const params = Params { width: 7, enabled: true }
+
+fn use_width() -> nat {
+    params.width
+}
+"#,
+        );
+        let owner = def_id(&hir, "use_width");
+        let field_expr = hir
+            .fns
+            .get(&owner)
+            .and_then(|item| item.body.tail.as_ref())
+            .cloned()
+            .expect("fixture function must have a field tail expression");
+        let lowered = ConstMirBuilder::with_context(&FakeContext { hir }).lower_const_expr(owner, &field_expr);
+
+        match lowered.kind() {
+            ConstExprKind::Field { base, field } => {
+                assert_eq!(field, "width");
+                assert!(matches!(base.kind(), ConstExprKind::Aggregate { .. }));
+            }
+            _ => panic!("expected field projection const"),
+        }
     }
 
     fn resolve_hir(source: &str) -> HirDesign {

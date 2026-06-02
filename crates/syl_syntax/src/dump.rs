@@ -19,6 +19,7 @@ fn debug_item(item: &Item) -> String {
         Item::Const(item) => format!("const {}@{}", item.name, debug_span(item.span)),
         Item::Fn(item) => format!("fn {}@{}", item.name, debug_span(item.span)),
         Item::Enum(item) => format!("enum {}@{}", item.name, debug_span(item.span)),
+        Item::Struct(item) => format!("struct {}@{}", item.name, debug_span(item.span)),
         Item::Bundle(item) => format!("bundle {}@{}", item.name, debug_span(item.span)),
         Item::Interface(item) => format!("interface {}@{}", item.name, debug_span(item.span)),
         Item::Map(item) => format!("map {}@{}", item.name, debug_span(item.span)),

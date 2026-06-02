@@ -25,8 +25,8 @@ pub use item::{
     HirAttribute, HirBundleItem, HirCallableItem, HirConstItem, HirDriveCapability, HirEnumItem,
     HirEnumLayout, HirEnumVariantDecl, HirExternCellItem, HirFieldDecl, HirFnItem,
     HirInterfaceItem, HirMapItem, HirParamRole, HirPortDecl, HirPortDirection,
-    HirSignatureGenericParam, HirSignatureParam, HirSignatureResultBinding, HirViewDecl,
-    HirViewDirection, HirViewField,
+    HirSignatureGenericParam, HirSignatureParam, HirSignatureResultBinding, HirStructItem,
+    HirViewDecl, HirViewDirection, HirViewField,
 };
 
 /// The complete HIR representation of a compiled Syl design.
@@ -53,6 +53,7 @@ pub struct HirDesign {
     pub fns: BTreeMap<DefId, HirFnItem>,
     pub enums: BTreeMap<DefId, HirEnumItem>,
     pub enum_variants: BTreeMap<HirEnumVariantKey, HirEnumVariant>,
+    pub structs: BTreeMap<DefId, HirStructItem>,
     pub bundles: BTreeMap<DefId, HirBundleItem>,
     pub interfaces: BTreeMap<DefId, HirInterfaceItem>,
     pub maps: BTreeMap<DefId, HirMapItem>,
@@ -80,6 +81,7 @@ impl HirDesign {
             fns: BTreeMap::new(),
             enums: BTreeMap::new(),
             enum_variants: BTreeMap::new(),
+            structs: BTreeMap::new(),
             bundles: BTreeMap::new(),
             interfaces: BTreeMap::new(),
             maps: BTreeMap::new(),
@@ -138,6 +140,7 @@ impl HirDesign {
             .and_then(|item| item.doc.as_deref())
             .or_else(|| self.fns.get(&def).and_then(|item| item.doc.as_deref()))
             .or_else(|| self.enums.get(&def).and_then(|item| item.doc.as_deref()))
+            .or_else(|| self.structs.get(&def).and_then(|item| item.doc.as_deref()))
             .or_else(|| self.bundles.get(&def).and_then(|item| item.doc.as_deref()))
             .or_else(|| {
                 self.interfaces
@@ -164,6 +167,14 @@ impl HirDesign {
                     .iter()
                     .find(|decl| decl.name == field)
                     .and_then(|decl| decl.doc.as_deref())
+            })
+            .or_else(|| {
+                self.structs.get(&def).and_then(|item| {
+                    item.fields
+                        .iter()
+                        .find(|decl| decl.name == field)
+                        .and_then(|decl| decl.doc.as_deref())
+                })
             })
             .or_else(|| {
                 self.interfaces.get(&def).and_then(|item| {
@@ -441,6 +452,7 @@ pub enum HirDefKind {
     Fn,
     Enum,
     Bundle,
+    Struct,
     Interface,
     Map,
     Cell,

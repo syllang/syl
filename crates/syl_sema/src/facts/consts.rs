@@ -41,10 +41,10 @@ impl ConstFacts {
             let Ok(value) = evaluator.expr_value(&expr, &mut env) else {
                 continue;
             };
-            values.insert(HirFactId::Def(def), value);
+            values.insert(HirFactId::Def(def), value.clone());
             cache.insert(ConstFactKey::Def(def), value);
             for (expr_id, expr_value) in evaluator.recorded_expr_values() {
-                values.insert(HirFactId::Expr(*expr_id), *expr_value);
+                values.insert(HirFactId::Expr(*expr_id), expr_value.clone());
             }
         }
 
@@ -52,10 +52,10 @@ impl ConstFacts {
     }
 
     pub fn value(&self, id: HirFactId) -> Option<ConstValue> {
-        self.values.get(&id).copied()
+        self.values.get(&id).cloned()
     }
 
     pub fn cache_value(&self, key: ConstFactKey) -> Option<ConstValue> {
-        self.cache.get(&key).copied()
+        self.cache.get(&key).cloned()
     }
 }

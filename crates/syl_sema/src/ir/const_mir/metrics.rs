@@ -194,6 +194,13 @@ impl ConstExprKind {
             Self::Unknown(_) => 1,
             Self::Nat(value) => usize::from(*value != 0),
             Self::Bool(value) => usize::from(*value),
+            Self::Aggregate { fields, .. } => {
+                1 + fields
+                    .iter()
+                    .map(|field| field.name().len() + field.value().node_count())
+                    .sum::<usize>()
+            }
+            Self::Field { base, field } => 1 + base.node_count() + field.len(),
             Self::Unary { expr, .. } => 1 + expr.node_count(),
             Self::Binary { left, right, .. } => 1 + left.node_count() + right.node_count(),
             Self::Call { callee, args } => {
@@ -206,6 +213,8 @@ impl ConstExprKind {
     fn local_ref_count(&self) -> usize {
         match self {
             Self::Local(_) => 1,
+            Self::Aggregate { fields, .. } => fields.iter().map(|field| field.value().local_ref_count()).sum(),
+            Self::Field { base, .. } => base.local_ref_count(),
             Self::Unary { expr, .. } => expr.local_ref_count(),
             Self::Binary { left, right, .. } => left.local_ref_count() + right.local_ref_count(),
             Self::Call { args, .. } => args.iter().map(ConstExpr::local_ref_count).sum(),
@@ -216,6 +225,11 @@ impl ConstExprKind {
     fn resolved_local_ref_count(&self) -> usize {
         match self {
             Self::Local(local) => usize::from(local.id().is_some()),
+            Self::Aggregate { fields, .. } => fields
+                .iter()
+                .map(|field| field.value().resolved_local_ref_count())
+                .sum(),
+            Self::Field { base, .. } => base.resolved_local_ref_count(),
             Self::Unary { expr, .. } => expr.resolved_local_ref_count(),
             Self::Binary { left, right, .. } => {
                 left.resolved_local_ref_count() + right.resolved_local_ref_count()
