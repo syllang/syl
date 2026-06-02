@@ -223,7 +223,6 @@ pub struct ConstMirProgram {
     functions: Vec<ConstFunction>,
     function_index: BTreeMap<DefId, usize>,
     structs: BTreeMap<DefId, ConstStructDef>,
-    struct_name_index: BTreeMap<String, DefId>,
     struct_path_index: BTreeMap<Vec<String>, DefId>,
 }
 
@@ -255,11 +254,7 @@ impl ConstMirProgram {
 
     fn struct_kind_for_type(&self, ty: &MirTypeRef) -> Option<ConstKind> {
         if let Some(path) = ty.path() {
-            let def = self
-                .struct_path_index
-                .get(path)
-                .copied()
-                .or_else(|| path.last().and_then(|name| self.struct_name_index.get(name).copied()));
+            let def = self.struct_path_index.get(path).copied();
             return def.map(ConstStructKind::new).map(ConstKind::Struct);
         }
         if let Some(base) = ty.generic_base() {
@@ -650,8 +645,6 @@ impl<'a> ConstMirBuilder<'a> {
             functions.push(self.lower_fn(*owner, item));
         }
         let mut structs = BTreeMap::new();
-        let mut struct_name_index = BTreeMap::new();
-        let mut duplicate_struct_names = BTreeMap::new();
         let mut struct_path_index = BTreeMap::new();
         for (def, item) in &self.ctx.hir().structs {
             let kind = ConstStructKind::new(*def);
@@ -678,18 +671,11 @@ impl<'a> ConstMirBuilder<'a> {
             if let Some(canonical) = self.ctx.hir().defs.get(def.get()) {
                 struct_path_index.insert(canonical.canonical_path.segments().to_vec(), *def);
             }
-            if struct_name_index.insert(item.name.clone(), *def).is_some() {
-                duplicate_struct_names.insert(item.name.clone(), ());
-            }
-        }
-        for name in duplicate_struct_names.keys() {
-            struct_name_index.remove(name);
         }
         Ok(ConstMirProgram {
             functions,
             function_index,
             structs,
-            struct_name_index,
             struct_path_index,
         })
     }

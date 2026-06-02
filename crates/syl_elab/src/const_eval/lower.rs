@@ -93,6 +93,7 @@ struct ElabConstLowerer<'program, 'env> {
     const_mir: &'program ConstMirProgram,
     program: &'program ElabProgram,
     env: &'env ConstEvalEnv,
+    owner: Option<DefId>,
 }
 
 impl<'program, 'env> ElabConstLowerer<'program, 'env> {
@@ -105,6 +106,16 @@ impl<'program, 'env> ElabConstLowerer<'program, 'env> {
             const_mir,
             program,
             env,
+            owner: env.owner(),
+        }
+    }
+
+    fn with_owner(&self, owner: DefId) -> Self {
+        Self {
+            const_mir: self.const_mir,
+            program: self.program,
+            env: self.env,
+            owner: Some(owner),
         }
     }
 
@@ -145,8 +156,8 @@ impl<'program, 'env> ElabConstLowerer<'program, 'env> {
         if self.env.value(name).is_some() {
             return Ok(ConstExpr::named_local(name, expr.span()));
         }
-        if let Some(item) = self.resolved_const(expr) {
-            return self.lower(&item.value);
+        if let Some((owner, item)) = self.resolved_const(expr) {
+            return self.with_owner(owner).lower(&item.value);
         }
         Err(CompileError::lowering_at(
             ConstEvalError::UnknownElaborationIdentifier {
@@ -162,7 +173,18 @@ impl<'program, 'env> ElabConstLowerer<'program, 'env> {
         ty: &MirTypeRef,
         fields: &[ElabNamedExpr],
     ) -> Result<ConstExpr, CompileError> {
-        let Some(ConstKind::Struct(kind)) = self.const_mir.evaluator().kind_for_type(ty) else {
+        let Some(owner) = self.owner else {
+            return Err(self.invalid(expr));
+        };
+        let Some(def) = self
+            .program
+            .expr_type(owner, expr)
+            .and_then(|ty| ty.definition())
+            .or_else(|| self.resolved_type_def(owner, ty))
+        else {
+            return Err(self.invalid(expr));
+        };
+        let Some(kind) = self.const_mir.struct_kind(def) else {
             return Err(self.invalid(expr));
         };
         let fields = fields
@@ -181,7 +203,7 @@ impl<'program, 'env> ElabConstLowerer<'program, 'env> {
         base: &ElabExpr,
         field: &str,
     ) -> Result<ConstExpr, CompileError> {
-        if let Some(owner) = self.env.owner()
+        if let Some(owner) = self.owner
             && let Some(value) = self.program.enum_variant_field_value(owner, base, field)
         {
             return Ok(ConstExpr::nat(value, expr.span()));
@@ -193,12 +215,12 @@ impl<'program, 'env> ElabConstLowerer<'program, 'env> {
         ))
     }
 
-    fn resolved_const(&self, expr: &ElabExpr) -> Option<&crate::program::ElabConstItem> {
-        let owner = self.env.owner()?;
+    fn resolved_const(&self, expr: &ElabExpr) -> Option<(DefId, &crate::program::ElabConstItem)> {
+        let owner = self.owner?;
         let Some(ElabResolution::Def(def)) = self.program.expr_resolution(owner, expr) else {
             return None;
         };
-        self.program.const_by_def(def)
+        self.program.const_by_def(def).map(|item| (def, item))
     }
 
     fn call_expr(
@@ -250,12 +272,31 @@ impl<'program, 'env> ElabConstLowerer<'program, 'env> {
     }
 
     fn const_function_def(&self, callee: &ElabExpr) -> Option<DefId> {
-        let owner = self.env.owner()?;
+        let owner = self.owner?;
         let root = CalleeRoot::new(callee).resolve()?;
         let Some(ElabResolution::Def(def)) = self.program.expr_resolution(owner, root) else {
             return None;
         };
         Some(def)
+    }
+
+    fn resolved_type_def(&self, owner: DefId, ty: &MirTypeRef) -> Option<DefId> {
+        if let Some(path) = ty.path() {
+            return match path {
+                [name] => self.program.resolve_def_id(owner, name),
+                _ => self.program.canonical_def_id(path),
+            };
+        }
+        if let Some(base) = ty.generic_base() {
+            return self.resolved_type_def(owner, base);
+        }
+        if let Some((base, _)) = ty.view_select() {
+            return self.resolved_type_def(owner, base);
+        }
+        if let Some((_, elem)) = ty.array() {
+            return self.resolved_type_def(owner, elem);
+        }
+        None
     }
 
     fn invalid(&self, expr: &ElabExpr) -> CompileError {
