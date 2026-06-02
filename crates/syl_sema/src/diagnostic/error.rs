@@ -15,6 +15,8 @@ pub enum HirError {
     DuplicateEnumVariant { name: String },
     #[error("empty enum {name}")]
     EmptyEnum { name: String },
+    #[error("duplicate struct {name}")]
+    DuplicateStruct { name: String },
     #[error("duplicate bundle {name}")]
     DuplicateBundle { name: String },
     #[error("duplicate interface {name}")]
@@ -53,6 +55,7 @@ impl HirError {
             Self::DuplicateEnum { .. } => "E_MIDDLE_DUPLICATE_ENUM",
             Self::DuplicateEnumVariant { .. } => "E_MIDDLE_DUPLICATE_ENUM_VARIANT",
             Self::EmptyEnum { .. } => "E_MIDDLE_EMPTY_ENUM",
+            Self::DuplicateStruct { .. } => "E_MIDDLE_DUPLICATE_STRUCT",
             Self::DuplicateBundle { .. } => "E_MIDDLE_DUPLICATE_BUNDLE",
             Self::DuplicateInterface { .. } => "E_MIDDLE_DUPLICATE_INTERFACE",
             Self::DuplicateMap { .. } => "E_MIDDLE_DUPLICATE_MAP",

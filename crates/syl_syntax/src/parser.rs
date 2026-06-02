@@ -219,6 +219,7 @@ impl Parser {
             Some(TokenKind::KwConst) => Item::Const(self.parse_const_item()?),
             Some(TokenKind::KwFn) => Item::Fn(self.parse_fn_item()?),
             Some(TokenKind::KwEnum) => Item::Enum(self.parse_enum_item(attrs)?),
+            Some(TokenKind::KwStruct) => Item::Struct(self.parse_struct_item()?),
             Some(TokenKind::KwBundle) => Item::Bundle(self.parse_bundle_item(attrs)?),
             Some(TokenKind::KwInterface) => Item::Interface(self.parse_interface_item()?),
             Some(TokenKind::KwMap) => Item::Map(self.parse_map_item()?),
@@ -314,6 +315,18 @@ impl Parser {
             .generics(generics)
             .fields(fields)
             .attrs(attrs)
+            .span(start.join(end))
+            .build())
+    }
+
+    fn parse_struct_item(&mut self) -> Result<StructItem, Vec<Diagnostic>> {
+        let start = self.expect(TokenKind::KwStruct)?.span;
+        let name = self.expect_ident()?;
+        let generics = self.parse_generic_params()?;
+        let (fields, end) = self.parse_field_block()?;
+        Ok(StructItem::builder(name)
+            .generics(generics)
+            .fields(fields)
             .span(start.join(end))
             .build())
     }

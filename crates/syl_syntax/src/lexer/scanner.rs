@@ -100,6 +100,7 @@ impl<'a> Scanner<'a> {
             "if" => TokenKind::KwIf,
             "else" => TokenKind::KwElse,
             "enum" => TokenKind::KwEnum,
+            "struct" => TokenKind::KwStruct,
             "bundle" => TokenKind::KwBundle,
             "interface" => TokenKind::KwInterface,
             "view" => TokenKind::KwView,

@@ -132,6 +132,7 @@ pub enum LosslessItemKind {
     Const,
     Fn,
     Enum,
+    Struct,
     Bundle,
     Interface,
     Map,

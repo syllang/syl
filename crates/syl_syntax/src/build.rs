@@ -1,12 +1,14 @@
 use crate::ast::{
     BundleItemBuilder, CallableItemBuilder, ExternCellItemBuilder, FnItemBuilder,
     InterfaceItemBuilder, MapItemBuilder,
+    StructItemBuilder,
 };
 use crate::{
-    AstFile, Attribute, Block, BundleItem, CallArg, CallableItem, ConstItem, EnumItem, EnumVariant,
-    ErrorItem, Expr, ExternCellItem, FieldDecl, FnItem, GenericParam, InterfaceItem, MapItem,
-    MatchArm, NamedExpr, Param, ParamDirection, ParamRole, PortDecl, RegReset, ResultBinding,
-    SelectArm, SelectMode, Stmt, TypeExpr, UseItem, ViewDecl, ViewDirection, ViewField,
+    AstFile, Attribute, Block, BundleItem, CallArg, CallableItem, ConstItem, EnumItem,
+    EnumVariant, ErrorItem, Expr, ExternCellItem, FieldDecl, FnItem, GenericParam, InterfaceItem,
+    MapItem, MatchArm, NamedExpr, Param, ParamDirection, ParamRole, PortDecl, RegReset,
+    ResultBinding, SelectArm, SelectMode, Stmt, StructItem, TypeExpr, UseItem, ViewDecl,
+    ViewDirection, ViewField,
 };
 use syl_span::{SourceId, Span};
 
@@ -78,6 +80,19 @@ impl FnItemBuilder {
     pub fn build(self) -> FnItem {
         self.try_build()
             .expect("FnItemBuilder must be initialized with name and body")
+    }
+}
+
+impl StructItem {
+    pub fn builder(name: String) -> StructItemBuilder {
+        StructItemBuilder::default().name(name)
+    }
+}
+
+impl StructItemBuilder {
+    pub fn build(self) -> StructItem {
+        self.try_build()
+            .expect("StructItemBuilder must be initialized with name")
     }
 }
 

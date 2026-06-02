@@ -97,6 +97,12 @@ impl HirDesignViewExt for HirDesign {
             .and_then(|item| item.fields.iter().find(|decl| decl.name == field))
             .map(|decl| decl.ty.clone())
             .or_else(|| {
+                self.structs
+                    .get(&type_def)
+                    .and_then(|item| item.fields.iter().find(|decl| decl.name == field))
+                    .map(|decl| decl.ty.clone())
+            })
+            .or_else(|| {
                 self.interfaces
                     .get(&type_def)
                     .and_then(|item| item.fields.iter().find(|decl| decl.name == field))

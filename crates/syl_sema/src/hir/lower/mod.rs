@@ -6,7 +6,7 @@ use crate::{
         HirDefKind, HirDesign, HirEnumItem, HirEnumVariant, HirEnumVariantKey, HirExprNode,
         HirFieldDecl, HirFnItem, HirImport, HirInterfaceItem, HirLocal, HirLocalKind, HirMapItem,
         HirMemberDecl, HirMemberKind, HirPackage, HirSignatureGenericParam, HirSignatureParam,
-        HirStmt, HirViewDecl, HirViewField,
+        HirStmt, HirStructItem, HirViewDecl, HirViewField,
     },
 };
 use std::collections::BTreeSet;
@@ -14,6 +14,7 @@ use syl_hir::{DefId, LocalId, PackageId, name::HirPath};
 use syl_span::Span;
 use syl_syntax::{
     BundleItem, ConstItem, EnumItem, ExternCellItem, FnItem, InterfaceItem, Item, MapItem,
+    StructItem,
 };
 
 mod index;
@@ -171,6 +172,7 @@ impl<'files> HirResolver<'files> {
             Item::Const(item) => self.insert_const(item, package),
             Item::Fn(item) => self.insert_fn(item, package),
             Item::Enum(item) => self.insert_enum(item, package),
+            Item::Struct(item) => self.insert_struct(item, package),
             Item::Bundle(item) => self.insert_bundle(item, package),
             Item::Interface(item) => self.insert_interface(item, package),
             Item::Map(item) => self.insert_map(item, package),
@@ -261,6 +263,23 @@ impl<'files> HirResolver<'files> {
         self.register_bundle_members(owner, &item.fields);
         self.index_bundle(owner, &mut item);
         self.design.bundles.insert(owner, item);
+        Ok(())
+    }
+
+    fn insert_struct(
+        &mut self,
+        item: &StructItem,
+        package: &PackageScope,
+    ) -> Result<(), CompileError> {
+        self.reject_duplicate(package, &item.name, item.span, |name| {
+            HirError::DuplicateStruct { name }
+        })?;
+        let owner = self.register_def(package, &item.name, HirDefKind::Struct, item.span);
+        let mut item = HirStructItem::from(item);
+        self.register_generics(owner, &mut item.generics);
+        self.register_bundle_members(owner, &item.fields);
+        self.index_struct(owner, &mut item);
+        self.design.structs.insert(owner, item);
         Ok(())
     }
 

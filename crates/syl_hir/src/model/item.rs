@@ -4,8 +4,8 @@ use strum_macros::IntoStaticStr;
 use syl_span::Span;
 use syl_syntax::{
     BundleItem, ConstItem, DriveCapability, EnumItem, EnumLayout as SyntaxEnumLayout,
-    ExternCellItem, FieldDecl, FnItem, GenericParam, InterfaceItem, MapItem, Param, ParamDirection,
-    PortDecl, TypeExpr, ViewDirection,
+    ExternCellItem, FieldDecl, FnItem, GenericParam, InterfaceItem, MapItem, Param,
+    ParamDirection, PortDecl, StructItem, TypeExpr, ViewDirection,
 };
 
 mod summary;
@@ -441,6 +441,33 @@ impl From<&EnumItem> for HirEnumItem {
             width: item.width.as_ref().map(MirTypeRef::from),
             layout: HirEnumLayout::from(&item.layout),
             variants: item.variants.iter().map(HirEnumVariantDecl::from).collect(),
+            span: item.span,
+        }
+    }
+}
+
+/// A compiled `bundle` item in the HIR.
+#[derive(Clone)]
+#[non_exhaustive]
+pub struct HirStructItem {
+    pub doc: Option<String>,
+    pub name: String,
+    pub generics: Vec<HirSignatureGenericParam>,
+    pub fields: Vec<HirFieldDecl>,
+    pub span: Span,
+}
+
+impl From<&StructItem> for HirStructItem {
+    fn from(item: &StructItem) -> Self {
+        Self {
+            doc: item.doc.clone(),
+            name: item.name.clone(),
+            generics: item
+                .generics
+                .iter()
+                .map(HirSignatureGenericParam::from)
+                .collect(),
+            fields: item.fields.iter().map(HirFieldDecl::from).collect(),
             span: item.span,
         }
     }

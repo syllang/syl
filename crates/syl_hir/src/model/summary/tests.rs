@@ -40,11 +40,12 @@ fn def_kind_summary_tags_are_stable_internal_offsets() {
     assert_eq!(HirDefKind::Const.summary_count(), 1);
     assert_eq!(HirDefKind::Fn.summary_count(), 2);
     assert_eq!(HirDefKind::Enum.summary_count(), 3);
-    assert_eq!(HirDefKind::Bundle.summary_count(), 4);
-    assert_eq!(HirDefKind::Interface.summary_count(), 5);
-    assert_eq!(HirDefKind::Map.summary_count(), 6);
-    assert_eq!(HirDefKind::Cell.summary_count(), 7);
-    assert_eq!(HirDefKind::ExternCell.summary_count(), 9);
+    assert_eq!(HirDefKind::Struct.summary_count(), 4);
+    assert_eq!(HirDefKind::Bundle.summary_count(), 5);
+    assert_eq!(HirDefKind::Interface.summary_count(), 6);
+    assert_eq!(HirDefKind::Map.summary_count(), 7);
+    assert_eq!(HirDefKind::Cell.summary_count(), 8);
+    assert_eq!(HirDefKind::ExternCell.summary_count(), 10);
 }
 
 #[test]

@@ -109,6 +109,7 @@ impl Parser {
             Item::Const(item) => item.doc = Some(doc),
             Item::Fn(item) => item.doc = Some(doc),
             Item::Enum(item) => item.doc = Some(doc),
+            Item::Struct(item) => item.doc = Some(doc),
             Item::Bundle(item) => item.doc = Some(doc),
             Item::Interface(item) => item.doc = Some(doc),
             Item::Map(item) => item.doc = Some(doc),
@@ -165,6 +166,7 @@ fn syntax_kind_for_lexeme(kind: &LexemeKind) -> LosslessTokenKind {
             | TokenKind::KwPriority
             | TokenKind::KwUnique
             | TokenKind::KwEnum
+            | TokenKind::KwStruct
             | TokenKind::KwBundle
             | TokenKind::KwInterface
             | TokenKind::KwView

@@ -44,6 +44,10 @@ impl Parser {
 
     fn expect_path_segment(&mut self) -> Result<String, Vec<Diagnostic>> {
         match self.peek_kind() {
+            Some(crate::lexer::TokenKind::KwStruct) => {
+                self.bump();
+                Ok("struct".to_string())
+            }
             Some(crate::lexer::TokenKind::KwBundle) => {
                 self.bump();
                 Ok("bundle".to_string())

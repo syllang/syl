@@ -9,5 +9,6 @@ pub(crate) use syl_hir::{
     HirFieldDecl, HirFnItem, HirImport, HirInterfaceItem, HirLocal, HirLocalKind, HirMapItem,
     HirMatchArm, HirMemberDecl, HirMemberKind, HirNamedExpr, HirPackage, HirPortDirection,
     HirRegReset, HirSelectArm, HirSignatureGenericParam, HirSignatureParam,
-    HirSignatureResultBinding, HirStmt, HirTypeRef, HirViewDecl, HirViewDirection, HirViewField,
+    HirSignatureResultBinding, HirStmt, HirStructItem, HirTypeRef, HirViewDecl, HirViewDirection,
+    HirViewField,
 };

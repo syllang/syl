@@ -45,6 +45,8 @@ pub enum TokenKind {
     KwUnique,
     /// `enum`.
     KwEnum,
+    /// `struct`.
+    KwStruct,
     /// `bundle`.
     KwBundle,
     /// `interface`.
