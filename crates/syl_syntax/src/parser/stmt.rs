@@ -264,20 +264,15 @@ impl Parser {
             self.error(self.eof_span(), "expected assignment operator");
             return Err(std::mem::take(&mut self.diagnostics));
         };
-        let is_valid = match (context, operator.kind) {
-            (BlockContext::Function, TokenKind::Eq) => true,
-            (BlockContext::Hardware, TokenKind::ColonEq) => true,
-            (BlockContext::Function, TokenKind::ColonEq) => {
+        let is_eq = matches!(&operator.kind, TokenKind::Eq);
+        let is_colon_eq = matches!(&operator.kind, TokenKind::ColonEq);
+        let is_valid = match context {
+            BlockContext::Function if is_eq => true,
+            BlockContext::Hardware if is_eq || is_colon_eq => true,
+            BlockContext::Function if is_colon_eq => {
                 self.error(
                     operator.span,
                     "`fn` blocks use `=`; `:=` is only valid in hardware blocks",
-                );
-                false
-            }
-            (BlockContext::Hardware, TokenKind::Eq) => {
-                self.error(
-                    operator.span,
-                    "hardware blocks use `:=`; bare `=` assignment is invalid here",
                 );
                 false
             }
@@ -301,11 +296,21 @@ impl Parser {
                 value,
                 span,
             }),
-            BlockContext::Hardware => Ok(Stmt::Drive {
-                target,
-                value,
-                span,
-            }),
+            BlockContext::Hardware => {
+                if is_eq {
+                    Ok(Stmt::Assign {
+                        target,
+                        value,
+                        span,
+                    })
+                } else {
+                    Ok(Stmt::Drive {
+                        target,
+                        value,
+                        span,
+                    })
+                }
+            }
         }
     }
 

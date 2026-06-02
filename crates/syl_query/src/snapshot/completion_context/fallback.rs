@@ -55,8 +55,6 @@ impl<'a> CompletionSourceAnalyzer<'a> {
             AssignmentOperator::Eq => {
                 trimmed.starts_with("signal ")
                     || trimmed.starts_with("next ")
-                    || (matches!(self.item_context, SourceItemContext::Callable)
-                        && !self.starts_binding_declaration(trimmed))
             }
             AssignmentOperator::ColonEq => {
                 trimmed.starts_with("const ")
@@ -156,7 +154,10 @@ impl<'a> CompletionSourceAnalyzer<'a> {
         if self.starts_binding_declaration(trimmed) {
             return true;
         }
-        matches!(self.item_context, SourceItemContext::Function)
+        matches!(
+            self.item_context,
+            SourceItemContext::Function | SourceItemContext::Callable
+        )
     }
 
     fn valid_colon_eq_expression_context(&self, trimmed: &str, tail: &str) -> bool {
@@ -369,6 +370,18 @@ mod tests {
                 "fn update() {\n    value = \n}\n",
                 "value = ",
                 SourceItemContext::Function
+            ),
+            Some(CompletionContext::Expression)
+        );
+    }
+
+    #[test]
+    fn software_assignment_stays_enabled_in_callable_items() {
+        assert_eq!(
+            analyze(
+                "cell Top(y: out Bit) {\n    value = \n}\n",
+                "value = ",
+                SourceItemContext::Callable
             ),
             Some(CompletionContext::Expression)
         );

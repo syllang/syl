@@ -649,6 +649,8 @@ fn update(x: Bit) -> Bit {
 }
 
 cell Top(x: in Bit, y: out Bit) {
+    var shadow: Bit = x
+    shadow = x
     signal ready: Bit := x
     y := ready
     next state := x
@@ -665,9 +667,11 @@ cell Top(x: in Bit, y: out Bit) {
     }
     match &file.items[1] {
         Item::Cell(item) => {
-            assert!(matches!(item.body.stmts[0], Stmt::Signal { .. }));
-            assert!(matches!(item.body.stmts[1], Stmt::Drive { .. }));
-            assert!(matches!(item.body.stmts[2], Stmt::Next { .. }));
+            assert!(matches!(item.body.stmts[0], Stmt::Var { .. }));
+            assert!(matches!(item.body.stmts[1], Stmt::Assign { .. }));
+            assert!(matches!(item.body.stmts[2], Stmt::Signal { .. }));
+            assert!(matches!(item.body.stmts[3], Stmt::Drive { .. }));
+            assert!(matches!(item.body.stmts[4], Stmt::Next { .. }));
         }
         other => panic!("unexpected cell item: {other:?}"),
     }
@@ -703,5 +707,4 @@ cell Top(x: in Bit, y: out Bit) {
     assert!(messages.contains(&"`fn` blocks use `=`; `:=` is only valid in hardware blocks"));
     assert!(messages.contains(&"`signal` statements only accept `:=`"));
     assert!(messages.contains(&"`next` statements only accept `:=`"));
-    assert!(messages.contains(&"hardware blocks use `:=`; bare `=` assignment is invalid here"));
 }
