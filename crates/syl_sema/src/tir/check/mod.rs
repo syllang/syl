@@ -110,7 +110,8 @@ impl TypePhaseChecker {
             self.check_result(owner, result, errors)?;
         }
         let env = TirConstEnv::from_generics(owner, &item.generics, self);
-        self.check_hardware_block(&item.body, &env, HardwareBlockMode::Normal, errors)
+        self.check_hardware_block(&item.body, &env, HardwareBlockMode::Normal, errors)?;
+        Ok(())
     }
 
     pub(super) fn check_extern_module(
