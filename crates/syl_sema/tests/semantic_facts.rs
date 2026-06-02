@@ -597,6 +597,122 @@ cell Top(y: out UInt<WIDTH>) {
 }
 
 #[test]
+fn software_struct_const_imported_same_name_struct_binds_to_correct_def_id() {
+    let alpha = r#"
+struct Params {
+    width: nat,
+}
+"#;
+    let beta = r#"
+struct Params {
+    enabled: bool,
+}
+"#;
+    let app = r#"
+use beta.Params;
+
+const DEFAULT: Params = Params { enabled: true }
+const ENABLED: bool = DEFAULT.enabled
+
+cell Top(y: out Bit) {
+    y := 1
+}
+"#;
+    let files = parse_sources(&[alpha, beta, app]);
+    let session = SemanticCompiler::new().session_sources(vec![
+        SemanticSourceFile::new(vec!["alpha".to_string()], &files[0]),
+        SemanticSourceFile::new(vec!["beta".to_string()], &files[1]),
+        SemanticSourceFile::new(vec!["app".to_string()], &files[2]),
+    ]);
+    let output = session.check();
+    let tir = output
+        .tir()
+        .expect("cross-package struct fixture must type-check into TIR");
+    let facts = output
+        .facts()
+        .expect("cross-package struct fixture must expose semantic facts");
+    let hir = tir.design().hir();
+    let alpha_params_def = def_id_by_path(hir, &["alpha", "Params"]);
+    let beta_params_def = def_id_by_path(hir, &["beta", "Params"]);
+    let default_def = def_id_by_path(hir, &["app", "DEFAULT"]);
+    let enabled_def = def_id_by_path(hir, &["app", "ENABLED"]);
+    let default_item = hir
+        .consts
+        .get(&default_def)
+        .expect("DEFAULT const item must exist");
+    let enabled_item = hir
+        .consts
+        .get(&enabled_def)
+        .expect("ENABLED const item must exist");
+    let builder = ConstMirBuilder::new(tir.design());
+    let lowered_default = builder.lower_const_expr(default_def, &default_item.value);
+    let lowered_enabled = builder.lower_const_expr(enabled_def, &enabled_item.value);
+    let enabled_expr_id = expr_id_at(
+        ExprLookup::new(
+            app,
+            SourceId::new(2),
+            "DEFAULT.enabled",
+            0,
+            "DEFAULT.enabled".len(),
+        ),
+        hir,
+    );
+
+    assert_ne!(alpha_params_def, beta_params_def);
+    match lowered_default.kind() {
+        ConstExprKind::Aggregate { kind, fields } => {
+            assert_eq!(kind.def(), beta_params_def);
+            assert_ne!(kind.def(), alpha_params_def);
+            assert_eq!(fields.len(), 1);
+            assert_eq!(fields[0].name(), "enabled");
+            assert!(matches!(fields[0].value().kind(), ConstExprKind::Bool(true)));
+        }
+        other => panic!("expected aggregate lowering for imported Params, got {other:?}"),
+    }
+    match lowered_enabled.kind() {
+        ConstExprKind::Field { base, field } => {
+            assert_eq!(field, "enabled");
+            assert!(matches!(
+                base.kind(),
+                ConstExprKind::Aggregate { kind, .. } if kind.def() == beta_params_def
+            ));
+        }
+        other => panic!("expected field lowering for imported Params, got {other:?}"),
+    }
+
+    let program = builder
+        .build()
+        .expect("cross-package struct const MIR lowering must succeed");
+    let mut evaluator = program.evaluator();
+    match facts.consts().value(HirFactId::Def(default_def)) {
+        Some(ConstValue::Struct(value)) => {
+            assert_eq!(value.kind().def(), beta_params_def);
+            assert_ne!(value.kind().def(), alpha_params_def);
+            assert_eq!(value.field_value("enabled"), Some(&ConstValue::Bool(true)));
+            assert_eq!(value.fields().len(), 1);
+        }
+        other => panic!("expected imported struct const fact for DEFAULT, got {other:?}"),
+    }
+    assert_eq!(
+        evaluator
+            .expr_value(
+                &lowered_enabled,
+                &mut ConstEvalEnv::with_owner(Some(enabled_def)),
+            )
+            .expect("imported struct field projection must evaluate"),
+        ConstValue::Bool(true)
+    );
+    assert_eq!(
+        facts.consts().value(HirFactId::Def(enabled_def)),
+        Some(ConstValue::Bool(true))
+    );
+    assert_eq!(
+        facts.consts().value(HirFactId::Expr(enabled_expr_id)),
+        Some(ConstValue::Bool(true))
+    );
+}
+
+#[test]
 fn const_evaluator_reports_structured_step_limit_for_long_running_const_fn() {
     let source = r#"
 fn burn_steps(limit: nat) -> nat {
@@ -672,6 +788,20 @@ fn def_id(hir: &HirDesign, name: &str) -> DefId {
         .iter()
         .find(|def| def.name == name)
         .unwrap_or_else(|| panic!("missing definition {name}"))
+        .id
+}
+
+fn def_id_by_path(hir: &HirDesign, path: &[&str]) -> DefId {
+    hir.defs
+        .iter()
+        .find(|def| {
+            def.canonical_path
+                .segments()
+                .iter()
+                .map(String::as_str)
+                .eq(path.iter().copied())
+        })
+        .unwrap_or_else(|| panic!("missing definition {}", path.join(".")))
         .id
 }
 
