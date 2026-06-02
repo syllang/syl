@@ -7,7 +7,7 @@ use crate::{
     },
 };
 use std::collections::BTreeMap;
-use syl_hir::DefId;
+use syl_hir::{DefId, LocalId};
 use syl_syntax::BinaryOp;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -21,7 +21,38 @@ pub(super) enum TirConstKind {
 #[non_exhaustive]
 pub(super) struct TirConstEnv {
     owner: DefId,
-    bindings: BTreeMap<String, TirConstKind>,
+    bindings: BTreeMap<LocalId, TirConstBinding>,
+}
+
+#[derive(Clone, Copy)]
+struct TirConstBinding {
+    kind: TirConstKind,
+    value: Option<TirConstValue>,
+    mutable: bool,
+}
+
+impl TirConstBinding {
+    fn immutable(kind: TirConstKind, value: Option<TirConstValue>) -> Self {
+        Self {
+            kind,
+            value,
+            mutable: false,
+        }
+    }
+
+    fn mutable(kind: TirConstKind, value: Option<TirConstValue>) -> Self {
+        Self {
+            kind,
+            value,
+            mutable: true,
+        }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(super) enum TirConstValue {
+    Nat(u64),
+    Bool(bool),
 }
 
 impl TirConstEnv {
@@ -39,16 +70,99 @@ impl TirConstEnv {
                 .kind
                 .as_ref()
                 .and_then(|ty| checker.mir_type_kind(ty))
+                && let Some(id) = generic.id
             {
-                env.bindings.insert(generic.name.clone(), kind);
+                env.bindings.insert(id, TirConstBinding::immutable(kind, None));
             }
         }
         env
     }
 
-    pub(super) fn with_binding(&self, name: &str, kind: TirConstKind) -> Self {
+    pub(super) fn with_local_binding(
+        &self,
+        id: LocalId,
+        kind: TirConstKind,
+        value: Option<TirConstValue>,
+    ) -> Self {
         let mut env = self.clone();
-        env.bindings.insert(name.to_string(), kind);
+        env.bindings
+            .insert(id, TirConstBinding::immutable(kind, value));
+        env
+    }
+
+    pub(super) fn with_mutable_local(
+        &self,
+        id: LocalId,
+        kind: TirConstKind,
+        value: Option<TirConstValue>,
+    ) -> Self {
+        let mut env = self.clone();
+        env.bindings.insert(id, TirConstBinding::mutable(kind, value));
+        env
+    }
+
+    pub(super) fn assign_local(
+        &self,
+        id: LocalId,
+        value: Option<TirConstValue>,
+    ) -> Option<Self> {
+        let mut env = self.clone();
+        let binding = env.bindings.get_mut(&id)?;
+        if !binding.mutable {
+            return None;
+        }
+        binding.value = value;
+        Some(env)
+    }
+
+    pub(super) fn kind_for_local(&self, id: LocalId) -> Option<TirConstKind> {
+        self.bindings.get(&id).map(|binding| binding.kind)
+    }
+
+    pub(super) fn is_mutable_local(&self, id: LocalId) -> bool {
+        self.bindings.get(&id).is_some_and(|binding| binding.mutable)
+    }
+
+    pub(super) fn apply_visible_mutations_from(&self, nested: &Self) -> Self {
+        let mut env = self.clone();
+        for (id, binding) in &mut env.bindings {
+            if !binding.mutable {
+                continue;
+            }
+            if let Some(updated) = nested.bindings.get(id) {
+                binding.value = updated.value;
+            }
+        }
+        env
+    }
+
+    pub(super) fn merge_visible_mutations_from(&self, nested: &Self) -> Self {
+        let mut env = self.clone();
+        for (id, binding) in &mut env.bindings {
+            if !binding.mutable {
+                continue;
+            }
+            if let Some(updated) = nested.bindings.get(id) {
+                binding.value = (updated.value == binding.value).then_some(updated.value).flatten();
+            }
+        }
+        env
+    }
+
+    pub(super) fn merge_branch_mutations(&self, then_env: &Self, else_env: &Self) -> Self {
+        let mut env = self.clone();
+        for (id, binding) in &mut env.bindings {
+            if !binding.mutable {
+                continue;
+            }
+            let then_value = then_env.bindings.get(id).map(|entry| entry.value);
+            let else_value = else_env.bindings.get(id).map(|entry| entry.value);
+            binding.value = if then_value == else_value {
+                then_value.flatten()
+            } else {
+                None
+            };
+        }
         env
     }
 
@@ -58,10 +172,9 @@ impl TirConstEnv {
         checker: &TypePhaseChecker,
     ) -> Option<TirConstKind> {
         match &expr.node {
-            HirExprNode::Ident(name) => self
-                .bindings
-                .get(name)
-                .copied()
+            HirExprNode::Ident(_) => self
+                .local_binding(expr, checker)
+                .map(|binding| binding.kind)
                 .or_else(|| self.const_kind(expr, checker)),
             HirExprNode::Int(_) => Some(TirConstKind::Nat),
             HirExprNode::Bool(_) => Some(TirConstKind::Bool),
@@ -103,9 +216,18 @@ impl TirConstEnv {
     ) -> Option<bool> {
         match &expr.node {
             HirExprNode::Bool(value) => Some(*value),
-            HirExprNode::Ident(_) => self
-                .const_item(expr, checker)
-                .and_then(|item| self.const_bool_value(&item.value, checker)),
+            HirExprNode::Ident(_) => {
+                if let Some(binding) = self.local_binding(expr, checker) {
+                    return match binding.value {
+                        Some(TirConstValue::Bool(value)) => Some(value),
+                        Some(TirConstValue::Nat(_)) | None => self
+                            .const_item(expr, checker)
+                            .and_then(|item| self.const_bool_value(&item.value, checker)),
+                    };
+                }
+                self.const_item(expr, checker)
+                    .and_then(|item| self.const_bool_value(&item.value, checker))
+            }
             HirExprNode::Group(expr) => self.const_bool_value(expr, checker),
             HirExprNode::Field { base, field } => self
                 .field_value_expr(base, field, checker)
@@ -198,9 +320,14 @@ impl TirConstEnv {
     fn const_nat_value(&self, expr: &HirBodyExpr, checker: &TypePhaseChecker) -> Option<u64> {
         match &expr.node {
             HirExprNode::Int(value) => Some(*value),
-            HirExprNode::Ident(name) => {
-                if self.bindings.contains_key(name) {
-                    return None;
+            HirExprNode::Ident(_) => {
+                if let Some(binding) = self.local_binding(expr, checker) {
+                    return match binding.value {
+                        Some(TirConstValue::Nat(value)) => Some(value),
+                        Some(TirConstValue::Bool(_)) | None => self
+                            .const_item(expr, checker)
+                            .and_then(|item| self.const_nat_value(&item.value, checker)),
+                    };
                 }
                 self.const_item(expr, checker)
                     .and_then(|item| self.const_nat_value(&item.value, checker))
@@ -315,6 +442,22 @@ impl TirConstEnv {
             .and_then(|ty| checker.mir_type_kind(ty))
     }
 
+    pub(super) fn value_for_kind(
+        &self,
+        kind: TirConstKind,
+        expr: &HirBodyExpr,
+        checker: &TypePhaseChecker,
+    ) -> Option<TirConstValue> {
+        match kind {
+            TirConstKind::Nat => self
+                .const_nat_value(expr, checker)
+                .map(TirConstValue::Nat),
+            TirConstKind::Bool => self
+                .const_bool_value(expr, checker)
+                .map(TirConstValue::Bool),
+        }
+    }
+
     fn const_item<'a>(
         &self,
         expr: &HirBodyExpr,
@@ -340,6 +483,18 @@ impl TirConstEnv {
             return None;
         };
         Some(def)
+    }
+
+    fn local_binding<'a>(
+        &'a self,
+        expr: &HirBodyExpr,
+        checker: &TypePhaseChecker,
+    ) -> Option<&'a TirConstBinding> {
+        let Some(HirResolution::Local(id)) = checker.hir.expr_resolution(self.owner, expr).ok()?
+        else {
+            return None;
+        };
+        self.bindings.get(&id)
     }
 
     fn callee_root<'a>(&self, expr: &'a HirBodyExpr) -> Option<&'a HirBodyExpr> {
