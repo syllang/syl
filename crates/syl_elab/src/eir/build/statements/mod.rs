@@ -13,9 +13,10 @@ pub(crate) use request::{
 use crate::{
     CompileError, EirError,
     const_eval::ConstValue,
-    eir::{EirExpr, EirItem, EirPlace, EirReset, EirSignalActivity},
+    eir::{EirBinaryOp, EirExpr, EirItem, EirPlace, EirReset, EirSignalActivity, EirUnaryOp},
     mir::MirTypeRef,
-    program::{ElabBlock, ElabExpr, ElabExprNode, ElabStmt},
+    program::{ElabBlock, ElabCallArg, ElabExpr, ElabExprNode, ElabResolution, ElabStmt},
+    tir::TirType,
 };
 use software_locals::BindVarRequest;
 use syl_span::Span;
@@ -557,6 +558,15 @@ where
                 env,
             );
         }
+        if let Some(args) = self.assertion_stmt_args(expr, env) {
+            if !allow_assert_builtin {
+                return Err(CompileError::lowering_at(
+                    EirError::AssertionStatementOnly,
+                    expr.span(),
+                ));
+            }
+            return self.emit_assert_stmt(expr, args, env);
+        }
         if let ElabExprNode::CompileError { message } = &expr.node {
             if !compile_error_as_sv {
                 return Err(CompileError::lowering_at(
@@ -573,6 +583,71 @@ where
             EirError::InvalidElaborationExpression,
             expr.span(),
         ))
+    }
+
+    fn emit_assert_stmt(
+        &self,
+        expr: &ElabExpr,
+        args: &[ElabCallArg],
+        env: &Env,
+    ) -> Result<Vec<EirItem>, CompileError> {
+        if args.len() != 1 || args[0].name.is_some() {
+            return Err(CompileError::lowering_at(
+                EirError::AssertionRequiresSingleCondition,
+                expr.span(),
+            ));
+        }
+        let clock = env.single_by_type("Clock", self).ok_or_else(|| {
+            CompileError::lowering_at(EirError::AssertionRequiresClock, expr.span())
+        })?;
+        let mut reads = self.elab_read_places(&args[0].value, env);
+        let trigger = self.assertion_trigger(&args[0].value, env, &mut reads);
+        reads.sort_by_key(EirExpr::fact_key);
+        reads.dedup_by_key(|read| read.fact_key());
+        Ok(vec![EirItem::ClockedAssert {
+            clock,
+            trigger,
+            reads,
+            message: EirExpr::Str("assert failed".to_string()),
+            origin: env.origin(expr.span()),
+        }])
+    }
+
+    fn assertion_trigger(
+        &self,
+        condition: &ElabExpr,
+        env: &Env,
+        reads: &mut Vec<EirExpr>,
+    ) -> EirExpr {
+        let failed = EirExpr::unary(EirUnaryOp::Not, self.elab_expr(condition, env));
+        if let Some(reset) = env.reset_for_unique_clock(self) {
+            reads.push(reset.clone());
+            return EirExpr::binary(
+                EirBinaryOp::BitAnd,
+                EirExpr::unary(EirUnaryOp::Not, reset),
+                failed,
+            );
+        }
+        failed
+    }
+
+    fn assertion_stmt_args<'b>(&self, expr: &'b ElabExpr, env: &Env) -> Option<&'b [ElabCallArg]> {
+        let ElabExprNode::Call { callee, args } = &expr.node else {
+            return None;
+        };
+        let root = self.elab_callee_root(callee)?;
+        if let Some(owner) = env.owner
+            && matches!(
+                self.program.expr_resolution(owner, root),
+                Some(ElabResolution::Def(_) | ElabResolution::Local(_))
+            )
+        {
+            return None;
+        }
+        let ElabExprNode::Ident(name) = &root.node else {
+            return None;
+        };
+        (name == "assert").then_some(args.as_slice())
     }
 
     fn emit_drive(
