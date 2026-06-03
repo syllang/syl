@@ -199,6 +199,24 @@ cell ZeroTrip() {
 }
 
 #[test]
+fn lowers_error_stmt_to_runtime_sv_error() {
+    let verilog = TestCompiler::new()
+        .compile(
+            r#"
+cell Top(y: out Bit) {
+    error("runtime path reached")
+    y := 0
+}
+"#,
+        )
+        .expect("error statement must lower into runtime SystemVerilog");
+
+    assert!(verilog.contains("initial begin"));
+    assert!(verilog.contains("$error(\"runtime path reached\");"));
+    assert!(verilog.contains("assign y = 0;"));
+}
+
+#[test]
 fn elaborates_const_fn_call_conditions() {
     let verilog = TestCompiler::new()
         .compile(

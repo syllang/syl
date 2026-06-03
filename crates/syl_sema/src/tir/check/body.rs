@@ -246,6 +246,9 @@ impl TypePhaseChecker {
                 }
                 HirStmt::Expr(expr) => {
                     Self::record_recoverable(errors, self.record_phase(expr, Phase::Hardware));
+                    if Self::is_runtime_error_stmt_expr(expr) {
+                        continue;
+                    }
                     self.check_hardware_stmt_expr(expr, mode, errors)?;
                 }
                 _ => {}
@@ -356,6 +359,10 @@ impl TypePhaseChecker {
             return self.check_hardware_place_expr(callee, args, errors);
         }
         self.check_hardware_value_expr(expr, errors)
+    }
+
+    fn is_runtime_error_stmt_expr(expr: &HirBodyExpr) -> bool {
+        matches!(&expr.node, HirExprNode::CompileError { .. })
     }
 
     fn check_hardware_drive_target(
