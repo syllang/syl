@@ -133,6 +133,15 @@ impl<'a> SvEmitter<'a> {
                     .transpose()?,
                 next: self.lower_expr(next)?,
             }),
+            HwItem::ClockedAssert {
+                clock,
+                trigger,
+                message,
+            } => Ok(SvItem::AlwaysAssert {
+                clock: self.lower_expr(clock)?,
+                trigger: self.lower_expr(trigger)?,
+                message: self.lower_expr(message)?,
+            }),
             HwItem::Instance(instance) => Ok(SvItem::Instance(self.lower_instance(instance)?)),
             HwItem::InitialError { message } => Ok(SvItem::InitialError {
                 message: self.lower_expr(message)?,

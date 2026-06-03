@@ -1,7 +1,10 @@
 mod elab;
 
 use super::super::consts::{TirConstEnv, TirConstKind};
-use super::super::{BindingKind, HardwareBlockMode, Phase, TypePhaseChecker};
+use super::super::{
+    BindingKind, BuiltinIntrinsic, BuiltinResolver, HardwareBlockMode, Phase, TirType,
+    TypePhaseChecker,
+};
 use crate::{
     CompileError, EirError,
     hir::resolve::HirResolution,
@@ -249,13 +252,13 @@ impl TypePhaseChecker {
                     if Self::is_runtime_error_stmt_expr(expr) {
                         continue;
                     }
-                    self.check_hardware_stmt_expr(expr, mode, errors)?;
+                    self.check_hardware_stmt_expr(expr, mode, errors, true)?;
                 }
                 _ => {}
             }
         }
         if let Some(tail) = &body.tail {
-            self.check_hardware_stmt_expr(tail, mode, errors)?;
+            self.check_hardware_stmt_expr(tail, mode, errors, false)?;
         }
         Ok(env)
     }
@@ -349,6 +352,7 @@ impl TypePhaseChecker {
         expr: &HirBodyExpr,
         mode: HardwareBlockMode,
         errors: &mut Vec<CompileError>,
+        allow_assert_builtin: bool,
     ) -> Result<(), CompileError> {
         if matches!(&expr.node, HirExprNode::CompileError { .. })
             && mode == HardwareBlockMode::Control
@@ -358,11 +362,61 @@ impl TypePhaseChecker {
         if let HirExprNode::Place { callee, args, .. } = &expr.node {
             return self.check_hardware_place_expr(callee, args, errors);
         }
+        if self.is_assert_builtin_call(expr) {
+            if !allow_assert_builtin {
+                errors.push(CompileError::lowering_at(
+                    EirError::AssertionStatementOnly,
+                    expr.span(),
+                ));
+                return Ok(());
+            }
+            return self.check_assert_stmt_expr(expr, errors);
+        }
         self.check_hardware_value_expr(expr, errors)
     }
 
     fn is_runtime_error_stmt_expr(expr: &HirBodyExpr) -> bool {
         matches!(&expr.node, HirExprNode::CompileError { .. })
+    }
+
+    fn is_assert_builtin_call(&self, expr: &HirBodyExpr) -> bool {
+        let HirExprNode::Call { callee, .. } = &expr.node else {
+            return false;
+        };
+        matches!(
+            BuiltinResolver::new(&self.hir, self.current_owner).resolve_call_callee(callee),
+            Some(BuiltinIntrinsic::Assert)
+        )
+    }
+
+    fn check_assert_stmt_expr(
+        &mut self,
+        expr: &HirBodyExpr,
+        errors: &mut Vec<CompileError>,
+    ) -> Result<(), CompileError> {
+        let HirExprNode::Call { args, .. } = &expr.node else {
+            return Ok(());
+        };
+        if args.len() != 1 || args[0].name.is_some() {
+            errors.push(CompileError::lowering_at(
+                EirError::AssertionRequiresSingleCondition,
+                expr.span(),
+            ));
+            for arg in args {
+                self.check_hardware_value_expr(&arg.value, errors)?;
+            }
+            return Ok(());
+        }
+        let condition = &args[0].value;
+        self.check_hardware_value_expr(condition, errors)?;
+        let owner = self.current_owner()?;
+        if !matches!(self.infer_expr_type(owner, condition), TirType::Bit) {
+            errors.push(CompileError::lowering_at(
+                EirError::AssertionConditionMustBeBit,
+                condition.span(),
+            ));
+        }
+        Ok(())
     }
 
     fn check_hardware_drive_target(

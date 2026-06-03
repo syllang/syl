@@ -257,6 +257,9 @@ fn dump_item(item: &EirItem, indent: usize, lines: &mut Vec<String>) {
                 origin_text(origin)
             ));
         }
+        EirItem::ClockedAssert { origin, .. } => {
+            lines.push(format!("{pad}assert origin={}", origin_text(origin)));
+        }
         EirItem::InitialError { origin, .. } => {
             lines.push(format!("{pad}initial error origin={}", origin_text(origin)));
         }
