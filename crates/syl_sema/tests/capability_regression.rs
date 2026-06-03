@@ -272,6 +272,134 @@ cell Bad<ENABLE: bool>(y: out Bit) {
 }
 
 #[test]
+fn place_result_allows_returned_side_sink_write_and_read() {
+    CapabilityHarness::new()
+        .check(
+            r#"
+interface Stream<T> {
+    payload: T
+    valid: Bit
+    ready: Bit
+
+    view sink {
+        in payload
+        in valid
+        out ready
+    }
+}
+
+cell Child(secret: in Bit) -> down: Stream<Bit>.sink {
+    down.ready := secret
+}
+
+cell Top(y: out Bit) {
+    let child = place Child(secret: 1)
+    child.payload := 0
+    child.valid := 1
+    y := child.ready
+}
+"#,
+        )
+        .expect("place result must allow returned-side write-to-payload and read-from-ready");
+}
+
+#[test]
+fn place_result_rejects_reading_returned_side_sink_payload() {
+    let err = CapabilityHarness::new()
+        .check(
+            r#"
+interface Stream<T> {
+    payload: T
+    valid: Bit
+    ready: Bit
+
+    view sink {
+        in payload
+        in valid
+        out ready
+    }
+}
+
+cell Child(secret: in Bit) -> down: Stream<Bit>.sink {
+    down.ready := secret
+}
+
+cell Bad(y: out Bit) {
+    let child = place Child(secret: 1)
+    y := child.payload
+}
+"#,
+        )
+        .expect_err("returned-side place result must not expose sink payload as readable");
+    assert!(err.contains("child.payload is not readable"), "{err}");
+}
+
+#[test]
+fn place_result_rejects_driving_returned_side_sink_ready() {
+    let err = CapabilityHarness::new()
+        .check(
+            r#"
+interface Stream<T> {
+    payload: T
+    valid: Bit
+    ready: Bit
+
+    view sink {
+        in payload
+        in valid
+        out ready
+    }
+}
+
+cell Child(secret: in Bit) -> down: Stream<Bit>.sink {
+    down.ready := secret
+}
+
+cell Bad() {
+    let child = place Child(secret: 1)
+    child.ready := 0
+}
+"#,
+        )
+        .expect_err("returned-side place result must not expose sink ready as drivable");
+    assert!(err.contains("child.ready is not drivable"), "{err}");
+}
+
+#[test]
+fn place_result_does_not_expose_child_secret_as_instance_member() {
+    let err = CapabilityHarness::new()
+        .check(
+            r#"
+interface Stream<T> {
+    payload: T
+    valid: Bit
+    ready: Bit
+
+    view sink {
+        in payload
+        in valid
+        out ready
+    }
+}
+
+cell Child(secret: in Bit) -> down: Stream<Bit>.sink {
+    down.ready := secret
+}
+
+cell Bad(y: out Bit) {
+    let child = place Child(secret: 1)
+    y := child.secret
+}
+"#,
+        )
+        .expect_err("place result must stay a returned endpoint, not an instance handle");
+    assert!(
+        err.contains("aggregate field secret is missing for Stream<Bit>.sink"),
+        "{err}"
+    );
+}
+
+#[test]
 fn unknown_assignment_target_reports_unknown_identifier_with_target_span() {
     let source = r#"
 cell Bad(y: out Bit) {

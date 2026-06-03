@@ -1,21 +1,20 @@
 use super::{
+    context::CapabilityContext,
+    field_schema::{resolve_view_field_schema, LocalTypeFacts},
     model::{CapabilityScope, EndpointSide, FieldCaps},
-    place::{Place, PlaceResolution, PlaceResolver},
-    view::ViewCapabilityResolver,
+    place::{Place, PlaceResolution},
 };
 use crate::{
-    CapabilityError, CompileError, ConstEvalError, HirError,
     binding::ActualFormalBinder,
     hir::resolve::HirResolution,
-    hir::view::HirDesignViewExt,
     hir::{
         HirBlock, HirBodyExpr, HirCallArg, HirCallable, HirCallableItem, HirDefKind, HirDesign,
         HirDriveCapability, HirExprNode, HirPortDirection, HirSignatureParam,
         HirSignatureResultBinding, HirStmt,
     },
     ir::mir::MirTypeRef,
+    CapabilityError, CompileError, ConstEvalError, HirError,
 };
-use std::collections::BTreeMap;
 use syl_hir::{DefId, LocalId};
 use syl_span::Span;
 
@@ -36,70 +35,6 @@ struct TypeCapabilityRecord<'a> {
     decl: CapabilityLocalDecl<'a>,
     ty: &'a MirTypeRef,
     side: EndpointSide,
-}
-
-pub(super) trait CapabilityContext {
-    fn callables(&self) -> &BTreeMap<DefId, HirCallable>;
-
-    fn resolve_place(&self, owner: DefId, expr: &HirBodyExpr) -> PlaceResolution;
-
-    fn expr_resolution(
-        &self,
-        owner: DefId,
-        expr: &HirBodyExpr,
-    ) -> Result<Option<HirResolution>, CompileError>;
-
-    fn def_kind(&self, def: DefId) -> Option<HirDefKind>;
-
-    fn def_name(&self, def: DefId) -> Option<&str>;
-
-    fn callable_by_def(&self, def: DefId) -> Option<&HirCallable>;
-
-    fn view_caps(
-        &self,
-        owner: DefId,
-        ty: &MirTypeRef,
-        side: EndpointSide,
-    ) -> Result<Option<FieldCaps>, CompileError>;
-}
-
-impl CapabilityContext for HirDesign {
-    fn callables(&self) -> &BTreeMap<DefId, HirCallable> {
-        &self.callables
-    }
-
-    fn resolve_place(&self, owner: DefId, expr: &HirBodyExpr) -> PlaceResolution {
-        PlaceResolver::new(self, owner, expr).resolve()
-    }
-
-    fn expr_resolution(
-        &self,
-        owner: DefId,
-        expr: &HirBodyExpr,
-    ) -> Result<Option<HirResolution>, CompileError> {
-        HirDesignViewExt::expr_resolution(self, owner, expr)
-    }
-
-    fn def_kind(&self, def: DefId) -> Option<HirDefKind> {
-        HirDesignViewExt::def_kind(self, def)
-    }
-
-    fn def_name(&self, def: DefId) -> Option<&str> {
-        HirDesign::def_name(self, def)
-    }
-
-    fn callable_by_def(&self, def: DefId) -> Option<&HirCallable> {
-        HirDesignViewExt::callable_by_def(self, def)
-    }
-
-    fn view_caps(
-        &self,
-        owner: DefId,
-        ty: &MirTypeRef,
-        side: EndpointSide,
-    ) -> Result<Option<FieldCaps>, CompileError> {
-        ViewCapabilityResolver::new(self).caps(owner, ty, side)
-    }
 }
 
 #[non_exhaustive]
@@ -123,6 +58,7 @@ impl<'a> CapabilityChecker<'a> {
 
     fn check_callable(&self, owner: DefId, item: &HirCallableItem) -> Result<(), CompileError> {
         let mut scope = CapabilityScope::new();
+        let mut facts = LocalTypeFacts::default();
         for generic in &item.generics {
             scope.insert(
                 self.local_id(&generic.name, generic.id, generic.span)?,
@@ -131,13 +67,29 @@ impl<'a> CapabilityChecker<'a> {
         }
         for param in &item.params {
             let caps = self.param_caps(owner, param)?;
-            scope.insert(self.local_id(&param.name, param.id, param.span)?, caps);
+            let local = self.local_id(&param.name, param.id, param.span)?;
+            scope.insert(local, caps);
+            self.record_view_field_schema(
+                owner,
+                &mut facts,
+                local,
+                &param.ty,
+                EndpointSide::Local,
+            )?;
         }
         if let Some(result) = &item.result {
             let caps = self.result_caps(owner, result)?;
-            scope.insert(self.local_id(&result.name, result.id, result.span)?, caps);
+            let local = self.local_id(&result.name, result.id, result.span)?;
+            scope.insert(local, caps);
+            self.record_view_field_schema(
+                owner,
+                &mut facts,
+                local,
+                &result.ty,
+                EndpointSide::Local,
+            )?;
         }
-        self.check_block(owner, &item.body, &scope)
+        self.check_block(owner, &item.body, &scope, &facts)
     }
 
     fn check_block(
@@ -145,8 +97,10 @@ impl<'a> CapabilityChecker<'a> {
         owner: DefId,
         body: &HirBlock,
         scope: &CapabilityScope,
+        facts: &LocalTypeFacts,
     ) -> Result<(), CompileError> {
         let mut scope = scope.clone();
+        let mut facts = facts.clone();
         self.collect_local_signal_drives(owner, body, &mut scope);
         for stmt in &body.stmts {
             match stmt {
@@ -157,9 +111,10 @@ impl<'a> CapabilityChecker<'a> {
                     ty,
                     span,
                 } => {
-                    scope.insert(self.local_id(name, *id, *span)?, FieldCaps::whole());
+                    let local = self.local_id(name, *id, *span)?;
+                    scope.insert(local, FieldCaps::whole());
                     if let Some(value) = value {
-                        self.check_read_expr(owner, value, &scope)?;
+                        self.check_read_expr(owner, value, &scope, &facts)?;
                     }
                     if let Some(ty) = ty {
                         self.record_type_caps(
@@ -175,6 +130,13 @@ impl<'a> CapabilityChecker<'a> {
                                 side: EndpointSide::LocalSignal,
                             },
                         )?;
+                        self.record_view_field_schema(
+                            owner,
+                            &mut facts,
+                            local,
+                            ty,
+                            EndpointSide::LocalSignal,
+                        )?;
                     }
                 }
                 HirStmt::Reg { id, name, span, .. } => {
@@ -188,27 +150,31 @@ impl<'a> CapabilityChecker<'a> {
                     ..
                 } => {
                     let caps = self.let_caps(owner, value)?;
-                    scope.insert(self.local_id(name, *id, *span)?, caps);
-                    self.check_read_expr(owner, value, &scope)?;
+                    let local = self.local_id(name, *id, *span)?;
+                    scope.insert(local, caps);
+                    self.record_let_view_field_schema(owner, &mut facts, local, value)?;
+                    self.check_read_expr(owner, value, &scope, &facts)?;
                 }
                 HirStmt::Drive { target, value, .. } => {
-                    self.require_write(owner, target, &scope)?;
-                    self.check_read_expr(owner, value, &scope)?;
+                    self.require_write(owner, target, &scope, &facts)?;
+                    self.check_read_expr(owner, value, &scope, &facts)?;
                 }
                 HirStmt::Next { value, .. } => {
-                    self.check_read_expr(owner, value, &scope)?;
+                    self.check_read_expr(owner, value, &scope, &facts)?;
                 }
-                HirStmt::Expr(expr) => self.check_expr_stmt(owner, expr, &scope)?,
+                HirStmt::Expr(expr) => self.check_expr_stmt(owner, expr, &scope, &facts)?,
                 HirStmt::ElabIf {
                     then_block,
                     else_block,
                     ..
                 } => {
                     let then_scope = scope.clone();
-                    self.check_block(owner, then_block, &then_scope)?;
+                    let then_facts = facts.clone();
+                    self.check_block(owner, then_block, &then_scope, &then_facts)?;
                     if let Some(block) = else_block {
                         let else_scope = scope.clone();
-                        self.check_block(owner, block, &else_scope)?;
+                        let else_facts = facts.clone();
+                        self.check_block(owner, block, &else_scope, &else_facts)?;
                     }
                 }
                 HirStmt::ElabFor {
@@ -220,17 +186,11 @@ impl<'a> CapabilityChecker<'a> {
                 } => {
                     let mut loop_scope = scope.clone();
                     loop_scope.insert(self.local_id(name, *id, *span)?, FieldCaps::read_only());
-                    self.check_block(owner, body, &loop_scope)?;
+                    let loop_facts = facts.clone();
+                    self.check_block(owner, body, &loop_scope, &loop_facts)?;
                 }
-                HirStmt::Const {
-                    id,
-                    name,
-                    value,
-                    span,
-                    ..
-                } => {
-                    scope.insert(self.local_id(name, *id, *span)?, FieldCaps::read_only());
-                    self.check_read_expr(owner, value, &scope)?;
+                HirStmt::Const { value, .. } => {
+                    self.check_read_expr(owner, value, &scope, &facts)?;
                 }
                 HirStmt::Var { id, name, span, .. } => {
                     scope.insert(self.local_id(name, *id, *span)?, FieldCaps::read_only());
@@ -243,7 +203,7 @@ impl<'a> CapabilityChecker<'a> {
             }
         }
         if let Some(tail) = &body.tail {
-            self.check_expr_stmt(owner, tail, &scope)?;
+            self.check_expr_stmt(owner, tail, &scope, &facts)?;
         }
         Ok(())
     }
@@ -286,8 +246,9 @@ impl<'a> CapabilityChecker<'a> {
         owner: DefId,
         expr: &HirBodyExpr,
         scope: &CapabilityScope,
+        facts: &LocalTypeFacts,
     ) -> Result<(), CompileError> {
-        self.check_read_expr(owner, expr, scope)
+        self.check_read_expr(owner, expr, scope, facts)
     }
 
     fn check_read_expr(
@@ -295,11 +256,14 @@ impl<'a> CapabilityChecker<'a> {
         owner: DefId,
         expr: &HirBodyExpr,
         scope: &CapabilityScope,
+        facts: &LocalTypeFacts,
     ) -> Result<(), CompileError> {
         match &expr.node {
             HirExprNode::Ident(_) | HirExprNode::Field { .. } | HirExprNode::Index { .. } => {
                 match self.ctx.resolve_place(owner, expr) {
-                    PlaceResolution::Place(place) => self.require_read_place(&place, scope)?,
+                    PlaceResolution::Place(place) => {
+                        self.require_read_place(&place, scope, facts)?
+                    }
                     PlaceResolution::UnresolvedName { name, span } => {
                         return Err(CompileError::lowering_at(
                             CapabilityError::UnresolvedName { name },
@@ -308,12 +272,12 @@ impl<'a> CapabilityChecker<'a> {
                     }
                     PlaceResolution::NotPlace => {}
                 }
-                self.check_expr_children(owner, expr, scope)
+                self.check_expr_children(owner, expr, scope, facts)
             }
             HirExprNode::Select { arms, .. } => {
                 for arm in arms {
                     if self.is_default_pattern(&arm.pattern) {
-                        self.check_read_expr(owner, &arm.value, scope)?;
+                        self.check_read_expr(owner, &arm.value, scope, facts)?;
                         continue;
                     }
                     if matches!(arm.pattern.node, HirExprNode::Bool(_) | HirExprNode::Int(_)) {
@@ -322,12 +286,12 @@ impl<'a> CapabilityChecker<'a> {
                             arm.pattern.span(),
                         ));
                     }
-                    self.check_read_expr(owner, &arm.pattern, scope)?;
-                    self.check_read_expr(owner, &arm.value, scope)?;
+                    self.check_read_expr(owner, &arm.pattern, scope, facts)?;
+                    self.check_read_expr(owner, &arm.value, scope, facts)?;
                 }
                 Ok(())
             }
-            _ => self.check_expr_children(owner, expr, scope),
+            _ => self.check_expr_children(owner, expr, scope, facts),
         }
     }
 
@@ -336,39 +300,44 @@ impl<'a> CapabilityChecker<'a> {
         owner: DefId,
         expr: &HirBodyExpr,
         scope: &CapabilityScope,
+        facts: &LocalTypeFacts,
     ) -> Result<(), CompileError> {
         match &expr.node {
             HirExprNode::Unary { expr, .. }
             | HirExprNode::Group(expr)
             | HirExprNode::GenericApp { callee: expr, .. } => {
-                self.check_read_expr(owner, expr, scope)
+                self.check_read_expr(owner, expr, scope, facts)
             }
             HirExprNode::Binary { left, right, .. } => {
-                self.check_read_expr(owner, left, scope)?;
-                self.check_read_expr(owner, right, scope)
+                self.check_read_expr(owner, left, scope, facts)?;
+                self.check_read_expr(owner, right, scope, facts)
             }
             HirExprNode::Call { callee, args } | HirExprNode::Place { callee, args, .. } => {
-                self.check_call_args(owner, callee, args, scope)
+                self.check_call_args(owner, callee, args, scope, facts)
             }
             HirExprNode::Aggregate { fields, .. } => {
                 for field in fields {
-                    self.check_read_expr(owner, &field.value, scope)?;
+                    self.check_read_expr(owner, &field.value, scope, facts)?;
                 }
                 Ok(())
             }
             HirExprNode::Match { expr, arms } => {
-                self.check_read_expr(owner, expr, scope)?;
+                self.check_read_expr(owner, expr, scope, facts)?;
                 for arm in arms {
-                    self.check_read_expr(owner, &arm.value, scope)?;
+                    self.check_read_expr(owner, &arm.value, scope, facts)?;
                 }
                 Ok(())
             }
-            HirExprNode::Field { base, .. } => self.check_projection_base(owner, base, scope),
-            HirExprNode::Index { base, index } => {
-                self.check_projection_base(owner, base, scope)?;
-                self.check_read_expr(owner, index, scope)
+            HirExprNode::Field { base, .. } => {
+                self.check_projection_base(owner, base, scope, facts)
             }
-            HirExprNode::CompileError { message } => self.check_read_expr(owner, message, scope),
+            HirExprNode::Index { base, index } => {
+                self.check_projection_base(owner, base, scope, facts)?;
+                self.check_read_expr(owner, index, scope, facts)
+            }
+            HirExprNode::CompileError { message } => {
+                self.check_read_expr(owner, message, scope, facts)
+            }
             HirExprNode::Ident(_)
             | HirExprNode::Int(_)
             | HirExprNode::Str(_)
@@ -389,14 +358,15 @@ impl<'a> CapabilityChecker<'a> {
         owner: DefId,
         expr: &HirBodyExpr,
         scope: &CapabilityScope,
+        facts: &LocalTypeFacts,
     ) -> Result<(), CompileError> {
         match &expr.node {
             HirExprNode::Index { base, index } => {
-                self.check_projection_base(owner, base, scope)?;
-                self.check_read_expr(owner, index, scope)
+                self.check_projection_base(owner, base, scope, facts)?;
+                self.check_read_expr(owner, index, scope, facts)
             }
             HirExprNode::Field { base, .. } | HirExprNode::Group(base) => {
-                self.check_projection_base(owner, base, scope)
+                self.check_projection_base(owner, base, scope, facts)
             }
             _ if matches!(
                 self.ctx.resolve_place(owner, expr),
@@ -405,7 +375,7 @@ impl<'a> CapabilityChecker<'a> {
             {
                 Ok(())
             }
-            _ => self.check_read_expr(owner, expr, scope),
+            _ => self.check_read_expr(owner, expr, scope, facts),
         }
     }
 
@@ -415,11 +385,12 @@ impl<'a> CapabilityChecker<'a> {
         callee: &HirBodyExpr,
         args: &[HirCallArg],
         scope: &CapabilityScope,
+        facts: &LocalTypeFacts,
     ) -> Result<(), CompileError> {
         let Some((callee_def, callee_name, callable)) = self.callable_for_callee(owner, callee)
         else {
             for arg in args {
-                self.check_read_expr(owner, &arg.value, scope)?;
+                self.check_read_expr(owner, &arg.value, scope, facts)?;
             }
             return Ok(());
         };
@@ -435,6 +406,7 @@ impl<'a> CapabilityChecker<'a> {
                     actual: &arg.value,
                 },
                 scope,
+                facts,
             )?;
         }
         Ok(())
@@ -445,20 +417,21 @@ impl<'a> CapabilityChecker<'a> {
         owner: DefId,
         check: FormalArgCheck<'_>,
         scope: &CapabilityScope,
+        facts: &LocalTypeFacts,
     ) -> Result<(), CompileError> {
         if let Some(caps) =
             self.view_caps(check.formal_owner, &check.param.ty, EndpointSide::Local)?
         {
-            return self.check_view_arg_caps(owner, check.actual, &caps, scope);
+            return self.check_view_arg_caps(owner, check.actual, &caps, scope, facts);
         }
         match check.param.direction {
-            HirPortDirection::In => self.check_read_expr(owner, check.actual, scope),
+            HirPortDirection::In => self.check_read_expr(owner, check.actual, scope, facts),
             HirPortDirection::InOut => {
-                self.check_read_expr(owner, check.actual, scope)?;
-                self.require_write(owner, check.actual, scope)
+                self.check_read_expr(owner, check.actual, scope, facts)?;
+                self.require_write(owner, check.actual, scope, facts)
             }
-            HirPortDirection::Out => self.require_write(owner, check.actual, scope),
-            _ => self.check_read_expr(owner, check.actual, scope),
+            HirPortDirection::Out => self.require_write(owner, check.actual, scope, facts),
+            _ => self.check_read_expr(owner, check.actual, scope, facts),
         }
     }
 
@@ -468,6 +441,7 @@ impl<'a> CapabilityChecker<'a> {
         actual: &HirBodyExpr,
         caps: &FieldCaps,
         scope: &CapabilityScope,
+        facts: &LocalTypeFacts,
     ) -> Result<(), CompileError> {
         let endpoint = self.resolve_required_place(owner, actual)?;
         if endpoint.has_field() {
@@ -477,10 +451,10 @@ impl<'a> CapabilityChecker<'a> {
             ));
         }
         for field in caps.readable_fields() {
-            self.require_read_place(&endpoint.field_place(field), scope)?;
+            self.require_read_place(&endpoint.field_place(field), scope, facts)?;
         }
         for field in caps.drivable_fields() {
-            self.require_write_place(&endpoint.field_place(field), scope)?;
+            self.require_write_place(&endpoint.field_place(field), scope, facts)?;
         }
         Ok(())
     }
@@ -490,9 +464,10 @@ impl<'a> CapabilityChecker<'a> {
         owner: DefId,
         expr: &HirBodyExpr,
         scope: &CapabilityScope,
+        facts: &LocalTypeFacts,
     ) -> Result<(), CompileError> {
         let place = self.resolve_required_place(owner, expr)?;
-        self.require_write_place(&place, scope)
+        self.require_write_place(&place, scope, facts)
     }
 
     fn resolve_required_place(
@@ -517,6 +492,7 @@ impl<'a> CapabilityChecker<'a> {
         &self,
         place: &Place,
         scope: &CapabilityScope,
+        facts: &LocalTypeFacts,
     ) -> Result<(), CompileError> {
         if !scope.contains(place) {
             return Err(CompileError::lowering_at(
@@ -526,6 +502,7 @@ impl<'a> CapabilityChecker<'a> {
                 place.span(),
             ));
         }
+        facts.require_known_field(place)?;
         if scope.can_write(place) {
             Ok(())
         } else {
@@ -542,6 +519,7 @@ impl<'a> CapabilityChecker<'a> {
         &self,
         place: &Place,
         scope: &CapabilityScope,
+        facts: &LocalTypeFacts,
     ) -> Result<(), CompileError> {
         if !scope.contains(place) {
             return Err(CompileError::lowering_at(
@@ -551,6 +529,7 @@ impl<'a> CapabilityChecker<'a> {
                 place.span(),
             ));
         }
+        facts.require_known_field(place)?;
         if scope.can_read(place) {
             Ok(())
         } else {
@@ -695,5 +674,42 @@ impl<'a> CapabilityChecker<'a> {
                 span,
             )
         })
+    }
+
+    fn record_view_field_schema(
+        &self,
+        owner: DefId,
+        facts: &mut LocalTypeFacts,
+        local: LocalId,
+        ty: &MirTypeRef,
+        side: EndpointSide,
+    ) -> Result<(), CompileError> {
+        let Some(schema) = resolve_view_field_schema(self.ctx, owner, ty, side)? else {
+            return Ok(());
+        };
+        facts.insert_view_fields(local, schema);
+        Ok(())
+    }
+
+    fn record_let_view_field_schema(
+        &self,
+        owner: DefId,
+        facts: &mut LocalTypeFacts,
+        local: LocalId,
+        value: &HirBodyExpr,
+    ) -> Result<(), CompileError> {
+        let Some((callee_def, _, callable)) = self.callable_from_value(owner, value) else {
+            return Ok(());
+        };
+        let Some(result_ty) = callable.result().map(|result| &result.ty) else {
+            return Ok(());
+        };
+        let Some(schema) =
+            resolve_view_field_schema(self.ctx, callee_def, result_ty, EndpointSide::Returned)?
+        else {
+            return Ok(());
+        };
+        facts.insert_view_fields(local, schema);
+        Ok(())
     }
 }
