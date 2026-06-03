@@ -260,6 +260,14 @@ pub enum EirError {
     HardwareGeneratorCallInExpression { name: String },
     #[error("hardware value expressions cannot call unknown function {name}")]
     UnknownHardwareValueCall { name: String },
+    #[error("assert is only supported as a standalone hardware statement")]
+    AssertionStatementOnly,
+    #[error("assert requires exactly one positional condition argument")]
+    AssertionRequiresSingleCondition,
+    #[error("assert condition must be a hardware Bit expression")]
+    AssertionConditionMustBeBit,
+    #[error("assert requires exactly one Clock port in scope")]
+    AssertionRequiresClock,
     #[error("reg {name} cannot be driven directly; use next {name} := ...")]
     ContinuousDriveTargetIsReg { name: String },
     #[error("expression is not supported by hardware value lowering")]
@@ -297,6 +305,10 @@ impl EirError {
             Self::HardwareGeneratorCallInMap { .. } => "E_MIDDLE_HW_GENERATOR_CALL_IN_MAP",
             Self::HardwareGeneratorCallInExpression { .. } => "E_MIDDLE_HW_GENERATOR_CALL_IN_EXPR",
             Self::UnknownHardwareValueCall { .. } => "E_MIDDLE_UNKNOWN_HW_VALUE_CALL",
+            Self::AssertionStatementOnly => "E_MIDDLE_ASSERT_STATEMENT_ONLY",
+            Self::AssertionRequiresSingleCondition => "E_MIDDLE_ASSERT_REQUIRES_CONDITION",
+            Self::AssertionConditionMustBeBit => "E_MIDDLE_ASSERT_CONDITION_MUST_BE_BIT",
+            Self::AssertionRequiresClock => "E_MIDDLE_ASSERT_REQUIRES_CLOCK",
             Self::ContinuousDriveTargetIsReg { .. } => "E_MIDDLE_CONTINUOUS_DRIVE_TO_REG",
             Self::UnsupportedHardwareValueExpression => "E_MIDDLE_UNSUPPORTED_HW_VALUE_EXPR",
             Self::MissingAggregateField { .. } => "E_MIDDLE_MISSING_AGGREGATE_FIELD",

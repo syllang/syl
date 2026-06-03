@@ -179,6 +179,20 @@ impl<'a> HwLowerer<'a> {
                 items: self.lower_items(items)?,
                 origin: self.lower_origin(origin),
             }]),
+            EirItem::ClockedAssert {
+                clock,
+                trigger,
+                message,
+                origin,
+                ..
+            } => Ok(vec![ParametricHwItem::core(
+                HwItem::ClockedAssert {
+                    clock: self.lower_expr(clock, origin.span())?,
+                    trigger: self.lower_expr(trigger, origin.span())?,
+                    message: self.lower_expr(message, origin.span())?,
+                },
+                self.lower_origin(origin),
+            )]),
             EirItem::InitialError { message, origin } => Ok(vec![ParametricHwItem::core(
                 HwItem::InitialError {
                     message: self.lower_expr(message, origin.span())?,

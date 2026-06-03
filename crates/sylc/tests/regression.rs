@@ -211,6 +211,56 @@ cell Top(y: out Bit) {
 }
 
 #[test]
+fn lowers_assert_stmt_to_clocked_runtime_sv_error() {
+    let verilog = TestCompiler::new()
+        .compile(
+            r#"
+cell Top(clk: in Clock, x: in Bit, y: out Bit) {
+    assert(x)
+    y := x
+}
+"#,
+        )
+        .expect("assert statement must lower into clocked SystemVerilog");
+
+    assert!(verilog.contains("always @(posedge clk) begin"));
+    assert!(verilog.contains("if ((!x)) $error(\"assert failed\");"));
+    assert!(verilog.contains("assign y = x;"));
+}
+
+#[test]
+fn std_assert_helpers_remain_loadable() {
+    let verilog = TestCompiler::new()
+        .compile_sources_with_paths(&[
+            (
+                path!("std", "vendor"),
+                include_str!("../../../examples/std/vendor.syl"),
+            ),
+            (
+                path!("std", "stream"),
+                include_str!("../../../examples/std/stream.syl"),
+            ),
+            (
+                path!("std", "assert"),
+                include_str!("../../../examples/std/assert.syl"),
+            ),
+            (
+                path!("examples", "assert_helper_user"),
+                r#"
+use std.assert.assert_pass
+
+cell Top(x: in Bit, y: out Bit) {
+    y := assert_pass(x)
+}
+"#,
+            ),
+        ])
+        .expect("existing std assert helper definitions must remain loadable");
+
+    assert!(verilog.contains("module Top"));
+}
+
+#[test]
 fn elaborates_const_fn_call_conditions() {
     let verilog = TestCompiler::new()
         .compile(

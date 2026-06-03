@@ -164,6 +164,9 @@ impl EirFactCollector {
                     items,
                 )?,
                 EirItem::Instance(instance) => self.record_instance_facts(instance)?,
+                EirItem::ClockedAssert { reads, origin, .. } => {
+                    self.record_reads(reads, origin)?;
+                }
                 EirItem::InitialError { .. } => {}
             }
         }

@@ -83,6 +83,18 @@ impl<'a> EirValidator<'a> {
                 self.check_expr(end, origin)?;
                 self.check_items(items)
             }
+            EirItem::ClockedAssert {
+                clock,
+                trigger,
+                reads,
+                message,
+                origin,
+            } => {
+                self.check_expr(clock, origin)?;
+                self.check_expr(trigger, origin)?;
+                self.check_exprs(reads, origin)?;
+                self.check_expr(message, origin)
+            }
             EirItem::InitialError { message, origin } => self.check_expr(message, origin),
         }
     }
