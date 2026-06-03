@@ -259,6 +259,8 @@ cell Top(x: in Bit, y: out Bit) {
 
     assert!(verilog.contains("module Top"));
 }
+
+#[test]
 fn elaborates_const_fn_call_conditions() {
     let verilog = TestCompiler::new()
         .compile(
