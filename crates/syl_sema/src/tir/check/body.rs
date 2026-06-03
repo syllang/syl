@@ -418,7 +418,6 @@ impl TypePhaseChecker {
         }
         Ok(())
     }
-
     fn check_hardware_drive_target(
         &mut self,
         target: &HirBodyExpr,
