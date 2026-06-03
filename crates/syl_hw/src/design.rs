@@ -360,6 +360,12 @@ pub enum HwItem {
         reset: Option<HwReset>,
         next: HwExpr,
     },
+    /// A clocked runtime assertion emitted as backend verification logic.
+    ClockedAssert {
+        clock: HwExpr,
+        trigger: HwExpr,
+        message: HwExpr,
+    },
     /// A sub-module instance.
     Instance(HwInstance),
     /// Conditional elaboration: `if (cond) then_items else else_items`.
