@@ -227,6 +227,13 @@ pub(crate) enum EirItem {
         items: Vec<EirItem>,
         origin: EirOrigin,
     },
+    ClockedAssert {
+        clock: EirExpr,
+        trigger: EirExpr,
+        reads: Vec<EirExpr>,
+        message: EirExpr,
+        origin: EirOrigin,
+    },
     InitialError {
         message: EirExpr,
         origin: EirOrigin,

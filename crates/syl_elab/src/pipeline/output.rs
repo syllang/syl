@@ -227,6 +227,7 @@ impl EirBuildStage {
                     | EirItem::Storage { .. }
                     | EirItem::Drive { .. }
                     | EirItem::ClockedStorage { .. }
+                    | EirItem::ClockedAssert { .. }
                     | EirItem::Instance(_)
                     | EirItem::InitialError { .. } => {}
                 }

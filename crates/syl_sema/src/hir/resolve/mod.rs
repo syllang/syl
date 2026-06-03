@@ -540,6 +540,7 @@ impl<'a> HirNameResolver<'a> {
 #[non_exhaustive]
 enum HirBuiltinIntrinsic {
     Zero,
+    Assert,
 }
 
 #[non_exhaustive]
@@ -560,6 +561,7 @@ impl<'a> BuiltinCallCallee<'a> {
         match name.as_str() {
             "z" => Some(HirBuiltinIntrinsic::Zero),
             "zero" => Some(HirBuiltinIntrinsic::Zero),
+            "assert" => Some(HirBuiltinIntrinsic::Assert),
             _ => None,
         }
     }
