@@ -148,6 +148,7 @@ impl<'a> Validator<'a> {
             }
             HwItem::ContinuousDrive { .. }
             | HwItem::ClockedStorage { .. }
+            | HwItem::ClockedAssert { .. }
             | HwItem::InitialError { .. } => {}
         }
     }
@@ -220,6 +221,15 @@ impl<'a> Validator<'a> {
                     self.validate_expr(module, reset.value(), scope);
                 }
                 self.validate_expr(module, next, scope);
+            }
+            HwItem::ClockedAssert {
+                clock,
+                trigger,
+                message,
+            } => {
+                self.validate_expr(module, clock, scope);
+                self.validate_expr(module, trigger, scope);
+                self.validate_expr(module, message, scope);
             }
             HwItem::Instance(instance) => self.validate_instance(module, instance, scope),
             HwItem::StaticIf {
