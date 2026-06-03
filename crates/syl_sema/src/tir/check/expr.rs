@@ -211,6 +211,16 @@ impl TypePhaseChecker {
             {
                 return Ok(());
             }
+            if matches!(builtin, Some(BuiltinIntrinsic::Assert)) {
+                errors.push(CompileError::lowering_at(
+                    EirError::AssertionStatementOnly,
+                    callee.span(),
+                ));
+                for arg in args {
+                    self.check_hardware_value_expr(&arg.value, errors)?;
+                }
+                return Ok(());
+            }
             errors.push(CompileError::lowering_at(
                 EirError::UnknownHardwareValueCall { name },
                 callee.span(),
@@ -278,10 +288,17 @@ impl TypePhaseChecker {
                 Some(BuiltinIntrinsic::HighZ | BuiltinIntrinsic::Zero)
             ) && !self.is_map_callee(callee)
             {
-                errors.push(CompileError::lowering_at(
-                    EirError::UnknownHardwareValueCall { name },
-                    callee.span(),
-                ));
+                if matches!(builtin, Some(BuiltinIntrinsic::Assert)) {
+                    errors.push(CompileError::lowering_at(
+                        EirError::AssertionStatementOnly,
+                        callee.span(),
+                    ));
+                } else {
+                    errors.push(CompileError::lowering_at(
+                        EirError::UnknownHardwareValueCall { name },
+                        callee.span(),
+                    ));
+                }
             }
         }
         for arg in args {

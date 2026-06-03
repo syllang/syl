@@ -47,6 +47,15 @@ impl<'a> SvBackendValidator<'a> {
                 }
                 Self::check_expr(&module.name, next)
             }
+            SvItem::AlwaysAssert {
+                clock,
+                trigger,
+                message,
+            } => {
+                Self::check_expr(&module.name, clock)?;
+                Self::check_expr(&module.name, trigger)?;
+                Self::check_expr(&module.name, message)
+            }
             SvItem::Instance(instance) => {
                 for connection in &instance.connections {
                     Self::check_expr(&module.name, &connection.actual)?;
