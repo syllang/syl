@@ -9,6 +9,7 @@ use syl_hir::DefId;
 pub enum BuiltinIntrinsic {
     HighZ,
     Zero,
+    Assert,
 }
 
 #[non_exhaustive]
@@ -47,6 +48,7 @@ impl<'a> BuiltinResolver<'a> {
         match name {
             "z" => Some(BuiltinIntrinsic::HighZ),
             "zero" => Some(BuiltinIntrinsic::Zero),
+            "assert" => Some(BuiltinIntrinsic::Assert),
             _ => None,
         }
     }

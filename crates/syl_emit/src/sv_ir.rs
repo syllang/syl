@@ -234,6 +234,11 @@ pub(super) enum SvItem {
         reset: Option<SvReset>,
         next: SvExpr,
     },
+    AlwaysAssert {
+        clock: SvExpr,
+        trigger: SvExpr,
+        message: SvExpr,
+    },
     Instance(SvInstance),
     GenerateIf {
         cond: SvExpr,
@@ -305,6 +310,22 @@ impl SvItem {
                 } else {
                     out.push_str(&format!("{pad}  {target} <= {};\n", next.emit_text()));
                 }
+                out.push_str(&format!("{pad}end\n"));
+            }
+            Self::AlwaysAssert {
+                clock,
+                trigger,
+                message,
+            } => {
+                out.push_str(&format!(
+                    "{pad}always @(posedge {}) begin\n",
+                    clock.emit_text()
+                ));
+                out.push_str(&format!(
+                    "{pad}  if ({}) $error({});\n",
+                    trigger.emit_text(),
+                    message.emit_text()
+                ));
                 out.push_str(&format!("{pad}end\n"));
             }
             Self::Instance(instance) => instance.emit_into(out, indent),
