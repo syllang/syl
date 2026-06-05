@@ -44,7 +44,8 @@ impl<'a> SvEmitter<'a> {
     }
 
     fn lower_param(&self, param: &HwParam) -> SvParam {
-        SvParam::new(param.name(), param.default()).with_doc(param.doc().map(ToOwned::to_owned))
+        SvParam::new(param.name(), Self::normalize_param_value(param.default()))
+            .with_doc(param.doc().map(ToOwned::to_owned))
     }
 
     fn lower_port(&self, port: &HwPort) -> Result<SvPort, CompileError> {
@@ -169,7 +170,15 @@ impl<'a> SvEmitter<'a> {
     }
 
     fn lower_param_bind(&self, param: &HwParamBind) -> SvParamBind {
-        SvParamBind::new(param.name(), param.value())
+        SvParamBind::new(param.name(), Self::normalize_param_value(param.value()))
+    }
+
+    fn normalize_param_value(value: &str) -> String {
+        match value.trim() {
+            "true" => "1'b1".to_string(),
+            "false" => "1'b0".to_string(),
+            _ => value.to_string(),
+        }
     }
 
     fn lower_connection(&self, conn: &HwConnection) -> Result<SvConnection, CompileError> {
@@ -303,5 +312,17 @@ impl<'a> SvEmitter<'a> {
             HwBinaryOp::BitXor => Ok(SvBinaryOp::BitXor),
             _ => Err(CompileError::unsupported_hwir("unknown binary operator")),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::SvEmitter;
+
+    #[test]
+    fn normalizes_bool_param_literals() {
+        assert_eq!(SvEmitter::normalize_param_value("true"), "1'b1");
+        assert_eq!(SvEmitter::normalize_param_value(" false "), "1'b0");
+        assert_eq!(SvEmitter::normalize_param_value("WIDTH"), "WIDTH");
     }
 }
