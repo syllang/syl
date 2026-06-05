@@ -720,6 +720,27 @@ cell Top(x: in Bit, y: out Bit) {
 }
 
 #[test]
+fn hardware_bare_equals_rejects_shadowed_nonmutable_binding() {
+    let errors = SourceParser::new(
+        r#"
+cell Top(x: in Bit, y: out Bit) {
+    var state: bool = false
+    if true {
+        let state = x
+        state = y
+    }
+}
+"#,
+    )
+    .parse_file()
+    .expect_err("shadowed hardware local must not inherit outer mutable-local bare `=` allowance");
+
+    assert!(errors.iter().any(|error| {
+        error.message == "hardware blocks use `:=`; bare `=` assignment is invalid here"
+    }));
+}
+
+#[test]
 fn rejects_mixed_assignment_operators_in_parser() {
     let output = SourceParser::new(
         r#"

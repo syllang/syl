@@ -31,6 +31,7 @@ impl Parser {
                     .or_else(|| ty.as_ref().map(TypeExpr::span))
                     .unwrap_or(start)
             });
+        self.shadow_visible_mutable_local(&name);
         Ok(Stmt::Let {
             name,
             ty,
@@ -53,6 +54,7 @@ impl Parser {
             .consume(&TokenKind::Semi)
             .map(|tok| tok.span)
             .unwrap_or_else(|| value.span());
+        self.shadow_visible_mutable_local(&name);
         Ok(Stmt::Const {
             name,
             ty,
@@ -121,7 +123,6 @@ impl Parser {
     pub(super) fn parse_var_stmt(&mut self) -> Result<Stmt, Vec<Diagnostic>> {
         let start = self.expect(TokenKind::KwVar)?.span;
         let name = self.expect_ident()?;
-        self.declare_mutable_local(&name);
         let ty = if self.consume(&TokenKind::Colon).is_some() {
             Some(self.parse_type_expr()?)
         } else {
@@ -146,6 +147,7 @@ impl Parser {
                     .or_else(|| ty.as_ref().map(TypeExpr::span))
                     .unwrap_or(start)
             });
+        self.declare_mutable_local(&name);
         Ok(Stmt::Var {
             name,
             ty,
@@ -181,6 +183,7 @@ impl Parser {
                     .or_else(|| ty.as_ref().map(TypeExpr::span))
                     .unwrap_or(start)
             });
+        self.shadow_visible_mutable_local(&name);
         Ok(Stmt::Signal {
             name,
             ty,
@@ -212,6 +215,7 @@ impl Parser {
                     .or_else(|| ty.as_ref().map(TypeExpr::span))
                     .unwrap_or(start)
             });
+        self.shadow_visible_mutable_local(&name);
         Ok(Stmt::Reg {
             name,
             ty,
@@ -340,7 +344,7 @@ impl Parser {
     pub(super) fn parse_while_stmt(&mut self) -> Result<Stmt, Vec<Diagnostic>> {
         let start = self.expect(TokenKind::KwWhile)?.span;
         let cond = self.parse_expr(0)?;
-        let body = self.parse_block(self.block_context())?;
+        let body = self.parse_nested_block_preserving_mutable_scope(self.block_context())?;
         let span = start.join(body.span);
         Ok(Stmt::While { cond, body, span })
     }
@@ -348,10 +352,10 @@ impl Parser {
     pub(super) fn parse_if_stmt(&mut self) -> Result<Stmt, Vec<Diagnostic>> {
         let start = self.expect(TokenKind::KwIf)?.span;
         let cond = self.parse_expr(0)?;
-        let then_block = self.parse_block(self.block_context())?;
+        let then_block = self.parse_nested_block_preserving_mutable_scope(self.block_context())?;
         let else_block = if self.check(&TokenKind::KwElse) {
             self.expect(TokenKind::KwElse)?;
-            Some(self.parse_block(self.block_context())?)
+            Some(self.parse_nested_block_preserving_mutable_scope(self.block_context())?)
         } else {
             None
         };
@@ -383,7 +387,11 @@ impl Parser {
             end: Box::new(end_expr),
             span,
         };
-        let body = self.parse_block(self.block_context())?;
+        let saved_scopes = self.mutable_local_scopes.clone();
+        self.shadow_visible_mutable_local(&name);
+        let body = self.parse_block(self.block_context());
+        self.mutable_local_scopes = saved_scopes;
+        let body = body?;
         let span = start.join(body.span);
         Ok(Stmt::ElabFor {
             name,
@@ -405,6 +413,24 @@ impl Parser {
             self.consume(&TokenKind::Comma);
         }
         Ok(fields)
+    }
+
+    fn parse_nested_block_preserving_mutable_scope(
+        &mut self,
+        context: BlockContext,
+    ) -> Result<crate::Block, Vec<Diagnostic>> {
+        let saved_scopes = self.mutable_local_scopes.clone();
+        let block = self.parse_block(context);
+        self.mutable_local_scopes = saved_scopes;
+        block
+    }
+
+    fn shadow_visible_mutable_local(&mut self, name: &str) {
+        for scope in self.mutable_local_scopes.iter_mut().rev() {
+            if scope.remove(name) {
+                break;
+            }
+        }
     }
 
     pub(super) fn looks_like_aggregate(&self) -> bool {
