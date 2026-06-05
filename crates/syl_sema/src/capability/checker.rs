@@ -1,6 +1,9 @@
 use super::{
     context::CapabilityContext,
-    field_schema::{LocalTypeFacts, resolve_view_field_schema},
+    field_schema::{
+        LocalTypeFacts, ViewFieldSchemaRecord, record_let_view_field_schema,
+        record_view_field_schema,
+    },
     model::{CapabilityScope, EndpointSide, FieldCaps},
     place::{Place, PlaceResolution},
 };
@@ -43,14 +46,6 @@ struct TypeCapabilityRecord<'a> {
     side: EndpointSide,
 }
 
-struct ViewFieldSchemaRecord<'a> {
-    owner: DefId,
-    facts: &'a mut LocalTypeFacts,
-    local: LocalId,
-    ty: &'a MirTypeRef,
-    side: EndpointSide,
-}
-
 #[non_exhaustive]
 pub(crate) struct CapabilityChecker<'a> {
     ctx: &'a dyn CapabilityContext,
@@ -83,25 +78,31 @@ impl<'a> CapabilityChecker<'a> {
             let caps = self.param_caps(owner, param)?;
             let local = self.local_id(&param.name, param.id, param.span)?;
             scope.insert(local, caps);
-            self.record_view_field_schema(ViewFieldSchemaRecord {
-                owner,
-                facts: &mut facts,
-                local,
-                ty: &param.ty,
-                side: EndpointSide::Local,
-            })?;
+            record_view_field_schema(
+                self.ctx,
+                ViewFieldSchemaRecord {
+                    owner,
+                    facts: &mut facts,
+                    local,
+                    ty: &param.ty,
+                    side: EndpointSide::Local,
+                },
+            )?;
         }
         if let Some(result) = &item.result {
             let caps = self.result_caps(owner, result)?;
             let local = self.local_id(&result.name, result.id, result.span)?;
             scope.insert(local, caps);
-            self.record_view_field_schema(ViewFieldSchemaRecord {
-                owner,
-                facts: &mut facts,
-                local,
-                ty: &result.ty,
-                side: EndpointSide::Local,
-            })?;
+            record_view_field_schema(
+                self.ctx,
+                ViewFieldSchemaRecord {
+                    owner,
+                    facts: &mut facts,
+                    local,
+                    ty: &result.ty,
+                    side: EndpointSide::Local,
+                },
+            )?;
         }
         self.check_block(owner, &item.body, &scope, &facts)
     }
@@ -151,13 +152,16 @@ impl<'a> CapabilityChecker<'a> {
                                 side: EndpointSide::LocalSignal,
                             },
                         )?;
-                        self.record_view_field_schema(ViewFieldSchemaRecord {
-                            owner,
-                            facts: &mut facts,
-                            local,
-                            ty,
-                            side: EndpointSide::LocalSignal,
-                        })?;
+                        record_view_field_schema(
+                            self.ctx,
+                            ViewFieldSchemaRecord {
+                                owner,
+                                facts: &mut facts,
+                                local,
+                                ty,
+                                side: EndpointSide::LocalSignal,
+                            },
+                        )?;
                     }
                 }
                 HirStmt::Reg { id, name, span, .. } => {
@@ -173,7 +177,7 @@ impl<'a> CapabilityChecker<'a> {
                     let caps = self.let_caps(owner, value)?;
                     let local = self.local_id(name, *id, *span)?;
                     scope.insert(local, caps);
-                    self.record_let_view_field_schema(owner, &mut facts, local, value)?;
+                    record_let_view_field_schema(self.ctx, owner, &mut facts, local, value)?;
                     self.check_read_expr(
                         owner,
                         value,
@@ -725,40 +729,5 @@ impl<'a> CapabilityChecker<'a> {
                 span,
             )
         })
-    }
-
-    fn record_view_field_schema(
-        &self,
-        record: ViewFieldSchemaRecord<'_>,
-    ) -> Result<(), CompileError> {
-        let Some(schema) =
-            resolve_view_field_schema(self.ctx, record.owner, record.ty, record.side)?
-        else {
-            return Ok(());
-        };
-        record.facts.insert_view_fields(record.local, schema);
-        Ok(())
-    }
-
-    fn record_let_view_field_schema(
-        &self,
-        owner: DefId,
-        facts: &mut LocalTypeFacts,
-        local: LocalId,
-        value: &HirBodyExpr,
-    ) -> Result<(), CompileError> {
-        let Some((callee_def, _, callable)) = self.callable_from_value(owner, value) else {
-            return Ok(());
-        };
-        let Some(result_ty) = callable.result().map(|result| &result.ty) else {
-            return Ok(());
-        };
-        let Some(schema) =
-            resolve_view_field_schema(self.ctx, callee_def, result_ty, EndpointSide::Returned)?
-        else {
-            return Ok(());
-        };
-        facts.insert_view_fields(local, schema);
-        Ok(())
     }
 }
