@@ -222,6 +222,7 @@ syl_hir|field|syl_hir::model::HirDesign::maps|std::collections::BTreeMap<crate::
 syl_hir|field|syl_hir::model::HirDesign::member_decls|Vec<HirMemberDecl>
 syl_hir|field|syl_hir::model::HirDesign::module_docs|std::collections::BTreeMap<syl_span::SourceId, String>
 syl_hir|field|syl_hir::model::HirDesign::packages|Vec<HirPackage>
+syl_hir|field|syl_hir::model::HirDesign::structs|std::collections::BTreeMap<crate::DefId, HirStructItem>
 syl_hir|field|syl_hir::model::HirDesign::type_refs|Vec<HirTypeRef>
 syl_hir|field|syl_hir::model::HirExpr::id|crate::ExprId
 syl_hir|field|syl_hir::model::HirExpr::owner|crate::DefId
@@ -363,6 +364,11 @@ syl_hir|field|syl_hir::model::item::HirSignatureResultBinding::id|Option<crate::
 syl_hir|field|syl_hir::model::item::HirSignatureResultBinding::name|String
 syl_hir|field|syl_hir::model::item::HirSignatureResultBinding::span|syl_span::Span
 syl_hir|field|syl_hir::model::item::HirSignatureResultBinding::ty|super::MirTypeRef
+syl_hir|field|syl_hir::model::item::HirStructItem::doc|Option<String>
+syl_hir|field|syl_hir::model::item::HirStructItem::fields|Vec<HirFieldDecl>
+syl_hir|field|syl_hir::model::item::HirStructItem::generics|Vec<HirSignatureGenericParam>
+syl_hir|field|syl_hir::model::item::HirStructItem::name|String
+syl_hir|field|syl_hir::model::item::HirStructItem::span|syl_span::Span
 syl_hir|field|syl_hir::model::item::HirViewDecl::fields|Vec<HirViewField>
 syl_hir|field|syl_hir::model::item::HirViewDecl::name|String
 syl_hir|field|syl_hir::model::item::HirViewDecl::span|syl_span::Span
@@ -396,7 +402,7 @@ syl_hir|method|syl_hir::model::HirDesign::register_extension_method|fn(self: &mu
 syl_hir|method|syl_hir::model::HirDesign::resolved_type_def_for_ref|fn(self: &Self, type_ref: &HirTypeRef) -> Option<DefId>
 syl_hir|method|syl_hir::model::HirDesign::semantic_summary_count|fn(self: &Self) -> usize
 syl_hir|method|syl_hir::model::HirDesign::source_def_ids|fn(self: &Self, source: syl_span::SourceId) -> Vec<DefId>
-syl_hir|method|syl_hir::model::HirDesign::type_def_for_mir_type|fn(self: &Self, _owner: DefId, ty: &MirTypeRef) -> Option<DefId>
+syl_hir|method|syl_hir::model::HirDesign::type_def_for_mir_type|fn(self: &Self, owner: DefId, ty: &MirTypeRef) -> Option<DefId>
 syl_hir|method|syl_hir::model::HirDesign::type_ref_at|fn(self: &Self, owner: DefId, span: Span) -> Option<&HirTypeRef>
 syl_hir|method|syl_hir::model::HirDesign::view_def_for_type_ref|fn(self: &Self, owner: DefId, ty: &MirTypeRef, span: Span) -> Option<&HirMemberDecl>
 syl_hir|method|syl_hir::model::HirDesign::visible_def_ids|fn(self: &Self, owner: DefId) -> Vec<DefId>
@@ -498,6 +504,7 @@ syl_hir|struct|syl_hir::model::item::HirReturnType|public
 syl_hir|struct|syl_hir::model::item::HirSignatureGenericParam|public
 syl_hir|struct|syl_hir::model::item::HirSignatureParam|public
 syl_hir|struct|syl_hir::model::item::HirSignatureResultBinding|public
+syl_hir|struct|syl_hir::model::item::HirStructItem|public
 syl_hir|struct|syl_hir::model::item::HirViewDecl|public
 syl_hir|struct|syl_hir::model::item::HirViewField|public
 syl_hir|struct|syl_hir::model::type_ref::MirConstExpr|public
@@ -581,6 +588,8 @@ syl_hir|use|HirSignatureResultBinding|named|source=item::HirSignatureResultBindi
 syl_hir|use|HirSignatureResultBinding|named|source=model::HirSignatureResultBinding
 syl_hir|use|HirStmt|named|source=body::HirStmt
 syl_hir|use|HirStmt|named|source=model::HirStmt
+syl_hir|use|HirStructItem|named|source=item::HirStructItem
+syl_hir|use|HirStructItem|named|source=model::HirStructItem
 syl_hir|use|HirTypeRef|named|source=model::HirTypeRef
 syl_hir|use|HirViewDecl|named|source=item::HirViewDecl
 syl_hir|use|HirViewDecl|named|source=model::HirViewDecl
@@ -610,6 +619,7 @@ syl_hir|variant|syl_hir::model::HirDefKind::ExternCell|unit
 syl_hir|variant|syl_hir::model::HirDefKind::Fn|unit
 syl_hir|variant|syl_hir::model::HirDefKind::Interface|unit
 syl_hir|variant|syl_hir::model::HirDefKind::Map|unit
+syl_hir|variant|syl_hir::model::HirDefKind::Struct|unit
 syl_hir|variant|syl_hir::model::HirLocalKind::Const|unit
 syl_hir|variant|syl_hir::model::HirLocalKind::Generic|unit
 syl_hir|variant|syl_hir::model::HirLocalKind::Instance|unit
@@ -1087,10 +1097,10 @@ syl_sema|enum|syl_sema::facts::resolution::DefinitionKind|public
 syl_sema|enum|syl_sema::facts::resolution::HirFactId|public
 syl_sema|enum|syl_sema::facts::resolution::SemanticResolution|public
 syl_sema|enum|syl_sema::ir::const_mir::ConstExprKind|public
+syl_sema|enum|syl_sema::ir::const_mir::ConstKind|public
 syl_sema|enum|syl_sema::ir::const_mir::ConstStmt|public
+syl_sema|enum|syl_sema::ir::const_mir::ConstValue|public
 syl_sema|enum|syl_sema::ir::const_mir::Terminator|public
-syl_sema|enum|syl_sema::ir::const_mir::eval::ConstKind|public
-syl_sema|enum|syl_sema::ir::const_mir::eval::ConstValue|public
 syl_sema|enum|syl_sema::ir::map_ir::MapExpr|public
 syl_sema|enum|syl_sema::ir::map_ir::types::MapBinaryOp|public
 syl_sema|enum|syl_sema::ir::map_ir::types::MapPattern|public
@@ -1217,9 +1227,11 @@ syl_sema|method|syl_sema::hir::lower::HirResolver::resolve_partial|fn(self: Self
 syl_sema|method|syl_sema::hir::lower::HirResolver::resolve|fn(self: Self) -> Result<HirDesign, CompileError>
 syl_sema|method|syl_sema::ir::const_mir::BasicBlock::stmts|fn(self: &Self) -> &[ConstStmt]
 syl_sema|method|syl_sema::ir::const_mir::BasicBlock::terminator|fn(self: &Self) -> &Terminator
+syl_sema|method|syl_sema::ir::const_mir::ConstExpr::aggregate|fn(kind: ConstStructKind, fields: Vec<ConstNamedExpr>, span: Span) -> Self
 syl_sema|method|syl_sema::ir::const_mir::ConstExpr::binary|fn(op: MirBinaryOp, left: ConstExpr, right: ConstExpr, span: Span) -> Self
 syl_sema|method|syl_sema::ir::const_mir::ConstExpr::bool_value|fn(value: bool, span: Span) -> Self
 syl_sema|method|syl_sema::ir::const_mir::ConstExpr::call|fn(callee: DefId, args: Vec<ConstExpr>, span: Span) -> Self
+syl_sema|method|syl_sema::ir::const_mir::ConstExpr::field|fn(base: ConstExpr, field: impl Into<String>, span: Span) -> Self
 syl_sema|method|syl_sema::ir::const_mir::ConstExpr::kind|fn(self: &Self) -> &ConstExprKind
 syl_sema|method|syl_sema::ir::const_mir::ConstExpr::local|fn(local: ConstLocalRef, span: Span) -> Self
 syl_sema|method|syl_sema::ir::const_mir::ConstExpr::named_local|fn(name: impl Into<String>, span: Span) -> Self
@@ -1246,10 +1258,30 @@ syl_sema|method|syl_sema::ir::const_mir::ConstMirBuilder::lower_const_expr|fn(se
 syl_sema|method|syl_sema::ir::const_mir::ConstMirBuilder::new|fn(tir: &TirDesign) -> Self
 syl_sema|method|syl_sema::ir::const_mir::ConstMirProgram::debug_dump|fn(self: &Self) -> String
 syl_sema|method|syl_sema::ir::const_mir::ConstMirProgram::evaluator|fn(self: &Self) -> ConstEvaluator<'_>
+syl_sema|method|syl_sema::ir::const_mir::ConstMirProgram::field_kind|fn(self: &Self, kind: ConstStructKind, field: &str) -> Option<ConstKind>
 syl_sema|method|syl_sema::ir::const_mir::ConstMirProgram::function|fn(self: &Self, id: DefId) -> Option<&ConstFunction>
 syl_sema|method|syl_sema::ir::const_mir::ConstMirProgram::local_ref_count|fn(self: &Self) -> usize
 syl_sema|method|syl_sema::ir::const_mir::ConstMirProgram::node_count|fn(self: &Self) -> usize
 syl_sema|method|syl_sema::ir::const_mir::ConstMirProgram::resolved_local_ref_count|fn(self: &Self) -> usize
+syl_sema|method|syl_sema::ir::const_mir::ConstMirProgram::struct_def|fn(self: &Self, id: DefId) -> Option<&ConstStructDef>
+syl_sema|method|syl_sema::ir::const_mir::ConstMirProgram::struct_kind|fn(self: &Self, id: DefId) -> Option<ConstStructKind>
+syl_sema|method|syl_sema::ir::const_mir::ConstNamedExpr::name|fn(self: &Self) -> &str
+syl_sema|method|syl_sema::ir::const_mir::ConstNamedExpr::new|fn(name: impl Into<String>, value: ConstExpr) -> Self
+syl_sema|method|syl_sema::ir::const_mir::ConstNamedExpr::value|fn(self: &Self) -> &ConstExpr
+syl_sema|method|syl_sema::ir::const_mir::ConstStructDef::fields|fn(self: &Self) -> &[ConstStructFieldDef]
+syl_sema|method|syl_sema::ir::const_mir::ConstStructDef::field|fn(self: &Self, field: &str) -> Option<&ConstStructFieldDef>
+syl_sema|method|syl_sema::ir::const_mir::ConstStructDef::kind|fn(self: &Self) -> ConstStructKind
+syl_sema|method|syl_sema::ir::const_mir::ConstStructDef::name|fn(self: &Self) -> &str
+syl_sema|method|syl_sema::ir::const_mir::ConstStructFieldDef::kind|fn(self: &Self) -> Option<ConstKind>
+syl_sema|method|syl_sema::ir::const_mir::ConstStructFieldDef::name|fn(self: &Self) -> &str
+syl_sema|method|syl_sema::ir::const_mir::ConstStructFieldValue::name|fn(self: &Self) -> &str
+syl_sema|method|syl_sema::ir::const_mir::ConstStructFieldValue::new|fn(name: impl Into<String>, value: ConstValue) -> Self
+syl_sema|method|syl_sema::ir::const_mir::ConstStructFieldValue::value|fn(self: &Self) -> &ConstValue
+syl_sema|method|syl_sema::ir::const_mir::ConstStructKind::def|fn(self: Self) -> DefId
+syl_sema|method|syl_sema::ir::const_mir::ConstStructValue::field_value|fn(self: &Self, field: &str) -> Option<&ConstValue>
+syl_sema|method|syl_sema::ir::const_mir::ConstStructValue::fields|fn(self: &Self) -> &[ConstStructFieldValue]
+syl_sema|method|syl_sema::ir::const_mir::ConstStructValue::kind|fn(self: &Self) -> ConstStructKind
+syl_sema|method|syl_sema::ir::const_mir::ConstStructValue::new|fn(kind: ConstStructKind, fields: Vec<ConstStructFieldValue>) -> Self
 syl_sema|method|syl_sema::ir::const_mir::eval::ConstEvalEnv::bind|fn(self: &mut Self, name: impl Into<String>, value: ConstValue)
 syl_sema|method|syl_sema::ir::const_mir::eval::ConstEvalEnv::owner|fn(self: &Self) -> Option<DefId>
 syl_sema|method|syl_sema::ir::const_mir::eval::ConstEvalEnv::value|fn(self: &Self, name: &str) -> Option<ConstValue>
@@ -1522,6 +1554,12 @@ syl_sema|struct|syl_sema::ir::const_mir::ConstLocalRef|public
 syl_sema|struct|syl_sema::ir::const_mir::ConstLocal|public
 syl_sema|struct|syl_sema::ir::const_mir::ConstMirBuilder|public
 syl_sema|struct|syl_sema::ir::const_mir::ConstMirProgram|public
+syl_sema|struct|syl_sema::ir::const_mir::ConstNamedExpr|public
+syl_sema|struct|syl_sema::ir::const_mir::ConstStructDef|public
+syl_sema|struct|syl_sema::ir::const_mir::ConstStructFieldDef|public
+syl_sema|struct|syl_sema::ir::const_mir::ConstStructFieldValue|public
+syl_sema|struct|syl_sema::ir::const_mir::ConstStructKind|public
+syl_sema|struct|syl_sema::ir::const_mir::ConstStructValue|public
 syl_sema|struct|syl_sema::ir::const_mir::eval::ConstEvalEnv|public
 syl_sema|struct|syl_sema::ir::const_mir::eval::ConstEvaluator|public
 syl_sema|struct|syl_sema::ir::map_ir::MapArg|public
@@ -1610,8 +1648,6 @@ syl_sema|use|ConstFactKey|named|source=consts::ConstFactKey
 syl_sema|use|ConstFactKey|named|source=facts::ConstFactKey
 syl_sema|use|ConstFacts|named|source=consts::ConstFacts
 syl_sema|use|ConstFacts|named|source=facts::ConstFacts
-syl_sema|use|ConstKind|named|source=eval::ConstKind
-syl_sema|use|ConstValue|named|source=eval::ConstValue
 syl_sema|use|DefinitionInfo|named|source=analysis::DefinitionInfo
 syl_sema|use|DefinitionInfo|named|source=pipeline::DefinitionInfo
 syl_sema|use|DefinitionKind|named|source=facts::DefinitionKind
@@ -1847,6 +1883,7 @@ syl_sema|variant|syl_sema::diagnostic::error::HirError::DuplicateEnum|{ name: St
 syl_sema|variant|syl_sema::diagnostic::error::HirError::DuplicateFn|{ name: String }
 syl_sema|variant|syl_sema::diagnostic::error::HirError::DuplicateInterface|{ name: String }
 syl_sema|variant|syl_sema::diagnostic::error::HirError::DuplicateMap|{ name: String }
+syl_sema|variant|syl_sema::diagnostic::error::HirError::DuplicateStruct|{ name: String }
 syl_sema|variant|syl_sema::diagnostic::error::HirError::EmptyEnum|{ name: String }
 syl_sema|variant|syl_sema::diagnostic::error::HirError::MissingHirDef|{ name: String }
 syl_sema|variant|syl_sema::diagnostic::error::HirError::MissingHirExpr|{ start: usize, end: usize }
@@ -1918,28 +1955,33 @@ syl_sema|variant|syl_sema::facts::resolution::DefinitionKind::ExternCell|unit
 syl_sema|variant|syl_sema::facts::resolution::DefinitionKind::Fn|unit
 syl_sema|variant|syl_sema::facts::resolution::DefinitionKind::Interface|unit
 syl_sema|variant|syl_sema::facts::resolution::DefinitionKind::Map|unit
+syl_sema|variant|syl_sema::facts::resolution::DefinitionKind::Struct|unit
 syl_sema|variant|syl_sema::facts::resolution::HirFactId::Def|(syl_hir::DefId)
 syl_sema|variant|syl_sema::facts::resolution::HirFactId::Expr|(syl_hir::ExprId)
 syl_sema|variant|syl_sema::facts::resolution::HirFactId::Local|(syl_hir::LocalId)
 syl_sema|variant|syl_sema::facts::resolution::SemanticResolution::Def|(syl_hir::DefId)
 syl_sema|variant|syl_sema::facts::resolution::SemanticResolution::Local|(syl_hir::LocalId)
+syl_sema|variant|syl_sema::ir::const_mir::ConstExprKind::Aggregate|{ kind: ConstStructKind, fields: Vec<ConstNamedExpr> }
 syl_sema|variant|syl_sema::ir::const_mir::ConstExprKind::Binary|{ op: syl_hir::MirBinaryOp, left: Box<ConstExpr>, right: Box<ConstExpr> }
 syl_sema|variant|syl_sema::ir::const_mir::ConstExprKind::Bool|(bool)
 syl_sema|variant|syl_sema::ir::const_mir::ConstExprKind::Call|{ callee: syl_hir::DefId, args: Vec<ConstExpr> }
+syl_sema|variant|syl_sema::ir::const_mir::ConstExprKind::Field|{ base: Box<ConstExpr>, field: String }
 syl_sema|variant|syl_sema::ir::const_mir::ConstExprKind::Local|(ConstLocalRef)
 syl_sema|variant|syl_sema::ir::const_mir::ConstExprKind::Nat|(u64)
 syl_sema|variant|syl_sema::ir::const_mir::ConstExprKind::Unary|{ op: syl_hir::MirUnaryOp, expr: Box<ConstExpr> }
 syl_sema|variant|syl_sema::ir::const_mir::ConstExprKind::Unknown|(ConstKind)
 syl_sema|variant|syl_sema::ir::const_mir::ConstExprKind::Unsupported|unit
+syl_sema|variant|syl_sema::ir::const_mir::ConstKind::Bool|unit
+syl_sema|variant|syl_sema::ir::const_mir::ConstKind::Nat|unit
+syl_sema|variant|syl_sema::ir::const_mir::ConstKind::Struct|(ConstStructKind)
 syl_sema|variant|syl_sema::ir::const_mir::ConstStmt::Assign|{ local: ConstLocalRef, value: ConstExpr }
+syl_sema|variant|syl_sema::ir::const_mir::ConstValue::Bool|(bool)
+syl_sema|variant|syl_sema::ir::const_mir::ConstValue::Nat|(u64)
+syl_sema|variant|syl_sema::ir::const_mir::ConstValue::Struct|(ConstStructValue)
+syl_sema|variant|syl_sema::ir::const_mir::ConstValue::Unknown|(ConstKind)
 syl_sema|variant|syl_sema::ir::const_mir::Terminator::Branch|{ cond: ConstExpr, then_block: BlockId, else_block: BlockId }
 syl_sema|variant|syl_sema::ir::const_mir::Terminator::Goto|(BlockId)
 syl_sema|variant|syl_sema::ir::const_mir::Terminator::Return|(Option<ConstExpr>)
-syl_sema|variant|syl_sema::ir::const_mir::eval::ConstKind::Bool|unit
-syl_sema|variant|syl_sema::ir::const_mir::eval::ConstKind::Nat|unit
-syl_sema|variant|syl_sema::ir::const_mir::eval::ConstValue::Bool|(bool)
-syl_sema|variant|syl_sema::ir::const_mir::eval::ConstValue::Nat|(u64)
-syl_sema|variant|syl_sema::ir::const_mir::eval::ConstValue::Unknown|(ConstKind)
 syl_sema|variant|syl_sema::ir::map_ir::MapExpr::Aggregate|{ ty: MapTypeRef, fields: Vec<MapNamedExpr> }
 syl_sema|variant|syl_sema::ir::map_ir::MapExpr::Binary|{ op: MapBinaryOp, left: Box<MapExpr>, right: Box<MapExpr> }
 syl_sema|variant|syl_sema::ir::map_ir::MapExpr::Bool|(bool)
@@ -2418,6 +2460,7 @@ syl_syntax|enum|syl_syntax::ast::ParamRole|public
 syl_syntax|enum|syl_syntax::ast::Pattern|public
 syl_syntax|enum|syl_syntax::ast::SelectMode|public
 syl_syntax|enum|syl_syntax::ast::Stmt|public
+syl_syntax|enum|syl_syntax::ast::StructItemBuilderError|public
 syl_syntax|enum|syl_syntax::ast::TypeExpr|public
 syl_syntax|enum|syl_syntax::ast::UnaryOp|public
 syl_syntax|enum|syl_syntax::ast::ViewDirection|public
@@ -2537,6 +2580,11 @@ syl_syntax|field|syl_syntax::ast::SelectArm::doc|Option<String>
 syl_syntax|field|syl_syntax::ast::SelectArm::pattern|Expr
 syl_syntax|field|syl_syntax::ast::SelectArm::span|syl_span::Span
 syl_syntax|field|syl_syntax::ast::SelectArm::value|Expr
+syl_syntax|field|syl_syntax::ast::StructItem::doc|Option<String>
+syl_syntax|field|syl_syntax::ast::StructItem::fields|Vec<FieldDecl>
+syl_syntax|field|syl_syntax::ast::StructItem::generics|Vec<GenericParam>
+syl_syntax|field|syl_syntax::ast::StructItem::name|String
+syl_syntax|field|syl_syntax::ast::StructItem::span|syl_span::Span
 syl_syntax|field|syl_syntax::ast::UseItem::doc|Option<String>
 syl_syntax|field|syl_syntax::ast::UseItem::path|Vec<String>
 syl_syntax|field|syl_syntax::ast::UseItem::span|syl_span::Span
@@ -2603,6 +2651,7 @@ syl_syntax|method|syl_syntax::ast::ResultBinding::new|fn(name: String, ty: TypeE
 syl_syntax|method|syl_syntax::ast::SelectArm::new|fn(pattern: Expr, value: Expr, span: Span) -> Self
 syl_syntax|method|syl_syntax::ast::SelectMode::is_unique|fn(self: &Self) -> bool
 syl_syntax|method|syl_syntax::ast::Stmt::span|fn(self: &Self) -> Span
+syl_syntax|method|syl_syntax::ast::StructItem::builder|fn(name: String) -> StructItemBuilder
 syl_syntax|method|syl_syntax::ast::TypeExpr::span|fn(self: &Self) -> Span
 syl_syntax|method|syl_syntax::ast::UseItem::new|fn(path: Vec<String>, span: Span) -> Self
 syl_syntax|method|syl_syntax::ast::ViewDecl::new|fn(name: String, fields: Vec<ViewField>, span: Span) -> Self
@@ -2685,6 +2734,8 @@ syl_syntax|struct|syl_syntax::ast::PortDecl|public
 syl_syntax|struct|syl_syntax::ast::RegReset|public
 syl_syntax|struct|syl_syntax::ast::ResultBinding|public
 syl_syntax|struct|syl_syntax::ast::SelectArm|public
+syl_syntax|struct|syl_syntax::ast::StructItemBuilder|public
+syl_syntax|struct|syl_syntax::ast::StructItem|public
 syl_syntax|struct|syl_syntax::ast::UseItem|public
 syl_syntax|struct|syl_syntax::ast::ViewDecl|public
 syl_syntax|struct|syl_syntax::ast::ViewField|public
@@ -2760,6 +2811,7 @@ syl_syntax|use|SelectArm|named|source=ast::SelectArm
 syl_syntax|use|SelectMode|named|source=ast::SelectMode
 syl_syntax|use|SourceParser|named|source=parser::SourceParser
 syl_syntax|use|Stmt|named|source=ast::Stmt
+syl_syntax|use|StructItem|named|source=ast::StructItem
 syl_syntax|use|TokenKind|named|source=crate::token::TokenKind
 syl_syntax|use|Token|named|source=crate::token::Token
 syl_syntax|use|TypeExpr|named|source=ast::TypeExpr
@@ -2830,6 +2882,7 @@ syl_syntax|variant|syl_syntax::ast::Item::ExternCell|(ExternCellItem)
 syl_syntax|variant|syl_syntax::ast::Item::Fn|(FnItem)
 syl_syntax|variant|syl_syntax::ast::Item::Interface|(InterfaceItem)
 syl_syntax|variant|syl_syntax::ast::Item::Map|(MapItem)
+syl_syntax|variant|syl_syntax::ast::Item::Struct|(StructItem)
 syl_syntax|variant|syl_syntax::ast::Item::Use|(UseItem)
 syl_syntax|variant|syl_syntax::ast::MapItemBuilderError::UninitializedField|(&str)
 syl_syntax|variant|syl_syntax::ast::MapItemBuilderError::ValidationError|(::derive_builder::export::core::string::String)
@@ -2859,6 +2912,8 @@ syl_syntax|variant|syl_syntax::ast::Stmt::Return|(Option<Expr>, syl_span::Span)
 syl_syntax|variant|syl_syntax::ast::Stmt::Signal|{ name: String, ty: Option<TypeExpr>, value: Option<Expr>, span: syl_span::Span }
 syl_syntax|variant|syl_syntax::ast::Stmt::Var|{ name: String, ty: Option<TypeExpr>, value: Option<Expr>, span: syl_span::Span }
 syl_syntax|variant|syl_syntax::ast::Stmt::While|{ cond: Expr, body: Block, span: syl_span::Span }
+syl_syntax|variant|syl_syntax::ast::StructItemBuilderError::UninitializedField|(&str)
+syl_syntax|variant|syl_syntax::ast::StructItemBuilderError::ValidationError|(::derive_builder::export::core::string::String)
 syl_syntax|variant|syl_syntax::ast::TypeExpr::Array|{ len: Box<Expr>, elem: Box<TypeExpr>, span: syl_span::Span }
 syl_syntax|variant|syl_syntax::ast::TypeExpr::Generic|{ base: Box<TypeExpr>, args: Vec<TypeExpr>, span: syl_span::Span }
 syl_syntax|variant|syl_syntax::ast::TypeExpr::Path|(Vec<String>, syl_span::Span)
@@ -2884,6 +2939,7 @@ syl_syntax|variant|syl_syntax::lossless::LosslessItemKind::ExternCell|unit
 syl_syntax|variant|syl_syntax::lossless::LosslessItemKind::Fn|unit
 syl_syntax|variant|syl_syntax::lossless::LosslessItemKind::Interface|unit
 syl_syntax|variant|syl_syntax::lossless::LosslessItemKind::Map|unit
+syl_syntax|variant|syl_syntax::lossless::LosslessItemKind::Struct|unit
 syl_syntax|variant|syl_syntax::lossless::LosslessItemKind::Use|unit
 syl_syntax|variant|syl_syntax::lossless::LosslessNodeKind::File|unit
 syl_syntax|variant|syl_syntax::lossless::LosslessNodeKind::Item|(LosslessItemKind)
@@ -2961,6 +3017,7 @@ syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::SelectArm|unit
 syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::SelectExpr|unit
 syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::SignalStmt|unit
 syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::StrExpr|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::StructItem|unit
 syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::UnaryExpr|unit
 syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::UseItem|unit
 syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::VarStmt|unit
@@ -3015,6 +3072,7 @@ syl_syntax|variant|syl_syntax::token::TokenKind::KwReg|unit
 syl_syntax|variant|syl_syntax::token::TokenKind::KwReturn|unit
 syl_syntax|variant|syl_syntax::token::TokenKind::KwSelect|unit
 syl_syntax|variant|syl_syntax::token::TokenKind::KwSignal|unit
+syl_syntax|variant|syl_syntax::token::TokenKind::KwStruct|unit
 syl_syntax|variant|syl_syntax::token::TokenKind::KwThis|unit
 syl_syntax|variant|syl_syntax::token::TokenKind::KwUnique|unit
 syl_syntax|variant|syl_syntax::token::TokenKind::KwUse|unit
