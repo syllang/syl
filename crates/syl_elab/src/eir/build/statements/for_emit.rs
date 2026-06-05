@@ -80,7 +80,7 @@ where
         );
         let body_items =
             self.emit_symbolic_for_body(request.body, &mut loop_env, request.name, &index)?;
-        self.sync_visible_software_locals(&loop_env, env);
+        self.merge_visible_software_locals_after_loop(&loop_env, env);
         Ok(vec![EirItem::SymbolicStaticFor {
             index,
             start: self.elab_expr(start, env),

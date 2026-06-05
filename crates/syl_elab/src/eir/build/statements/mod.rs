@@ -14,6 +14,7 @@ use crate::{
     program::{ElabBlock, ElabExpr, ElabExprNode, ElabStmt},
     tir::TirType,
 };
+use std::collections::BTreeSet;
 use syl_sema::tir::TirGenericArg;
 use syl_span::Span;
 
@@ -477,12 +478,18 @@ where
         }
         let mut then_env = env.clone();
         let then_items = self.emit_control_body(request.then_block, &mut then_env)?;
-        let else_items = if let Some(block) = request.else_block {
+        let (else_items, else_env) = if let Some(block) = request.else_block {
             let mut else_env = env.clone();
-            self.emit_control_body(block, &mut else_env)?
+            let items = self.emit_control_body(block, &mut else_env)?;
+            (items, Some(else_env))
         } else {
-            Vec::new()
+            (Vec::new(), None)
         };
+        if let Some(else_env) = else_env.as_ref() {
+            self.merge_visible_software_locals_between_branches(&then_env, else_env, env);
+        } else {
+            self.merge_visible_software_locals_after_loop(&then_env, env);
+        }
         if then_items.is_empty() && else_items.is_empty() {
             return Ok(Vec::new());
         }
@@ -623,6 +630,7 @@ where
         let ty = ty
             .cloned()
             .or_else(|| id.and_then(|local| self.program.local_type(local)).and_then(|ty| self.tir_to_mir_type(ty, span)))
+            .or_else(|| self.software_local_type_from_env(value, env))
             .or_else(|| value.and_then(|expr| self.infer_software_expr_type(expr, env)))
             .or_else(|| {
                 value.and_then(|expr| match &expr.node {
@@ -637,24 +645,8 @@ where
             .map(|expr| self.elab_expr(expr, env))
             .unwrap_or_else(|| EirExpr::unsupported("uninitialized mutable local"));
         env.insert_software_local(name, code, ty);
-        if let Some(ElabExpr {
-            node: ElabExprNode::Aggregate { fields, .. },
-            ..
-        }) = value
-        {
-            for field in fields {
-                if let Some(field_ty) = self
-                    .infer_software_expr_type(&field.value, env)
-                    .or_else(|| self.syntax_software_expr_type(&field.value))
-                {
-                    env.insert_software_local(
-                        format!("{name}.{}", field.name),
-                        self.elab_expr(&field.value, env),
-                        field_ty,
-                    );
-                }
-            }
-        }
+        self.sync_software_local_fields(name, value, env);
+        self.rebuild_software_root_binding(name, env);
         Ok(())
     }
 
@@ -681,17 +673,8 @@ where
                 }
                 let ty = var.ty.clone();
                 env.insert_software_local(name, self.elab_expr(value, env), ty);
-                if let ElabExprNode::Aggregate { fields, .. } = &value.node {
-                    for field in fields {
-                        if let Some(field_ty) = self.infer_software_expr_type(&field.value, env) {
-                            env.insert_software_local(
-                                format!("{name}.{}", field.name),
-                                self.elab_expr(&field.value, env),
-                                field_ty,
-                            );
-                        }
-                    }
-                }
+                self.sync_software_local_fields(name, Some(value), env);
+                self.rebuild_software_root_binding(name, env);
                 Ok(())
             }
             ElabExprNode::Field { base, field } => {
@@ -726,6 +709,7 @@ where
                     self.elab_expr(value, env),
                     field_ty,
                 );
+                self.rebuild_software_root_binding(root, env);
                 Ok(())
             }
             _ => Err(CompileError::lowering_at(
@@ -829,6 +813,158 @@ where
         }
     }
 
+    fn merge_visible_software_locals_between_branches(
+        &self,
+        then_env: &Env,
+        else_env: &Env,
+        target: &mut Env,
+    ) {
+        for name in self.visible_software_local_names(target, &[then_env, else_env]) {
+            let Some(current) = target.var(&name) else {
+                continue;
+            };
+            let then_var = then_env.var(&name);
+            let else_var = else_env.var(&name);
+            let merged = match (then_var, else_var) {
+                (Some(then_var), Some(else_var))
+                    if then_var.ty == else_var.ty && then_var.code == else_var.code =>
+                {
+                    (then_var.code.clone(), then_var.ty.clone())
+                }
+                _ => (
+                    self.unknown_software_local_expr(&name),
+                    current.ty.clone(),
+                ),
+            };
+            target.insert_software_local(name, merged.0, merged.1);
+        }
+    }
+
+    fn merge_visible_software_locals_after_loop(&self, source: &Env, target: &mut Env) {
+        for name in self.visible_software_local_names(target, &[source]) {
+            let Some(current) = target.var(&name) else {
+                continue;
+            };
+            let merged = match source.var(&name) {
+                Some(updated) if updated.ty == current.ty && updated.code == current.code => {
+                    (updated.code.clone(), updated.ty.clone())
+                }
+                Some(_) => (
+                    self.unknown_software_local_expr(&name),
+                    current.ty.clone(),
+                ),
+                None => (current.code.clone(), current.ty.clone()),
+            };
+            target.insert_software_local(name, merged.0, merged.1);
+        }
+    }
+
+    fn visible_software_local_names(&self, base: &Env, sources: &[&Env]) -> Vec<String> {
+        let mut names = BTreeSet::new();
+        for (name, var) in &base.vars {
+            if var.software_local {
+                names.insert(name.clone());
+            }
+        }
+        for source in sources {
+            for (name, var) in &source.vars {
+                if !var.software_local {
+                    continue;
+                }
+                let Some((root, _)) = name.split_once('.') else {
+                    continue;
+                };
+                if base.var(root).is_some_and(|root| root.software_local) {
+                    names.insert(name.clone());
+                }
+            }
+        }
+        names.into_iter().collect()
+    }
+
+    fn unknown_software_local_expr(&self, name: &str) -> EirExpr {
+        EirExpr::ident(format!("__unknown_{}", name.replace('.', "_")))
+    }
+
+    fn sync_software_local_fields(&self, name: &str, value: Option<&ElabExpr>, env: &mut Env) {
+        let Some(value) = value else {
+            return;
+        };
+        match &value.node {
+            ElabExprNode::Aggregate { fields, .. } => {
+                for field in fields {
+                    if let Some(field_ty) = self
+                        .infer_software_expr_type(&field.value, env)
+                        .or_else(|| self.syntax_software_expr_type(&field.value))
+                    {
+                        env.insert_software_local(
+                            format!("{name}.{}", field.name),
+                            self.elab_expr(&field.value, env),
+                            field_ty,
+                        );
+                    }
+                }
+            }
+            ElabExprNode::Ident(source) => self.copy_software_local_fields(source, name, env),
+            ElabExprNode::Group(inner) => self.sync_software_local_fields(name, Some(inner), env),
+            _ => self.unknown_software_local_fields(name, env),
+        }
+    }
+
+    fn copy_software_local_fields(&self, source: &str, target: &str, env: &mut Env) {
+        let prefix = format!("{source}.");
+        let fields = env
+            .vars
+            .iter()
+            .filter(|(name, var)| var.software_local && name.starts_with(&prefix))
+            .map(|(name, var)| {
+                (
+                    format!("{target}.{}", &name[prefix.len()..]),
+                    var.code.clone(),
+                    var.ty.clone(),
+                )
+            })
+            .collect::<Vec<_>>();
+        for (name, code, ty) in fields {
+            env.insert_software_local(name, code, ty);
+        }
+    }
+
+    fn rebuild_software_root_binding(&self, root: &str, env: &mut Env) {
+        let Some(root_var) = env.var(root).cloned() else {
+            return;
+        };
+        if !root_var.software_local {
+            return;
+        }
+        let prefix = format!("{root}.");
+        let mut field_codes = env
+            .vars
+            .iter()
+            .filter(|(name, var)| var.software_local && name.starts_with(&prefix))
+            .map(|(name, var)| (name.clone(), var.code.clone()))
+            .collect::<Vec<_>>();
+        if field_codes.is_empty() {
+            return;
+        }
+        field_codes.sort_by(|lhs, rhs| lhs.0.cmp(&rhs.0));
+        let code = EirExpr::Concat(field_codes.into_iter().map(|(_, code)| code).collect());
+        env.insert_software_local(root, code, root_var.ty);
+    }
+
+    fn unknown_software_local_fields(&self, root: &str, env: &mut Env) {
+        let prefix = format!("{root}.");
+        let fields = env
+            .vars
+            .iter()
+            .filter(|(name, var)| var.software_local && name.starts_with(&prefix))
+            .map(|(name, var)| (name.clone(), var.ty.clone()))
+            .collect::<Vec<_>>();
+        for (name, ty) in fields {
+            env.insert_software_local(name.clone(), self.unknown_software_local_expr(&name), ty);
+        }
+    }
+
     fn local_const_bool(&self, expr: &ElabExpr, env: &Env) -> Option<bool> {
         match &expr.node {
             ElabExprNode::Bool(value) => Some(*value),
@@ -897,7 +1033,13 @@ where
     fn eval_local_bool_expr(&self, expr: &EirExpr, env: &Env) -> Option<bool> {
         match expr {
             EirExpr::Bool(value) => Some(*value),
-            EirExpr::Ident(name) => env.var(name).and_then(|var| self.eval_local_bool_expr(&var.code, env)),
+            EirExpr::Ident(name) => env.var(name).and_then(|var| {
+                if matches!(&var.code, EirExpr::Ident(inner) if inner == name) {
+                    None
+                } else {
+                    self.eval_local_bool_expr(&var.code, env)
+                }
+            }),
             EirExpr::Unary { op, expr } if matches!(op, crate::eir::EirUnaryOp::Not) => {
                 self.eval_local_bool_expr(expr, env).map(|value| !value)
             }
@@ -919,7 +1061,13 @@ where
     fn eval_local_nat_expr(&self, expr: &EirExpr, env: &Env) -> Option<u64> {
         match expr {
             EirExpr::Int(value) => Some(*value),
-            EirExpr::Ident(name) => env.var(name).and_then(|var| self.eval_local_nat_expr(&var.code, env)),
+            EirExpr::Ident(name) => env.var(name).and_then(|var| {
+                if matches!(&var.code, EirExpr::Ident(inner) if inner == name) {
+                    None
+                } else {
+                    self.eval_local_nat_expr(&var.code, env)
+                }
+            }),
             EirExpr::Binary { op, left, right } => {
                 let lhs = self.eval_local_nat_expr(left, env)?;
                 let rhs = self.eval_local_nat_expr(right, env)?;
@@ -941,6 +1089,15 @@ where
         match &expr.node {
             ElabExprNode::Ident(name) => Some(name),
             ElabExprNode::Field { base, .. } | ElabExprNode::Group(base) => self.field_root_name(base),
+            _ => None,
+        }
+    }
+
+    fn software_local_type_from_env(&self, expr: Option<&ElabExpr>, env: &Env) -> Option<MirTypeRef> {
+        let expr = expr?;
+        match &expr.node {
+            ElabExprNode::Ident(name) => env.var(name).map(|var| var.ty.clone()),
+            ElabExprNode::Group(inner) => self.software_local_type_from_env(Some(inner), env),
             _ => None,
         }
     }
