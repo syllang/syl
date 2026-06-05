@@ -1,6 +1,5 @@
 use crate::{
     CompileError, EirError,
-    const_eval::ConstValue,
     eir::EirExpr,
     eir::build::VarInfo,
     mir::MirTypeRef,
@@ -11,7 +10,7 @@ use std::collections::BTreeSet;
 use syl_sema::tir::TirGenericArg;
 use syl_span::Span;
 
-use super::{EirBuilder, Env};
+use super::{EirBuilder, Env, NumberingValue};
 
 pub(super) struct BindVarRequest<'a> {
     pub(super) id: Option<syl_hir::LocalId>,
@@ -58,8 +57,8 @@ where
             .value
             .map(|expr| self.elab_expr(expr, env))
             .unwrap_or_else(|| EirExpr::unsupported("uninitialized mutable local"));
-        let summary_value = self.software_local_summary_value(binding.value, env);
-        env.insert_software_local_with_summary(binding.name, code, ty, summary_value);
+        let numbering_value = self.initial_software_local_numbering_value(binding.value, env);
+        env.insert_software_local_with_numbering(binding.name, code, ty, numbering_value);
         self.sync_software_local_fields(binding.name, binding.value, env);
         self.rebuild_software_root_binding(binding.name, env);
         Ok(())
@@ -87,12 +86,13 @@ where
                     ));
                 }
                 let ty = var.ty.clone();
-                let summary_value = self.software_local_summary_value(Some(value), env);
-                env.insert_software_local_with_summary(
+                let numbering_value =
+                    self.assigned_software_local_numbering_value(name, value, env);
+                env.insert_software_local_with_numbering(
                     name,
                     self.elab_expr(value, env),
                     ty,
-                    summary_value,
+                    numbering_value,
                 );
                 self.sync_software_local_fields(name, Some(value), env);
                 self.rebuild_software_root_binding(name, env);
@@ -125,12 +125,11 @@ where
                     .ok_or_else(|| {
                         CompileError::lowering_at(EirError::InvalidElaborationExpression, span)
                     })?;
-                let summary_value = self.software_local_summary_value(Some(value), env);
-                env.insert_software_local_with_summary(
+                env.insert_software_local_with_numbering(
                     field_name,
                     self.elab_expr(value, env),
                     field_ty,
-                    summary_value,
+                    None,
                 );
                 self.rebuild_software_root_binding(root, env);
                 Ok(())
@@ -152,11 +151,11 @@ where
             if (visible.iter().any(|existing| existing == name) || root_visible)
                 && var.software_local
             {
-                target.insert_software_local_with_summary(
+                target.insert_software_local_with_numbering(
                     name.clone(),
                     var.code.clone(),
                     var.ty.clone(),
-                    var.summary_value.clone(),
+                    var.numbering_value,
                 );
             }
         }
@@ -175,11 +174,10 @@ where
             };
             let then_var = then_env.var(&name);
             let else_var = else_env.var(&name);
-            let merged_summary =
-                self.merge_software_local_branch_summary(&current, then_var, else_var);
-            let merged =
-                self.symbolic_branch_merge_value(cond, &current, then_var, else_var);
-            target.insert_software_local_with_summary(name, merged.0, merged.1, merged_summary);
+            let merged_numbering =
+                self.merge_software_local_branch_numbering(&current, then_var, else_var);
+            let merged = self.symbolic_branch_merge_value(cond, &current, then_var, else_var);
+            target.insert_software_local_with_numbering(name, merged.0, merged.1, merged_numbering);
         }
         self.rebuild_visible_software_roots(target);
     }
@@ -196,12 +194,12 @@ where
             };
             let merged =
                 self.symbolic_branch_merge_value(cond, &current, source.var(&name), Some(&current));
-            let merged_summary = self.merge_software_local_branch_summary(
+            let merged_numbering = self.merge_software_local_branch_numbering(
                 &current,
                 source.var(&name),
                 Some(&current),
             );
-            target.insert_software_local_with_summary(name, merged.0, merged.1, merged_summary);
+            target.insert_software_local_with_numbering(name, merged.0, merged.1, merged_numbering);
         }
         self.rebuild_visible_software_roots(target);
     }
@@ -211,7 +209,8 @@ where
             let Some(current) = target.var(&name) else {
                 continue;
             };
-            let merged_summary = self.merge_software_local_loop_summary(current, source.var(&name));
+            let merged_numbering =
+                self.merge_software_local_loop_numbering(current, source.var(&name));
             let merged = match source.var(&name) {
                 Some(updated) if updated.ty == current.ty && updated.code == current.code => {
                     (updated.code.clone(), updated.ty.clone())
@@ -219,7 +218,12 @@ where
                 Some(_) => (self.unknown_software_local_expr(&name), current.ty.clone()),
                 None => (current.code.clone(), current.ty.clone()),
             };
-            target.insert_software_local_with_summary(name, merged.0, merged.1, merged_summary);
+            target.insert_software_local_with_numbering(
+                name,
+                merged.0,
+                merged.1,
+                merged_numbering,
+            );
         }
     }
 
@@ -250,53 +254,76 @@ where
         EirExpr::ident(format!("__unknown_{}", name.replace('.', "_")))
     }
 
-    pub(super) fn software_local_summary_value(
+    pub(super) fn initial_software_local_numbering_value(
         &self,
         value: Option<&ElabExpr>,
         env: &Env,
-    ) -> Option<ConstValue> {
-        value.and_then(|expr| self.elab_summary_const_value(expr, env).ok())
-    }
-
-    pub(super) fn merge_software_local_branch_summary(
-        &self,
-        current: &super::super::VarInfo,
-        then_var: Option<&super::super::VarInfo>,
-        else_var: Option<&super::super::VarInfo>,
-    ) -> Option<ConstValue> {
-        match (then_var, else_var) {
-            (Some(then_var), Some(else_var)) => self.merge_summary_values(
-                then_var.summary_value.as_ref(),
-                else_var.summary_value.as_ref(),
-            ),
-            _ => current.summary_value.clone(),
+    ) -> Option<NumberingValue> {
+        let expr = value?;
+        match &expr.node {
+            ElabExprNode::Int(value) => Some(NumberingValue::Counter(*value)),
+            ElabExprNode::Group(inner) => {
+                self.initial_software_local_numbering_value(Some(inner), env)
+            }
+            _ => None,
         }
     }
 
-    pub(super) fn merge_software_local_loop_summary(
+    pub(super) fn assigned_software_local_numbering_value(
         &self,
-        current: &super::super::VarInfo,
-        updated: Option<&super::super::VarInfo>,
-    ) -> Option<ConstValue> {
-        updated
-            .map(|updated| {
-                self.merge_summary_values(
-                    current.summary_value.as_ref(),
-                    updated.summary_value.as_ref(),
-                )
-            })
-            .unwrap_or_else(|| current.summary_value.clone())
+        target_name: &str,
+        value: &ElabExpr,
+        env: &Env,
+    ) -> Option<NumberingValue> {
+        match &value.node {
+            ElabExprNode::Group(inner) => {
+                self.assigned_software_local_numbering_value(target_name, inner, env)
+            }
+            ElabExprNode::Binary { op, left, right }
+                if matches!(op, crate::mir::MirBinaryOp::Add) =>
+            {
+                self.counter_increment_value(target_name, left, right, env)
+                    .or_else(|| self.counter_increment_value(target_name, right, left, env))
+            }
+            _ => None,
+        }
     }
 
-    pub(super) fn merge_summary_values(
+    pub(super) fn merge_software_local_branch_numbering(
         &self,
-        lhs: Option<&ConstValue>,
-        rhs: Option<&ConstValue>,
-    ) -> Option<ConstValue> {
+        current: &VarInfo,
+        then_var: Option<&VarInfo>,
+        else_var: Option<&VarInfo>,
+    ) -> Option<NumberingValue> {
+        match (then_var, else_var) {
+            (Some(then_var), Some(else_var)) => {
+                self.merge_numbering_values(then_var.numbering_value, else_var.numbering_value)
+            }
+            _ => current.numbering_value,
+        }
+    }
+
+    pub(super) fn merge_software_local_loop_numbering(
+        &self,
+        current: &VarInfo,
+        updated: Option<&VarInfo>,
+    ) -> Option<NumberingValue> {
+        match updated {
+            Some(updated) => {
+                self.merge_numbering_values(current.numbering_value, updated.numbering_value)
+            }
+            None => current.numbering_value,
+        }
+    }
+
+    pub(super) fn merge_numbering_values(
+        &self,
+        lhs: Option<NumberingValue>,
+        rhs: Option<NumberingValue>,
+    ) -> Option<NumberingValue> {
         match (lhs, rhs) {
-            (Some(lhs), Some(rhs)) if lhs == rhs => Some(lhs.clone()),
-            (Some(ConstValue::Nat(lhs)), Some(ConstValue::Nat(rhs))) => {
-                Some(ConstValue::Nat((*lhs).max(*rhs)))
+            (Some(NumberingValue::Counter(lhs)), Some(NumberingValue::Counter(rhs))) => {
+                Some(NumberingValue::Counter(lhs.max(rhs)))
             }
             _ => None,
         }
@@ -324,6 +351,24 @@ where
         )
     }
 
+    pub(super) fn counter_increment_value(
+        &self,
+        target_name: &str,
+        counter_expr: &ElabExpr,
+        delta_expr: &ElabExpr,
+        env: &Env,
+    ) -> Option<NumberingValue> {
+        let ElabExprNode::Ident(source) = &counter_expr.node else {
+            return None;
+        };
+        if source != target_name {
+            return None;
+        }
+        let base = env.var(source)?.numbering_value?;
+        let delta = Self::local_const_nat(delta_expr, env)?;
+        Some(NumberingValue::Counter(base.value() + delta))
+    }
+
     fn sync_software_local_fields(&self, name: &str, value: Option<&ElabExpr>, env: &mut Env) {
         let Some(value) = value else {
             return;
@@ -335,11 +380,11 @@ where
                         .infer_software_expr_type(&field.value, env)
                         .or_else(|| Self::syntax_software_expr_type(&field.value))
                     {
-                        env.insert_software_local_with_summary(
+                        env.insert_software_local_with_numbering(
                             format!("{name}.{}", field.name),
                             self.elab_expr(&field.value, env),
                             field_ty,
-                            self.software_local_summary_value(Some(&field.value), env),
+                            None,
                         );
                     }
                 }
@@ -361,12 +406,12 @@ where
                     format!("{target}.{}", &name[prefix.len()..]),
                     var.code.clone(),
                     var.ty.clone(),
-                    var.summary_value.clone(),
+                    var.numbering_value,
                 )
             })
             .collect::<Vec<_>>();
-        for (name, code, ty, summary_value) in fields {
-            env.insert_software_local_with_summary(name, code, ty, summary_value);
+        for (name, code, ty, numbering_value) in fields {
+            env.insert_software_local_with_numbering(name, code, ty, numbering_value);
         }
     }
 
@@ -389,7 +434,7 @@ where
         }
         field_codes.sort_by(|lhs, rhs| lhs.0.cmp(&rhs.0));
         let code = EirExpr::Concat(field_codes.into_iter().map(|(_, code)| code).collect());
-        env.insert_software_local_with_summary(root, code, root_var.ty, root_var.summary_value);
+        env.insert_software_local_with_numbering(root, code, root_var.ty, root_var.numbering_value);
     }
 
     fn rebuild_visible_software_roots(&self, env: &mut Env) {
