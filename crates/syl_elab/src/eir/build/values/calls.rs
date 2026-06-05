@@ -285,7 +285,7 @@ where
         &self,
         def: DefId,
         callee: &ElabExpr,
-        owner: Option<DefId>,
+        env: &Env,
     ) -> Vec<EirParamBind> {
         let ElabExprNode::GenericApp { args, .. } = &callee.node else {
             return Vec::new();
@@ -297,23 +297,39 @@ where
                     continue;
                 }
                 if let Some(arg) = args.get(idx) {
+                    let owner = env.owner.or(Some(def));
                     if generic.kind.is_none() {
                         let arg = self.canonicalize_callsite_type(owner, arg);
                         out.push(EirParamBind::new(
                             format!("{}_WIDTH", generic.name),
-                            self.width(owner.or(Some(def)), &arg),
+                            self.width(owner, &arg),
                         ));
                     } else {
                         let arg = self.canonicalize_callsite_type(owner, arg);
                         out.push(EirParamBind::new(
                             &generic.name,
-                            self.type_value(owner.or(Some(def)), &arg),
+                            self.type_value_in_env(owner, &arg, env),
                         ));
                     }
                 }
             }
         }
         out
+    }
+
+    fn type_value_in_env(&self, owner: Option<DefId>, ty: &crate::mir::MirTypeRef, env: &Env) -> String {
+        if let Some(name) = ty.path_name()
+            && let Some(var) = env.var(name)
+            && let Some(value) = self.summary_value_for_var(name, var, env)
+        {
+            return match value {
+                crate::const_eval::ConstValue::Nat(value) => value.to_string(),
+                crate::const_eval::ConstValue::Bool(value) => value.to_string(),
+                crate::const_eval::ConstValue::Unknown(_) => name.to_string(),
+                _ => name.to_string(),
+            };
+        }
+        self.type_value(owner, ty)
     }
 
     pub(in crate::eir::build) fn callable_result_for(
