@@ -1,14 +1,12 @@
 use crate::ast::{
     BundleItemBuilder, CallableItemBuilder, ExternCellItemBuilder, FnItemBuilder,
-    InterfaceItemBuilder, MapItemBuilder,
-    StructItemBuilder,
+    InterfaceItemBuilder, MapItemBuilder, StructItemBuilder,
 };
 use crate::{
-    AstFile, Attribute, Block, BundleItem, CallArg, CallableItem, ConstItem, EnumItem,
-    EnumVariant, ErrorItem, Expr, ExternCellItem, FieldDecl, FnItem, GenericParam, InterfaceItem,
-    MapItem, MatchArm, NamedExpr, Param, ParamDirection, ParamRole, PortDecl, RegReset,
-    ResultBinding, SelectArm, SelectMode, Stmt, StructItem, TypeExpr, UseItem, ViewDecl,
-    ViewDirection, ViewField,
+    AstFile, Attribute, Block, BundleItem, CallArg, CallableItem, ConstItem, EnumItem, EnumVariant,
+    ErrorItem, Expr, ExternCellItem, FieldDecl, FnItem, GenericParam, InterfaceItem, MapItem,
+    MatchArm, NamedExpr, Param, ParamDirection, ParamRole, PortDecl, RegReset, ResultBinding,
+    SelectArm, SelectMode, Stmt, StructItem, TypeExpr, UseItem, ViewDecl, ViewDirection, ViewField,
 };
 use syl_span::{SourceId, Span};
 
