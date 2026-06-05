@@ -1,143 +1,160 @@
-syl_elab|enum|syl_elab::hardware_metadata::HardwareCellSummaryBuilderError|public
-syl_elab|enum|syl_elab::hardware_metadata::HardwareCreateKind|public
-syl_elab|method|syl_elab::hardware_metadata::HardwareCellSummary::builder|fn(callable: impl Into<String>, instance: impl Into<String>, origin: HwOrigin) -> HardwareCellSummaryBuilder
-syl_elab|method|syl_elab::hardware_metadata::HardwareCellSummary::callable|fn(self: &Self) -> &str
-syl_elab|method|syl_elab::hardware_metadata::HardwareCellSummary::creates|fn(self: &Self) -> &[String]
-syl_elab|method|syl_elab::hardware_metadata::HardwareCellSummary::drives|fn(self: &Self) -> &[HwPlace]
-syl_elab|method|syl_elab::hardware_metadata::HardwareCellSummary::instance|fn(self: &Self) -> &str
-syl_elab|method|syl_elab::hardware_metadata::HardwareCellSummary::origin|fn(self: &Self) -> &HwOrigin
-syl_elab|method|syl_elab::hardware_metadata::HardwareCellSummary::reads|fn(self: &Self) -> &[HwPlace]
-syl_elab|method|syl_elab::hardware_metadata::HardwareCellSummaryBuilder::build|fn(self: Self) -> HardwareCellSummary
-syl_elab|method|syl_elab::hardware_metadata::HardwareCellSummaryBuilder::callable|fn(self: Self, value: VALUE) -> Self
-syl_elab|method|syl_elab::hardware_metadata::HardwareCellSummaryBuilder::creates|fn(self: Self, value: Vec<String>) -> Self
-syl_elab|method|syl_elab::hardware_metadata::HardwareCellSummaryBuilder::drives|fn(self: Self, value: Vec<HwPlace>) -> Self
-syl_elab|method|syl_elab::hardware_metadata::HardwareCellSummaryBuilder::instance|fn(self: Self, value: VALUE) -> Self
-syl_elab|method|syl_elab::hardware_metadata::HardwareCellSummaryBuilder::origin|fn(self: Self, value: HwOrigin) -> Self
-syl_elab|method|syl_elab::hardware_metadata::HardwareCellSummaryBuilder::reads|fn(self: Self, value: Vec<HwPlace>) -> Self
-syl_elab|method|syl_elab::hardware_metadata::HardwareCellSummaryBuilder::try_build|fn(self: Self) -> ::derive_builder::export::core::result::Result<HardwareCellSummary, HardwareCellSummaryBuilderError>
-syl_elab|method|syl_elab::hardware_metadata::HardwareCreateFact::kind|fn(self: &Self) -> HardwareCreateKind
-syl_elab|method|syl_elab::hardware_metadata::HardwareCreateFact::module|fn(self: &Self) -> &str
-syl_elab|method|syl_elab::hardware_metadata::HardwareCreateFact::name|fn(self: &Self) -> &str
-syl_elab|method|syl_elab::hardware_metadata::HardwareCreateFact::object_id|fn(self: &Self) -> ObjectId
-syl_elab|method|syl_elab::hardware_metadata::HardwareCreateFact::origin|fn(self: &Self) -> &HwOrigin
-syl_elab|method|syl_elab::hardware_metadata::HardwareDriveFact::guard_model|fn(self: &Self) -> &HwGuard
-syl_elab|method|syl_elab::hardware_metadata::HardwareDriveFact::guard|fn(self: &Self) -> &str
-syl_elab|method|syl_elab::hardware_metadata::HardwareDriveFact::module|fn(self: &Self) -> &str
-syl_elab|method|syl_elab::hardware_metadata::HardwareDriveFact::origin|fn(self: &Self) -> &HwOrigin
-syl_elab|method|syl_elab::hardware_metadata::HardwareDriveFact::target_place|fn(self: &Self) -> &HwPlace
-syl_elab|method|syl_elab::hardware_metadata::HardwareDriveFact::target|fn(self: &Self) -> &str
-syl_elab|method|syl_elab::hardware_metadata::HardwareMetadata::cell_summaries|fn(self: &Self) -> &[HardwareCellSummary]
-syl_elab|method|syl_elab::hardware_metadata::HardwareMetadata::create_facts|fn(self: &Self) -> &[HardwareCreateFact]
-syl_elab|method|syl_elab::hardware_metadata::HardwareMetadata::debug_dump|fn(self: &Self) -> String
-syl_elab|method|syl_elab::hardware_metadata::HardwareMetadata::driver_facts|fn(self: &Self) -> &[HardwareDriveFact]
-syl_elab|method|syl_elab::hardware_metadata::HardwareMetadata::opaque_summaries|fn(self: &Self) -> &OpaqueSummaryTable
-syl_elab|method|syl_elab::hardware_metadata::HardwareMetadata::read_facts|fn(self: &Self) -> &[HardwareReadFact]
-syl_elab|method|syl_elab::hardware_metadata::HardwareReadFact::guard_model|fn(self: &Self) -> &HwGuard
-syl_elab|method|syl_elab::hardware_metadata::HardwareReadFact::guard|fn(self: &Self) -> &str
-syl_elab|method|syl_elab::hardware_metadata::HardwareReadFact::module|fn(self: &Self) -> &str
-syl_elab|method|syl_elab::hardware_metadata::HardwareReadFact::origin|fn(self: &Self) -> &HwOrigin
-syl_elab|method|syl_elab::hardware_metadata::HardwareReadFact::source_place|fn(self: &Self) -> &HwPlace
-syl_elab|method|syl_elab::hardware_metadata::HardwareReadFact::source|fn(self: &Self) -> &str
-syl_elab|method|syl_elab::pipeline::ConstMirStage::debug_dump|fn(self: &Self) -> String
-syl_elab|method|syl_elab::pipeline::ConstMirStage::local_ref_count|fn(self: &Self) -> usize
-syl_elab|method|syl_elab::pipeline::ConstMirStage::node_count|fn(self: &Self) -> usize
-syl_elab|method|syl_elab::pipeline::ConstMirStage::resolved_local_ref_count|fn(self: &Self) -> usize
-syl_elab|method|syl_elab::pipeline::DrcStage::create_count|fn(self: &Self) -> usize
-syl_elab|method|syl_elab::pipeline::DrcStage::debug_dump|fn(self: &Self) -> String
-syl_elab|method|syl_elab::pipeline::DrcStage::drive_count|fn(self: &Self) -> usize
-syl_elab|method|syl_elab::pipeline::DrcStage::module_count|fn(self: &Self) -> usize
-syl_elab|method|syl_elab::pipeline::DrcStage::read_count|fn(self: &Self) -> usize
-syl_elab|method|syl_elab::pipeline::DriverFactsStage::create_count|fn(self: &Self) -> usize
-syl_elab|method|syl_elab::pipeline::DriverFactsStage::debug_dump|fn(self: &Self) -> String
-syl_elab|method|syl_elab::pipeline::DriverFactsStage::drive_count|fn(self: &Self) -> usize
-syl_elab|method|syl_elab::pipeline::DriverFactsStage::read_count|fn(self: &Self) -> usize
-syl_elab|method|syl_elab::pipeline::EirBuildStage::contains_cell_expansion|fn(self: &Self, callable: &str, instance: &str) -> bool
-syl_elab|method|syl_elab::pipeline::EirBuildStage::contains_instance_module|fn(self: &Self, module_name: &str) -> bool
-syl_elab|method|syl_elab::pipeline::EirBuildStage::contains_instance|fn(self: &Self, module_name: &str, instance_name: &str) -> bool
-syl_elab|method|syl_elab::pipeline::EirBuildStage::debug_dump|fn(self: &Self) -> String
-syl_elab|method|syl_elab::pipeline::EirBuildStage::module_count|fn(self: &Self) -> usize
-syl_elab|method|syl_elab::pipeline::EirFactsStage::contains_created_object|fn(self: &Self, module: &str, name: &str) -> bool
-syl_elab|method|syl_elab::pipeline::EirFactsStage::contains_drive|fn(self: &Self, module: &str, target: &str) -> bool
-syl_elab|method|syl_elab::pipeline::EirFactsStage::contains_read|fn(self: &Self, module: &str, source: &str) -> bool
-syl_elab|method|syl_elab::pipeline::EirFactsStage::debug_dump|fn(self: &Self) -> String
-syl_elab|method|syl_elab::pipeline::EirFactsStage::drive_count|fn(self: &Self) -> usize
-syl_elab|method|syl_elab::pipeline::EirFactsStage::object_count|fn(self: &Self) -> usize
-syl_elab|method|syl_elab::pipeline::EirFactsStage::read_count|fn(self: &Self) -> usize
-syl_elab|method|syl_elab::pipeline::EirStage::debug_dump|fn(self: &Self) -> String
-syl_elab|method|syl_elab::pipeline::EirStage::drive_count|fn(self: &Self) -> usize
-syl_elab|method|syl_elab::pipeline::EirStage::module_count|fn(self: &Self) -> usize
-syl_elab|method|syl_elab::pipeline::EirValidationStage::debug_dump|fn(self: &Self) -> String
-syl_elab|method|syl_elab::pipeline::EirValidationStage::module_count|fn(self: &Self) -> usize
-syl_elab|method|syl_elab::pipeline::ElaborationOutput::const_mir|fn(self: &Self) -> Option<&ConstMirStage>
-syl_elab|method|syl_elab::pipeline::ElaborationOutput::diagnostics|fn(self: &Self) -> &[Diagnostic]
-syl_elab|method|syl_elab::pipeline::ElaborationOutput::drc|fn(self: &Self) -> Option<&DrcStage>
-syl_elab|method|syl_elab::pipeline::ElaborationOutput::driver_facts|fn(self: &Self) -> Option<&DriverFactsStage>
-syl_elab|method|syl_elab::pipeline::ElaborationOutput::eir_build|fn(self: &Self) -> Option<&EirBuildStage>
-syl_elab|method|syl_elab::pipeline::ElaborationOutput::eir_facts|fn(self: &Self) -> Option<&EirFactsStage>
-syl_elab|method|syl_elab::pipeline::ElaborationOutput::eir_validation|fn(self: &Self) -> Option<&EirValidationStage>
-syl_elab|method|syl_elab::pipeline::ElaborationOutput::eir|fn(self: &Self) -> Option<&EirStage>
-syl_elab|method|syl_elab::pipeline::ElaborationOutput::hwir|fn(self: &Self) -> Option<&ParametricHwDesign>
-syl_elab|method|syl_elab::pipeline::ElaborationOutput::map_ir|fn(self: &Self) -> Option<&MapIrStage>
-syl_elab|method|syl_elab::pipeline::ElaborationOutput::metadata|fn(self: &Self) -> Option<&HardwareMetadata>
-syl_elab|method|syl_elab::pipeline::ElaborationOutput::opaque_summaries|fn(self: &Self) -> Option<&OpaqueSummaryTable>
-syl_elab|method|syl_elab::pipeline::HardwareCompiler::compile_tir_with_token|fn(self: &Self, tir: &TirAnalysis, cancellation: &F) -> Result<Option<ParametricHwDesign>, CompileError>
-syl_elab|method|syl_elab::pipeline::HardwareCompiler::compile_tir|fn(self: &Self, tir: &TirAnalysis) -> Result<ParametricHwDesign, CompileError>
-syl_elab|method|syl_elab::pipeline::HardwareCompiler::diagnostics_with_token|fn(self: &Self, tir: &TirAnalysis, cancellation: &F) -> Vec<Diagnostic>
-syl_elab|method|syl_elab::pipeline::HardwareCompiler::diagnostics|fn(self: &Self, tir: &TirAnalysis) -> Vec<Diagnostic>
-syl_elab|method|syl_elab::pipeline::HardwareCompiler::new|fn() -> Self
-syl_elab|method|syl_elab::pipeline::HardwareCompiler::opaque_summaries|fn(self: &Self) -> &OpaqueSummaryTable
-syl_elab|method|syl_elab::pipeline::HardwareCompiler::output_for_tir_with_token|fn(self: &Self, tir: &TirAnalysis, cancellation: &F) -> ElaborationOutput
-syl_elab|method|syl_elab::pipeline::HardwareCompiler::output_for_tir|fn(self: &Self, tir: &TirAnalysis) -> ElaborationOutput
-syl_elab|method|syl_elab::pipeline::HardwareCompiler::register_opaque_summary|fn(self: &mut Self, summary: OpaqueItemSummary)
-syl_elab|method|syl_elab::pipeline::HardwareCompiler::with_opaque_summaries|fn(opaque_summaries: OpaqueSummaryTable) -> Self
-syl_elab|method|syl_elab::pipeline::MapIrStage::debug_dump|fn(self: &Self) -> String
-syl_elab|method|syl_elab::pipeline::MapIrStage::local_ref_count|fn(self: &Self) -> usize
-syl_elab|method|syl_elab::pipeline::MapIrStage::map_count|fn(self: &Self) -> usize
-syl_elab|method|syl_elab::pipeline::MapIrStage::param_count|fn(self: &Self) -> usize
-syl_elab|method|syl_elab::pipeline::MapIrStage::resolved_local_ref_count|fn(self: &Self) -> usize
-syl_elab|method|syl_elab::pipeline::MapIrStage::resolved_param_count|fn(self: &Self) -> usize
+syl_elab|enum|syl_elab::metadata::model::HardwareCellSummaryBuilderError|public
+syl_elab|enum|syl_elab::metadata::model::HardwareCreateKind|public
+syl_elab|method|syl_elab::metadata::model::HardwareCellSummary::builder|fn(callable: impl Into<String>, instance: impl Into<String>, origin: HwOrigin) -> HardwareCellSummaryBuilder
+syl_elab|method|syl_elab::metadata::model::HardwareCellSummary::callable|fn(self: &Self) -> &str
+syl_elab|method|syl_elab::metadata::model::HardwareCellSummary::creates|fn(self: &Self) -> &[String]
+syl_elab|method|syl_elab::metadata::model::HardwareCellSummary::drives|fn(self: &Self) -> &[HwPlace]
+syl_elab|method|syl_elab::metadata::model::HardwareCellSummary::instance|fn(self: &Self) -> &str
+syl_elab|method|syl_elab::metadata::model::HardwareCellSummary::origin|fn(self: &Self) -> &HwOrigin
+syl_elab|method|syl_elab::metadata::model::HardwareCellSummary::reads|fn(self: &Self) -> &[HwPlace]
+syl_elab|method|syl_elab::metadata::model::HardwareCellSummaryBuilder::build|fn(self: Self) -> HardwareCellSummary
+syl_elab|method|syl_elab::metadata::model::HardwareCellSummaryBuilder::callable|fn(self: Self, value: VALUE) -> Self
+syl_elab|method|syl_elab::metadata::model::HardwareCellSummaryBuilder::creates|fn(self: Self, value: Vec<String>) -> Self
+syl_elab|method|syl_elab::metadata::model::HardwareCellSummaryBuilder::drives|fn(self: Self, value: Vec<HwPlace>) -> Self
+syl_elab|method|syl_elab::metadata::model::HardwareCellSummaryBuilder::instance|fn(self: Self, value: VALUE) -> Self
+syl_elab|method|syl_elab::metadata::model::HardwareCellSummaryBuilder::origin|fn(self: Self, value: HwOrigin) -> Self
+syl_elab|method|syl_elab::metadata::model::HardwareCellSummaryBuilder::reads|fn(self: Self, value: Vec<HwPlace>) -> Self
+syl_elab|method|syl_elab::metadata::model::HardwareCellSummaryBuilder::try_build|fn(self: Self) -> ::derive_builder::export::core::result::Result<HardwareCellSummary, HardwareCellSummaryBuilderError>
+syl_elab|method|syl_elab::metadata::model::HardwareCreateFact::kind|fn(self: &Self) -> HardwareCreateKind
+syl_elab|method|syl_elab::metadata::model::HardwareCreateFact::module|fn(self: &Self) -> &str
+syl_elab|method|syl_elab::metadata::model::HardwareCreateFact::name|fn(self: &Self) -> &str
+syl_elab|method|syl_elab::metadata::model::HardwareCreateFact::object_id|fn(self: &Self) -> ObjectId
+syl_elab|method|syl_elab::metadata::model::HardwareCreateFact::origin|fn(self: &Self) -> &HwOrigin
+syl_elab|method|syl_elab::metadata::model::HardwareDriveFact::guard_model|fn(self: &Self) -> &HwGuard
+syl_elab|method|syl_elab::metadata::model::HardwareDriveFact::guard|fn(self: &Self) -> &str
+syl_elab|method|syl_elab::metadata::model::HardwareDriveFact::module|fn(self: &Self) -> &str
+syl_elab|method|syl_elab::metadata::model::HardwareDriveFact::origin|fn(self: &Self) -> &HwOrigin
+syl_elab|method|syl_elab::metadata::model::HardwareDriveFact::target_place|fn(self: &Self) -> &HwPlace
+syl_elab|method|syl_elab::metadata::model::HardwareDriveFact::target|fn(self: &Self) -> &str
+syl_elab|method|syl_elab::metadata::model::HardwareMetadata::cell_summaries|fn(self: &Self) -> &[HardwareCellSummary]
+syl_elab|method|syl_elab::metadata::model::HardwareMetadata::create_facts|fn(self: &Self) -> &[HardwareCreateFact]
+syl_elab|method|syl_elab::metadata::model::HardwareMetadata::debug_dump|fn(self: &Self) -> String
+syl_elab|method|syl_elab::metadata::model::HardwareMetadata::driver_facts|fn(self: &Self) -> &[HardwareDriveFact]
+syl_elab|method|syl_elab::metadata::model::HardwareMetadata::opaque_summaries|fn(self: &Self) -> &OpaqueSummaryTable
+syl_elab|method|syl_elab::metadata::model::HardwareMetadata::read_facts|fn(self: &Self) -> &[HardwareReadFact]
+syl_elab|method|syl_elab::metadata::model::HardwareReadFact::guard_model|fn(self: &Self) -> &HwGuard
+syl_elab|method|syl_elab::metadata::model::HardwareReadFact::guard|fn(self: &Self) -> &str
+syl_elab|method|syl_elab::metadata::model::HardwareReadFact::module|fn(self: &Self) -> &str
+syl_elab|method|syl_elab::metadata::model::HardwareReadFact::origin|fn(self: &Self) -> &HwOrigin
+syl_elab|method|syl_elab::metadata::model::HardwareReadFact::source_place|fn(self: &Self) -> &HwPlace
+syl_elab|method|syl_elab::metadata::model::HardwareReadFact::source|fn(self: &Self) -> &str
+syl_elab|method|syl_elab::pipeline::compiler::HardwareCompiler::compile_tir_with_token|fn(self: &Self, tir: &TirAnalysis, cancellation: &F) -> Result<Option<ParametricHwDesign>, CompileError>
+syl_elab|method|syl_elab::pipeline::compiler::HardwareCompiler::compile_tir|fn(self: &Self, tir: &TirAnalysis) -> Result<ParametricHwDesign, CompileError>
+syl_elab|method|syl_elab::pipeline::compiler::HardwareCompiler::diagnostics_with_token|fn(self: &Self, tir: &TirAnalysis, cancellation: &F) -> Vec<Diagnostic>
+syl_elab|method|syl_elab::pipeline::compiler::HardwareCompiler::diagnostics|fn(self: &Self, tir: &TirAnalysis) -> Vec<Diagnostic>
+syl_elab|method|syl_elab::pipeline::compiler::HardwareCompiler::new|fn() -> Self
+syl_elab|method|syl_elab::pipeline::compiler::HardwareCompiler::opaque_summaries|fn(self: &Self) -> &OpaqueSummaryTable
+syl_elab|method|syl_elab::pipeline::compiler::HardwareCompiler::output_for_tir_with_token|fn(self: &Self, tir: &TirAnalysis, cancellation: &F) -> ElaborationOutput
+syl_elab|method|syl_elab::pipeline::compiler::HardwareCompiler::output_for_tir|fn(self: &Self, tir: &TirAnalysis) -> ElaborationOutput
+syl_elab|method|syl_elab::pipeline::compiler::HardwareCompiler::register_opaque_summary|fn(self: &mut Self, summary: OpaqueItemSummary)
+syl_elab|method|syl_elab::pipeline::compiler::HardwareCompiler::with_opaque_summaries|fn(opaque_summaries: OpaqueSummaryTable) -> Self
+syl_elab|method|syl_elab::pipeline::output::ConstMirStage::debug_dump|fn(self: &Self) -> String
+syl_elab|method|syl_elab::pipeline::output::ConstMirStage::local_ref_count|fn(self: &Self) -> usize
+syl_elab|method|syl_elab::pipeline::output::ConstMirStage::node_count|fn(self: &Self) -> usize
+syl_elab|method|syl_elab::pipeline::output::ConstMirStage::resolved_local_ref_count|fn(self: &Self) -> usize
+syl_elab|method|syl_elab::pipeline::output::DrcStage::create_count|fn(self: &Self) -> usize
+syl_elab|method|syl_elab::pipeline::output::DrcStage::debug_dump|fn(self: &Self) -> String
+syl_elab|method|syl_elab::pipeline::output::DrcStage::drive_count|fn(self: &Self) -> usize
+syl_elab|method|syl_elab::pipeline::output::DrcStage::module_count|fn(self: &Self) -> usize
+syl_elab|method|syl_elab::pipeline::output::DrcStage::read_count|fn(self: &Self) -> usize
+syl_elab|method|syl_elab::pipeline::output::DriverFactsStage::create_count|fn(self: &Self) -> usize
+syl_elab|method|syl_elab::pipeline::output::DriverFactsStage::debug_dump|fn(self: &Self) -> String
+syl_elab|method|syl_elab::pipeline::output::DriverFactsStage::drive_count|fn(self: &Self) -> usize
+syl_elab|method|syl_elab::pipeline::output::DriverFactsStage::read_count|fn(self: &Self) -> usize
+syl_elab|method|syl_elab::pipeline::output::EirBuildStage::contains_cell_expansion|fn(self: &Self, callable: &str, instance: &str) -> bool
+syl_elab|method|syl_elab::pipeline::output::EirBuildStage::contains_instance_module|fn(self: &Self, module_name: &str) -> bool
+syl_elab|method|syl_elab::pipeline::output::EirBuildStage::contains_instance|fn(self: &Self, module_name: &str, instance_name: &str) -> bool
+syl_elab|method|syl_elab::pipeline::output::EirBuildStage::debug_dump|fn(self: &Self) -> String
+syl_elab|method|syl_elab::pipeline::output::EirBuildStage::module_count|fn(self: &Self) -> usize
+syl_elab|method|syl_elab::pipeline::output::EirFactsStage::contains_created_object|fn(self: &Self, module: &str, name: &str) -> bool
+syl_elab|method|syl_elab::pipeline::output::EirFactsStage::contains_drive|fn(self: &Self, module: &str, target: &str) -> bool
+syl_elab|method|syl_elab::pipeline::output::EirFactsStage::contains_read|fn(self: &Self, module: &str, source: &str) -> bool
+syl_elab|method|syl_elab::pipeline::output::EirFactsStage::debug_dump|fn(self: &Self) -> String
+syl_elab|method|syl_elab::pipeline::output::EirFactsStage::drive_count|fn(self: &Self) -> usize
+syl_elab|method|syl_elab::pipeline::output::EirFactsStage::object_count|fn(self: &Self) -> usize
+syl_elab|method|syl_elab::pipeline::output::EirFactsStage::read_count|fn(self: &Self) -> usize
+syl_elab|method|syl_elab::pipeline::output::EirStage::debug_dump|fn(self: &Self) -> String
+syl_elab|method|syl_elab::pipeline::output::EirStage::drive_count|fn(self: &Self) -> usize
+syl_elab|method|syl_elab::pipeline::output::EirStage::module_count|fn(self: &Self) -> usize
+syl_elab|method|syl_elab::pipeline::output::EirValidationStage::debug_dump|fn(self: &Self) -> String
+syl_elab|method|syl_elab::pipeline::output::EirValidationStage::module_count|fn(self: &Self) -> usize
+syl_elab|method|syl_elab::pipeline::output::ElaborationOutput::const_mir|fn(self: &Self) -> Option<&ConstMirStage>
+syl_elab|method|syl_elab::pipeline::output::ElaborationOutput::diagnostics|fn(self: &Self) -> &[Diagnostic]
+syl_elab|method|syl_elab::pipeline::output::ElaborationOutput::drc|fn(self: &Self) -> Option<&DrcStage>
+syl_elab|method|syl_elab::pipeline::output::ElaborationOutput::driver_facts|fn(self: &Self) -> Option<&DriverFactsStage>
+syl_elab|method|syl_elab::pipeline::output::ElaborationOutput::eir_build|fn(self: &Self) -> Option<&EirBuildStage>
+syl_elab|method|syl_elab::pipeline::output::ElaborationOutput::eir_facts|fn(self: &Self) -> Option<&EirFactsStage>
+syl_elab|method|syl_elab::pipeline::output::ElaborationOutput::eir_validation|fn(self: &Self) -> Option<&EirValidationStage>
+syl_elab|method|syl_elab::pipeline::output::ElaborationOutput::eir|fn(self: &Self) -> Option<&EirStage>
+syl_elab|method|syl_elab::pipeline::output::ElaborationOutput::hwir|fn(self: &Self) -> Option<&ParametricHwDesign>
+syl_elab|method|syl_elab::pipeline::output::ElaborationOutput::map_ir|fn(self: &Self) -> Option<&MapIrStage>
+syl_elab|method|syl_elab::pipeline::output::ElaborationOutput::metadata|fn(self: &Self) -> Option<&HardwareMetadata>
+syl_elab|method|syl_elab::pipeline::output::ElaborationOutput::opaque_summaries|fn(self: &Self) -> Option<&OpaqueSummaryTable>
+syl_elab|method|syl_elab::pipeline::output::MapIrStage::debug_dump|fn(self: &Self) -> String
+syl_elab|method|syl_elab::pipeline::output::MapIrStage::local_ref_count|fn(self: &Self) -> usize
+syl_elab|method|syl_elab::pipeline::output::MapIrStage::map_count|fn(self: &Self) -> usize
+syl_elab|method|syl_elab::pipeline::output::MapIrStage::param_count|fn(self: &Self) -> usize
+syl_elab|method|syl_elab::pipeline::output::MapIrStage::resolved_local_ref_count|fn(self: &Self) -> usize
+syl_elab|method|syl_elab::pipeline::output::MapIrStage::resolved_param_count|fn(self: &Self) -> usize
 syl_elab|method|syl_elab::pipeline::stage::ElabStage::build_raw_eir|fn(self: &Self, const_mir: &ConstMirStage, map_ir: &MapIrStage) -> Result<EirBuildStage, CompileError>
-syl_elab|struct|syl_elab::hardware_metadata::HardwareCellSummaryBuilder|public
-syl_elab|struct|syl_elab::hardware_metadata::HardwareCellSummary|public
-syl_elab|struct|syl_elab::hardware_metadata::HardwareCreateFact|public
-syl_elab|struct|syl_elab::hardware_metadata::HardwareDriveFact|public
-syl_elab|struct|syl_elab::hardware_metadata::HardwareMetadata|public
-syl_elab|struct|syl_elab::hardware_metadata::HardwareReadFact|public
-syl_elab|struct|syl_elab::pipeline::ConstMirStage|public
-syl_elab|struct|syl_elab::pipeline::DrcStage|public
-syl_elab|struct|syl_elab::pipeline::DriverFactsStage|public
-syl_elab|struct|syl_elab::pipeline::EirBuildStage|public
-syl_elab|struct|syl_elab::pipeline::EirFactsStage|public
-syl_elab|struct|syl_elab::pipeline::EirStage|public
-syl_elab|struct|syl_elab::pipeline::EirValidationStage|public
-syl_elab|struct|syl_elab::pipeline::ElaborationOutput|public
-syl_elab|struct|syl_elab::pipeline::HardwareCompiler|public
-syl_elab|struct|syl_elab::pipeline::MapIrStage|public
+syl_elab|struct|syl_elab::metadata::model::HardwareCellSummaryBuilder|public
+syl_elab|struct|syl_elab::metadata::model::HardwareCellSummary|public
+syl_elab|struct|syl_elab::metadata::model::HardwareCreateFact|public
+syl_elab|struct|syl_elab::metadata::model::HardwareDriveFact|public
+syl_elab|struct|syl_elab::metadata::model::HardwareMetadata|public
+syl_elab|struct|syl_elab::metadata::model::HardwareReadFact|public
+syl_elab|struct|syl_elab::pipeline::compiler::HardwareCompiler|public
+syl_elab|struct|syl_elab::pipeline::output::ConstMirStage|public
+syl_elab|struct|syl_elab::pipeline::output::DrcStage|public
+syl_elab|struct|syl_elab::pipeline::output::DriverFactsStage|public
+syl_elab|struct|syl_elab::pipeline::output::EirBuildStage|public
+syl_elab|struct|syl_elab::pipeline::output::EirFactsStage|public
+syl_elab|struct|syl_elab::pipeline::output::EirStage|public
+syl_elab|struct|syl_elab::pipeline::output::EirValidationStage|public
+syl_elab|struct|syl_elab::pipeline::output::ElaborationOutput|public
+syl_elab|struct|syl_elab::pipeline::output::MapIrStage|public
 syl_elab|struct|syl_elab::pipeline::stage::ElabStage|public
 syl_elab|use|CompileError|named|source=syl_sema::CompileError
+syl_elab|use|ConstMirStage|named|source=output::ConstMirStage
 syl_elab|use|ConstMirStage|named|source=pipeline::ConstMirStage
+syl_elab|use|DrcStage|named|source=output::DrcStage
 syl_elab|use|DrcStage|named|source=pipeline::DrcStage
+syl_elab|use|DriverFactsStage|named|source=output::DriverFactsStage
 syl_elab|use|DriverFactsStage|named|source=pipeline::DriverFactsStage
+syl_elab|use|EirBuildStage|named|source=output::EirBuildStage
 syl_elab|use|EirBuildStage|named|source=pipeline::EirBuildStage
+syl_elab|use|EirFactsStage|named|source=output::EirFactsStage
 syl_elab|use|EirFactsStage|named|source=pipeline::EirFactsStage
+syl_elab|use|EirStage|named|source=output::EirStage
 syl_elab|use|EirStage|named|source=pipeline::EirStage
+syl_elab|use|EirValidationStage|named|source=output::EirValidationStage
 syl_elab|use|EirValidationStage|named|source=pipeline::EirValidationStage
 syl_elab|use|ElabStage|named|source=pipeline::ElabStage
 syl_elab|use|ElabStage|named|source=stage::ElabStage
+syl_elab|use|ElaborationOutput|named|source=output::ElaborationOutput
 syl_elab|use|ElaborationOutput|named|source=pipeline::ElaborationOutput
-syl_elab|use|HardwareCellSummaryBuilder|named|source=hardware_metadata::HardwareCellSummaryBuilder
-syl_elab|use|HardwareCellSummary|named|source=hardware_metadata::HardwareCellSummary
+syl_elab|use|HardwareCellSummaryBuilder|named|source=metadata::HardwareCellSummaryBuilder
+syl_elab|use|HardwareCellSummaryBuilder|named|source=model::HardwareCellSummaryBuilder
+syl_elab|use|HardwareCellSummary|named|source=metadata::HardwareCellSummary
+syl_elab|use|HardwareCellSummary|named|source=model::HardwareCellSummary
+syl_elab|use|HardwareCompiler|named|source=compiler::HardwareCompiler
 syl_elab|use|HardwareCompiler|named|source=pipeline::HardwareCompiler
-syl_elab|use|HardwareCreateFact|named|source=hardware_metadata::HardwareCreateFact
-syl_elab|use|HardwareCreateKind|named|source=hardware_metadata::HardwareCreateKind
-syl_elab|use|HardwareDriveFact|named|source=hardware_metadata::HardwareDriveFact
-syl_elab|use|HardwareMetadata|named|source=hardware_metadata::HardwareMetadata
-syl_elab|use|HardwareReadFact|named|source=hardware_metadata::HardwareReadFact
+syl_elab|use|HardwareCreateFact|named|source=metadata::HardwareCreateFact
+syl_elab|use|HardwareCreateFact|named|source=model::HardwareCreateFact
+syl_elab|use|HardwareCreateKind|named|source=metadata::HardwareCreateKind
+syl_elab|use|HardwareCreateKind|named|source=model::HardwareCreateKind
+syl_elab|use|HardwareDriveFact|named|source=metadata::HardwareDriveFact
+syl_elab|use|HardwareDriveFact|named|source=model::HardwareDriveFact
+syl_elab|use|HardwareMetadata|named|source=metadata::HardwareMetadata
+syl_elab|use|HardwareMetadata|named|source=model::HardwareMetadata
+syl_elab|use|HardwareReadFact|named|source=metadata::HardwareReadFact
+syl_elab|use|HardwareReadFact|named|source=model::HardwareReadFact
+syl_elab|use|MapIrStage|named|source=output::MapIrStage
 syl_elab|use|MapIrStage|named|source=pipeline::MapIrStage
-syl_elab|variant|syl_elab::hardware_metadata::HardwareCellSummaryBuilderError::UninitializedField|(&str)
-syl_elab|variant|syl_elab::hardware_metadata::HardwareCellSummaryBuilderError::ValidationError|(::derive_builder::export::core::string::String)
-syl_elab|variant|syl_elab::hardware_metadata::HardwareCreateKind::Signal|unit
-syl_elab|variant|syl_elab::hardware_metadata::HardwareCreateKind::Storage|unit
+syl_elab|variant|syl_elab::metadata::model::HardwareCellSummaryBuilderError::UninitializedField|(&str)
+syl_elab|variant|syl_elab::metadata::model::HardwareCellSummaryBuilderError::ValidationError|(::derive_builder::export::core::string::String)
+syl_elab|variant|syl_elab::metadata::model::HardwareCreateKind::Signal|unit
+syl_elab|variant|syl_elab::metadata::model::HardwareCreateKind::Storage|unit
 syl_emit|enum|syl_emit::CompileError|public
 syl_emit|enum|syl_emit::VerilogError|public
 syl_emit|method|syl_emit::CompileError::invalid_hwir|fn(report: syl_hw::HwValidationReport) -> Self
