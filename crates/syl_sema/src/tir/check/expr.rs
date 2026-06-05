@@ -211,11 +211,15 @@ impl TypePhaseChecker {
             {
                 return Ok(());
             }
-            if matches!(builtin, Some(BuiltinIntrinsic::Assert)) {
-                errors.push(CompileError::lowering_at(
-                    EirError::AssertionStatementOnly,
-                    callee.span(),
-                ));
+            if let Some(kind) = builtin
+                && matches!(kind, BuiltinIntrinsic::Assert | BuiltinIntrinsic::Error)
+            {
+                let error = match kind {
+                    BuiltinIntrinsic::Assert => EirError::AssertionStatementOnly,
+                    BuiltinIntrinsic::Error => EirError::RuntimeErrorStatementOnly,
+                    BuiltinIntrinsic::HighZ | BuiltinIntrinsic::Zero => unreachable!(),
+                };
+                errors.push(CompileError::lowering_at(error, callee.span()));
                 for arg in args {
                     self.check_hardware_value_expr(&arg.value, errors)?;
                 }
@@ -288,11 +292,15 @@ impl TypePhaseChecker {
                 Some(BuiltinIntrinsic::HighZ | BuiltinIntrinsic::Zero)
             ) && !self.is_map_callee(callee)
             {
-                if matches!(builtin, Some(BuiltinIntrinsic::Assert)) {
-                    errors.push(CompileError::lowering_at(
-                        EirError::AssertionStatementOnly,
-                        callee.span(),
-                    ));
+                if let Some(kind) = builtin
+                    && matches!(kind, BuiltinIntrinsic::Assert | BuiltinIntrinsic::Error)
+                {
+                    let error = match kind {
+                        BuiltinIntrinsic::Assert => EirError::AssertionStatementOnly,
+                        BuiltinIntrinsic::Error => EirError::RuntimeErrorStatementOnly,
+                        BuiltinIntrinsic::HighZ | BuiltinIntrinsic::Zero => unreachable!(),
+                    };
+                    errors.push(CompileError::lowering_at(error, callee.span()));
                 } else {
                     errors.push(CompileError::lowering_at(
                         EirError::UnknownHardwareValueCall { name },

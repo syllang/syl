@@ -10,6 +10,7 @@ pub enum BuiltinIntrinsic {
     HighZ,
     Zero,
     Assert,
+    Error,
 }
 
 #[non_exhaustive]
@@ -49,6 +50,7 @@ impl<'a> BuiltinResolver<'a> {
             "z" => Some(BuiltinIntrinsic::HighZ),
             "zero" => Some(BuiltinIntrinsic::Zero),
             "assert" => Some(BuiltinIntrinsic::Assert),
+            "error" => Some(BuiltinIntrinsic::Error),
             _ => None,
         }
     }
