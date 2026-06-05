@@ -1,10 +1,11 @@
 use super::{
     context::CapabilityContext,
-    field_schema::{resolve_view_field_schema, LocalTypeFacts},
+    field_schema::{LocalTypeFacts, resolve_view_field_schema},
     model::{CapabilityScope, EndpointSide, FieldCaps},
     place::{Place, PlaceResolution},
 };
 use crate::{
+    CapabilityError, CompileError, ConstEvalError, HirError,
     binding::ActualFormalBinder,
     hir::resolve::HirResolution,
     hir::{
@@ -13,7 +14,6 @@ use crate::{
         HirSignatureResultBinding, HirStmt,
     },
     ir::mir::MirTypeRef,
-    CapabilityError, CompileError, ConstEvalError, HirError,
 };
 use syl_hir::{DefId, LocalId};
 use syl_span::Span;
@@ -31,8 +31,32 @@ struct FormalArgCheck<'a> {
     actual: &'a HirBodyExpr,
 }
 
+struct CallArgsCheck<'a> {
+    owner: DefId,
+    callee: &'a HirBodyExpr,
+    args: &'a [HirCallArg],
+    scope: &'a CapabilityScope,
+    facts: &'a LocalTypeFacts,
+}
+
 struct TypeCapabilityRecord<'a> {
     decl: CapabilityLocalDecl<'a>,
+    ty: &'a MirTypeRef,
+    side: EndpointSide,
+}
+
+struct ViewArgCapsCheck<'a> {
+    owner: DefId,
+    actual: &'a HirBodyExpr,
+    caps: &'a FieldCaps,
+    scope: &'a CapabilityScope,
+    facts: &'a LocalTypeFacts,
+}
+
+struct ViewFieldSchemaRecord<'a> {
+    owner: DefId,
+    facts: &'a mut LocalTypeFacts,
+    local: LocalId,
     ty: &'a MirTypeRef,
     side: EndpointSide,
 }
@@ -69,25 +93,25 @@ impl<'a> CapabilityChecker<'a> {
             let caps = self.param_caps(owner, param)?;
             let local = self.local_id(&param.name, param.id, param.span)?;
             scope.insert(local, caps);
-            self.record_view_field_schema(
+            self.record_view_field_schema(ViewFieldSchemaRecord {
                 owner,
-                &mut facts,
+                facts: &mut facts,
                 local,
-                &param.ty,
-                EndpointSide::Local,
-            )?;
+                ty: &param.ty,
+                side: EndpointSide::Local,
+            })?;
         }
         if let Some(result) = &item.result {
             let caps = self.result_caps(owner, result)?;
             let local = self.local_id(&result.name, result.id, result.span)?;
             scope.insert(local, caps);
-            self.record_view_field_schema(
+            self.record_view_field_schema(ViewFieldSchemaRecord {
                 owner,
-                &mut facts,
+                facts: &mut facts,
                 local,
-                &result.ty,
-                EndpointSide::Local,
-            )?;
+                ty: &result.ty,
+                side: EndpointSide::Local,
+            })?;
         }
         self.check_block(owner, &item.body, &scope, &facts)
     }
@@ -130,13 +154,13 @@ impl<'a> CapabilityChecker<'a> {
                                 side: EndpointSide::LocalSignal,
                             },
                         )?;
-                        self.record_view_field_schema(
+                        self.record_view_field_schema(ViewFieldSchemaRecord {
                             owner,
-                            &mut facts,
+                            facts: &mut facts,
                             local,
                             ty,
-                            EndpointSide::LocalSignal,
-                        )?;
+                            side: EndpointSide::LocalSignal,
+                        })?;
                     }
                 }
                 HirStmt::Reg { id, name, span, .. } => {
@@ -312,9 +336,14 @@ impl<'a> CapabilityChecker<'a> {
                 self.check_read_expr(owner, left, scope, facts)?;
                 self.check_read_expr(owner, right, scope, facts)
             }
-            HirExprNode::Call { callee, args } | HirExprNode::Place { callee, args, .. } => {
-                self.check_call_args(owner, callee, args, scope, facts)
-            }
+            HirExprNode::Call { callee, args } | HirExprNode::Place { callee, args, .. } => self
+                .check_call_args(CallArgsCheck {
+                    owner,
+                    callee,
+                    args,
+                    scope,
+                    facts,
+                }),
             HirExprNode::Aggregate { fields, .. } => {
                 for field in fields {
                     self.check_read_expr(owner, &field.value, scope, facts)?;
@@ -379,34 +408,28 @@ impl<'a> CapabilityChecker<'a> {
         }
     }
 
-    fn check_call_args(
-        &self,
-        owner: DefId,
-        callee: &HirBodyExpr,
-        args: &[HirCallArg],
-        scope: &CapabilityScope,
-        facts: &LocalTypeFacts,
-    ) -> Result<(), CompileError> {
-        let Some((callee_def, callee_name, callable)) = self.callable_for_callee(owner, callee)
+    fn check_call_args(&self, check: CallArgsCheck<'_>) -> Result<(), CompileError> {
+        let Some((callee_def, callee_name, callable)) =
+            self.callable_for_callee(check.owner, check.callee)
         else {
-            for arg in args {
-                self.check_read_expr(owner, &arg.value, scope, facts)?;
+            for arg in check.args {
+                self.check_read_expr(check.owner, &arg.value, check.scope, check.facts)?;
             }
             return Ok(());
         };
         let params = callable.params();
         let mut binder = ActualFormalBinder::new(params);
-        for arg in args {
+        for arg in check.args {
             let param = binder.resolve(&callee_name, arg.name.as_deref(), arg.span())?;
             self.check_arg_against_formal(
-                owner,
+                check.owner,
                 FormalArgCheck {
                     formal_owner: callee_def,
                     param,
                     actual: &arg.value,
                 },
-                scope,
-                facts,
+                check.scope,
+                check.facts,
             )?;
         }
         Ok(())
@@ -422,7 +445,13 @@ impl<'a> CapabilityChecker<'a> {
         if let Some(caps) =
             self.view_caps(check.formal_owner, &check.param.ty, EndpointSide::Local)?
         {
-            return self.check_view_arg_caps(owner, check.actual, &caps, scope, facts);
+            return self.check_view_arg_caps(ViewArgCapsCheck {
+                owner,
+                actual: check.actual,
+                caps: &caps,
+                scope,
+                facts,
+            });
         }
         match check.param.direction {
             HirPortDirection::In => self.check_read_expr(owner, check.actual, scope, facts),
@@ -435,26 +464,19 @@ impl<'a> CapabilityChecker<'a> {
         }
     }
 
-    fn check_view_arg_caps(
-        &self,
-        owner: DefId,
-        actual: &HirBodyExpr,
-        caps: &FieldCaps,
-        scope: &CapabilityScope,
-        facts: &LocalTypeFacts,
-    ) -> Result<(), CompileError> {
-        let endpoint = self.resolve_required_place(owner, actual)?;
+    fn check_view_arg_caps(&self, check: ViewArgCapsCheck<'_>) -> Result<(), CompileError> {
+        let endpoint = self.resolve_required_place(check.owner, check.actual)?;
         if endpoint.has_field() {
             return Err(CompileError::lowering_at(
                 CapabilityError::UnsupportedHardwareValueExpression,
-                actual.span(),
+                check.actual.span(),
             ));
         }
-        for field in caps.readable_fields() {
-            self.require_read_place(&endpoint.field_place(field), scope, facts)?;
+        for field in check.caps.readable_fields() {
+            self.require_read_place(&endpoint.field_place(field), check.scope, check.facts)?;
         }
-        for field in caps.drivable_fields() {
-            self.require_write_place(&endpoint.field_place(field), scope, facts)?;
+        for field in check.caps.drivable_fields() {
+            self.require_write_place(&endpoint.field_place(field), check.scope, check.facts)?;
         }
         Ok(())
     }
@@ -678,16 +700,13 @@ impl<'a> CapabilityChecker<'a> {
 
     fn record_view_field_schema(
         &self,
-        owner: DefId,
-        facts: &mut LocalTypeFacts,
-        local: LocalId,
-        ty: &MirTypeRef,
-        side: EndpointSide,
+        check: ViewFieldSchemaRecord<'_>,
     ) -> Result<(), CompileError> {
-        let Some(schema) = resolve_view_field_schema(self.ctx, owner, ty, side)? else {
+        let Some(schema) = resolve_view_field_schema(self.ctx, check.owner, check.ty, check.side)?
+        else {
             return Ok(());
         };
-        facts.insert_view_fields(local, schema);
+        check.facts.insert_view_fields(check.local, schema);
         Ok(())
     }
 

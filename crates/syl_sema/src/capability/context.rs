@@ -4,11 +4,11 @@ use super::{
     view::ViewCapabilityResolver,
 };
 use crate::{
+    CompileError,
     hir::resolve::HirResolution,
     hir::view::HirDesignViewExt,
     hir::{HirBodyExpr, HirCallable, HirDefKind, HirDesign},
     ir::{mir::MirTypeRef, mir::MirTypeRefExt, mir_type_resolve::MirTypeDefinitionResolver},
-    CompileError,
 };
 use std::collections::{BTreeMap, BTreeSet};
 use syl_hir::DefId;
