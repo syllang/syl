@@ -508,7 +508,10 @@ cell Top(y: out UInt<WIDTH>) {
             assert_eq!(fields[0].name(), "width");
             assert!(matches!(fields[0].value().kind(), ConstExprKind::Nat(7)));
             assert_eq!(fields[1].name(), "enabled");
-            assert!(matches!(fields[1].value().kind(), ConstExprKind::Bool(true)));
+            assert!(matches!(
+                fields[1].value().kind(),
+                ConstExprKind::Bool(true)
+            ));
         }
         other => panic!("expected aggregate lowering for DEFAULT, got {other:?}"),
     }
@@ -557,7 +560,10 @@ cell Top(y: out UInt<WIDTH>) {
     );
     assert_eq!(
         evaluator
-            .expr_value(&lowered_width, &mut ConstEvalEnv::with_owner(Some(width_def)))
+            .expr_value(
+                &lowered_width,
+                &mut ConstEvalEnv::with_owner(Some(width_def))
+            )
             .expect("WIDTH field projection must evaluate"),
         ConstValue::Nat(7)
     );
@@ -665,7 +671,10 @@ cell Top(y: out Bit) {
             assert_ne!(kind.def(), alpha_params_def);
             assert_eq!(fields.len(), 1);
             assert_eq!(fields[0].name(), "enabled");
-            assert!(matches!(fields[0].value().kind(), ConstExprKind::Bool(true)));
+            assert!(matches!(
+                fields[0].value().kind(),
+                ConstExprKind::Bool(true)
+            ));
         }
         other => panic!("expected aggregate lowering for imported Params, got {other:?}"),
     }

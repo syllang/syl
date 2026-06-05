@@ -213,7 +213,10 @@ impl ConstExprKind {
     fn local_ref_count(&self) -> usize {
         match self {
             Self::Local(_) => 1,
-            Self::Aggregate { fields, .. } => fields.iter().map(|field| field.value().local_ref_count()).sum(),
+            Self::Aggregate { fields, .. } => fields
+                .iter()
+                .map(|field| field.value().local_ref_count())
+                .sum(),
             Self::Field { base, .. } => base.local_ref_count(),
             Self::Unary { expr, .. } => expr.local_ref_count(),
             Self::Binary { left, right, .. } => left.local_ref_count() + right.local_ref_count(),

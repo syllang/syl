@@ -2,8 +2,8 @@ use crate::{
     hir::lower::HirResolver,
     hir::{
         HirBlock, HirBodyExpr, HirBundleItem, HirCallableItem, HirConstItem, HirExpr, HirExprNode,
-        HirFieldAccess, HirFnItem, HirInterfaceItem, HirMapItem, HirRegReset, HirStructItem,
-        HirSignatureGenericParam, HirSignatureParam, HirStmt, HirTypeRef,
+        HirFieldAccess, HirFnItem, HirInterfaceItem, HirMapItem, HirRegReset,
+        HirSignatureGenericParam, HirSignatureParam, HirStmt, HirStructItem, HirTypeRef,
     },
     ir::mir::MirTypeRef,
 };

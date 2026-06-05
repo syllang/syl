@@ -144,10 +144,12 @@ impl<'a> ExprLowerer<'a> {
                 }
                 _ => self.unsupported_expr(expr.span(), expr.id()),
             },
-            HirExprNode::Field { base, field } => self.enum_variant_expr(expr).unwrap_or_else(|| {
-                ConstExpr::field(self.lower_expr(base), field.clone(), expr.span())
-                    .with_origin(expr.id())
-            }),
+            HirExprNode::Field { base, field } => {
+                self.enum_variant_expr(expr).unwrap_or_else(|| {
+                    ConstExpr::field(self.lower_expr(base), field.clone(), expr.span())
+                        .with_origin(expr.id())
+                })
+            }
             HirExprNode::GenericApp { callee, .. } => self.lower_expr(callee),
             HirExprNode::Unsupported => self.unsupported_expr(expr.span(), expr.id()),
             _ => self.unsupported_expr(expr.span(), expr.id()),
@@ -337,12 +339,16 @@ const params = Params { width: 7, enabled: true }
             .get(&owner)
             .map(|item| item.value.clone())
             .expect("fixture const must exist");
-        let lowered = ConstMirBuilder::with_context(&FakeContext { hir }).lower_const_expr(owner, &value_expr);
+        let lowered = ConstMirBuilder::with_context(&FakeContext { hir })
+            .lower_const_expr(owner, &value_expr);
 
         match lowered.kind() {
             ConstExprKind::Aggregate { kind, fields } => {
-                assert_eq!(kind.def(), def_id(&resolve_hir(
-                    r#"
+                assert_eq!(
+                    kind.def(),
+                    def_id(
+                        &resolve_hir(
+                            r#"
 struct Params {
     width: nat,
     enabled: bool,
@@ -350,12 +356,18 @@ struct Params {
 
 const params = Params { width: 7, enabled: true }
 "#,
-                ), "Params"));
+                        ),
+                        "Params"
+                    )
+                );
                 assert_eq!(fields.len(), 2);
                 assert_eq!(fields[0].name(), "width");
                 assert!(matches!(fields[0].value().kind(), ConstExprKind::Nat(7)));
                 assert_eq!(fields[1].name(), "enabled");
-                assert!(matches!(fields[1].value().kind(), ConstExprKind::Bool(true)));
+                assert!(matches!(
+                    fields[1].value().kind(),
+                    ConstExprKind::Bool(true)
+                ));
             }
             _ => panic!("expected aggregate const"),
         }
@@ -384,7 +396,8 @@ fn use_width() -> nat {
             .and_then(|item| item.body.tail.as_ref())
             .cloned()
             .expect("fixture function must have a field tail expression");
-        let lowered = ConstMirBuilder::with_context(&FakeContext { hir }).lower_const_expr(owner, &field_expr);
+        let lowered = ConstMirBuilder::with_context(&FakeContext { hir })
+            .lower_const_expr(owner, &field_expr);
 
         match lowered.kind() {
             ConstExprKind::Field { base, field } => {

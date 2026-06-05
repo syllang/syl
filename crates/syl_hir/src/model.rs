@@ -328,7 +328,11 @@ impl HirDesign {
 
     fn resolve_visible_def_id(&self, owner: DefId, name: &str) -> Option<DefId> {
         let package = self.package_path_for_def(owner)?;
-        if let Some(def) = self.canonical_def_names.get(&package.with_leaf(name)).copied() {
+        if let Some(def) = self
+            .canonical_def_names
+            .get(&package.with_leaf(name))
+            .copied()
+        {
             return Some(def);
         }
         let mut imported = self
