@@ -143,4 +143,24 @@ mod tests {
         assert!(sv.contains("    // Width parameter.\n    parameter N = 4"));
         assert!(sv.contains("    // Input bits.\n    input [(N)-1:0] x"));
     }
+
+    #[test]
+    fn emits_bool_literals_legally_in_module_params() {
+        let design = ParametricHwDesign::new(vec![ParametricHwModule::new(
+            "Top",
+            vec![
+                HwParam::new("ENABLE", "true"),
+                HwParam::new("DISABLE", "false"),
+            ],
+            Vec::new(),
+            Vec::new(),
+        )]);
+
+        let sv = SystemVerilogBackend::new()
+            .emit(&design)
+            .expect("bool-valued params should emit as legal SystemVerilog literals");
+
+        assert!(sv.contains("parameter ENABLE = 1'b1"));
+        assert!(sv.contains("parameter DISABLE = 1'b0"));
+    }
 }
