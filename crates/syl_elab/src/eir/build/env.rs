@@ -59,7 +59,15 @@ impl Env {
 
     pub(crate) fn insert(&mut self, name: impl Into<String>, code: EirExpr, ty: MirTypeRef) {
         let numbering_value = Self::default_numbering_value(&code);
-        self.insert_with_binding_kind(name, code, ty, false, numbering_value);
+        self.insert_var(
+            name,
+            VarInfo {
+                code,
+                ty,
+                software_local: false,
+                numbering_value,
+            },
+        );
     }
 
     pub(crate) fn insert_with_numbering(
@@ -69,7 +77,15 @@ impl Env {
         ty: MirTypeRef,
         numbering_value: Option<NumberingValue>,
     ) {
-        self.insert_with_binding_kind(name, code, ty, false, numbering_value);
+        self.insert_var(
+            name,
+            VarInfo {
+                code,
+                ty,
+                software_local: false,
+                numbering_value,
+            },
+        );
     }
 
     pub(crate) fn insert_software_local(
@@ -79,7 +95,15 @@ impl Env {
         ty: MirTypeRef,
     ) {
         let numbering_value = Self::default_numbering_value(&code);
-        self.insert_with_binding_kind(name, code, ty, true, numbering_value);
+        self.insert_var(
+            name,
+            VarInfo {
+                code,
+                ty,
+                software_local: true,
+                numbering_value,
+            },
+        );
     }
 
     pub(crate) fn insert_software_local_with_numbering(
@@ -89,28 +113,22 @@ impl Env {
         ty: MirTypeRef,
         numbering_value: Option<NumberingValue>,
     ) {
-        self.insert_with_binding_kind(name, code, ty, true, numbering_value);
-    }
-
-    fn insert_with_binding_kind(
-        &mut self,
-        name: impl Into<String>,
-        code: EirExpr,
-        ty: MirTypeRef,
-        software_local: bool,
-        numbering_value: Option<NumberingValue>,
-    ) {
-        let name = name.into();
-        let static_type = ty.type_name().map(ToOwned::to_owned);
-        if let Some(previous) = self.vars.insert(
-            name.clone(),
+        self.insert_var(
+            name,
             VarInfo {
                 code,
                 ty,
-                software_local,
+                software_local: true,
                 numbering_value,
             },
-        ) && let Some(static_type) = previous.ty.type_name().map(ToOwned::to_owned)
+        );
+    }
+
+    fn insert_var(&mut self, name: impl Into<String>, var: VarInfo) {
+        let name = name.into();
+        let static_type = var.ty.type_name().map(ToOwned::to_owned);
+        if let Some(previous) = self.vars.insert(name.clone(), var)
+            && let Some(static_type) = previous.ty.type_name().map(ToOwned::to_owned)
             && let Some(names) = self.vars_by_static_type.get_mut(&static_type)
         {
             names.retain(|existing| existing != &name);

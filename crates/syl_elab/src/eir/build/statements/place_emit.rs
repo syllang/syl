@@ -8,6 +8,15 @@ use syl_span::Span;
 use super::super::connections::InstanceEmitRequest;
 use super::{EirBuilder, Env, ExprPlaceEmit};
 
+#[non_exhaustive]
+pub(super) struct NamedExprPlaceEmit<'a> {
+    pub(super) inst_name: &'a str,
+    pub(super) callee: &'a ElabExpr,
+    pub(super) args: &'a [ElabCallArg],
+    pub(super) inplace: bool,
+    pub(super) span: Span,
+}
+
 impl<'a, C> EirBuilder<'a, C>
 where
     C: crate::const_eval::ConstValueElaborator + ?Sized,
@@ -19,36 +28,39 @@ where
     ) -> Result<Vec<EirItem>, CompileError> {
         let inst_name = self.expr_place_inst_name(&request, env);
         self.emit_named_expr_place(
-            &inst_name,
-            request.callee,
-            request.args,
-            request.inplace,
-            request.span,
+            NamedExprPlaceEmit {
+                inst_name: &inst_name,
+                callee: request.callee,
+                args: request.args,
+                inplace: request.inplace,
+                span: request.span,
+            },
             env,
         )
     }
 
     pub(super) fn emit_named_expr_place(
         &self,
-        inst_name: &str,
-        callee: &ElabExpr,
-        args: &[ElabCallArg],
-        inplace: bool,
-        span: Span,
+        request: NamedExprPlaceEmit<'_>,
         env: &mut Env,
     ) -> Result<Vec<EirItem>, CompileError> {
         let mut items = Vec::new();
-        if let Some(result_ty) = self.callable_result_type_from_elab(callee, env) {
+        if let Some(result_ty) = self.callable_result_type_from_elab(request.callee, env) {
             let mut signal_env = env.clone();
-            items.extend(self.emit_result_signals(inst_name, &result_ty, span, &mut signal_env));
+            items.extend(self.emit_result_signals(
+                request.inst_name,
+                &result_ty,
+                request.span,
+                &mut signal_env,
+            ));
         }
         items.extend(self.emit_instance(InstanceEmitRequest {
-            inst_name,
-            callee,
-            args,
+            inst_name: request.inst_name,
+            callee: request.callee,
+            args: request.args,
             env,
-            inplace,
-            span,
+            inplace: request.inplace,
+            span: request.span,
         })?);
         Ok(items)
     }

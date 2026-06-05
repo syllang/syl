@@ -107,7 +107,7 @@ fn compile_instance_param_values(source: &str, param_name: &str) -> Result<Vec<S
         .map_err(|error| format!("fixture must parse: {error:?}"))?;
     let middle = MiddleCompiler::new();
     let hir = middle
-        .session(&[file.clone()])
+        .session(std::slice::from_ref(&file))
         .resolve_hir()
         .map_err(|error| format!("fixture must resolve HIR: {error:?}"))?;
     let tir_output = hir.check_tir_partial();

@@ -7,7 +7,7 @@ use crate::{
     program::{ElabBlock, ElabExprNode},
 };
 
-use super::{EirBuilder, Env, ForEmit};
+use super::{EirBuilder, Env, ForEmit, place_emit::NamedExprPlaceEmit};
 
 impl<'a, C> EirBuilder<'a, C>
 where
@@ -128,11 +128,13 @@ where
                 .map(|prefix| prefix.replace(&format!("[{loop_name}]"), &format!("[{index}]")))
                 .unwrap_or_else(|| format!("place_{index}"));
             items.extend(self.emit_named_expr_place(
-                &inst_name,
-                callee,
-                args,
-                *inplace,
-                tail.span(),
+                NamedExprPlaceEmit {
+                    inst_name: &inst_name,
+                    callee,
+                    args,
+                    inplace: *inplace,
+                    span: tail.span(),
+                },
                 env,
             )?);
         }
@@ -162,11 +164,13 @@ where
                 .map(|prefix| prefix.replace(&format!("[{loop_name}]"), &format!("[{index}]")))
                 .unwrap_or_else(|| format!("place_{index}"));
             items.extend(self.emit_named_expr_place(
-                &inst_name,
-                callee,
-                args,
-                *inplace,
-                tail.span(),
+                NamedExprPlaceEmit {
+                    inst_name: &inst_name,
+                    callee,
+                    args,
+                    inplace: *inplace,
+                    span: tail.span(),
+                },
                 env,
             )?);
         }
