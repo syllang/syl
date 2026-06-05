@@ -57,7 +57,7 @@ cell Top(a: in Bit, y: out Bit) {
         .expect("instance input expression should compile");
     let metadata = output
         .metadata()
-        .expect("successful elaboration must expose hardware metadata");
+        .unwrap_or_else(|| panic!("successful elaboration must expose hardware metadata: {:?}", output.diagnostics()));
 
     let top_reads: Vec<_> = metadata
         .read_facts()
@@ -105,7 +105,12 @@ cell Top(stage: in Stage<Bit>.tap, y: out Bit) {
         .expect("extension map read facts should compile");
     let metadata = output
         .metadata()
-        .expect("successful elaboration must expose hardware metadata");
+        .unwrap_or_else(|| {
+            panic!(
+                "successful elaboration must expose hardware metadata: {:?}",
+                output.diagnostics()
+            )
+        });
 
     let top_reads = metadata
         .read_facts()
@@ -134,7 +139,12 @@ cell Top(y: out Bit) {
         .expect("extern cell out port should be represented by port-direction facts");
     let metadata = output
         .metadata()
-        .expect("successful elaboration must expose hardware metadata");
+        .unwrap_or_else(|| {
+            panic!(
+                "successful elaboration must expose hardware metadata: {:?}",
+                output.diagnostics()
+            )
+        });
 
     assert!(metadata.driver_facts().iter().any(|fact| {
         fact.module() == "Top"
@@ -193,7 +203,12 @@ cell Top(y: out Bit) {
         .expect("trusted precompiled summary must compile via extern stub boundary");
     let metadata = output
         .metadata()
-        .expect("successful elaboration must expose hardware metadata");
+        .unwrap_or_else(|| {
+            panic!(
+                "successful elaboration must expose hardware metadata: {:?}",
+                output.diagnostics()
+            )
+        });
     let summary = metadata
         .opaque_summaries()
         .get("VendorDrive")
@@ -237,7 +252,12 @@ cell Top(y: out Pair) {
         .expect("cell result aggregate assignment should target the inlined result object");
     let metadata = output
         .metadata()
-        .expect("successful elaboration must expose hardware metadata");
+        .unwrap_or_else(|| {
+            panic!(
+                "successful elaboration must expose hardware metadata: {:?}",
+                output.diagnostics()
+            )
+        });
 
     assert!(metadata.driver_facts().iter().any(|fact| {
         matches!(fact.target_place(), HwPlace::Object { name, .. } if name == "made")
@@ -264,7 +284,12 @@ cell Top(a: in Bit, b: in Bit, y: out Bit) {
         .expect("software-only mutable locals should select elaboration branches without becoming hardware values");
     let metadata = output
         .metadata()
-        .expect("successful elaboration must expose hardware metadata");
+        .unwrap_or_else(|| {
+            panic!(
+                "successful elaboration must expose hardware metadata: {:?}",
+                output.diagnostics()
+            )
+        });
 
     let top_reads = metadata
         .read_facts()
@@ -276,6 +301,125 @@ cell Top(a: in Bit, b: in Bit, y: out Bit) {
     assert!(top_reads.iter().any(|read| read == "b"));
     assert!(!top_reads.iter().any(|read| read == "a"));
     assert!(!top_reads.iter().any(|read| read == "choose_b"));
+}
+
+#[test]
+fn mutable_local_assignment_inside_if_flows_to_later_reads() {
+    let output = StaticFactHarness::new()
+        .compile_output(
+            r#"
+cell Top(a: in Bit, b: in Bit, y: out Bit) {
+    var selected: bool = false
+
+    if true {
+        selected = true
+    }
+
+    if selected {
+        y := b
+    } else {
+        y := a
+    }
+}
+"#,
+        )
+        .expect("if-local mutation must remain visible after the branch");
+    let metadata = output
+        .metadata()
+        .expect("successful elaboration must expose hardware metadata");
+
+    let top_reads = metadata
+        .read_facts()
+        .iter()
+        .filter(|fact| fact.module() == "Top")
+        .map(|fact| fact.source_place().display())
+        .collect::<Vec<_>>();
+
+    assert!(top_reads.iter().any(|read| read == "b"));
+    assert!(!top_reads.iter().any(|read| read == "a"));
+}
+
+#[test]
+fn mutable_local_assignment_inside_for_flows_to_later_reads() {
+    let output = StaticFactHarness::new()
+        .compile_output(
+            r#"
+cell Top(a: in Bit, b: in Bit, y: out Bit) {
+    var count = 0
+
+    for i in 0..2 {
+        count = count + 1
+    }
+
+    if count == 2 {
+        y := b
+    } else {
+        y := a
+    }
+}
+"#,
+        )
+        .expect("for-local mutation must remain visible after the loop");
+    let metadata = output
+        .metadata()
+        .expect("successful elaboration must expose hardware metadata");
+
+    let top_reads = metadata
+        .read_facts()
+        .iter()
+        .filter(|fact| fact.module() == "Top")
+        .map(|fact| fact.source_place().display())
+        .collect::<Vec<_>>();
+
+    assert!(top_reads.iter().any(|read| read == "b"));
+    assert!(!top_reads.iter().any(|read| read == "a"));
+}
+
+#[test]
+fn software_struct_field_assign_stays_on_software_path() {
+    let output = StaticFactHarness::new()
+        .compile_output(
+            r#"
+struct Config {
+    enabled: bool,
+}
+
+cell Top(a: in Bit, b: in Bit, y: out Bit) {
+    var cfg = Config { enabled: false }
+    cfg.enabled = true
+
+    if cfg.enabled {
+        y := b
+    } else {
+        y := a
+    }
+}
+"#,
+        );
+    let output = output.unwrap_or_else(|err| {
+        panic!(
+            "software struct field assignment must lower without using bundle hardware paths: {err}"
+        )
+    });
+    let metadata = output
+        .metadata()
+        .unwrap_or_else(|| {
+            panic!(
+                "successful elaboration must expose hardware metadata: output={output:?}, diagnostics={:?}",
+                output.diagnostics()
+            )
+        });
+
+    let top_reads = metadata
+        .read_facts()
+        .iter()
+        .filter(|fact| fact.module() == "Top")
+        .map(|fact| fact.source_place().display())
+        .collect::<Vec<_>>();
+
+    assert!(top_reads.iter().any(|read| read == "b"));
+    assert!(!top_reads.iter().any(|read| read == "a"));
+    assert!(!top_reads.iter().any(|read| read.contains("cfg")));
 }
 
 #[test]
