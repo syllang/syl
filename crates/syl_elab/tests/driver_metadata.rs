@@ -161,7 +161,7 @@ cell Top(y: out Bit) {
 fn exposes_structured_driver_guards_on_hwir() {
     let output = DriverMetadataHarness::new()
         .compile_output(&[r#"
-cell Top<ENABLE: Bool>(y: out Bit) {
+cell Top<ENABLE: bool>(y: out Bit) {
     if ENABLE {
         y := 0
     } else {

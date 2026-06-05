@@ -66,12 +66,12 @@ interface Bus<T> {
     }
 }
 
-cell Child<N: Nat, W: Nat>(bus: out [N] Bus<UInt<W>>.source) {
+cell Child<N: nat, W: nat>(bus: out [N] Bus<UInt<W>>.source) {
     bus.payload := 0
     bus.valid := 0
 }
 
-cell Top<N: Nat, W: Nat>(bus: out [N] Bus<UInt<W>>.source) {
+cell Top<N: nat, W: nat>(bus: out [N] Bus<UInt<W>>.source) {
     let child = inplace Child<N, W>(
         bus: bus,
     )
@@ -126,7 +126,7 @@ fn substitutes_interface_array_len_generics() {
     let verilog = TestCompiler::new()
         .compile(
             r#"
-interface VecIface<N: Nat, T> {
+interface VecIface<N: nat, T> {
     payload: [N] T
 
     view source {
@@ -134,7 +134,7 @@ interface VecIface<N: Nat, T> {
     }
 }
 
-cell Top<W: Nat>(bus: out VecIface<4, UInt<W>>.source) {
+cell Top<W: nat>(bus: out VecIface<4, UInt<W>>.source) {
     bus.payload := 0
 }
 "#,
@@ -150,24 +150,24 @@ fn lowers_nested_generic_maps_before_verilog() {
     let verilog = TestCompiler::new()
         .compile(
             r#"
-bundle Pair<W: Nat> {
+bundle Pair<W: nat> {
     hi: UInt<W>,
     lo: UInt<W>,
 }
 
-map make_pair<W: Nat>(value: UInt<W>) -> Pair<W> =
+map make_pair<W: nat>(value: UInt<W>) -> Pair<W> =
     Pair<W> {
         hi: value,
         lo: 0,
     }
 
-map high<W: Nat>(pair: Pair<W>) -> UInt<W> =
+map high<W: nat>(pair: Pair<W>) -> UInt<W> =
     pair.hi
 
-map high_from_value<W: Nat>(value: UInt<W>) -> UInt<W> =
+map high_from_value<W: nat>(value: UInt<W>) -> UInt<W> =
     high<W>(make_pair<W>(value))
 
-cell Top<W: Nat>(
+cell Top<W: nat>(
     value: in UInt<W>,
     y: out UInt<W>,
 ) {
@@ -220,12 +220,12 @@ cell hold<T, D: Domain>(
 use lib.stream.Stream
 use lib.stream.hold
 
-bundle Word<W: Nat> {
+bundle Word<W: nat> {
     data: UInt<W>,
     last: Bit,
 }
 
-cell Top<W: Nat, D: Domain>(
+cell Top<W: nat, D: Domain>(
     clk: in Clock<D>,
     rst: in Reset<D>,
     up: in Stream<Word<W>>.sink,
@@ -280,10 +280,10 @@ fn module_generic_defaults_resolve_owner_consts() {
     let verilog = TestCompiler::new()
         .compile(
             r#"
-const DEFAULT_W: Nat = 7
+const DEFAULT_W: nat = 7
 
 cell Top<
-    W: Nat = DEFAULT_W,
+    W: nat = DEFAULT_W,
 >(
     y: out UInt<W>,
 ) {
@@ -302,9 +302,9 @@ fn param_dependent_clog2_lowers_to_system_function() {
     let verilog = TestCompiler::new()
         .compile(
             r#"
-fn clog2(x: Nat) -> Nat {
-    var n: Nat = 0
-    var p: Nat = 1
+fn clog2(x: nat) -> nat {
+    var n: nat = 0
+    var p: nat = 1
 
     while p < x {
         p = p << 1
@@ -314,8 +314,8 @@ fn clog2(x: Nat) -> Nat {
     return n
 }
 
-cell Top<W: Nat>(y: out Bit) {
-    const IDX_W: Nat = clog2(W)
+cell Top<W: nat>(y: out Bit) {
+    const IDX_W: nat = clog2(W)
 
     if IDX_W == 0 {
         y := 0

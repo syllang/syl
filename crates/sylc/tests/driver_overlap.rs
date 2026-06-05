@@ -121,7 +121,7 @@ fn rejects_branch_local_partial_output_coverage() {
     let err = DriverHarness::new()
         .check(
             r#"
-cell Bad<ENABLE: Bool>(y: out UInt<2>) {
+cell Bad<ENABLE: bool>(y: out UInt<2>) {
     if ENABLE {
         y[0] := 1
     } else {
@@ -140,7 +140,7 @@ fn rejects_dynamic_index_as_output_completeness_proof() {
     let err = DriverHarness::new()
         .check(
             r#"
-cell Bad<I: Nat>(y: out [4] Bit) {
+cell Bad<I: nat>(y: out [4] Bit) {
     y[I] := 1
 }
 "#,
@@ -155,7 +155,7 @@ fn rejects_symbolic_width_projection_as_output_completeness_proof() {
     let err = DriverHarness::new()
         .check(
             r#"
-cell Bad<W: Nat>(y: out UInt<W>) {
+cell Bad<W: nat>(y: out UInt<W>) {
     y[0] := 1
 }
 "#,
@@ -170,7 +170,7 @@ fn rejects_symbolic_loop_as_scalar_output_completeness_proof() {
     let err = DriverHarness::new()
         .check(
             r#"
-cell Bad<N: Nat>(y: out Bit) {
+cell Bad<N: nat>(y: out Bit) {
     for i in 0..N {
         y := 1
     }
@@ -235,7 +235,7 @@ fn rejects_dynamic_known_width_input_index_without_bounds_proof() {
     let err = DriverHarness::new()
         .check(
             r#"
-cell Bad<I: Nat>(x: in [4] Bit, y: out Bit) {
+cell Bad<I: nat>(x: in [4] Bit, y: out Bit) {
     y := x[I]
 }
 "#,
@@ -250,7 +250,7 @@ fn rejects_symbolic_width_dynamic_index_without_bounds_proof() {
     let err = DriverHarness::new()
         .check(
             r#"
-cell Bad<W: Nat, I: Nat>(x: in UInt<W>, y: out Bit) {
+cell Bad<W: nat, I: nat>(x: in UInt<W>, y: out Bit) {
     y := x[I]
 }
 "#,
@@ -265,7 +265,7 @@ fn rejects_symbolic_width_literal_index_without_lower_bound_proof() {
     let err = DriverHarness::new()
         .check(
             r#"
-cell Bad<W: Nat>(x: in UInt<W>, y: out Bit) {
+cell Bad<W: nat>(x: in UInt<W>, y: out Bit) {
     y := x[0]
 }
 "#,
@@ -347,7 +347,7 @@ fn rejects_guarded_partial_local_signal_driver() {
     let err = DriverHarness::new()
         .check(
             r#"
-cell Bad<ENABLE: Bool>(y: out Bit) {
+cell Bad<ENABLE: bool>(y: out Bit) {
     signal tmp: Bit
     if ENABLE {
         tmp := 1
@@ -395,7 +395,7 @@ fn allows_local_signal_read_when_driven_under_same_guard() {
     DriverHarness::new()
         .check(
             r#"
-cell Maybe<ENABLE: Bool>(y: out Bit) {
+cell Maybe<ENABLE: bool>(y: out Bit) {
     signal tmp: Bit
     if ENABLE {
         tmp := 1
@@ -417,7 +417,7 @@ fn rejects_opposite_branch_drivers_from_different_sources() {
             (
                 vec!["a".to_string()],
                 r#"
-cell A<E: Bool>(y: out Bit) {
+cell A<E: bool>(y: out Bit) {
     if E {
         y := 1
     }
@@ -427,7 +427,7 @@ cell A<E: Bool>(y: out Bit) {
             (
                 vec!["b".to_string()],
                 r#"
-cell B<E: Bool>(y: out Bit) {
+cell B<E: bool>(y: out Bit) {
     if E {
     } else {
         y := 0
@@ -441,7 +441,7 @@ cell B<E: Bool>(y: out Bit) {
 use a.A
 use b.B
 
-cell Top<X: Bool, Z: Bool>(y: out Bit) {
+cell Top<X: bool, Z: bool>(y: out Bit) {
     let first = place A<X>(y: y)
     let second = place B<Z>(y: y)
 }
@@ -529,7 +529,7 @@ fn rejects_unproven_dynamic_index_multi_driver_overlap() {
     let err = DriverHarness::new()
         .check(
             r#"
-cell Bad<N: Nat, I: Nat, J: Nat>(y: out [N] Bit) {
+cell Bad<N: nat, I: nat, J: nat>(y: out [N] Bit) {
     y[I] := 1
     y[J] := 0
 }
@@ -545,7 +545,7 @@ fn rejects_dynamic_parent_and_child_projection_overlap() {
     let err = DriverHarness::new()
         .check(
             r#"
-cell Bad<N: Nat, I: Nat, J: Nat>(y: out [N] UInt<8>) {
+cell Bad<N: nat, I: nat, J: nat>(y: out [N] UInt<8>) {
     y[I] := 0
     y[J][0] := 1
 }

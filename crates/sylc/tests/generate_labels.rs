@@ -37,7 +37,7 @@ fn uniquifies_generate_labels_for_repeated_cell_expansions() {
     let verilog = GenerateLabelHarness::new()
         .compile(
             r#"
-cell Maybe<E: Bool>() -> y: Bit {
+cell Maybe<E: bool>() -> y: Bit {
     if E {
         y := 1
     } else {
@@ -45,7 +45,7 @@ cell Maybe<E: Bool>() -> y: Bit {
     }
 }
 
-cell Top<A: Bool, B: Bool>(a: out Bit, b: out Bit) {
+cell Top<A: bool, B: bool>(a: out Bit, b: out Bit) {
     let u = inplace Maybe<A>()
     let v = inplace Maybe<B>()
     a := u
