@@ -155,11 +155,7 @@ cell Bad<W: nat>() {
         )
         .expect_err("nat generic must not be accepted as an if condition");
 
-<<<<<<< HEAD
     assert!(err.to_string().contains("requires bool condition"));
-=======
-    assert!(err.to_string().contains("requires bool condition"));
->>>>>>> 9da9c07 (test(sylc): sync lowercase builtin regression fixtures)
 }
 
 #[test]
@@ -175,11 +171,7 @@ cell Bad<B: bool>() {
         )
         .expect_err("bool generic must not be accepted as a for bound");
 
-<<<<<<< HEAD
     assert!(err.to_string().contains("requires nat expression"));
-=======
-    assert!(err.to_string().contains("requires nat expression"));
->>>>>>> 9da9c07 (test(sylc): sync lowercase builtin regression fixtures)
 }
 
 #[test]
