@@ -411,7 +411,10 @@ impl TypePhaseChecker {
             .or_else(|| {
                 explicit_ty
                     .is_none()
-                    .then(|| stmt.value.and_then(|expr| env.struct_def_for_expr(expr, self)))
+                    .then(|| {
+                        stmt.value
+                            .and_then(|expr| env.struct_def_for_expr(expr, self))
+                    })
                     .flatten()
             });
         if scalar_kind.is_none() && struct_def.is_none() {
@@ -444,7 +447,8 @@ impl TypePhaseChecker {
             return Ok(env.with_mutable_local(
                 local_id,
                 kind,
-                stmt.value.and_then(|expr| env.value_for_kind(kind, expr, self)),
+                stmt.value
+                    .and_then(|expr| env.value_for_kind(kind, expr, self)),
             ));
         }
         let Some(def) = struct_def else {
@@ -453,7 +457,8 @@ impl TypePhaseChecker {
         Ok(env.with_mutable_struct_local(
             local_id,
             def,
-            stmt.value.and_then(|expr| env.struct_value_for_expr(expr, self)),
+            stmt.value
+                .and_then(|expr| env.struct_value_for_expr(expr, self)),
         ))
     }
 
