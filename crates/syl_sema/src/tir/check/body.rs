@@ -34,6 +34,22 @@ struct PlaceCollectionCheck<'a> {
     env: &'a TirConstEnv,
 }
 
+#[derive(Clone, Copy)]
+struct ElabVarStmt<'a> {
+    id: Option<LocalId>,
+    name: &'a str,
+    ty: Option<&'a MirTypeRef>,
+    value: Option<&'a HirBodyExpr>,
+    span: Span,
+}
+
+#[derive(Clone, Copy)]
+struct ElabAssignmentStmt<'a> {
+    target: &'a HirBodyExpr,
+    value: &'a HirBodyExpr,
+    span: Span,
+}
+
 impl TypePhaseChecker {
     pub(super) fn check_hardware_block(
         &mut self,
@@ -57,11 +73,13 @@ impl TypePhaseChecker {
                     span,
                 } => {
                     env = self.check_elab_var_stmt(
-                        *id,
-                        name,
-                        ty.as_ref(),
-                        value.as_ref(),
-                        *span,
+                        ElabVarStmt {
+                            id: *id,
+                            name,
+                            ty: ty.as_ref(),
+                            value: value.as_ref(),
+                            span: *span,
+                        },
                         &env,
                         errors,
                     )?;
@@ -238,9 +256,15 @@ impl TypePhaseChecker {
                     value,
                     span,
                 } => {
-                    if let Some(updated_env) =
-                        self.check_elab_assignment(target, value, *span, &env, errors)?
-                    {
+                    if let Some(updated_env) = self.check_elab_assignment(
+                        ElabAssignmentStmt {
+                            target,
+                            value,
+                            span: *span,
+                        },
+                        &env,
+                        errors,
+                    )? {
                         env = updated_env;
                     } else {
                         errors.push(CompileError::lowering_at(
@@ -346,16 +370,13 @@ impl TypePhaseChecker {
 
     fn check_elab_var_stmt(
         &mut self,
-        id: Option<LocalId>,
-        name: &str,
-        ty: Option<&MirTypeRef>,
-        value: Option<&HirBodyExpr>,
-        span: Span,
+        stmt: ElabVarStmt<'_>,
         env: &TirConstEnv,
         errors: &mut Vec<CompileError>,
     ) -> Result<TirConstEnv, CompileError> {
-        let local_id = self.record_decl_local_binding(name, id, span, BindingKind::Local)?;
-        let explicit_ty = if let Some(ty) = ty {
+        let local_id =
+            self.record_decl_local_binding(stmt.name, stmt.id, stmt.span, BindingKind::Local)?;
+        let explicit_ty = if let Some(ty) = stmt.ty {
             Self::record_recoverable(
                 errors,
                 self.type_from_mir_type_ref(self.current_owner()?, ty),
@@ -366,11 +387,11 @@ impl TypePhaseChecker {
         if let Some(explicit_ty) = explicit_ty.clone() {
             Self::record_recoverable(
                 errors,
-                self.record_decl_local_type(name, Some(local_id), span, explicit_ty),
+                self.record_decl_local_type(stmt.name, Some(local_id), stmt.span, explicit_ty),
             );
         }
         if let Some(explicit_ty) = explicit_ty.clone()
-            && let Some(value) = value
+            && let Some(value) = stmt.value
         {
             Self::record_recoverable(errors, self.record_expr_type(value, explicit_ty));
         }
@@ -380,7 +401,7 @@ impl TypePhaseChecker {
             .or_else(|| {
                 explicit_ty
                     .is_none()
-                    .then(|| value.and_then(|expr| env.expr_kind(expr, self)))
+                    .then(|| stmt.value.and_then(|expr| env.expr_kind(expr, self)))
                     .flatten()
             });
         let struct_def = explicit_ty
@@ -390,13 +411,13 @@ impl TypePhaseChecker {
             .or_else(|| {
                 explicit_ty
                     .is_none()
-                    .then(|| value.and_then(|expr| env.struct_def_for_expr(expr, self)))
+                    .then(|| stmt.value.and_then(|expr| env.struct_def_for_expr(expr, self)))
                     .flatten()
             });
         if scalar_kind.is_none() && struct_def.is_none() {
             errors.push(CompileError::lowering_at(
                 TirError::InvalidElaborationExpression,
-                span,
+                stmt.span,
             ));
             return Ok(env.clone());
         }
@@ -406,14 +427,14 @@ impl TypePhaseChecker {
             Self::record_recoverable(
                 errors,
                 self.record_decl_local_type(
-                    name,
+                    stmt.name,
                     Some(local_id),
-                    span,
+                    stmt.span,
                     tir_type_for_const_kind(kind),
                 ),
             );
         }
-        if let Some(expr) = value {
+        if let Some(expr) = stmt.value {
             Self::record_recoverable(errors, self.record_phase(expr, Phase::Const));
             if let Some(kind) = scalar_kind {
                 self.require_const_expr_kind(expr, env, kind, errors);
@@ -423,7 +444,7 @@ impl TypePhaseChecker {
             return Ok(env.with_mutable_local(
                 local_id,
                 kind,
-                value.and_then(|expr| env.value_for_kind(kind, expr, self)),
+                stmt.value.and_then(|expr| env.value_for_kind(kind, expr, self)),
             ));
         }
         let Some(def) = struct_def else {
@@ -432,21 +453,19 @@ impl TypePhaseChecker {
         Ok(env.with_mutable_struct_local(
             local_id,
             def,
-            value.and_then(|expr| env.struct_value_for_expr(expr, self)),
+            stmt.value.and_then(|expr| env.struct_value_for_expr(expr, self)),
         ))
     }
 
     fn check_elab_assignment(
         &mut self,
-        target: &HirBodyExpr,
-        value: &HirBodyExpr,
-        span: Span,
+        stmt: ElabAssignmentStmt<'_>,
         env: &TirConstEnv,
         errors: &mut Vec<CompileError>,
     ) -> Result<Option<TirConstEnv>, CompileError> {
         let owner = self.current_owner()?;
-        let target_local = match &target.node {
-            HirExprNode::Ident(_) => self.hir.expr_resolution(owner, target),
+        let target_local = match &stmt.target.node {
+            HirExprNode::Ident(_) => self.hir.expr_resolution(owner, stmt.target),
             HirExprNode::Field { base, .. } => self.hir.expr_resolution(owner, base),
             _ => return Ok(None),
         };
@@ -456,16 +475,16 @@ impl TypePhaseChecker {
         if !env.is_mutable_local(id) {
             return Ok(None);
         }
-        Self::record_recoverable(errors, self.record_phase(target, Phase::Const));
-        Self::record_recoverable(errors, self.record_phase(value, Phase::Const));
-        match &target.node {
+        Self::record_recoverable(errors, self.record_phase(stmt.target, Phase::Const));
+        Self::record_recoverable(errors, self.record_phase(stmt.value, Phase::Const));
+        match &stmt.target.node {
             HirExprNode::Ident(_) => {
                 let Some(kind) = env.kind_for_local(id) else {
                     return Ok(None);
                 };
-                self.require_const_expr_kind(value, env, kind, errors);
+                self.require_const_expr_kind(stmt.value, env, kind, errors);
                 Ok(Some(
-                    env.assign_local(id, env.value_for_kind(kind, value, self))
+                    env.assign_local(id, env.value_for_kind(kind, stmt.value, self))
                         .unwrap_or_else(|| env.clone()),
                 ))
             }
@@ -480,20 +499,20 @@ impl TypePhaseChecker {
                 else {
                     errors.push(CompileError::lowering_at(
                         TirError::InvalidElaborationExpression,
-                        span,
+                        stmt.span,
                     ));
                     return Ok(Some(env.clone()));
                 };
-                self.require_const_expr_kind(value, env, field_kind, errors);
+                self.require_const_expr_kind(stmt.value, env, field_kind, errors);
                 Ok(Some(
-                    env.assign_field(id, field, env.value_for_kind(field_kind, value, self))
+                    env.assign_field(id, field, env.value_for_kind(field_kind, stmt.value, self))
                         .unwrap_or_else(|| env.clone()),
                 ))
             }
             _ => {
                 errors.push(CompileError::lowering_at(
                     TirError::InvalidElaborationExpression,
-                    span,
+                    stmt.span,
                 ));
                 Ok(Some(env.clone()))
             }
@@ -521,11 +540,13 @@ impl TypePhaseChecker {
                     span,
                 } => {
                     nested = self.check_elab_var_stmt(
-                        *id,
-                        name,
-                        ty.as_ref(),
-                        value.as_ref(),
-                        *span,
+                        ElabVarStmt {
+                            id: *id,
+                            name,
+                            ty: ty.as_ref(),
+                            value: value.as_ref(),
+                            span: *span,
+                        },
                         &nested,
                         errors,
                     )?;
@@ -535,9 +556,15 @@ impl TypePhaseChecker {
                     value,
                     span,
                 } => {
-                    if let Some(updated_env) =
-                        self.check_elab_assignment(target, value, *span, &nested, errors)?
-                    {
+                    if let Some(updated_env) = self.check_elab_assignment(
+                        ElabAssignmentStmt {
+                            target,
+                            value,
+                            span: *span,
+                        },
+                        &nested,
+                        errors,
+                    )? {
                         nested = updated_env;
                     } else {
                         errors.push(CompileError::lowering_at(
