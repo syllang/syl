@@ -57,7 +57,7 @@ where
             .value
             .map(|expr| self.elab_expr(expr, env))
             .unwrap_or_else(|| EirExpr::unsupported("uninitialized mutable local"));
-        let numbering_value = self.initial_software_local_numbering_value(binding.value, env);
+        let numbering_value = Self::initial_software_local_numbering_value(binding.value);
         env.insert_software_local_with_numbering(binding.name, code, ty, numbering_value);
         self.sync_software_local_fields(binding.name, binding.value, env);
         self.rebuild_software_root_binding(binding.name, env);
@@ -250,16 +250,12 @@ where
     }
 
     pub(super) fn initial_software_local_numbering_value(
-        &self,
         value: Option<&ElabExpr>,
-        env: &Env,
     ) -> Option<NumberingValue> {
         let expr = value?;
         match &expr.node {
             ElabExprNode::Int(value) => Some(NumberingValue::Counter(*value)),
-            ElabExprNode::Group(inner) => {
-                self.initial_software_local_numbering_value(Some(inner), env)
-            }
+            ElabExprNode::Group(inner) => Self::initial_software_local_numbering_value(Some(inner)),
             _ => None,
         }
     }
@@ -274,12 +270,13 @@ where
             ElabExprNode::Group(inner) => {
                 self.assigned_software_local_numbering_value(target_name, inner, env)
             }
-            ElabExprNode::Binary { op, left, right }
-                if matches!(op, crate::mir::MirBinaryOp::Add) =>
-            {
-                self.counter_increment_value(target_name, left, right, env)
-                    .or_else(|| self.counter_increment_value(target_name, right, left, env))
-            }
+            ElabExprNode::Binary {
+                op: crate::mir::MirBinaryOp::Add,
+                left,
+                right,
+            } => self
+                .counter_increment_value(target_name, left, right, env)
+                .or_else(|| self.counter_increment_value(target_name, right, left, env)),
             _ => None,
         }
     }
