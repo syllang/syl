@@ -690,17 +690,17 @@ impl Parser {
         self.block_context
     }
 
-    fn declare_mutable_local(&mut self, name: &str) {
-        if let Some(scope) = self.mutable_local_scopes.last_mut() {
-            scope.insert(name.to_owned());
-        }
-    }
-
     fn is_mutable_local(&self, name: &str) -> bool {
         self.mutable_local_scopes
             .iter()
             .rev()
             .any(|scope| scope.contains(name))
+    }
+
+    fn declare_mutable_local(&mut self, name: &str) {
+        if let Some(scope) = self.mutable_local_scopes.last_mut() {
+            scope.insert(name.to_owned());
+        }
     }
 
     fn prev_span(&self) -> Span {
