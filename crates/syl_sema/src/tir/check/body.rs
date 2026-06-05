@@ -358,16 +358,30 @@ impl TypePhaseChecker {
                 self.record_decl_local_type(name, Some(local_id), span, explicit_ty),
             );
         }
-        let scalar_kind = if let Some(ty) = ty {
-            self.mir_type_kind(ty)
-        } else {
-            value.and_then(|expr| env.expr_kind(expr, self))
-        };
-        let struct_def = if ty.is_some() {
-            None
-        } else {
-            value.and_then(|expr| env.struct_def_for_expr(expr, self))
-        };
+        if let Some(explicit_ty) = explicit_ty.clone()
+            && let Some(value) = value
+        {
+            Self::record_recoverable(errors, self.record_expr_type(value, explicit_ty));
+        }
+        let scalar_kind = explicit_ty
+            .as_ref()
+            .and_then(tir_const_kind_for_type)
+            .or_else(|| {
+                explicit_ty
+                    .is_none()
+                    .then(|| value.and_then(|expr| env.expr_kind(expr, self)))
+                    .flatten()
+            });
+        let struct_def = explicit_ty
+            .as_ref()
+            .and_then(TirType::definition)
+            .filter(|def| self.hir().structs.contains_key(def))
+            .or_else(|| {
+                explicit_ty
+                    .is_none()
+                    .then(|| value.and_then(|expr| env.struct_def_for_expr(expr, self)))
+                    .flatten()
+            });
         if scalar_kind.is_none() && struct_def.is_none() {
             errors.push(CompileError::lowering_at(
                 TirError::InvalidElaborationExpression,
@@ -875,5 +889,13 @@ fn tir_type_for_const_kind(kind: TirConstKind) -> TirType {
     match kind {
         TirConstKind::Nat => TirType::Nat,
         TirConstKind::Bool => TirType::Bool,
+    }
+}
+
+fn tir_const_kind_for_type(ty: &TirType) -> Option<TirConstKind> {
+    match ty {
+        TirType::Nat => Some(TirConstKind::Nat),
+        TirType::Bool => Some(TirConstKind::Bool),
+        _ => None,
     }
 }

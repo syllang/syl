@@ -428,6 +428,49 @@ cell Top(a: in Bit, b: in Bit, y: out Bit) {
 }
 
 #[test]
+fn explicit_struct_typed_mutable_local_stays_on_software_path() {
+    let output = StaticFactHarness::new()
+        .compile_output(
+            r#"
+struct Config {
+    enabled: bool,
+}
+
+cell Top(a: in Bit, b: in Bit, y: out Bit) {
+    var cfg: Config = Config { enabled: false }
+    cfg.enabled = true
+
+    if cfg.enabled {
+        y := b
+    } else {
+        y := a
+    }
+}
+"#,
+        )
+        .expect("explicitly typed software struct mutable local must support field mutation and later reads");
+    let metadata = output
+        .metadata()
+        .unwrap_or_else(|| {
+            panic!(
+                "successful elaboration must expose hardware metadata: output={output:?}, diagnostics={:?}",
+                output.diagnostics()
+            )
+        });
+
+    let top_reads = metadata
+        .read_facts()
+        .iter()
+        .filter(|fact| fact.module() == "Top")
+        .map(|fact| fact.source_place().display())
+        .collect::<Vec<_>>();
+
+    assert!(top_reads.iter().any(|read| read == "b"));
+    assert!(!top_reads.iter().any(|read| read == "a"));
+    assert!(!top_reads.iter().any(|read| read.contains("cfg")));
+}
+
+#[test]
 fn software_struct_field_assign_updates_later_whole_value_uses() {
     let output = StaticFactHarness::new()
         .compile_output(
