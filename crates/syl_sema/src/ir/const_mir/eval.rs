@@ -3,8 +3,8 @@ use crate::{
     ir::{
         const_mir::{
             ConstExpr, ConstExprKind, ConstFunction, ConstFunctionStore, ConstKind,
-            ConstMirProgram, ConstStmt, ConstStructFieldValue, ConstStructKind,
-            ConstStructValue, ConstTypeOracle, ConstValue, Terminator,
+            ConstMirProgram, ConstStmt, ConstStructFieldValue, ConstStructKind, ConstStructValue,
+            ConstTypeOracle, ConstValue, Terminator,
         },
         mir::{MirBinaryOp, MirTypeRef, MirUnaryOp},
     },
@@ -333,8 +333,8 @@ impl<'program> ConstEvaluator<'program> {
             ConstExprKind::Unknown(kind) => Ok(ConstValue::Unknown(*kind)),
             ConstExprKind::Nat(value) => Ok(ConstValue::Nat(*value)),
             ConstExprKind::Bool(value) => Ok(ConstValue::Bool(*value)),
-            ConstExprKind::Aggregate { kind, fields } => Ok(ConstValue::Struct(
-                ConstStructValue::new(
+            ConstExprKind::Aggregate { kind, fields } => {
+                Ok(ConstValue::Struct(ConstStructValue::new(
                     *kind,
                     fields
                         .iter()
@@ -344,8 +344,8 @@ impl<'program> ConstEvaluator<'program> {
                             })
                         })
                         .collect::<Result<Vec<_>, _>>()?,
-                ),
-            )),
+                )))
+            }
             ConstExprKind::Field { base, field } => {
                 let base_value = self.mir_expr_value(base, env)?;
                 self.field_value(base_value, field, expr.span())
@@ -482,12 +482,7 @@ impl<'program> ConstEvaluator<'program> {
         }
     }
 
-    fn unknown_field_error(
-        &self,
-        kind: ConstStructKind,
-        field: &str,
-        span: Span,
-    ) -> CompileError {
+    fn unknown_field_error(&self, kind: ConstStructKind, field: &str, span: Span) -> CompileError {
         let ty = self
             .program_layout
             .and_then(|program| program.struct_def(kind.def()))

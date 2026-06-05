@@ -4,8 +4,8 @@ use strum_macros::IntoStaticStr;
 use syl_span::Span;
 use syl_syntax::{
     BundleItem, ConstItem, DriveCapability, EnumItem, EnumLayout as SyntaxEnumLayout,
-    ExternCellItem, FieldDecl, FnItem, GenericParam, InterfaceItem, MapItem, Param,
-    ParamDirection, PortDecl, StructItem, TypeExpr, ViewDirection,
+    ExternCellItem, FieldDecl, FnItem, GenericParam, InterfaceItem, MapItem, Param, ParamDirection,
+    PortDecl, StructItem, TypeExpr, ViewDirection,
 };
 
 mod summary;
