@@ -24,17 +24,23 @@ pub(super) struct TirConstEnv {
     bindings: BTreeMap<LocalId, TirConstBinding>,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 struct TirConstBinding {
-    kind: TirConstKind,
+    kind: TirConstBindingKind,
     value: Option<TirConstValue>,
     mutable: bool,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum TirConstBindingKind {
+    Scalar(TirConstKind),
+    Struct(DefId),
 }
 
 impl TirConstBinding {
     fn immutable(kind: TirConstKind, value: Option<TirConstValue>) -> Self {
         Self {
-            kind,
+            kind: TirConstBindingKind::Scalar(kind),
             value,
             mutable: false,
         }
@@ -42,17 +48,32 @@ impl TirConstBinding {
 
     fn mutable(kind: TirConstKind, value: Option<TirConstValue>) -> Self {
         Self {
-            kind,
+            kind: TirConstBindingKind::Scalar(kind),
+            value,
+            mutable: true,
+        }
+    }
+
+    fn mutable_struct(def: DefId, value: Option<TirConstValue>) -> Self {
+        Self {
+            kind: TirConstBindingKind::Struct(def),
             value,
             mutable: true,
         }
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub(super) enum TirConstValue {
     Nat(u64),
     Bool(bool),
+    Struct(TirConstStructValue),
+}
+
+#[derive(Clone, PartialEq, Eq)]
+pub(super) struct TirConstStructValue {
+    def: DefId,
+    fields: BTreeMap<String, TirConstValue>,
 }
 
 impl TirConstEnv {
@@ -101,6 +122,18 @@ impl TirConstEnv {
         env
     }
 
+    pub(super) fn with_mutable_struct_local(
+        &self,
+        id: LocalId,
+        def: DefId,
+        value: Option<TirConstValue>,
+    ) -> Self {
+        let mut env = self.clone();
+        env.bindings
+            .insert(id, TirConstBinding::mutable_struct(def, value));
+        env
+    }
+
     pub(super) fn assign_local(
         &self,
         id: LocalId,
@@ -116,11 +149,21 @@ impl TirConstEnv {
     }
 
     pub(super) fn kind_for_local(&self, id: LocalId) -> Option<TirConstKind> {
-        self.bindings.get(&id).map(|binding| binding.kind)
+        match self.bindings.get(&id)?.kind {
+            TirConstBindingKind::Scalar(kind) => Some(kind),
+            TirConstBindingKind::Struct(_) => None,
+        }
     }
 
     pub(super) fn is_mutable_local(&self, id: LocalId) -> bool {
         self.bindings.get(&id).is_some_and(|binding| binding.mutable)
+    }
+
+    pub(super) fn struct_def_for_local(&self, id: LocalId) -> Option<DefId> {
+        match self.bindings.get(&id)?.kind {
+            TirConstBindingKind::Struct(def) => Some(def),
+            TirConstBindingKind::Scalar(_) => None,
+        }
     }
 
     pub(super) fn apply_visible_mutations_from(&self, nested: &Self) -> Self {
@@ -130,7 +173,7 @@ impl TirConstEnv {
                 continue;
             }
             if let Some(updated) = nested.bindings.get(id) {
-                binding.value = updated.value;
+                binding.value = updated.value.clone();
             }
         }
         env
@@ -143,7 +186,11 @@ impl TirConstEnv {
                 continue;
             }
             if let Some(updated) = nested.bindings.get(id) {
-                binding.value = (updated.value == binding.value).then_some(updated.value).flatten();
+                binding.value = match (&updated.value, &binding.value) {
+                    (Some(updated), Some(current)) if updated == current => Some(updated.clone()),
+                    (None, None) => None,
+                    _ => None,
+                };
             }
         }
         env
@@ -155,8 +202,8 @@ impl TirConstEnv {
             if !binding.mutable {
                 continue;
             }
-            let then_value = then_env.bindings.get(id).map(|entry| entry.value);
-            let else_value = else_env.bindings.get(id).map(|entry| entry.value);
+            let then_value = then_env.bindings.get(id).map(|entry| entry.value.clone());
+            let else_value = else_env.bindings.get(id).map(|entry| entry.value.clone());
             binding.value = if then_value == else_value {
                 then_value.flatten()
             } else {
@@ -174,14 +221,23 @@ impl TirConstEnv {
         match &expr.node {
             HirExprNode::Ident(_) => self
                 .local_binding(expr, checker)
-                .map(|binding| binding.kind)
+                .and_then(|binding| match binding.kind {
+                    TirConstBindingKind::Scalar(kind) => Some(kind),
+                    TirConstBindingKind::Struct(_) => None,
+                })
                 .or_else(|| self.const_kind(expr, checker)),
             HirExprNode::Int(_) => Some(TirConstKind::Nat),
             HirExprNode::Bool(_) => Some(TirConstKind::Bool),
             HirExprNode::Group(inner) => self.expr_kind(inner, checker),
+            HirExprNode::Aggregate { .. } => None,
             HirExprNode::Field { base, field } => self
-                .field_value_expr(base, field, checker)
-                .and_then(|value| self.expr_kind(value, checker)),
+                .const_struct_value(base, checker)
+                .and_then(|value| value.field_value(field))
+                .and_then(|value| value.scalar_kind())
+                .or_else(|| {
+                    self.field_value_expr(base, field, checker)
+                        .and_then(|value| self.expr_kind(value, checker))
+                }),
             HirExprNode::Unary { op, expr } => {
                 let kind = self.expr_kind(expr, checker)?;
                 match (op, kind) {
@@ -199,7 +255,6 @@ impl TirConstEnv {
             | HirExprNode::Index { .. }
             | HirExprNode::Place { .. }
             | HirExprNode::For { .. }
-            | HirExprNode::Aggregate { .. }
             | HirExprNode::Match { .. }
             | HirExprNode::Select { .. }
             | HirExprNode::CompileError { .. }
@@ -220,7 +275,7 @@ impl TirConstEnv {
                 if let Some(binding) = self.local_binding(expr, checker) {
                     return match binding.value {
                         Some(TirConstValue::Bool(value)) => Some(value),
-                        Some(TirConstValue::Nat(_)) | None => self
+                        Some(TirConstValue::Struct(_)) | Some(TirConstValue::Nat(_)) | None => self
                             .const_item(expr, checker)
                             .and_then(|item| self.const_bool_value(&item.value, checker)),
                     };
@@ -230,8 +285,12 @@ impl TirConstEnv {
             }
             HirExprNode::Group(expr) => self.const_bool_value(expr, checker),
             HirExprNode::Field { base, field } => self
-                .field_value_expr(base, field, checker)
-                .and_then(|value| self.const_bool_value(value, checker)),
+                .const_struct_value(base, checker)
+                .and_then(|value| value.field_bool(field))
+                .or_else(|| {
+                    self.field_value_expr(base, field, checker)
+                        .and_then(|value| self.const_bool_value(value, checker))
+                }),
             HirExprNode::Unary {
                 op: syl_syntax::UnaryOp::Not,
                 expr,
@@ -324,7 +383,7 @@ impl TirConstEnv {
                 if let Some(binding) = self.local_binding(expr, checker) {
                     return match binding.value {
                         Some(TirConstValue::Nat(value)) => Some(value),
-                        Some(TirConstValue::Bool(_)) | None => self
+                        Some(TirConstValue::Struct(_)) | Some(TirConstValue::Bool(_)) | None => self
                             .const_item(expr, checker)
                             .and_then(|item| self.const_nat_value(&item.value, checker)),
                     };
@@ -334,8 +393,12 @@ impl TirConstEnv {
             }
             HirExprNode::Group(expr) => self.const_nat_value(expr, checker),
             HirExprNode::Field { base, field } => self
-                .field_value_expr(base, field, checker)
-                .and_then(|value| self.const_nat_value(value, checker)),
+                .const_struct_value(base, checker)
+                .and_then(|value| value.field_nat(field))
+                .or_else(|| {
+                    self.field_value_expr(base, field, checker)
+                        .and_then(|value| self.const_nat_value(value, checker))
+                }),
             HirExprNode::Binary {
                 op, left, right, ..
             } => {
@@ -417,13 +480,9 @@ impl TirConstEnv {
     ) -> Option<&'a HirBodyExpr> {
         match &base.node {
             HirExprNode::Group(inner) => self.field_value_expr(inner, field, checker),
-            HirExprNode::Ident(_) => {
-                if self.local_binding(base, checker).is_some() {
-                    return None;
-                }
-                self.const_item(base, checker)
-                    .and_then(|item| self.field_value_expr(&item.value, field, checker))
-            }
+            HirExprNode::Ident(_) => self
+                .const_item(base, checker)
+                .and_then(|item| self.field_value_expr(&item.value, field, checker)),
             HirExprNode::Aggregate { fields, .. } => fields
                 .iter()
                 .find(|named| named.name == field)
@@ -432,6 +491,66 @@ impl TirConstEnv {
                 let value = self.field_value_expr(base, inner, checker)?;
                 self.field_value_expr(value, field, checker)
             }
+            _ => None,
+        }
+    }
+
+    pub(super) fn assign_field(
+        &self,
+        id: LocalId,
+        field: &str,
+        value: Option<TirConstValue>,
+    ) -> Option<Self> {
+        let mut env = self.clone();
+        let binding = env.bindings.get_mut(&id)?;
+        if !binding.mutable {
+            return None;
+        }
+        let TirConstBindingKind::Struct(def) = binding.kind else {
+            return None;
+        };
+        let struct_value = match binding.value.take() {
+            Some(TirConstValue::Struct(current)) if current.def == def => current,
+            _ => TirConstStructValue::new(def),
+        };
+        let updated = struct_value.with_field(field, value?);
+        binding.value = Some(TirConstValue::Struct(updated));
+        Some(env)
+    }
+
+    fn const_struct_value(
+        &self,
+        expr: &HirBodyExpr,
+        checker: &TypePhaseChecker,
+    ) -> Option<TirConstStructValue> {
+        match &expr.node {
+            HirExprNode::Ident(_) => {
+                if let Some(binding) = self.local_binding(expr, checker) {
+                    return match &binding.value {
+                        Some(TirConstValue::Struct(value)) => Some(value.clone()),
+                        _ => self
+                            .const_item(expr, checker)
+                            .and_then(|item| self.const_struct_value(&item.value, checker)),
+                    };
+                }
+                self.const_item(expr, checker)
+                    .and_then(|item| self.const_struct_value(&item.value, checker))
+            }
+            HirExprNode::Group(expr) => self.const_struct_value(expr, checker),
+            HirExprNode::Aggregate { fields, .. } => {
+                let def = self.struct_def_for_expr(expr, checker)?;
+                let mut out = TirConstStructValue::new(def);
+                for field in fields {
+                    let field_expr = self.field_value_expr(expr, &field.name, checker)?;
+                    let field_kind = self.expr_kind(field_expr, checker)?;
+                    let field_value = self.value_for_kind(field_kind, field_expr, checker)?;
+                    out = out.with_field(&field.name, field_value);
+                }
+                Some(out)
+            }
+            HirExprNode::Field { base, field } => self
+                .const_struct_value(base, checker)?
+                .field_struct(field),
             _ => None,
         }
     }
@@ -455,6 +574,43 @@ impl TirConstEnv {
             TirConstKind::Bool => self
                 .const_bool_value(expr, checker)
                 .map(TirConstValue::Bool),
+        }
+    }
+
+    pub(super) fn struct_value_for_expr(
+        &self,
+        expr: &HirBodyExpr,
+        checker: &TypePhaseChecker,
+    ) -> Option<TirConstValue> {
+        self.const_struct_value(expr, checker).map(TirConstValue::Struct)
+    }
+
+    pub(super) fn struct_def_for_expr(
+        &self,
+        expr: &HirBodyExpr,
+        checker: &TypePhaseChecker,
+    ) -> Option<DefId> {
+        match &expr.node {
+            HirExprNode::Aggregate { ty, .. } => checker
+                .current_owner
+                .and_then(|owner| checker.type_from_mir_type_ref(owner, ty).ok())
+                .and_then(|ty| ty.definition())
+                .filter(|def| checker.hir().structs.contains_key(def)),
+            HirExprNode::Group(inner) => self.struct_def_for_expr(inner, checker),
+            HirExprNode::Ident(_) => self
+                .local_binding(expr, checker)
+                .and_then(|binding| match binding.kind {
+                    TirConstBindingKind::Struct(def) => Some(def),
+                    TirConstBindingKind::Scalar(_) => None,
+                })
+                .or_else(|| {
+                    self.const_item(expr, checker)
+                        .and_then(|item| self.struct_def_for_expr(&item.value, checker))
+                }),
+            _ => checker
+                .current_owner
+                .and_then(|owner| checker.infer_expr_type(owner, expr).definition())
+                .filter(|def| checker.hir().structs.contains_key(def)),
         }
     }
 
@@ -507,6 +663,55 @@ impl TirConstEnv {
                 }
                 _ => return None,
             }
+        }
+    }
+}
+
+impl TirConstStructValue {
+    fn new(def: DefId) -> Self {
+        Self {
+            def,
+            fields: BTreeMap::new(),
+        }
+    }
+
+    fn with_field(mut self, field: &str, value: TirConstValue) -> Self {
+        self.fields.insert(field.to_string(), value);
+        self
+    }
+
+    fn field_value(&self, field: &str) -> Option<TirConstValue> {
+        self.fields.get(field).cloned()
+    }
+
+    fn field_nat(&self, field: &str) -> Option<u64> {
+        match self.fields.get(field) {
+            Some(TirConstValue::Nat(value)) => Some(*value),
+            _ => None,
+        }
+    }
+
+    fn field_bool(&self, field: &str) -> Option<bool> {
+        match self.fields.get(field) {
+            Some(TirConstValue::Bool(value)) => Some(*value),
+            _ => None,
+        }
+    }
+
+    fn field_struct(&self, field: &str) -> Option<Self> {
+        match self.fields.get(field) {
+            Some(TirConstValue::Struct(value)) => Some(value.clone()),
+            _ => None,
+        }
+    }
+}
+
+impl TirConstValue {
+    fn scalar_kind(&self) -> Option<TirConstKind> {
+        match self {
+            Self::Nat(_) => Some(TirConstKind::Nat),
+            Self::Bool(_) => Some(TirConstKind::Bool),
+            Self::Struct(_) => None,
         }
     }
 }
