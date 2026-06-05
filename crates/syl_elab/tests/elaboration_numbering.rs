@@ -60,7 +60,9 @@ cell Top<COND: bool>(y: out Bit) {
  "#,
         "X",
     )
-    .expect("unknown mutable nat generic actual should remain conservative instead of concretizing");
+    .expect(
+        "unknown mutable nat generic actual should remain conservative instead of concretizing",
+    );
 
     assert_eq!(
         values,

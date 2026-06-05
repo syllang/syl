@@ -20,8 +20,7 @@ use software_locals::BindVarRequest;
 use syl_span::Span;
 
 use super::{
-    EirBuilder, Env, NumberingValue, connections::InstanceEmitRequest,
-    connections::ViewSignalSpec,
+    EirBuilder, Env, NumberingValue, connections::InstanceEmitRequest, connections::ViewSignalSpec,
 };
 
 impl<'a, C> EirBuilder<'a, C>
@@ -741,11 +740,7 @@ where
         })
     }
 
-    fn numbering_value_for_const_expr(
-        &self,
-        expr: &ElabExpr,
-        env: &Env,
-    ) -> Option<NumberingValue> {
+    fn numbering_value_for_const_expr(&self, expr: &ElabExpr, env: &Env) -> Option<NumberingValue> {
         match &expr.node {
             ElabExprNode::Ident(name) => env.var(name)?.numbering_value,
             ElabExprNode::Group(inner) => self.numbering_value_for_const_expr(inner, env),

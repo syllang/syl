@@ -40,12 +40,7 @@ where
         let mut items = Vec::new();
         if let Some(result_ty) = self.callable_result_type_from_elab(callee, env) {
             let mut signal_env = env.clone();
-            items.extend(self.emit_result_signals(
-                inst_name,
-                &result_ty,
-                span,
-                &mut signal_env,
-            ));
+            items.extend(self.emit_result_signals(inst_name, &result_ty, span, &mut signal_env));
         }
         items.extend(self.emit_instance(InstanceEmitRequest {
             inst_name,
