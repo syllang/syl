@@ -537,9 +537,9 @@ where
         expr: &ElabExpr,
         env: &mut Env,
         compile_error_as_sv: bool,
-        allow_assert_builtin: bool,
+        allow_stmt_builtins: bool,
     ) -> Result<Vec<EirItem>, CompileError> {
-        if let Some(items) = self.try_emit_assert_stmt(expr, env, allow_assert_builtin)? {
+        if let Some(items) = self.try_emit_assert_stmt(expr, env, allow_stmt_builtins)? {
             return Ok(items);
         }
         if let ElabExprNode::Place {
@@ -558,8 +558,17 @@ where
                 env,
             );
         }
+        if let Some(args) = self.runtime_error_stmt_args(expr, env) {
+            if !allow_stmt_builtins {
+                return Err(CompileError::lowering_at(
+                    EirError::RuntimeErrorStatementOnly,
+                    expr.span(),
+                ));
+            }
+            return self.emit_runtime_error_stmt(expr, args, env);
+        }
         if let Some(args) = self.assertion_stmt_args(expr, env) {
-            if !allow_assert_builtin {
+            if !allow_stmt_builtins {
                 return Err(CompileError::lowering_at(
                     EirError::AssertionStatementOnly,
                     expr.span(),
@@ -583,6 +592,24 @@ where
             EirError::InvalidElaborationExpression,
             expr.span(),
         ))
+    }
+
+    fn emit_runtime_error_stmt(
+        &self,
+        expr: &ElabExpr,
+        args: &[ElabCallArg],
+        env: &Env,
+    ) -> Result<Vec<EirItem>, CompileError> {
+        if args.len() != 1 || args[0].name.is_some() {
+            return Err(CompileError::lowering_at(
+                EirError::RuntimeErrorRequiresSingleMessage,
+                expr.span(),
+            ));
+        }
+        Ok(vec![EirItem::InitialError {
+            message: self.elab_expr(&args[0].value, env),
+            origin: env.origin(expr.span()),
+        }])
     }
 
     fn emit_assert_stmt(
@@ -631,7 +658,24 @@ where
         failed
     }
 
+    fn runtime_error_stmt_args<'b>(
+        &self,
+        expr: &'b ElabExpr,
+        env: &Env,
+    ) -> Option<&'b [ElabCallArg]> {
+        self.builtin_stmt_args(expr, env, "error")
+    }
+
     fn assertion_stmt_args<'b>(&self, expr: &'b ElabExpr, env: &Env) -> Option<&'b [ElabCallArg]> {
+        self.builtin_stmt_args(expr, env, "assert")
+    }
+
+    fn builtin_stmt_args<'b>(
+        &self,
+        expr: &'b ElabExpr,
+        env: &Env,
+        builtin_name: &str,
+    ) -> Option<&'b [ElabCallArg]> {
         let ElabExprNode::Call { callee, args } = &expr.node else {
             return None;
         };
@@ -647,7 +691,7 @@ where
         let ElabExprNode::Ident(name) = &root.node else {
             return None;
         };
-        (name == "assert").then_some(args.as_slice())
+        (name == builtin_name).then_some(args.as_slice())
     }
 
     fn emit_drive(

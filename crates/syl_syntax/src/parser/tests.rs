@@ -81,6 +81,20 @@ fn parses_field_access_as_a_field_expression() {
 }
 
 #[test]
+fn error_call_remains_an_ordinary_call_expression() {
+    let expr = SourceParser::new("error(x)").parse_expr().unwrap();
+
+    match expr {
+        Expr::Call { callee, args, .. } => {
+            assert!(matches!(*callee, Expr::Ident(name, _) if name == "error"));
+            assert_eq!(args.len(), 1);
+            assert!(matches!(&args[0].value, Expr::Ident(name, _) if name == "x"));
+        }
+        other => panic!("unexpected expr: {other:?}"),
+    }
+}
+
+#[test]
 fn parse_output_new_builds_a_usable_node_index() {
     let span = Span::new(3, 9);
     let file = AstFile::new(vec![Item::Error(ErrorItem::new(span))]);
