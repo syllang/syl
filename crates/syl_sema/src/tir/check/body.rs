@@ -352,15 +352,28 @@ impl TypePhaseChecker {
         expr: &HirBodyExpr,
         mode: HardwareBlockMode,
         errors: &mut Vec<CompileError>,
-        allow_assert_builtin: bool,
+        allow_stmt_builtins: bool,
     ) -> Result<(), CompileError> {
         if matches!(&expr.node, HirExprNode::CompileError { .. })
             && mode == HardwareBlockMode::Control
         {
             return Ok(());
         }
+        if let HirExprNode::Place { callee, args, .. } = &expr.node {
+            return self.check_hardware_place_expr(callee, args, errors);
+        }
+        if self.is_runtime_error_builtin_call(expr) {
+            if !allow_stmt_builtins {
+                errors.push(CompileError::lowering_at(
+                    EirError::RuntimeErrorStatementOnly,
+                    expr.span(),
+                ));
+                return Ok(());
+            }
+            return self.check_runtime_error_stmt_expr(expr, errors);
+        }
         if self.is_assert_builtin_call(expr) {
-            if !allow_assert_builtin {
+            if !allow_stmt_builtins {
                 errors.push(CompileError::lowering_at(
                     EirError::AssertionStatementOnly,
                     expr.span(),
@@ -369,14 +382,21 @@ impl TypePhaseChecker {
             }
             return self.check_assert_stmt_expr(expr, errors);
         }
-        if let HirExprNode::Place { callee, args, .. } = &expr.node {
-            return self.check_hardware_place_expr(callee, args, errors);
-        }
         self.check_hardware_value_expr(expr, errors)
     }
 
     fn is_runtime_error_stmt_expr(expr: &HirBodyExpr) -> bool {
         matches!(&expr.node, HirExprNode::CompileError { .. })
+    }
+
+    fn is_runtime_error_builtin_call(&self, expr: &HirBodyExpr) -> bool {
+        let HirExprNode::Call { callee, .. } = &expr.node else {
+            return false;
+        };
+        matches!(
+            BuiltinResolver::new(&self.hir, self.current_owner).resolve_call_callee(callee),
+            Some(BuiltinIntrinsic::Error)
+        )
     }
 
     fn is_assert_builtin_call(&self, expr: &HirBodyExpr) -> bool {
@@ -387,6 +407,27 @@ impl TypePhaseChecker {
             BuiltinResolver::new(&self.hir, self.current_owner).resolve_call_callee(callee),
             Some(BuiltinIntrinsic::Assert)
         )
+    }
+
+    fn check_runtime_error_stmt_expr(
+        &mut self,
+        expr: &HirBodyExpr,
+        errors: &mut Vec<CompileError>,
+    ) -> Result<(), CompileError> {
+        let HirExprNode::Call { args, .. } = &expr.node else {
+            return Ok(());
+        };
+        if args.len() != 1 || args[0].name.is_some() {
+            errors.push(CompileError::lowering_at(
+                EirError::RuntimeErrorRequiresSingleMessage,
+                expr.span(),
+            ));
+            for arg in args {
+                self.check_hardware_value_expr(&arg.value, errors)?;
+            }
+            return Ok(());
+        }
+        self.check_hardware_value_expr(&args[0].value, errors)
     }
 
     fn check_assert_stmt_expr(
