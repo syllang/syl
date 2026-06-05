@@ -179,7 +179,7 @@ cell Bad<N: nat>(y: out Bit) {
         )
         .expect_err("a symbolic loop drive must not prove scalar output coverage");
 
-    assert!(err.contains("out y is not driven"));
+    assert!(err.contains("for range end requires nat expression"));
 }
 
 #[test]
