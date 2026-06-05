@@ -279,7 +279,7 @@ where
             .unwrap_or_else(|| MirTypeRef::path_type(vec!["nat".to_string()], request.span));
         let physical_name = env.local_name(request.name);
         let regular_value = self.elab_const_value(request.value, env)?;
-        let numbering_value = self.numbering_value_for_const_expr(request.value, env);
+        let numbering_value = Self::numbering_value_for_const_expr(request.value, env);
         let effective_value = match (&regular_value, numbering_value) {
             (ConstValue::Unknown(_), Some(numbering)) => ConstValue::Nat(numbering.value()),
             _ => regular_value.clone(),
@@ -740,10 +740,10 @@ where
         })
     }
 
-    fn numbering_value_for_const_expr(&self, expr: &ElabExpr, env: &Env) -> Option<NumberingValue> {
+    fn numbering_value_for_const_expr(expr: &ElabExpr, env: &Env) -> Option<NumberingValue> {
         match &expr.node {
             ElabExprNode::Ident(name) => env.var(name)?.numbering_value,
-            ElabExprNode::Group(inner) => self.numbering_value_for_const_expr(inner, env),
+            ElabExprNode::Group(inner) => Self::numbering_value_for_const_expr(inner, env),
             _ => None,
         }
     }
