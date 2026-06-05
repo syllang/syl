@@ -1,6 +1,6 @@
 use crate::lexer::{Lexer, LosslessLexer, Token, TokenKind};
 use crate::*;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use syl_span::{Diagnostic, SourceId, Span};
 
 mod doc;
@@ -117,6 +117,7 @@ pub struct Parser {
     pos: usize,
     eof_span: Span,
     block_context: BlockContext,
+    mutable_local_scopes: Vec<HashSet<String>>,
     doc_comments: HashMap<usize, doc::CollectedDoc>,
     module_doc: Option<String>,
     diagnostics: Vec<Diagnostic>,
@@ -166,6 +167,7 @@ impl Parser {
             pos: 0,
             eof_span,
             block_context: BlockContext::Function,
+            mutable_local_scopes: Vec::new(),
             doc_comments,
             module_doc,
             diagnostics: Vec::new(),
@@ -468,6 +470,7 @@ impl Parser {
     fn parse_block(&mut self, context: BlockContext) -> Result<Block, Vec<Diagnostic>> {
         let previous_context = self.block_context;
         self.block_context = context;
+        self.mutable_local_scopes.push(HashSet::new());
         let result = (|| {
             let start = self.expect(TokenKind::LBrace)?.span;
             let mut stmts = Vec::new();
@@ -496,6 +499,7 @@ impl Parser {
             };
             Ok(Block::new(stmts, tail, start.join(end)))
         })();
+        let _ = self.mutable_local_scopes.pop();
         self.block_context = previous_context;
         result
     }
@@ -684,6 +688,19 @@ impl Parser {
 
     fn block_context(&self) -> BlockContext {
         self.block_context
+    }
+
+    fn declare_mutable_local(&mut self, name: &str) {
+        if let Some(scope) = self.mutable_local_scopes.last_mut() {
+            scope.insert(name.to_owned());
+        }
+    }
+
+    fn is_mutable_local(&self, name: &str) -> bool {
+        self.mutable_local_scopes
+            .iter()
+            .rev()
+            .any(|scope| scope.contains(name))
     }
 
     fn prev_span(&self) -> Span {
