@@ -250,7 +250,7 @@ fn software_mutable_local_controls_elaboration_read_selection() {
         .compile_output(
             r#"
 cell Top(a: in Bit, b: in Bit, y: out Bit) {
-    var choose_b: Bool = false
+    var choose_b: bool = false
     choose_b = true
 
     if choose_b {

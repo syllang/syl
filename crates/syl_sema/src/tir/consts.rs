@@ -417,8 +417,8 @@ impl TirConstEnv {
     ) -> Option<&'a HirBodyExpr> {
         match &base.node {
             HirExprNode::Group(inner) => self.field_value_expr(inner, field, checker),
-            HirExprNode::Ident(name) => {
-                if self.bindings.contains_key(name) {
+            HirExprNode::Ident(_) => {
+                if self.local_binding(base, checker).is_some() {
                     return None;
                 }
                 self.const_item(base, checker)
