@@ -222,11 +222,20 @@ impl<'a> CapabilityChecker<'a> {
                     loop_scope.insert(self.local_id(name, *id, *span)?, FieldCaps::read_only());
                     self.check_block(owner, body, &loop_scope)?;
                 }
-                HirStmt::Const { value, .. } => {
+                HirStmt::Const {
+                    id,
+                    name,
+                    value,
+                    span,
+                    ..
+                } => {
+                    scope.insert(self.local_id(name, *id, *span)?, FieldCaps::read_only());
                     self.check_read_expr(owner, value, &scope)?;
                 }
-                HirStmt::Var { .. }
-                | HirStmt::Let { value: None, .. }
+                HirStmt::Var { id, name, span, .. } => {
+                    scope.insert(self.local_id(name, *id, *span)?, FieldCaps::read_only());
+                }
+                HirStmt::Let { value: None, .. }
                 | HirStmt::While { .. }
                 | HirStmt::Return(_, _)
                 | HirStmt::Error { .. } => {}

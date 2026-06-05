@@ -222,6 +222,20 @@ impl TypePhaseChecker {
         Ok(())
     }
 
+    pub(in crate::tir) fn check_hardware_place_expr(
+        &mut self,
+        callee: &HirBodyExpr,
+        args: &[HirCallArg],
+        errors: &mut Vec<CompileError>,
+    ) -> Result<(), CompileError> {
+        self.check_generator_args(args, errors)?;
+        if self.hardware_generator_name(callee).is_some() {
+            Self::record_recoverable(errors, self.record_phase(callee, Phase::Hardware));
+            return Ok(());
+        }
+        self.check_hardware_value_call(callee, args, errors)
+    }
+
     fn check_map_call(
         &mut self,
         callee: &HirBodyExpr,

@@ -1,9 +1,11 @@
 pub(crate) mod for_emit;
+pub(crate) mod place_emit;
 pub(crate) mod request;
 mod software_locals;
 
 pub(crate) use request::{
-    AggregateAssignEmit, ConstEmit, ForEmit, IfEmit, LetPlaceEmit, RegEmit, SignalEmit,
+    AggregateAssignEmit, ConstEmit, ExprPlaceEmit, ForEmit, IfEmit, LetPlaceEmit, RegEmit,
+    SignalEmit,
 };
 
 use crate::{
@@ -271,17 +273,23 @@ where
             .ty
             .unwrap_or_else(|| MirTypeRef::path_type(vec!["nat".to_string()], request.span));
         let physical_name = env.local_name(request.name);
-        let code = match self.elab_const_value(request.value, env)? {
-            ConstValue::Nat(value) => EirExpr::Int(value),
-            ConstValue::Bool(value) => EirExpr::Bool(value),
+        let regular_value = self.elab_const_value(request.value, env)?;
+        let summarized_value = self.elab_summary_const_value(request.value, env).ok();
+        let effective_value = match (&regular_value, summarized_value.as_ref()) {
+            (ConstValue::Unknown(_), Some(ConstValue::Nat(value))) => ConstValue::Nat(*value),
+            (ConstValue::Unknown(_), Some(ConstValue::Bool(value))) => ConstValue::Bool(*value),
+            _ => regular_value.clone(),
+        };
+        let code = match &effective_value {
+            ConstValue::Nat(value) => EirExpr::Int(*value),
+            ConstValue::Bool(value) => EirExpr::Bool(*value),
             ConstValue::Unknown(_) => EirExpr::ident(&physical_name),
             _ => EirExpr::unsupported("unsupported const value"),
         };
-        env.insert(request.name, code, ty);
-        if matches!(
-            self.elab_const_value(request.value, env)?,
-            ConstValue::Unknown(_)
-        ) {
+        env.insert_with_summary(request.name, code, ty, summarized_value);
+        if matches!(regular_value, ConstValue::Unknown(_))
+            && !matches!(effective_value, ConstValue::Nat(_) | ConstValue::Bool(_))
+        {
             Ok(vec![EirItem::StaticParam {
                 name: physical_name,
                 value: self.elab_expr(request.value, env),
@@ -636,9 +644,25 @@ where
     fn emit_expr_stmt(
         &self,
         expr: &ElabExpr,
-        env: &Env,
+        env: &mut Env,
         compile_error_as_sv: bool,
     ) -> Result<Vec<EirItem>, CompileError> {
+        if let ElabExprNode::Place {
+            callee,
+            args,
+            inplace,
+        } = &expr.node
+        {
+            return self.emit_expr_place(
+                ExprPlaceEmit {
+                    callee,
+                    args,
+                    inplace: *inplace,
+                    span: expr.span(),
+                },
+                env,
+            );
+        }
         if let ElabExprNode::CompileError { message } = &expr.node {
             if !compile_error_as_sv {
                 return Err(CompileError::lowering_at(
