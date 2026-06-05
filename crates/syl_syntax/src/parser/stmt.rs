@@ -121,6 +121,7 @@ impl Parser {
     pub(super) fn parse_var_stmt(&mut self) -> Result<Stmt, Vec<Diagnostic>> {
         let start = self.expect(TokenKind::KwVar)?.span;
         let name = self.expect_ident()?;
+        self.declare_mutable_local(&name);
         let ty = if self.consume(&TokenKind::Colon).is_some() {
             Some(self.parse_type_expr()?)
         } else {
@@ -264,9 +265,13 @@ impl Parser {
             self.error(self.eof_span(), "expected assignment operator");
             return Err(std::mem::take(&mut self.diagnostics));
         };
+        let is_hardware_mutable_local_assign =
+            context == BlockContext::Hardware && matches!(operator.kind, TokenKind::Eq)
+                && self.assignment_target_is_mutable_local(&target);
         let is_valid = match (context, operator.kind) {
             (BlockContext::Function, TokenKind::Eq) => true,
             (BlockContext::Hardware, TokenKind::ColonEq) => true,
+            _ if is_hardware_mutable_local_assign => true,
             (BlockContext::Function, TokenKind::ColonEq) => {
                 self.error(
                     operator.span,
@@ -301,11 +306,34 @@ impl Parser {
                 value,
                 span,
             }),
+            BlockContext::Hardware if is_hardware_mutable_local_assign => Ok(Stmt::Assign {
+                target,
+                value,
+                span,
+            }),
             BlockContext::Hardware => Ok(Stmt::Drive {
                 target,
                 value,
                 span,
             }),
+        }
+    }
+
+    fn assignment_target_is_mutable_local(&self, target: &Expr) -> bool {
+        self.assignment_target_root_ident(target)
+            .is_some_and(|name| self.is_mutable_local(name))
+    }
+
+    fn assignment_target_root_ident<'a>(&self, target: &'a Expr) -> Option<&'a str> {
+        let mut cursor = target;
+        loop {
+            match cursor {
+                Expr::Ident(name, _) => return Some(name.as_str()),
+                Expr::Field { base, .. } | Expr::Index { base, .. } | Expr::Group(base, _) => {
+                    cursor = base.as_ref();
+                }
+                _ => return None,
+            }
         }
     }
 
