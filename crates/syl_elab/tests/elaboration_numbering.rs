@@ -6,7 +6,7 @@ use syl_syntax::SourceParser;
 
 #[test]
 fn local_mutation_numbers_bare_place_instances_across_if_and_for() {
-    let file = SourceParser::new(
+    let instance_ids = compile_instance_param_values(
         r#"
 cell Leaf<ID: nat>() -> y: Bit {
     y := 1
@@ -30,41 +30,9 @@ cell Top<ENABLE: bool>(y: out Bit) {
     y := 0
 }
  "#,
+        "ID",
     )
-    .parse_file()
-    .expect("numbering fixture must parse");
-    let middle = MiddleCompiler::new();
-    let hir = middle
-        .session(&[file.clone()])
-        .resolve_hir()
-        .expect("numbering fixture must resolve HIR");
-    let tir_output = hir.check_tir_partial();
-    assert!(
-        tir_output.diagnostics().is_empty(),
-        "TIR checking must accept elaboration numbering fixture: {:?}",
-        tir_output.diagnostics()
-    );
-    let tir = tir_output
-        .stage()
-        .expect("partial TIR analysis must keep the typed stage");
-    let output = middle
-        .output_files(&[file])
-        .expect("bare place statements in elaboration control flow must compile");
-    let _ = tir;
-    let hwir = output.hwir().unwrap_or_else(|| {
-        panic!(
-            "successful elaboration must produce HWIR: {:?}",
-            output.diagnostics()
-        )
-    });
-    let top = hwir
-        .modules()
-        .iter()
-        .find(|module| module.name() == "Top")
-        .expect("Top module must exist");
-
-    let mut instance_ids = Vec::new();
-    collect_instance_ids(top.items(), &mut instance_ids);
+    .expect("numbering fixture must elaborate");
 
     assert_eq!(
         instance_ids,
@@ -73,15 +41,112 @@ cell Top<ENABLE: bool>(y: out Bit) {
     );
 }
 
-fn collect_instance_ids(items: &[ParametricHwItem], instance_ids: &mut Vec<String>) {
+#[test]
+fn symbolic_if_unknown_mutable_nat_generic_actual_stays_symbolic() {
+    let values = compile_instance_param_values(
+        r#"
+cell Leaf<X: nat>() -> y: Bit {
+    y := 1
+}
+
+cell Top<COND: bool>(y: out Bit) {
+    var x: nat = 0
+    if COND {
+        x = 1
+    }
+    place Leaf<x>()
+    y := 0
+}
+ "#,
+        "X",
+    )
+    .expect("unknown mutable nat generic actual should remain conservative instead of concretizing");
+
+    assert_eq!(
+        values,
+        vec!["x".to_string()],
+        "unknown single-branch mutable nat must not collapse to a guessed constant"
+    );
+}
+
+#[test]
+fn symbolic_if_else_unknown_mutable_nat_generic_actual_stays_symbolic() {
+    let values = compile_instance_param_values(
+        r#"
+cell Leaf<X: nat>() -> y: Bit {
+    y := 1
+}
+
+cell Top<COND: bool>(y: out Bit) {
+    var x: nat = 0
+    if COND {
+        x = 2
+    } else {
+        x = 5
+    }
+    place Leaf<x>()
+    y := 0
+}
+ "#,
+        "X",
+    )
+    .expect("divergent mutable nat branches should remain conservative instead of concretizing");
+
+    assert_eq!(
+        values,
+        vec!["x".to_string()],
+        "divergent mutable nat branches must not collapse to an arbitrary constant"
+    );
+}
+
+fn compile_instance_param_values(source: &str, param_name: &str) -> Result<Vec<String>, String> {
+    let file = SourceParser::new(source)
+        .parse_file()
+        .map_err(|error| format!("fixture must parse: {error:?}"))?;
+    let middle = MiddleCompiler::new();
+    let hir = middle
+        .session(&[file.clone()])
+        .resolve_hir()
+        .map_err(|error| format!("fixture must resolve HIR: {error:?}"))?;
+    let tir_output = hir.check_tir_partial();
+    if !tir_output.diagnostics().is_empty() {
+        return Err(format!(
+            "fixture must pass partial TIR checking: {:?}",
+            tir_output.diagnostics()
+        ));
+    }
+    let output = middle
+        .output_files(&[file])
+        .map_err(|error| format!("fixture must elaborate: {error:?}"))?;
+    let hwir = output.hwir().ok_or_else(|| {
+        format!(
+            "successful elaboration must produce HWIR: {:?}",
+            output.diagnostics()
+        )
+    })?;
+    let top = hwir
+        .modules()
+        .iter()
+        .find(|module| module.name() == "Top")
+        .ok_or_else(|| "Top module must exist".to_string())?;
+    let mut values = Vec::new();
+    collect_instance_param_values_impl(top.items(), param_name, &mut values);
+    Ok(values)
+}
+
+fn collect_instance_param_values_impl(
+    items: &[ParametricHwItem],
+    param_name: &str,
+    values: &mut Vec<String>,
+) {
     for item in items {
         match item {
             ParametricHwItem::Core {
                 item: HwItem::Instance(instance),
                 ..
             } => {
-                if let Some(id) = param_value(instance, "ID") {
-                    instance_ids.push(id.to_string());
+                if let Some(value) = param_value(instance, param_name) {
+                    values.push(value.to_string());
                 }
             }
             ParametricHwItem::StaticIf {
@@ -89,11 +154,11 @@ fn collect_instance_ids(items: &[ParametricHwItem], instance_ids: &mut Vec<Strin
                 else_items,
                 ..
             } => {
-                collect_instance_ids(then_items, instance_ids);
-                collect_instance_ids(else_items, instance_ids);
+                collect_instance_param_values_impl(then_items, param_name, values);
+                collect_instance_param_values_impl(else_items, param_name, values);
             }
             ParametricHwItem::StaticFor { items, .. } => {
-                collect_instance_ids(items, instance_ids);
+                collect_instance_param_values_impl(items, param_name, values);
             }
             _ => {}
         }

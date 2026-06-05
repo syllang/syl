@@ -1,5 +1,4 @@
 use crate::{
-    const_eval::ConstValue,
     eir::{EirExpansion, EirExpr, EirOrigin},
     mir::MirTypeRef,
     program::{ElabExpr, ElabExprNode},
@@ -8,13 +7,27 @@ use std::collections::HashMap;
 use syl_hir::DefId;
 use syl_span::Span;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[non_exhaustive]
+pub(crate) enum NumberingValue {
+    Counter(u64),
+}
+
+impl NumberingValue {
+    pub(crate) fn value(self) -> u64 {
+        match self {
+            Self::Counter(value) => value,
+        }
+    }
+}
+
 #[derive(Clone)]
 #[non_exhaustive]
 pub(crate) struct VarInfo {
     pub(crate) code: EirExpr,
     pub(crate) ty: MirTypeRef,
     pub(crate) software_local: bool,
-    pub(crate) summary_value: Option<ConstValue>,
+    pub(crate) numbering_value: Option<NumberingValue>,
 }
 
 #[derive(Default, Clone)]
@@ -45,18 +58,18 @@ impl Env {
     }
 
     pub(crate) fn insert(&mut self, name: impl Into<String>, code: EirExpr, ty: MirTypeRef) {
-        let summary_value = Self::default_summary_value(&code);
-        self.insert_with_binding_kind(name, code, ty, false, summary_value);
+        let numbering_value = Self::default_numbering_value(&code);
+        self.insert_with_binding_kind(name, code, ty, false, numbering_value);
     }
 
-    pub(crate) fn insert_with_summary(
+    pub(crate) fn insert_with_numbering(
         &mut self,
         name: impl Into<String>,
         code: EirExpr,
         ty: MirTypeRef,
-        summary_value: Option<ConstValue>,
+        numbering_value: Option<NumberingValue>,
     ) {
-        self.insert_with_binding_kind(name, code, ty, false, summary_value);
+        self.insert_with_binding_kind(name, code, ty, false, numbering_value);
     }
 
     pub(crate) fn insert_software_local(
@@ -65,18 +78,18 @@ impl Env {
         code: EirExpr,
         ty: MirTypeRef,
     ) {
-        let summary_value = Self::default_summary_value(&code);
-        self.insert_with_binding_kind(name, code, ty, true, summary_value);
+        let numbering_value = Self::default_numbering_value(&code);
+        self.insert_with_binding_kind(name, code, ty, true, numbering_value);
     }
 
-    pub(crate) fn insert_software_local_with_summary(
+    pub(crate) fn insert_software_local_with_numbering(
         &mut self,
         name: impl Into<String>,
         code: EirExpr,
         ty: MirTypeRef,
-        summary_value: Option<ConstValue>,
+        numbering_value: Option<NumberingValue>,
     ) {
-        self.insert_with_binding_kind(name, code, ty, true, summary_value);
+        self.insert_with_binding_kind(name, code, ty, true, numbering_value);
     }
 
     fn insert_with_binding_kind(
@@ -85,7 +98,7 @@ impl Env {
         code: EirExpr,
         ty: MirTypeRef,
         software_local: bool,
-        summary_value: Option<ConstValue>,
+        numbering_value: Option<NumberingValue>,
     ) {
         let name = name.into();
         let static_type = ty.type_name().map(ToOwned::to_owned);
@@ -95,7 +108,7 @@ impl Env {
                 code,
                 ty,
                 software_local,
-                summary_value,
+                numbering_value,
             },
         ) && let Some(static_type) = previous.ty.type_name().map(ToOwned::to_owned)
             && let Some(names) = self.vars_by_static_type.get_mut(&static_type)
@@ -113,10 +126,9 @@ impl Env {
         }
     }
 
-    fn default_summary_value(code: &EirExpr) -> Option<ConstValue> {
+    fn default_numbering_value(code: &EirExpr) -> Option<NumberingValue> {
         match code {
-            EirExpr::Int(value) => Some(ConstValue::Nat(*value)),
-            EirExpr::Bool(value) => Some(ConstValue::Bool(*value)),
+            EirExpr::Int(value) => Some(NumberingValue::Counter(*value)),
             _ => None,
         }
     }
