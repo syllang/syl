@@ -1,7 +1,7 @@
 use super::{context::CapabilityContext, model::EndpointSide, place::Place};
 use crate::{
-    ir::mir::{MirConstExprFacts, MirTypeRef},
     CompileError, TirError,
+    ir::mir::{MirConstExprFacts, MirTypeRef},
 };
 use std::collections::{BTreeMap, BTreeSet};
 use syl_hir::{DefId, LocalId};
