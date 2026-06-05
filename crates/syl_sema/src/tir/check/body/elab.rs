@@ -499,12 +499,7 @@ impl TypePhaseChecker {
                 }
                 HirStmt::Expr(expr) => {
                     Self::record_recoverable(errors, self.record_phase(expr, Phase::Hardware));
-                    self.check_hardware_stmt_expr(
-                        expr,
-                        HardwareBlockMode::Control,
-                        errors,
-                        true,
-                    )?;
+                    self.check_hardware_stmt_expr(expr, HardwareBlockMode::Control, errors, true)?;
                 }
                 _ => {}
             }
