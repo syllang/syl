@@ -274,7 +274,12 @@ impl TypePhaseChecker {
             }
             Some(false) => {
                 if let Some(block) = else_block {
-                    self.check_hardware_block(block, context.env, context.mode, context.errors)?;
+                    return self.check_hardware_block(
+                        block,
+                        context.env,
+                        context.mode,
+                        context.errors,
+                    );
                 }
                 Ok(context.env.clone())
             }
@@ -353,32 +358,56 @@ impl TypePhaseChecker {
                 self.record_decl_local_type(name, Some(local_id), span, explicit_ty),
             );
         }
-        let kind = if let Some(ty) = ty {
+        let scalar_kind = if let Some(ty) = ty {
             self.mir_type_kind(ty)
         } else {
             value.and_then(|expr| env.expr_kind(expr, self))
         };
-        let Some(kind) = kind else {
+        let struct_def = if ty.is_some() {
+            None
+        } else {
+            value.and_then(|expr| env.struct_def_for_expr(expr, self))
+        };
+        if scalar_kind.is_none() && struct_def.is_none() {
             errors.push(CompileError::lowering_at(
                 TirError::InvalidElaborationExpression,
                 span,
             ));
             return Ok(env.clone());
-        };
-        if explicit_ty.is_none() {
+        }
+        if explicit_ty.is_none()
+            && let Some(kind) = scalar_kind
+        {
             Self::record_recoverable(
                 errors,
-                self.record_decl_local_type(name, Some(local_id), span, tir_type_for_const_kind(kind)),
+                self.record_decl_local_type(
+                    name,
+                    Some(local_id),
+                    span,
+                    tir_type_for_const_kind(kind),
+                ),
             );
         }
         if let Some(expr) = value {
             Self::record_recoverable(errors, self.record_phase(expr, Phase::Const));
-            self.require_const_expr_kind(expr, env, kind, errors);
+            if let Some(kind) = scalar_kind {
+                self.require_const_expr_kind(expr, env, kind, errors);
+            }
         }
-        Ok(env.with_mutable_local(
+        if let Some(kind) = scalar_kind {
+            return Ok(env.with_mutable_local(
+                local_id,
+                kind,
+                value.and_then(|expr| env.value_for_kind(kind, expr, self)),
+            ));
+        }
+        let Some(def) = struct_def else {
+            return Ok(env.clone());
+        };
+        Ok(env.with_mutable_struct_local(
             local_id,
-            kind,
-            value.and_then(|expr| env.value_for_kind(kind, expr, self)),
+            def,
+            value.and_then(|expr| env.struct_value_for_expr(expr, self)),
         ))
     }
 
@@ -391,29 +420,59 @@ impl TypePhaseChecker {
         errors: &mut Vec<CompileError>,
     ) -> Result<Option<TirConstEnv>, CompileError> {
         let owner = self.current_owner()?;
-        let Ok(Some(HirResolution::Local(id))) = self.hir.expr_resolution(owner, target) else {
+        let target_local = match &target.node {
+            HirExprNode::Ident(_) => self.hir.expr_resolution(owner, target),
+            HirExprNode::Field { base, .. } => self.hir.expr_resolution(owner, base),
+            _ => return Ok(None),
+        };
+        let Ok(Some(HirResolution::Local(id))) = target_local else {
             return Ok(None);
         };
         if !env.is_mutable_local(id) {
             return Ok(None);
         }
-        if !matches!(&target.node, HirExprNode::Ident(_)) {
-            errors.push(CompileError::lowering_at(
-                TirError::InvalidElaborationExpression,
-                span,
-            ));
-            return Ok(Some(env.clone()));
-        }
-        let Some(kind) = env.kind_for_local(id) else {
-            return Ok(None);
-        };
         Self::record_recoverable(errors, self.record_phase(target, Phase::Const));
         Self::record_recoverable(errors, self.record_phase(value, Phase::Const));
-        self.require_const_expr_kind(value, env, kind, errors);
-        Ok(Some(
-            env.assign_local(id, env.value_for_kind(kind, value, self))
-                .unwrap_or_else(|| env.clone()),
-        ))
+        match &target.node {
+            HirExprNode::Ident(_) => {
+                let Some(kind) = env.kind_for_local(id) else {
+                    return Ok(None);
+                };
+                self.require_const_expr_kind(value, env, kind, errors);
+                Ok(Some(
+                    env.assign_local(id, env.value_for_kind(kind, value, self))
+                        .unwrap_or_else(|| env.clone()),
+                ))
+            }
+            HirExprNode::Field { base: _, field } => {
+                let Some(struct_def) = env.struct_def_for_local(id) else {
+                    return Ok(None);
+                };
+                let Some(field_kind) = self
+                    .hir
+                    .member_field_type(struct_def, None, field)
+                    .and_then(|field_ty| self.mir_type_kind(&field_ty))
+                else {
+                    errors.push(CompileError::lowering_at(
+                        TirError::InvalidElaborationExpression,
+                        span,
+                    ));
+                    return Ok(Some(env.clone()));
+                };
+                self.require_const_expr_kind(value, env, field_kind, errors);
+                Ok(Some(
+                    env.assign_field(id, field, env.value_for_kind(field_kind, value, self))
+                        .unwrap_or_else(|| env.clone()),
+                ))
+            }
+            _ => {
+                errors.push(CompileError::lowering_at(
+                    TirError::InvalidElaborationExpression,
+                    span,
+                ));
+                Ok(Some(env.clone()))
+            }
+        }
     }
 
     fn check_control_block(

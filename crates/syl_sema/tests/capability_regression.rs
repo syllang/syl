@@ -136,6 +136,35 @@ cell Bad(leak: out Bit, y: out Bit) {
 }
 
 #[test]
+fn static_false_else_branch_mutation_remains_visible() {
+    CapabilityHarness::new()
+        .check(
+            r#"
+struct Config {
+    enabled: bool,
+}
+
+cell Top(a: in Bit, b: in Bit, y: out Bit) {
+    var cfg = Config { enabled: false }
+
+    if false {
+        cfg.enabled = false
+    } else {
+        cfg.enabled = true
+    }
+
+    if cfg.enabled {
+        y := b
+    } else {
+        y := a
+    }
+}
+"#,
+        )
+        .expect("taken else-branch mutation must remain visible to later elaboration");
+}
+
+#[test]
 fn rejects_reading_out_port_after_local_drive() {
     let err = CapabilityHarness::new()
         .check(

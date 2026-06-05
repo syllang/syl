@@ -17,7 +17,7 @@ where
     pub(super) fn emit_for(
         &self,
         request: ForEmit<'_>,
-        env: &Env,
+        env: &mut Env,
     ) -> Result<Vec<EirItem>, CompileError> {
         let ElabExprNode::Range { start, end } = &request.range_expr.node else {
             return Err(CompileError::lowering_at(
@@ -41,13 +41,13 @@ where
     fn emit_static_for(
         &self,
         request: ForEmit<'_>,
-        env: &Env,
+        env: &mut Env,
         start: u64,
         end: u64,
     ) -> Result<Vec<EirItem>, CompileError> {
         let mut items = Vec::new();
+        let mut loop_env = env.clone();
         for value in start..end {
-            let mut loop_env = env.clone();
             loop_env.insert(
                 request.name,
                 EirExpr::Int(value),
@@ -60,13 +60,14 @@ where
                 value,
             )?);
         }
+        self.sync_visible_software_locals(&loop_env, env);
         Ok(items)
     }
 
     fn emit_symbolic_for(
         &self,
         request: ForEmit<'_>,
-        env: &Env,
+        env: &mut Env,
         start: &crate::program::ElabExpr,
         end: &crate::program::ElabExpr,
     ) -> Result<Vec<EirItem>, CompileError> {
@@ -79,6 +80,7 @@ where
         );
         let body_items =
             self.emit_symbolic_for_body(request.body, &mut loop_env, request.name, &index)?;
+        self.sync_visible_software_locals(&loop_env, env);
         Ok(vec![EirItem::SymbolicStaticFor {
             index,
             start: self.elab_expr(start, env),
