@@ -218,12 +218,7 @@ where
                 Some(_) => (self.unknown_software_local_expr(&name), current.ty.clone()),
                 None => (current.code.clone(), current.ty.clone()),
             };
-            target.insert_software_local_with_numbering(
-                name,
-                merged.0,
-                merged.1,
-                merged_numbering,
-            );
+            target.insert_software_local_with_numbering(name, merged.0, merged.1, merged_numbering);
         }
     }
 
