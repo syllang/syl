@@ -699,6 +699,27 @@ cell Top(x: in Bit, y: out Bit) {
 }
 
 #[test]
+fn hardware_blocks_only_allow_bare_equals_for_mutable_locals() {
+    let source = r#"
+cell Top(x: in Bit, y: out Bit) {
+    var choose_b: Bool = false
+    choose_b = true
+    y := x
+}
+"#;
+    let file = SourceParser::new(source).parse_file().unwrap();
+
+    match &file.items[0] {
+        Item::Cell(item) => {
+            assert!(matches!(item.body.stmts[0], Stmt::Var { .. }));
+            assert!(matches!(item.body.stmts[1], Stmt::Assign { .. }));
+            assert!(matches!(item.body.stmts[2], Stmt::Drive { .. }));
+        }
+        other => panic!("unexpected cell item: {other:?}"),
+    }
+}
+
+#[test]
 fn rejects_mixed_assignment_operators_in_parser() {
     let output = SourceParser::new(
         r#"
@@ -709,6 +730,8 @@ fn bad() {
 }
 
 cell Top(x: in Bit, y: out Bit) {
+    var choose_b: Bool = false
+    choose_b = true
     signal ready: Bit = x
     next state = x
     y = x
@@ -729,4 +752,11 @@ cell Top(x: in Bit, y: out Bit) {
     assert!(messages.contains(&"`signal` statements only accept `:=`"));
     assert!(messages.contains(&"`next` statements only accept `:=`"));
     assert!(messages.contains(&"hardware blocks use `:=`; bare `=` assignment is invalid here"));
+    assert_eq!(
+        messages
+            .iter()
+            .filter(|message| **message == "hardware blocks use `:=`; bare `=` assignment is invalid here")
+            .count(),
+        1
+    );
 }
