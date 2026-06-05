@@ -269,9 +269,9 @@ impl Parser {
             self.error(self.eof_span(), "expected assignment operator");
             return Err(std::mem::take(&mut self.diagnostics));
         };
-        let is_hardware_mutable_local_assign =
-            context == BlockContext::Hardware && matches!(operator.kind, TokenKind::Eq)
-                && self.assignment_target_is_mutable_local(&target);
+        let is_hardware_mutable_local_assign = context == BlockContext::Hardware
+            && matches!(operator.kind, TokenKind::Eq)
+            && self.assignment_target_is_mutable_local(&target);
         let is_valid = match (context, operator.kind) {
             (BlockContext::Function, TokenKind::Eq) => true,
             (BlockContext::Hardware, TokenKind::ColonEq) => true,

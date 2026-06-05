@@ -318,7 +318,9 @@ impl TypePhaseChecker {
         Self::record_recoverable(context.errors, self.record_phase(range, Phase::Const));
         Self::record_recoverable(context.errors, self.require_const_range(range, context.env));
         let loop_env = if let Some(loop_id) = loop_id {
-            context.env.with_local_binding(loop_id, TirConstKind::Nat, None)
+            context
+                .env
+                .with_local_binding(loop_id, TirConstKind::Nat, None)
         } else {
             context.env.clone()
         };
@@ -348,7 +350,10 @@ impl TypePhaseChecker {
     ) -> Result<TirConstEnv, CompileError> {
         let local_id = self.record_decl_local_binding(name, id, span, BindingKind::Local)?;
         let explicit_ty = if let Some(ty) = ty {
-            Self::record_recoverable(errors, self.type_from_mir_type_ref(self.current_owner()?, ty))
+            Self::record_recoverable(
+                errors,
+                self.type_from_mir_type_ref(self.current_owner()?, ty),
+            )
         } else {
             None
         };
@@ -724,7 +729,10 @@ impl TypePhaseChecker {
     ) {
         match kind {
             TirConstKind::Nat => {
-                Self::record_recoverable(errors, self.require_const_nat(expr, env, "assignment value"));
+                Self::record_recoverable(
+                    errors,
+                    self.require_const_nat(expr, env, "assignment value"),
+                );
             }
             TirConstKind::Bool => {
                 Self::record_recoverable(errors, self.require_const_bool(expr, env));

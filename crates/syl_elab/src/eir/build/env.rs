@@ -70,8 +70,7 @@ impl Env {
                 ty,
                 software_local,
             },
-        )
-            && let Some(static_type) = previous.ty.type_name().map(ToOwned::to_owned)
+        ) && let Some(static_type) = previous.ty.type_name().map(ToOwned::to_owned)
             && let Some(names) = self.vars_by_static_type.get_mut(&static_type)
         {
             names.retain(|existing| existing != &name);

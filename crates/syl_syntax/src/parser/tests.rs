@@ -776,7 +776,8 @@ cell Top(x: in Bit, y: out Bit) {
     assert_eq!(
         messages
             .iter()
-            .filter(|message| **message == "hardware blocks use `:=`; bare `=` assignment is invalid here")
+            .filter(|message| **message
+                == "hardware blocks use `:=`; bare `=` assignment is invalid here")
             .count(),
         1
     );
