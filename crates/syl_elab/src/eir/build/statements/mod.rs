@@ -20,6 +20,14 @@ use syl_span::Span;
 
 use super::{EirBuilder, Env, connections::InstanceEmitRequest, connections::ViewSignalSpec};
 
+struct BindVarRequest<'a> {
+    id: Option<syl_hir::LocalId>,
+    name: &'a str,
+    ty: Option<&'a MirTypeRef>,
+    value: Option<&'a ElabExpr>,
+    span: Span,
+}
+
 impl<'a, C> EirBuilder<'a, C>
 where
     C: crate::const_eval::ConstValueElaborator + ?Sized,
@@ -72,7 +80,16 @@ where
                     value,
                     span,
                 } => {
-                    self.bind_var(*id, name, ty.as_ref(), value.as_ref(), *span, env)?;
+                    self.bind_var(
+                        BindVarRequest {
+                            id: *id,
+                            name,
+                            ty: ty.as_ref(),
+                            value: value.as_ref(),
+                            span: *span,
+                        },
+                        env,
+                    )?;
                 }
                 ElabStmt::Assign {
                     target,
@@ -453,7 +470,7 @@ where
     }
 
     fn emit_if(&self, request: IfEmit<'_>, env: &mut Env) -> Result<Vec<EirItem>, CompileError> {
-        let resolved_cond = if let Some(value) = self.local_const_bool(request.cond, env) {
+        let resolved_cond = if let Some(value) = Self::local_const_bool(request.cond, env) {
             Some(value)
         } else {
             self.elab_const_bool(request.cond, env)?
@@ -618,38 +635,38 @@ where
         Vec::new()
     }
 
-    fn bind_var(
-        &self,
-        id: Option<syl_hir::LocalId>,
-        name: &str,
-        ty: Option<&MirTypeRef>,
-        value: Option<&ElabExpr>,
-        span: Span,
-        env: &mut Env,
-    ) -> Result<(), CompileError> {
-        let ty = ty
+    fn bind_var(&self, binding: BindVarRequest<'_>, env: &mut Env) -> Result<(), CompileError> {
+        let ty = binding
+            .ty
             .cloned()
             .or_else(|| {
-                id.and_then(|local| self.program.local_type(local))
-                    .and_then(|ty| self.tir_to_mir_type(ty, span))
+                binding
+                    .id
+                    .and_then(|local| self.program.local_type(local))
+                    .and_then(|ty| self.tir_to_mir_type(ty, binding.span))
             })
-            .or_else(|| self.software_local_type_from_env(value, env))
-            .or_else(|| value.and_then(|expr| self.infer_software_expr_type(expr, env)))
+            .or_else(|| Self::software_local_type_from_env(binding.value, env))
             .or_else(|| {
-                value.and_then(|expr| match &expr.node {
+                binding
+                    .value
+                    .and_then(|expr| self.infer_software_expr_type(expr, env))
+            })
+            .or_else(|| {
+                binding.value.and_then(|expr| match &expr.node {
                     ElabExprNode::Aggregate { ty, .. } => Some(ty.clone()),
                     _ => None,
                 })
             })
             .ok_or_else(|| {
-                CompileError::lowering_at(EirError::InvalidElaborationExpression, span)
+                CompileError::lowering_at(EirError::InvalidElaborationExpression, binding.span)
             })?;
-        let code = value
+        let code = binding
+            .value
             .map(|expr| self.elab_expr(expr, env))
             .unwrap_or_else(|| EirExpr::unsupported("uninitialized mutable local"));
-        env.insert_software_local(name, code, ty);
-        self.sync_software_local_fields(name, value, env);
-        self.rebuild_software_root_binding(name, env);
+        env.insert_software_local(binding.name, code, ty);
+        self.sync_software_local_fields(binding.name, binding.value, env);
+        self.rebuild_software_root_binding(binding.name, env);
         Ok(())
     }
 
@@ -681,7 +698,7 @@ where
                 Ok(())
             }
             ElabExprNode::Field { base, field } => {
-                let Some(root) = self.field_root_name(base) else {
+                let Some(root) = Self::field_root_name(base) else {
                     return Err(CompileError::lowering_at(
                         EirError::InvalidElaborationExpression,
                         span,
@@ -890,7 +907,7 @@ where
                 for field in fields {
                     if let Some(field_ty) = self
                         .infer_software_expr_type(&field.value, env)
-                        .or_else(|| self.syntax_software_expr_type(&field.value))
+                        .or_else(|| Self::syntax_software_expr_type(&field.value))
                     {
                         env.insert_software_local(
                             format!("{name}.{}", field.name),
@@ -960,48 +977,44 @@ where
         }
     }
 
-    fn local_const_bool(&self, expr: &ElabExpr, env: &Env) -> Option<bool> {
+    fn local_const_bool(expr: &ElabExpr, env: &Env) -> Option<bool> {
         match &expr.node {
             ElabExprNode::Bool(value) => Some(*value),
-            ElabExprNode::Ident(name) => match &env.var(name)?.code {
-                expr => self.eval_local_bool_expr(expr, env),
-            },
-            ElabExprNode::Field { base, field } => self
-                .field_binding_expr(base, field, env)
-                .and_then(|expr| self.eval_local_bool_expr(expr, env)),
-            ElabExprNode::Group(inner) => self.local_const_bool(inner, env),
-            ElabExprNode::Unary { op, expr }
-                if matches!(
-                    op,
-                    crate::mir::MirUnaryOp::Not | crate::mir::MirUnaryOp::NotWord
-                ) =>
-            {
-                self.local_const_bool(expr, env).map(|value| !value)
+            ElabExprNode::Ident(name) => {
+                let expr = &env.var(name)?.code;
+                Self::eval_local_bool_expr(expr, env)
             }
+            ElabExprNode::Field { base, field } => Self::field_binding_expr(base, field, env)
+                .and_then(|expr| Self::eval_local_bool_expr(expr, env)),
+            ElabExprNode::Group(inner) => Self::local_const_bool(inner, env),
+            ElabExprNode::Unary {
+                op: crate::mir::MirUnaryOp::Not | crate::mir::MirUnaryOp::NotWord,
+                expr,
+            } => Self::local_const_bool(expr, env).map(|value| !value),
             ElabExprNode::Binary { op, left, right } => match op {
                 crate::mir::MirBinaryOp::AndAnd => {
-                    Some(self.local_const_bool(left, env)? && self.local_const_bool(right, env)?)
+                    Some(Self::local_const_bool(left, env)? && Self::local_const_bool(right, env)?)
                 }
                 crate::mir::MirBinaryOp::OrOr => {
-                    Some(self.local_const_bool(left, env)? || self.local_const_bool(right, env)?)
+                    Some(Self::local_const_bool(left, env)? || Self::local_const_bool(right, env)?)
                 }
                 crate::mir::MirBinaryOp::Eq => {
-                    Some(self.local_const_nat(left, env)? == self.local_const_nat(right, env)?)
+                    Some(Self::local_const_nat(left, env)? == Self::local_const_nat(right, env)?)
                 }
                 crate::mir::MirBinaryOp::NotEq => {
-                    Some(self.local_const_nat(left, env)? != self.local_const_nat(right, env)?)
+                    Some(Self::local_const_nat(left, env)? != Self::local_const_nat(right, env)?)
                 }
                 crate::mir::MirBinaryOp::Lt => {
-                    Some(self.local_const_nat(left, env)? < self.local_const_nat(right, env)?)
+                    Some(Self::local_const_nat(left, env)? < Self::local_const_nat(right, env)?)
                 }
                 crate::mir::MirBinaryOp::LtEq => {
-                    Some(self.local_const_nat(left, env)? <= self.local_const_nat(right, env)?)
+                    Some(Self::local_const_nat(left, env)? <= Self::local_const_nat(right, env)?)
                 }
                 crate::mir::MirBinaryOp::Gt => {
-                    Some(self.local_const_nat(left, env)? > self.local_const_nat(right, env)?)
+                    Some(Self::local_const_nat(left, env)? > Self::local_const_nat(right, env)?)
                 }
                 crate::mir::MirBinaryOp::GtEq => {
-                    Some(self.local_const_nat(left, env)? >= self.local_const_nat(right, env)?)
+                    Some(Self::local_const_nat(left, env)? >= Self::local_const_nat(right, env)?)
                 }
                 _ => None,
             },
@@ -1009,19 +1022,19 @@ where
         }
     }
 
-    fn local_const_nat(&self, expr: &ElabExpr, env: &Env) -> Option<u64> {
+    fn local_const_nat(expr: &ElabExpr, env: &Env) -> Option<u64> {
         match &expr.node {
             ElabExprNode::Int(value) => Some(*value),
-            ElabExprNode::Ident(name) => match &env.var(name)?.code {
-                expr => self.eval_local_nat_expr(expr, env),
-            },
-            ElabExprNode::Field { base, field } => self
-                .field_binding_expr(base, field, env)
-                .and_then(|expr| self.eval_local_nat_expr(expr, env)),
-            ElabExprNode::Group(inner) => self.local_const_nat(inner, env),
+            ElabExprNode::Ident(name) => {
+                let expr = &env.var(name)?.code;
+                Self::eval_local_nat_expr(expr, env)
+            }
+            ElabExprNode::Field { base, field } => Self::field_binding_expr(base, field, env)
+                .and_then(|expr| Self::eval_local_nat_expr(expr, env)),
+            ElabExprNode::Group(inner) => Self::local_const_nat(inner, env),
             ElabExprNode::Binary { op, left, right } => {
-                let lhs = self.local_const_nat(left, env)?;
-                let rhs = self.local_const_nat(right, env)?;
+                let lhs = Self::local_const_nat(left, env)?;
+                let rhs = Self::local_const_nat(right, env)?;
                 match op {
                     crate::mir::MirBinaryOp::Add => Some(lhs + rhs),
                     crate::mir::MirBinaryOp::Sub => Some(lhs.saturating_sub(rhs)),
@@ -1036,55 +1049,51 @@ where
         }
     }
 
-    fn field_binding_expr<'b>(
-        &self,
-        base: &ElabExpr,
-        field: &str,
-        env: &'b Env,
-    ) -> Option<&'b EirExpr> {
-        env.var(&format!("{}.{}", self.field_root_name(base)?, field))
+    fn field_binding_expr<'b>(base: &ElabExpr, field: &str, env: &'b Env) -> Option<&'b EirExpr> {
+        env.var(&format!("{}.{}", Self::field_root_name(base)?, field))
             .map(|var| &var.code)
     }
 
-    fn eval_local_bool_expr(&self, expr: &EirExpr, env: &Env) -> Option<bool> {
+    fn eval_local_bool_expr(expr: &EirExpr, env: &Env) -> Option<bool> {
         match expr {
             EirExpr::Bool(value) => Some(*value),
             EirExpr::Ident(name) => env.var(name).and_then(|var| {
                 if matches!(&var.code, EirExpr::Ident(inner) if inner == name) {
                     None
                 } else {
-                    self.eval_local_bool_expr(&var.code, env)
+                    Self::eval_local_bool_expr(&var.code, env)
                 }
             }),
-            EirExpr::Unary { op, expr } if matches!(op, crate::eir::EirUnaryOp::Not) => {
-                self.eval_local_bool_expr(expr, env).map(|value| !value)
-            }
+            EirExpr::Unary {
+                op: crate::eir::EirUnaryOp::Not,
+                expr,
+            } => Self::eval_local_bool_expr(expr, env).map(|value| !value),
             EirExpr::Binary { op, left, right } => match op {
                 crate::eir::EirBinaryOp::AndAnd => Some(
-                    self.eval_local_bool_expr(left, env)?
-                        && self.eval_local_bool_expr(right, env)?,
+                    Self::eval_local_bool_expr(left, env)?
+                        && Self::eval_local_bool_expr(right, env)?,
                 ),
                 crate::eir::EirBinaryOp::OrOr => Some(
-                    self.eval_local_bool_expr(left, env)?
-                        || self.eval_local_bool_expr(right, env)?,
+                    Self::eval_local_bool_expr(left, env)?
+                        || Self::eval_local_bool_expr(right, env)?,
                 ),
                 crate::eir::EirBinaryOp::Eq => Some(
-                    self.eval_local_nat_expr(left, env)? == self.eval_local_nat_expr(right, env)?,
+                    Self::eval_local_nat_expr(left, env)? == Self::eval_local_nat_expr(right, env)?,
                 ),
                 crate::eir::EirBinaryOp::NotEq => Some(
-                    self.eval_local_nat_expr(left, env)? != self.eval_local_nat_expr(right, env)?,
+                    Self::eval_local_nat_expr(left, env)? != Self::eval_local_nat_expr(right, env)?,
                 ),
                 crate::eir::EirBinaryOp::Lt => Some(
-                    self.eval_local_nat_expr(left, env)? < self.eval_local_nat_expr(right, env)?,
+                    Self::eval_local_nat_expr(left, env)? < Self::eval_local_nat_expr(right, env)?,
                 ),
                 crate::eir::EirBinaryOp::LtEq => Some(
-                    self.eval_local_nat_expr(left, env)? <= self.eval_local_nat_expr(right, env)?,
+                    Self::eval_local_nat_expr(left, env)? <= Self::eval_local_nat_expr(right, env)?,
                 ),
                 crate::eir::EirBinaryOp::Gt => Some(
-                    self.eval_local_nat_expr(left, env)? > self.eval_local_nat_expr(right, env)?,
+                    Self::eval_local_nat_expr(left, env)? > Self::eval_local_nat_expr(right, env)?,
                 ),
                 crate::eir::EirBinaryOp::GtEq => Some(
-                    self.eval_local_nat_expr(left, env)? >= self.eval_local_nat_expr(right, env)?,
+                    Self::eval_local_nat_expr(left, env)? >= Self::eval_local_nat_expr(right, env)?,
                 ),
                 _ => None,
             },
@@ -1092,19 +1101,19 @@ where
         }
     }
 
-    fn eval_local_nat_expr(&self, expr: &EirExpr, env: &Env) -> Option<u64> {
+    fn eval_local_nat_expr(expr: &EirExpr, env: &Env) -> Option<u64> {
         match expr {
             EirExpr::Int(value) => Some(*value),
             EirExpr::Ident(name) => env.var(name).and_then(|var| {
                 if matches!(&var.code, EirExpr::Ident(inner) if inner == name) {
                     None
                 } else {
-                    self.eval_local_nat_expr(&var.code, env)
+                    Self::eval_local_nat_expr(&var.code, env)
                 }
             }),
             EirExpr::Binary { op, left, right } => {
-                let lhs = self.eval_local_nat_expr(left, env)?;
-                let rhs = self.eval_local_nat_expr(right, env)?;
+                let lhs = Self::eval_local_nat_expr(left, env)?;
+                let rhs = Self::eval_local_nat_expr(right, env)?;
                 match op {
                     crate::eir::EirBinaryOp::Add => Some(lhs + rhs),
                     crate::eir::EirBinaryOp::Sub => Some(lhs.saturating_sub(rhs)),
@@ -1119,25 +1128,21 @@ where
         }
     }
 
-    fn field_root_name<'b>(&self, expr: &'b ElabExpr) -> Option<&'b str> {
+    fn field_root_name(expr: &ElabExpr) -> Option<&str> {
         match &expr.node {
             ElabExprNode::Ident(name) => Some(name),
             ElabExprNode::Field { base, .. } | ElabExprNode::Group(base) => {
-                self.field_root_name(base)
+                Self::field_root_name(base)
             }
             _ => None,
         }
     }
 
-    fn software_local_type_from_env(
-        &self,
-        expr: Option<&ElabExpr>,
-        env: &Env,
-    ) -> Option<MirTypeRef> {
+    fn software_local_type_from_env(expr: Option<&ElabExpr>, env: &Env) -> Option<MirTypeRef> {
         let expr = expr?;
         match &expr.node {
             ElabExprNode::Ident(name) => env.var(name).map(|var| var.ty.clone()),
-            ElabExprNode::Group(inner) => self.software_local_type_from_env(Some(inner), env),
+            ElabExprNode::Group(inner) => Self::software_local_type_from_env(Some(inner), env),
             _ => None,
         }
     }
@@ -1149,7 +1154,7 @@ where
             .and_then(|ty| self.tir_to_mir_type(ty, expr.span()))
     }
 
-    fn syntax_software_expr_type(&self, expr: &ElabExpr) -> Option<MirTypeRef> {
+    fn syntax_software_expr_type(expr: &ElabExpr) -> Option<MirTypeRef> {
         match &expr.node {
             ElabExprNode::Int(_) => {
                 Some(MirTypeRef::path_type(vec!["nat".to_string()], expr.span()))
@@ -1162,7 +1167,7 @@ where
                 expr.span(),
             )),
             ElabExprNode::Aggregate { ty, .. } => Some(ty.clone()),
-            ElabExprNode::Group(inner) => self.syntax_software_expr_type(inner),
+            ElabExprNode::Group(inner) => Self::syntax_software_expr_type(inner),
             _ => None,
         }
     }
