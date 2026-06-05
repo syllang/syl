@@ -217,6 +217,25 @@ cell Top(y: out Bit) {
 }
 
 #[test]
+fn user_defined_error_map_is_not_captured_as_runtime_effect() {
+    let verilog = TestCompiler::new()
+        .compile(
+            r#"
+map error(x: Bit) -> Bit =
+    x
+
+cell Top(x: in Bit, y: out Bit) {
+    y := error(x)
+}
+"#,
+        )
+        .expect("user-defined error map must remain callable as an ordinary hardware value");
+
+    assert!(verilog.contains("assign y = x;"));
+    assert!(!verilog.contains("$error("));
+}
+
+#[test]
 fn lowers_assert_stmt_to_clocked_runtime_sv_error() {
     let verilog = TestCompiler::new()
         .compile(
