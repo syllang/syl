@@ -1,8 +1,9 @@
+#![allow(dead_code)]
 use syl_hir::{DefId, ExprId, HirDesign, LocalId};
 use syl_span::{SourceId, Span};
 use syl_syntax::{AstFile, SourceParser};
 
-pub(super) fn parse_sources(sources: &[&str]) -> Vec<AstFile> {
+pub(crate) fn parse_sources(sources: &[&str]) -> Vec<AstFile> {
     sources
         .iter()
         .enumerate()
@@ -16,7 +17,7 @@ pub(super) fn parse_sources(sources: &[&str]) -> Vec<AstFile> {
         .collect()
 }
 
-pub(super) fn def_id(hir: &HirDesign, name: &str) -> DefId {
+pub(crate) fn def_id(hir: &HirDesign, name: &str) -> DefId {
     hir.defs
         .iter()
         .find(|def| def.name == name)
@@ -24,7 +25,7 @@ pub(super) fn def_id(hir: &HirDesign, name: &str) -> DefId {
         .id
 }
 
-pub(super) fn def_id_by_path(hir: &HirDesign, path: &[&str]) -> DefId {
+pub(crate) fn def_id_by_path(hir: &HirDesign, path: &[&str]) -> DefId {
     hir.defs
         .iter()
         .find(|def| {
@@ -38,7 +39,7 @@ pub(super) fn def_id_by_path(hir: &HirDesign, path: &[&str]) -> DefId {
         .id
 }
 
-pub(super) fn local_id(hir: &HirDesign, owner: DefId, name: &str) -> LocalId {
+pub(crate) fn local_id(hir: &HirDesign, owner: DefId, name: &str) -> LocalId {
     hir.locals
         .iter()
         .find(|local| local.owner == owner && local.name == name)
@@ -46,7 +47,7 @@ pub(super) fn local_id(hir: &HirDesign, owner: DefId, name: &str) -> LocalId {
         .id
 }
 
-pub(super) struct ExprLookup<'a> {
+pub(crate) struct ExprLookup<'a> {
     source: &'a str,
     source_id: SourceId,
     needle: &'a str,
@@ -55,7 +56,7 @@ pub(super) struct ExprLookup<'a> {
 }
 
 impl<'a> ExprLookup<'a> {
-    pub(super) fn new(
+    pub(crate) fn new(
         source: &'a str,
         source_id: SourceId,
         needle: &'a str,
@@ -72,7 +73,7 @@ impl<'a> ExprLookup<'a> {
     }
 }
 
-pub(super) fn expr_id_at(lookup: ExprLookup<'_>, hir: &HirDesign) -> ExprId {
+pub(crate) fn expr_id_at(lookup: ExprLookup<'_>, hir: &HirDesign) -> ExprId {
     let base = lookup
         .source
         .find(lookup.needle)
@@ -86,7 +87,7 @@ pub(super) fn expr_id_at(lookup: ExprLookup<'_>, hir: &HirDesign) -> ExprId {
         .id
 }
 
-pub(super) fn diagnostics_text<T: ToString>(diagnostics: &[T]) -> String {
+pub(crate) fn diagnostics_text<T: ToString>(diagnostics: &[T]) -> String {
     diagnostics
         .iter()
         .map(ToString::to_string)
