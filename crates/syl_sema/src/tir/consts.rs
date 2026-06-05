@@ -93,7 +93,8 @@ impl TirConstEnv {
                 .and_then(|ty| checker.mir_type_kind(ty))
                 && let Some(id) = generic.id
             {
-                env.bindings.insert(id, TirConstBinding::immutable(kind, None));
+                env.bindings
+                    .insert(id, TirConstBinding::immutable(kind, None));
             }
         }
         env
@@ -118,7 +119,8 @@ impl TirConstEnv {
         value: Option<TirConstValue>,
     ) -> Self {
         let mut env = self.clone();
-        env.bindings.insert(id, TirConstBinding::mutable(kind, value));
+        env.bindings
+            .insert(id, TirConstBinding::mutable(kind, value));
         env
     }
 
@@ -134,11 +136,7 @@ impl TirConstEnv {
         env
     }
 
-    pub(super) fn assign_local(
-        &self,
-        id: LocalId,
-        value: Option<TirConstValue>,
-    ) -> Option<Self> {
+    pub(super) fn assign_local(&self, id: LocalId, value: Option<TirConstValue>) -> Option<Self> {
         let mut env = self.clone();
         let binding = env.bindings.get_mut(&id)?;
         if !binding.mutable {
@@ -156,7 +154,9 @@ impl TirConstEnv {
     }
 
     pub(super) fn is_mutable_local(&self, id: LocalId) -> bool {
-        self.bindings.get(&id).is_some_and(|binding| binding.mutable)
+        self.bindings
+            .get(&id)
+            .is_some_and(|binding| binding.mutable)
     }
 
     pub(super) fn struct_def_for_local(&self, id: LocalId) -> Option<DefId> {
@@ -383,9 +383,10 @@ impl TirConstEnv {
                 if let Some(binding) = self.local_binding(expr, checker) {
                     return match binding.value {
                         Some(TirConstValue::Nat(value)) => Some(value),
-                        Some(TirConstValue::Struct(_)) | Some(TirConstValue::Bool(_)) | None => self
-                            .const_item(expr, checker)
-                            .and_then(|item| self.const_nat_value(&item.value, checker)),
+                        Some(TirConstValue::Struct(_)) | Some(TirConstValue::Bool(_)) | None => {
+                            self.const_item(expr, checker)
+                                .and_then(|item| self.const_nat_value(&item.value, checker))
+                        }
                     };
                 }
                 self.const_item(expr, checker)
@@ -548,9 +549,9 @@ impl TirConstEnv {
                 }
                 Some(out)
             }
-            HirExprNode::Field { base, field } => self
-                .const_struct_value(base, checker)?
-                .field_struct(field),
+            HirExprNode::Field { base, field } => {
+                self.const_struct_value(base, checker)?.field_struct(field)
+            }
             _ => None,
         }
     }
@@ -568,9 +569,7 @@ impl TirConstEnv {
         checker: &TypePhaseChecker,
     ) -> Option<TirConstValue> {
         match kind {
-            TirConstKind::Nat => self
-                .const_nat_value(expr, checker)
-                .map(TirConstValue::Nat),
+            TirConstKind::Nat => self.const_nat_value(expr, checker).map(TirConstValue::Nat),
             TirConstKind::Bool => self
                 .const_bool_value(expr, checker)
                 .map(TirConstValue::Bool),
@@ -582,7 +581,8 @@ impl TirConstEnv {
         expr: &HirBodyExpr,
         checker: &TypePhaseChecker,
     ) -> Option<TirConstValue> {
-        self.const_struct_value(expr, checker).map(TirConstValue::Struct)
+        self.const_struct_value(expr, checker)
+            .map(TirConstValue::Struct)
     }
 
     pub(super) fn struct_def_for_expr(

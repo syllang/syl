@@ -55,9 +55,12 @@ cell Top(a: in Bit, y: out Bit) {
 "#,
         )
         .expect("instance input expression should compile");
-    let metadata = output
-        .metadata()
-        .unwrap_or_else(|| panic!("successful elaboration must expose hardware metadata: {:?}", output.diagnostics()));
+    let metadata = output.metadata().unwrap_or_else(|| {
+        panic!(
+            "successful elaboration must expose hardware metadata: {:?}",
+            output.diagnostics()
+        )
+    });
 
     let top_reads: Vec<_> = metadata
         .read_facts()
@@ -103,14 +106,12 @@ cell Top(stage: in Stage<Bit>.tap, y: out Bit) {
 "#,
         )
         .expect("extension map read facts should compile");
-    let metadata = output
-        .metadata()
-        .unwrap_or_else(|| {
-            panic!(
-                "successful elaboration must expose hardware metadata: {:?}",
-                output.diagnostics()
-            )
-        });
+    let metadata = output.metadata().unwrap_or_else(|| {
+        panic!(
+            "successful elaboration must expose hardware metadata: {:?}",
+            output.diagnostics()
+        )
+    });
 
     let top_reads = metadata
         .read_facts()
@@ -137,14 +138,12 @@ cell Top(y: out Bit) {
 "#,
         )
         .expect("extern cell out port should be represented by port-direction facts");
-    let metadata = output
-        .metadata()
-        .unwrap_or_else(|| {
-            panic!(
-                "successful elaboration must expose hardware metadata: {:?}",
-                output.diagnostics()
-            )
-        });
+    let metadata = output.metadata().unwrap_or_else(|| {
+        panic!(
+            "successful elaboration must expose hardware metadata: {:?}",
+            output.diagnostics()
+        )
+    });
 
     assert!(metadata.driver_facts().iter().any(|fact| {
         fact.module() == "Top"
@@ -201,14 +200,12 @@ cell Top(y: out Bit) {
 "#,
         )
         .expect("trusted precompiled summary must compile via extern stub boundary");
-    let metadata = output
-        .metadata()
-        .unwrap_or_else(|| {
-            panic!(
-                "successful elaboration must expose hardware metadata: {:?}",
-                output.diagnostics()
-            )
-        });
+    let metadata = output.metadata().unwrap_or_else(|| {
+        panic!(
+            "successful elaboration must expose hardware metadata: {:?}",
+            output.diagnostics()
+        )
+    });
     let summary = metadata
         .opaque_summaries()
         .get("VendorDrive")
@@ -250,14 +247,12 @@ cell Top(y: out Pair) {
 "#,
         )
         .expect("cell result aggregate assignment should target the inlined result object");
-    let metadata = output
-        .metadata()
-        .unwrap_or_else(|| {
-            panic!(
-                "successful elaboration must expose hardware metadata: {:?}",
-                output.diagnostics()
-            )
-        });
+    let metadata = output.metadata().unwrap_or_else(|| {
+        panic!(
+            "successful elaboration must expose hardware metadata: {:?}",
+            output.diagnostics()
+        )
+    });
 
     assert!(metadata.driver_facts().iter().any(|fact| {
         matches!(fact.target_place(), HwPlace::Object { name, .. } if name == "made")
@@ -282,14 +277,12 @@ cell Top(a: in Bit, b: in Bit, y: out Bit) {
 "#,
         )
         .expect("software-only mutable locals should select elaboration branches without becoming hardware values");
-    let metadata = output
-        .metadata()
-        .unwrap_or_else(|| {
-            panic!(
-                "successful elaboration must expose hardware metadata: {:?}",
-                output.diagnostics()
-            )
-        });
+    let metadata = output.metadata().unwrap_or_else(|| {
+        panic!(
+            "successful elaboration must expose hardware metadata: {:?}",
+            output.diagnostics()
+        )
+    });
 
     let top_reads = metadata
         .read_facts()
@@ -382,9 +375,8 @@ cell Top(a: in Bit, b: in Bit, y: out Bit) {
 
 #[test]
 fn software_struct_field_assign_stays_on_software_path() {
-    let output = StaticFactHarness::new()
-        .compile_output(
-            r#"
+    let output = StaticFactHarness::new().compile_output(
+        r#"
 struct Config {
     enabled: bool,
 }
@@ -400,7 +392,7 @@ cell Top(a: in Bit, b: in Bit, y: out Bit) {
     }
 }
 "#,
-        );
+    );
     let output = output.unwrap_or_else(|err| {
         panic!(
             "software struct field assignment must lower without using bundle hardware paths: {err}"
