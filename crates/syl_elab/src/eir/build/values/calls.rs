@@ -317,7 +317,12 @@ where
         out
     }
 
-    fn type_value_in_env(&self, owner: Option<DefId>, ty: &crate::mir::MirTypeRef, env: &Env) -> String {
+    fn type_value_in_env(
+        &self,
+        owner: Option<DefId>,
+        ty: &crate::mir::MirTypeRef,
+        env: &Env,
+    ) -> String {
         if let Some(name) = ty.path_name()
             && let Some(var) = env.var(name)
             && !var.software_local
