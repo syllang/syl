@@ -208,7 +208,7 @@ impl<'a> CapabilityChecker<'a> {
                         },
                     )?;
                 }
-                HirStmt::Expr(expr) => self.check_expr_stmt(
+                HirStmt::Expr(expr) => self.check_read_expr(
                     owner,
                     expr,
                     ReadCheckContext {
@@ -261,7 +261,7 @@ impl<'a> CapabilityChecker<'a> {
             }
         }
         if let Some(tail) = &body.tail {
-            self.check_expr_stmt(
+            self.check_read_expr(
                 owner,
                 tail,
                 ReadCheckContext {
@@ -304,15 +304,6 @@ impl<'a> CapabilityChecker<'a> {
         if let PlaceResolution::Place(place) = self.ctx.resolve_place(owner, target) {
             scope.mark_local_drive(&place);
         }
-    }
-
-    fn check_expr_stmt(
-        &self,
-        owner: DefId,
-        expr: &HirBodyExpr,
-        context: ReadCheckContext<'_>,
-    ) -> Result<(), CompileError> {
-        self.check_read_expr(owner, expr, context)
     }
 
     fn check_read_expr(
