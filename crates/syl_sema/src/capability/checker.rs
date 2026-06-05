@@ -1,10 +1,11 @@
 use super::{
     context::CapabilityContext,
-    field_schema::{resolve_view_field_schema, LocalTypeFacts},
+    field_schema::{LocalTypeFacts, resolve_view_field_schema},
     model::{CapabilityScope, EndpointSide, FieldCaps},
     place::{Place, PlaceResolution},
 };
 use crate::{
+    CapabilityError, CompileError, ConstEvalError, HirError,
     binding::ActualFormalBinder,
     hir::resolve::HirResolution,
     hir::{
@@ -13,7 +14,6 @@ use crate::{
         HirSignatureResultBinding, HirStmt,
     },
     ir::mir::MirTypeRef,
-    CapabilityError, CompileError, ConstEvalError, HirError,
 };
 use syl_hir::{DefId, LocalId};
 use syl_span::Span;
