@@ -1,4 +1,5 @@
 use crate::{
+    const_eval::ConstValue,
     eir::{EirExpansion, EirExpr, EirOrigin},
     mir::MirTypeRef,
     program::{ElabExpr, ElabExprNode},
@@ -13,6 +14,7 @@ pub(crate) struct VarInfo {
     pub(crate) code: EirExpr,
     pub(crate) ty: MirTypeRef,
     pub(crate) software_local: bool,
+    pub(crate) summary_value: Option<ConstValue>,
 }
 
 #[derive(Default, Clone)]
@@ -24,6 +26,7 @@ pub(crate) struct Env {
     pub(crate) expansion_stack: Vec<EirExpansion>,
     pub(crate) owner: Option<DefId>,
     pub(crate) prefix: Option<String>,
+    pub(crate) expr_place_prefix: Option<String>,
 }
 
 impl Env {
@@ -42,7 +45,18 @@ impl Env {
     }
 
     pub(crate) fn insert(&mut self, name: impl Into<String>, code: EirExpr, ty: MirTypeRef) {
-        self.insert_with_binding_kind(name, code, ty, false);
+        let summary_value = Self::default_summary_value(&code);
+        self.insert_with_binding_kind(name, code, ty, false, summary_value);
+    }
+
+    pub(crate) fn insert_with_summary(
+        &mut self,
+        name: impl Into<String>,
+        code: EirExpr,
+        ty: MirTypeRef,
+        summary_value: Option<ConstValue>,
+    ) {
+        self.insert_with_binding_kind(name, code, ty, false, summary_value);
     }
 
     pub(crate) fn insert_software_local(
@@ -51,7 +65,18 @@ impl Env {
         code: EirExpr,
         ty: MirTypeRef,
     ) {
-        self.insert_with_binding_kind(name, code, ty, true);
+        let summary_value = Self::default_summary_value(&code);
+        self.insert_with_binding_kind(name, code, ty, true, summary_value);
+    }
+
+    pub(crate) fn insert_software_local_with_summary(
+        &mut self,
+        name: impl Into<String>,
+        code: EirExpr,
+        ty: MirTypeRef,
+        summary_value: Option<ConstValue>,
+    ) {
+        self.insert_with_binding_kind(name, code, ty, true, summary_value);
     }
 
     fn insert_with_binding_kind(
@@ -60,6 +85,7 @@ impl Env {
         code: EirExpr,
         ty: MirTypeRef,
         software_local: bool,
+        summary_value: Option<ConstValue>,
     ) {
         let name = name.into();
         let static_type = ty.type_name().map(ToOwned::to_owned);
@@ -69,6 +95,7 @@ impl Env {
                 code,
                 ty,
                 software_local,
+                summary_value,
             },
         ) && let Some(static_type) = previous.ty.type_name().map(ToOwned::to_owned)
             && let Some(names) = self.vars_by_static_type.get_mut(&static_type)
@@ -83,6 +110,14 @@ impl Env {
                 .entry(static_type)
                 .or_default()
                 .push(name);
+        }
+    }
+
+    fn default_summary_value(code: &EirExpr) -> Option<ConstValue> {
+        match code {
+            EirExpr::Int(value) => Some(ConstValue::Nat(*value)),
+            EirExpr::Bool(value) => Some(ConstValue::Bool(*value)),
+            _ => None,
         }
     }
 

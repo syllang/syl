@@ -252,8 +252,10 @@ impl<'a> CapabilityChecker<'a> {
                         },
                     )?;
                 }
-                HirStmt::Var { .. }
-                | HirStmt::Let { value: None, .. }
+                HirStmt::Var { id, name, span, .. } => {
+                    scope.insert(self.local_id(name, *id, *span)?, FieldCaps::read_only());
+                }
+                HirStmt::Let { value: None, .. }
                 | HirStmt::While { .. }
                 | HirStmt::Return(_, _)
                 | HirStmt::Error { .. } => {}
