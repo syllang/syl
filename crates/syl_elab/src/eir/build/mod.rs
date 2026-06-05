@@ -8,4 +8,4 @@ pub(crate) mod types;
 pub(crate) mod values;
 
 pub(crate) use callable::{EirBuilder, Elaborator};
-pub(crate) use env::{Env, VarInfo};
+pub(crate) use env::{Env, NumberingValue, VarInfo};

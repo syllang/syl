@@ -18,7 +18,10 @@ use crate::{
 use software_locals::BindVarRequest;
 use syl_span::Span;
 
-use super::{EirBuilder, Env, connections::InstanceEmitRequest, connections::ViewSignalSpec};
+use super::{
+    EirBuilder, Env, NumberingValue, connections::InstanceEmitRequest,
+    connections::ViewSignalSpec,
+};
 
 impl<'a, C> EirBuilder<'a, C>
 where
@@ -274,10 +277,9 @@ where
             .unwrap_or_else(|| MirTypeRef::path_type(vec!["nat".to_string()], request.span));
         let physical_name = env.local_name(request.name);
         let regular_value = self.elab_const_value(request.value, env)?;
-        let summarized_value = self.elab_summary_const_value(request.value, env).ok();
-        let effective_value = match (&regular_value, summarized_value.as_ref()) {
-            (ConstValue::Unknown(_), Some(ConstValue::Nat(value))) => ConstValue::Nat(*value),
-            (ConstValue::Unknown(_), Some(ConstValue::Bool(value))) => ConstValue::Bool(*value),
+        let numbering_value = self.numbering_value_for_const_expr(request.value, env);
+        let effective_value = match (&regular_value, numbering_value) {
+            (ConstValue::Unknown(_), Some(numbering)) => ConstValue::Nat(numbering.value()),
             _ => regular_value.clone(),
         };
         let code = match &effective_value {
@@ -286,7 +288,7 @@ where
             ConstValue::Unknown(_) => EirExpr::ident(&physical_name),
             _ => EirExpr::unsupported("unsupported const value"),
         };
-        env.insert_with_summary(request.name, code, ty, summarized_value);
+        env.insert_with_numbering(request.name, code, ty, numbering_value);
         if matches!(regular_value, ConstValue::Unknown(_))
             && !matches!(effective_value, ConstValue::Nat(_) | ConstValue::Bool(_))
         {
@@ -537,7 +539,6 @@ where
             .retain(|stmt| !matches!(stmt, ElabStmt::Next { .. }));
         self.emit_body_impl(&filtered, env, true)
     }
-
     fn emit_let(
         &self,
         name: &str,
@@ -640,7 +641,6 @@ where
         );
         Vec::new()
     }
-
     fn emit_expr_stmt(
         &self,
         expr: &ElabExpr,
@@ -732,5 +732,17 @@ where
         EirPlace::try_from(&lowered).map_err(|_| {
             CompileError::lowering_at(EirError::UnsupportedHardwareValueExpression, expr.span())
         })
+    }
+
+    fn numbering_value_for_const_expr(
+        &self,
+        expr: &ElabExpr,
+        env: &Env,
+    ) -> Option<NumberingValue> {
+        match &expr.node {
+            ElabExprNode::Ident(name) => env.var(name)?.numbering_value,
+            ElabExprNode::Group(inner) => self.numbering_value_for_const_expr(inner, env),
+            _ => None,
+        }
     }
 }

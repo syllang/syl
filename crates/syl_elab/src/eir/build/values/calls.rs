@@ -320,7 +320,8 @@ where
     fn type_value_in_env(&self, owner: Option<DefId>, ty: &crate::mir::MirTypeRef, env: &Env) -> String {
         if let Some(name) = ty.path_name()
             && let Some(var) = env.var(name)
-            && let Some(value) = self.summary_value_for_var(name, var, env)
+            && !var.software_local
+            && let Some(value) = self.const_value_for_var(name, var, env)
         {
             return match value {
                 crate::const_eval::ConstValue::Nat(value) => value.to_string(),
