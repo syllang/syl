@@ -230,45 +230,4 @@ impl Env {
             .iter()
             .filter_map(|name| {
                 self.vars.get(name).and_then(|var| {
-                    (emitter.first_type_arg(&var.ty) == Some(reset_domain))
-                        .then_some(var.code.clone())
-                })
-            });
-        let first = matches.next()?;
-        if matches.next().is_some() {
-            None
-        } else {
-            Some(first)
-        }
-    }
-
-    pub(crate) fn reset_for_unique_clock<C>(
-        &self,
-        emitter: &crate::eir::build::EirBuilder<'_, C>,
-    ) -> Option<EirExpr>
-    where
-        C: crate::const_eval::ConstValueElaborator + ?Sized,
-    {
-        let clocks = self.vars_by_static_type.get("Clock")?;
-        if clocks.len() != 1 {
-            return None;
-        }
-        let clock = self.vars.get(&clocks[0])?;
-        let clock_domain = emitter.first_type_arg(&clock.ty);
-        let mut matches = self
-            .vars_by_static_type
-            .get("Reset")?
-            .iter()
-            .filter_map(|name| {
-                self.vars.get(name).and_then(|var| {
-                    (emitter.first_type_arg(&var.ty) == clock_domain).then_some(var.code.clone())
-                })
-            });
-        let first = matches.next()?;
-        if matches.next().is_some() {
-            None
-        } else {
-            Some(first)
-        }
-    }
-}
+         
