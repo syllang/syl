@@ -147,7 +147,7 @@ fn rejects_nat_generic_as_if_condition() {
     let err = TestCompiler::new()
         .compile(
             r#"
-cell Bad<W: Nat>() {
+cell Bad<W: nat>() {
     if W {
     }
 }
@@ -155,7 +155,7 @@ cell Bad<W: Nat>() {
         )
         .expect_err("Nat generic must not be accepted as an if condition");
 
-    assert!(err.to_string().contains("requires Bool condition"));
+    assert!(err.to_string().contains("elaboration if requires bool condition"));
 }
 
 #[test]
@@ -163,7 +163,7 @@ fn rejects_bool_generic_as_for_bound() {
     let err = TestCompiler::new()
         .compile(
             r#"
-cell Bad<B: Bool>() {
+cell Bad<B: bool>() {
     for i in 0..B {
     }
 }
@@ -171,7 +171,7 @@ cell Bad<B: Bool>() {
         )
         .expect_err("Bool generic must not be accepted as a for bound");
 
-    assert!(err.to_string().contains("requires Nat expression"));
+    assert!(err.to_string().contains("for range end requires nat expression"));
 }
 
 #[test]
@@ -197,7 +197,7 @@ fn elaborates_const_fn_call_conditions() {
     let verilog = TestCompiler::new()
         .compile(
             r#"
-fn is_one(x: Nat) -> Bool {
+fn is_one(x: nat) -> bool {
     return x == 1
 }
 
@@ -222,9 +222,9 @@ fn elaborates_const_fn_cfg_with_while_and_if() {
     let verilog = TestCompiler::new()
         .compile(
             r#"
-fn clog2(x: Nat) -> Nat {
-    var n: Nat = 0
-    var p: Nat = 1
+fn clog2(x: nat) -> nat {
+    var n: nat = 0
+    var p: nat = 1
 
     while p < x {
         p = p << 1
@@ -234,7 +234,7 @@ fn clog2(x: Nat) -> Nat {
     return n
 }
 
-fn choose(x: Nat) -> Nat {
+fn choose(x: nat) -> nat {
     if x == 0 {
         return 7
     }
@@ -286,12 +286,12 @@ fn elaborates_hardware_body_local_const_conditions() {
     let verilog = TestCompiler::new()
         .compile(
             r#"
-fn is_one(x: Nat) -> Bool {
+fn is_one(x: nat) -> bool {
     return x == 1
 }
 
 cell Top(y: out Bit) {
-    const ENABLE: Bool = is_one(1)
+    const ENABLE: bool = is_one(1)
     if ENABLE {
         y := 1
     } else {
@@ -537,7 +537,7 @@ fn rejects_const_fn_call_inside_map() {
     let err = TestCompiler::new()
         .compile(
             r#"
-fn choose(x: Nat) -> Nat {
+fn choose(x: nat) -> nat {
     return x
 }
 
@@ -635,7 +635,7 @@ fn rejects_overlapping_guarded_multi_driver_without_proof() {
     let err = TestCompiler::new()
         .compile(
             r#"
-cell Bad<ENABLE_A: Bool, ENABLE_B: Bool>(y: out Bit) {
+cell Bad<ENABLE_A: bool, ENABLE_B: bool>(y: out Bit) {
     if ENABLE_A {
         y := 0
     }

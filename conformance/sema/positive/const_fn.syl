@@ -1,5 +1,5 @@
-const W: Nat = 8
+const W: nat = 8
 
-fn width() -> Nat {
+fn width() -> nat {
     return W
 }

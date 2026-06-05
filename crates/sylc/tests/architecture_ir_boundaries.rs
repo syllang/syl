@@ -311,14 +311,14 @@ fn architecture_ir_boundaries_expose_debug_dumps() {
 
 fn ir_source() -> &'static str {
     r#"
-fn one() -> Nat {
+fn one() -> nat {
     return 1
 }
 
-map passthrough<W: Nat>(value: UInt<W>) -> UInt<W> =
+map passthrough<W: nat>(value: UInt<W>) -> UInt<W> =
     value
 
-cell Top<W: Nat>(
+cell Top<W: nat>(
     x: in UInt<W>,
     y: out UInt<W>,
 ) {
