@@ -268,7 +268,7 @@ where
             });
         }
         let safe_name = self.sanitize(&format!("{}_inst", request.inst_name));
-        let params = self.generic_actuals_for_elab(callable_def, request.callee, request.env.owner);
+        let params = self.generic_actuals_for_elab(callable_def, request.callee, request.env);
         let mut conns = Vec::new();
         let mut used_conns = BTreeSet::new();
         let formals =

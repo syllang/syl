@@ -49,7 +49,7 @@ where
         )
     }
 
-    fn const_eval_env(&self, env: &Env) -> ConstEvalEnv {
+    pub(in crate::eir::build) fn const_eval_env(&self, env: &Env) -> ConstEvalEnv {
         let mut out = ConstEvalEnv::with_owner(env.owner);
         for (name, var) in &env.vars {
             if let Some(value) = self.const_value_for_var(name, var, env) {
@@ -164,6 +164,36 @@ where
             return ty.clone();
         };
         crate::mir::MirTypeRef::path_type(canonical_path.segments().to_vec(), ty.span())
+    }
+
+    pub(in crate::eir::build) fn summary_value_for_var(
+        &self,
+        name: &str,
+        var: &VarInfo,
+        env: &Env,
+    ) -> Option<ConstValue> {
+        var.summary_value
+            .clone()
+            .or_else(|| self.const_value_for_var(name, var, env))
+    }
+
+    pub(in crate::eir::build) fn summary_const_eval_env(&self, env: &Env) -> ConstEvalEnv {
+        let mut out = ConstEvalEnv::with_owner(env.owner);
+        for (name, var) in &env.vars {
+            if let Some(value) = self.summary_value_for_var(name, var, env) {
+                out.bind(name.clone(), value);
+            }
+        }
+        out
+    }
+
+    pub(in crate::eir::build) fn elab_summary_const_value(
+        &self,
+        expr: &ElabExpr,
+        env: &Env,
+    ) -> Result<ConstValue, CompileError> {
+        self.const_elaborator
+            .elab_value(self.program, expr, &mut self.summary_const_eval_env(env))
     }
 
     pub(super) fn elab_expr(&self, expr: &ElabExpr, env: &Env) -> EirExpr {

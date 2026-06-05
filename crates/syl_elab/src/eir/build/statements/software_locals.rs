@@ -1,5 +1,6 @@
 use crate::{
     CompileError, EirError,
+    const_eval::ConstValue,
     eir::EirExpr,
     eir::build::VarInfo,
     mir::MirTypeRef,
@@ -57,7 +58,8 @@ where
             .value
             .map(|expr| self.elab_expr(expr, env))
             .unwrap_or_else(|| EirExpr::unsupported("uninitialized mutable local"));
-        env.insert_software_local(binding.name, code, ty);
+        let summary_value = self.software_local_summary_value(binding.value, env);
+        env.insert_software_local_with_summary(binding.name, code, ty, summary_value);
         self.sync_software_local_fields(binding.name, binding.value, env);
         self.rebuild_software_root_binding(binding.name, env);
         Ok(())
@@ -85,7 +87,13 @@ where
                     ));
                 }
                 let ty = var.ty.clone();
-                env.insert_software_local(name, self.elab_expr(value, env), ty);
+                let summary_value = self.software_local_summary_value(Some(value), env);
+                env.insert_software_local_with_summary(
+                    name,
+                    self.elab_expr(value, env),
+                    ty,
+                    summary_value,
+                );
                 self.sync_software_local_fields(name, Some(value), env);
                 self.rebuild_software_root_binding(name, env);
                 Ok(())
@@ -117,7 +125,13 @@ where
                     .ok_or_else(|| {
                         CompileError::lowering_at(EirError::InvalidElaborationExpression, span)
                     })?;
-                env.insert_software_local(field_name, self.elab_expr(value, env), field_ty);
+                let summary_value = self.software_local_summary_value(Some(value), env);
+                env.insert_software_local_with_summary(
+                    field_name,
+                    self.elab_expr(value, env),
+                    field_ty,
+                    summary_value,
+                );
                 self.rebuild_software_root_binding(root, env);
                 Ok(())
             }
@@ -138,7 +152,12 @@ where
             if (visible.iter().any(|existing| existing == name) || root_visible)
                 && var.software_local
             {
-                target.insert_software_local(name.clone(), var.code.clone(), var.ty.clone());
+                target.insert_software_local_with_summary(
+                    name.clone(),
+                    var.code.clone(),
+                    var.ty.clone(),
+                    var.summary_value.clone(),
+                );
             }
         }
     }
@@ -154,13 +173,13 @@ where
             let Some(current) = target.var(&name).cloned() else {
                 continue;
             };
-            let merged = self.symbolic_branch_merge_value(
-                cond,
-                &current,
-                then_env.var(&name),
-                else_env.var(&name),
-            );
-            target.insert_software_local(name, merged.0, merged.1);
+            let then_var = then_env.var(&name);
+            let else_var = else_env.var(&name);
+            let merged_summary =
+                self.merge_software_local_branch_summary(&current, then_var, else_var);
+            let merged =
+                self.symbolic_branch_merge_value(cond, &current, then_var, else_var);
+            target.insert_software_local_with_summary(name, merged.0, merged.1, merged_summary);
         }
         self.rebuild_visible_software_roots(target);
     }
@@ -177,7 +196,12 @@ where
             };
             let merged =
                 self.symbolic_branch_merge_value(cond, &current, source.var(&name), Some(&current));
-            target.insert_software_local(name, merged.0, merged.1);
+            let merged_summary = self.merge_software_local_branch_summary(
+                &current,
+                source.var(&name),
+                Some(&current),
+            );
+            target.insert_software_local_with_summary(name, merged.0, merged.1, merged_summary);
         }
         self.rebuild_visible_software_roots(target);
     }
@@ -187,6 +211,7 @@ where
             let Some(current) = target.var(&name) else {
                 continue;
             };
+            let merged_summary = self.merge_software_local_loop_summary(current, source.var(&name));
             let merged = match source.var(&name) {
                 Some(updated) if updated.ty == current.ty && updated.code == current.code => {
                     (updated.code.clone(), updated.ty.clone())
@@ -194,7 +219,7 @@ where
                 Some(_) => (self.unknown_software_local_expr(&name), current.ty.clone()),
                 None => (current.code.clone(), current.ty.clone()),
             };
-            target.insert_software_local(name, merged.0, merged.1);
+            target.insert_software_local_with_summary(name, merged.0, merged.1, merged_summary);
         }
     }
 
@@ -223,6 +248,58 @@ where
 
     fn unknown_software_local_expr(&self, name: &str) -> EirExpr {
         EirExpr::ident(format!("__unknown_{}", name.replace('.', "_")))
+    }
+
+    pub(super) fn software_local_summary_value(
+        &self,
+        value: Option<&ElabExpr>,
+        env: &Env,
+    ) -> Option<ConstValue> {
+        value.and_then(|expr| self.elab_summary_const_value(expr, env).ok())
+    }
+
+    pub(super) fn merge_software_local_branch_summary(
+        &self,
+        current: &super::super::VarInfo,
+        then_var: Option<&super::super::VarInfo>,
+        else_var: Option<&super::super::VarInfo>,
+    ) -> Option<ConstValue> {
+        match (then_var, else_var) {
+            (Some(then_var), Some(else_var)) => self.merge_summary_values(
+                then_var.summary_value.as_ref(),
+                else_var.summary_value.as_ref(),
+            ),
+            _ => current.summary_value.clone(),
+        }
+    }
+
+    pub(super) fn merge_software_local_loop_summary(
+        &self,
+        current: &super::super::VarInfo,
+        updated: Option<&super::super::VarInfo>,
+    ) -> Option<ConstValue> {
+        updated
+            .map(|updated| {
+                self.merge_summary_values(
+                    current.summary_value.as_ref(),
+                    updated.summary_value.as_ref(),
+                )
+            })
+            .unwrap_or_else(|| current.summary_value.clone())
+    }
+
+    pub(super) fn merge_summary_values(
+        &self,
+        lhs: Option<&ConstValue>,
+        rhs: Option<&ConstValue>,
+    ) -> Option<ConstValue> {
+        match (lhs, rhs) {
+            (Some(lhs), Some(rhs)) if lhs == rhs => Some(lhs.clone()),
+            (Some(ConstValue::Nat(lhs)), Some(ConstValue::Nat(rhs))) => {
+                Some(ConstValue::Nat((*lhs).max(*rhs)))
+            }
+            _ => None,
+        }
     }
 
     fn symbolic_branch_merge_value(
@@ -258,10 +335,11 @@ where
                         .infer_software_expr_type(&field.value, env)
                         .or_else(|| Self::syntax_software_expr_type(&field.value))
                     {
-                        env.insert_software_local(
+                        env.insert_software_local_with_summary(
                             format!("{name}.{}", field.name),
                             self.elab_expr(&field.value, env),
                             field_ty,
+                            self.software_local_summary_value(Some(&field.value), env),
                         );
                     }
                 }
@@ -283,11 +361,12 @@ where
                     format!("{target}.{}", &name[prefix.len()..]),
                     var.code.clone(),
                     var.ty.clone(),
+                    var.summary_value.clone(),
                 )
             })
             .collect::<Vec<_>>();
-        for (name, code, ty) in fields {
-            env.insert_software_local(name, code, ty);
+        for (name, code, ty, summary_value) in fields {
+            env.insert_software_local_with_summary(name, code, ty, summary_value);
         }
     }
 
@@ -310,7 +389,7 @@ where
         }
         field_codes.sort_by(|lhs, rhs| lhs.0.cmp(&rhs.0));
         let code = EirExpr::Concat(field_codes.into_iter().map(|(_, code)| code).collect());
-        env.insert_software_local(root, code, root_var.ty);
+        env.insert_software_local_with_summary(root, code, root_var.ty, root_var.summary_value);
     }
 
     fn rebuild_visible_software_roots(&self, env: &mut Env) {

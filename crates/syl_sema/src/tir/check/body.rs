@@ -272,12 +272,7 @@ impl TypePhaseChecker {
     ) -> Result<(), CompileError> {
         match &expr.node {
             HirExprNode::Place { callee, args, .. } => {
-                self.check_generator_args(args, errors)?;
-                if self.hardware_generator_name(callee).is_some() {
-                    Self::record_recoverable(errors, self.record_phase(callee, Phase::Hardware));
-                    return Ok(());
-                }
-                self.check_hardware_value_call(callee, args, errors)
+                self.check_hardware_place_expr(callee, args, errors)
             }
             HirExprNode::For {
                 id,
@@ -327,12 +322,7 @@ impl TypePhaseChecker {
         self.check_hardware_block(&body, &loop_env, HardwareBlockMode::Normal, errors)?;
         match tail.as_deref().map(|expr| &expr.node) {
             Some(HirExprNode::Place { callee, args, .. }) => {
-                self.check_generator_args(args, errors)?;
-                if self.hardware_generator_name(callee).is_some() {
-                    Self::record_recoverable(errors, self.record_phase(callee, Phase::Hardware));
-                } else {
-                    self.check_hardware_value_call(callee, args, errors)?;
-                }
+                self.check_hardware_place_expr(callee, args, errors)?;
             }
             Some(_) | None => {
                 errors.push(CompileError::lowering_at(
@@ -351,13 +341,7 @@ impl TypePhaseChecker {
     ) -> Result<(), CompileError> {
         match &expr.node {
             HirExprNode::Place { callee, args, .. } => {
-                self.check_generator_args(args, errors)?;
-                if self.hardware_generator_name(callee).is_some() {
-                    Self::record_recoverable(errors, self.record_phase(callee, Phase::Hardware));
-                    Ok(())
-                } else {
-                    self.check_hardware_value_call(callee, args, errors)
-                }
+                self.check_hardware_place_expr(callee, args, errors)
             }
             _ => self.check_hardware_value_expr(expr, errors),
         }
@@ -384,6 +368,9 @@ impl TypePhaseChecker {
                 return Ok(());
             }
             return self.check_assert_stmt_expr(expr, errors);
+        }
+        if let HirExprNode::Place { callee, args, .. } = &expr.node {
+            return self.check_hardware_place_expr(callee, args, errors);
         }
         self.check_hardware_value_expr(expr, errors)
     }

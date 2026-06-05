@@ -7,7 +7,6 @@ use crate::{
     program::{ElabBlock, ElabExprNode},
 };
 
-use super::super::connections::InstanceEmitRequest;
 use super::{EirBuilder, Env, ForEmit};
 
 impl<'a, C> EirBuilder<'a, C>
@@ -48,11 +47,21 @@ where
         let mut items = Vec::new();
         let mut loop_env = env.clone();
         for value in start..end {
+            loop_env.prefix = Some(self.sanitize(&format!(
+                "{}_{}",
+                env.unique_label(&format!("gen_{}", request.name), request.span),
+                value
+            )));
             loop_env.insert(
                 request.name,
                 EirExpr::Int(value),
                 MirTypeRef::path_type(vec!["nat".to_string()], request.range_expr.span()),
             );
+            loop_env.expr_place_prefix = Some(format!(
+                "{}_{}",
+                env.unique_label(&format!("gen_{}", request.name), request.span),
+                value
+            ));
             items.extend(self.emit_for_iteration_body(
                 request.body,
                 &mut loop_env,
@@ -78,6 +87,11 @@ where
             EirExpr::ident(&index),
             MirTypeRef::path_type(vec!["nat".to_string()], request.range_expr.span()),
         );
+        loop_env.expr_place_prefix = Some(format!(
+            "{}_{}",
+            env.unique_label(&format!("gen_{}", request.name), request.span),
+            index
+        ));
         let body_items =
             self.emit_symbolic_for_body(request.body, &mut loop_env, request.name, &index)?;
         self.merge_visible_software_locals_after_loop(&loop_env, env);
@@ -113,14 +127,14 @@ where
                 .as_deref()
                 .map(|prefix| prefix.replace(&format!("[{loop_name}]"), &format!("[{index}]")))
                 .unwrap_or_else(|| format!("place_{index}"));
-            items.extend(self.emit_instance(InstanceEmitRequest {
-                inst_name: &inst_name,
+            items.extend(self.emit_named_expr_place(
+                &inst_name,
                 callee,
                 args,
+                *inplace,
+                tail.span(),
                 env,
-                inplace: *inplace,
-                span: tail.span(),
-            })?);
+            )?);
         }
         Ok(items)
     }
@@ -147,14 +161,14 @@ where
                 .as_deref()
                 .map(|prefix| prefix.replace(&format!("[{loop_name}]"), &format!("[{index}]")))
                 .unwrap_or_else(|| format!("place_{index}"));
-            items.extend(self.emit_instance(InstanceEmitRequest {
-                inst_name: &inst_name,
+            items.extend(self.emit_named_expr_place(
+                &inst_name,
                 callee,
                 args,
+                *inplace,
+                tail.span(),
                 env,
-                inplace: *inplace,
-                span: tail.span(),
-            })?);
+            )?);
         }
         Ok(items)
     }
