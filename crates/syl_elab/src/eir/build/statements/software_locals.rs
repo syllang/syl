@@ -252,10 +252,13 @@ where
     pub(super) fn initial_software_local_numbering_value(
         value: Option<&ElabExpr>,
     ) -> Option<NumberingValue> {
-        let expr = value?;
+        Self::initial_software_local_numbering_value_impl(value?)
+    }
+
+    fn initial_software_local_numbering_value_impl(expr: &ElabExpr) -> Option<NumberingValue> {
         match &expr.node {
             ElabExprNode::Int(value) => Some(NumberingValue::Counter(*value)),
-            ElabExprNode::Group(inner) => Self::initial_software_local_numbering_value(Some(inner)),
+            ElabExprNode::Group(inner) => Self::initial_software_local_numbering_value_impl(inner),
             _ => None,
         }
     }
