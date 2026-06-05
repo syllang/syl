@@ -75,21 +75,6 @@ where
     }
 
     fn assertion_stmt_args<'b>(&self, expr: &'b ElabExpr, env: &Env) -> Option<&'b [ElabCallArg]> {
-        let ElabExprNode::Call { callee, args } = &expr.node else {
-            return None;
-        };
-        let root = self.elab_callee_root(callee)?;
-        if let Some(owner) = env.owner
-            && matches!(
-                self.program.expr_resolution(owner, root),
-                Some(ElabResolution::Def(_) | ElabResolution::Local(_))
-            )
-        {
-            return None;
-        }
-        let ElabExprNode::Ident(name) = &root.node else {
-            return None;
-        };
-        (name == "assert").then_some(args.as_slice())
+        self.builtin_stmt_args(expr, env, "assert")
     }
 }
