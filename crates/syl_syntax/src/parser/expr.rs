@@ -389,9 +389,7 @@ impl Parser {
                 kind: TokenKind::Ident(name),
                 span,
                 ..
-            }) if name == "compile_error" || (name == "error" && self.check(&TokenKind::LParen)) => {
-                self.parse_compile_error(span)
-            }
+            }) if name == "compile_error" => self.parse_compile_error(span),
             Some(Token {
                 kind: TokenKind::Ident(name),
                 span,
