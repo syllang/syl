@@ -155,7 +155,10 @@ cell Bad<W: nat>() {
         )
         .expect_err("Nat generic must not be accepted as an if condition");
 
-    assert!(err.to_string().contains("elaboration if requires bool condition"));
+    assert!(
+        err.to_string()
+            .contains("elaboration if requires bool condition")
+    );
 }
 
 #[test]
@@ -171,7 +174,10 @@ cell Bad<B: bool>() {
         )
         .expect_err("Bool generic must not be accepted as a for bound");
 
-    assert!(err.to_string().contains("for range end requires nat expression"));
+    assert!(
+        err.to_string()
+            .contains("for range end requires nat expression")
+    );
 }
 
 #[test]
