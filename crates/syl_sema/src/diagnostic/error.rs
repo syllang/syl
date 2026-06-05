@@ -262,8 +262,12 @@ pub enum EirError {
     UnknownHardwareValueCall { name: String },
     #[error("assert is only supported as a standalone hardware statement")]
     AssertionStatementOnly,
+    #[error("error is only supported as a standalone hardware statement")]
+    RuntimeErrorStatementOnly,
     #[error("assert requires exactly one positional condition argument")]
     AssertionRequiresSingleCondition,
+    #[error("error requires exactly one positional message argument")]
+    RuntimeErrorRequiresSingleMessage,
     #[error("assert condition must be a hardware Bit expression")]
     AssertionConditionMustBeBit,
     #[error("assert requires exactly one Clock port in scope")]
@@ -306,7 +310,9 @@ impl EirError {
             Self::HardwareGeneratorCallInExpression { .. } => "E_MIDDLE_HW_GENERATOR_CALL_IN_EXPR",
             Self::UnknownHardwareValueCall { .. } => "E_MIDDLE_UNKNOWN_HW_VALUE_CALL",
             Self::AssertionStatementOnly => "E_MIDDLE_ASSERT_STATEMENT_ONLY",
+            Self::RuntimeErrorStatementOnly => "E_MIDDLE_ERROR_STATEMENT_ONLY",
             Self::AssertionRequiresSingleCondition => "E_MIDDLE_ASSERT_REQUIRES_CONDITION",
+            Self::RuntimeErrorRequiresSingleMessage => "E_MIDDLE_ERROR_REQUIRES_MESSAGE",
             Self::AssertionConditionMustBeBit => "E_MIDDLE_ASSERT_CONDITION_MUST_BE_BIT",
             Self::AssertionRequiresClock => "E_MIDDLE_ASSERT_REQUIRES_CLOCK",
             Self::ContinuousDriveTargetIsReg { .. } => "E_MIDDLE_CONTINUOUS_DRIVE_TO_REG",
