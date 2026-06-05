@@ -109,7 +109,10 @@ cell Top(y: out Bit) {
 "#])
         .expect_err("uppercase const-phase builtin names must be rejected");
 
-    assert!(err.contains("unknown type Bool") || err.contains("unknown type Nat"), "{err}");
+    assert!(
+        err.contains("unknown type Bool") || err.contains("unknown type Nat"),
+        "{err}"
+    );
 }
 
 #[test]
