@@ -1,7 +1,12 @@
-use crate::{CompileError, eir::EirItem, program::ElabExprNode};
+use crate::{
+    CompileError,
+    eir::EirItem,
+    program::{ElabCallArg, ElabExpr, ElabExprNode},
+};
+use syl_span::Span;
 
 use super::super::connections::InstanceEmitRequest;
-use super::{EirBuilder, Env, ExprPlaceEmit, NamedExprPlaceEmit};
+use super::{EirBuilder, Env, ExprPlaceEmit};
 
 #[non_exhaustive]
 pub(super) struct NamedExprPlaceEmit<'a> {
