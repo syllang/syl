@@ -6,7 +6,7 @@ mod software_locals;
 
 pub(crate) use request::{
     AggregateAssignEmit, ConstEmit, ExprPlaceEmit, ForEmit, IfEmit, LetPlaceEmit, RegEmit,
-    SignalEmit,
+    LetPlaceEmit, NamedExprPlaceEmit, RegEmit, SignalEmit,
 };
 
 use crate::{

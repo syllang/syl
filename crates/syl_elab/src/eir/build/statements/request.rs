@@ -55,6 +55,15 @@ pub(crate) struct ExprPlaceEmit<'a> {
 }
 
 #[non_exhaustive]
+pub(crate) struct NamedExprPlaceEmit<'a> {
+    pub(crate) inst_name: &'a str,
+    pub(crate) callee: &'a ElabExpr,
+    pub(crate) args: &'a [ElabCallArg],
+    pub(crate) inplace: bool,
+    pub(crate) span: Span,
+}
+
+#[non_exhaustive]
 pub(crate) struct AggregateAssignEmit<'a> {
     pub(crate) target: &'a ElabExpr,
     pub(crate) ty: &'a MirTypeRef,
