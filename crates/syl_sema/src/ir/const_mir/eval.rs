@@ -64,6 +64,7 @@ impl<'program> ConstEvaluator<'program> {
         Self::with_program_layout(program, program, Some(program))
     }
 
+    #[cfg(test)]
     fn with_dependencies(
         program: &'program dyn ConstFunctionStore,
         oracle: &'program dyn ConstTypeOracle,
