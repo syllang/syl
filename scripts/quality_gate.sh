@@ -22,6 +22,9 @@ run git diff --check
 diff_base_ref="${QUALITY_GATE_DIFF_BASE:-HEAD^}"
 if git rev-parse --verify --quiet "$diff_base_ref" >/dev/null; then
     run git diff --check "$diff_base_ref"...HEAD
+elif [[ -n "${GITHUB_BASE_REF:-}" ]]; then
+    run git fetch --depth=1 origin "$GITHUB_BASE_REF"
+    run git diff --check FETCH_HEAD...HEAD
 else
     printf 'warning: diff base %s not found; skipping committed whitespace check\n' \
         "$diff_base_ref" >&2
