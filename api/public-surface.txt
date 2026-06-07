@@ -1870,6 +1870,8 @@ syl_sema|variant|syl_sema::diagnostic::error::EirError::MissingAggregateField|{ 
 syl_sema|variant|syl_sema::diagnostic::error::EirError::RegisterRequiresClock|unit
 syl_sema|variant|syl_sema::diagnostic::error::EirError::RegisterRequiresReset|unit
 syl_sema|variant|syl_sema::diagnostic::error::EirError::RegisterRequiresType|unit
+syl_sema|variant|syl_sema::diagnostic::error::EirError::RuntimeErrorRequiresSingleMessage|unit
+syl_sema|variant|syl_sema::diagnostic::error::EirError::RuntimeErrorStatementOnly|unit
 syl_sema|variant|syl_sema::diagnostic::error::EirError::SignalRequiresType|unit
 syl_sema|variant|syl_sema::diagnostic::error::EirError::TooManyPositionalArguments|{ callable: String }
 syl_sema|variant|syl_sema::diagnostic::error::EirError::UnknownAggregateField|{ ty: String, field: String }
@@ -2124,6 +2126,7 @@ syl_sema|variant|syl_sema::tir::binding::BindingKind::Port|unit
 syl_sema|variant|syl_sema::tir::binding::BindingRef::Def|(syl_hir::DefId)
 syl_sema|variant|syl_sema::tir::binding::BindingRef::Local|(syl_hir::LocalId)
 syl_sema|variant|syl_sema::tir::builtin::BuiltinIntrinsic::Assert|unit
+syl_sema|variant|syl_sema::tir::builtin::BuiltinIntrinsic::Error|unit
 syl_sema|variant|syl_sema::tir::builtin::BuiltinIntrinsic::HighZ|unit
 syl_sema|variant|syl_sema::tir::builtin::BuiltinIntrinsic::Zero|unit
 syl_sema|variant|syl_sema::tir::phase::Phase::Comb|unit
