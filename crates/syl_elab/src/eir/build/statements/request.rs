@@ -2,7 +2,6 @@ use crate::{
     mir::MirTypeRef,
     program::{ElabBlock, ElabCallArg, ElabExpr, ElabNamedExpr, ElabRegReset},
 };
-use syl_hir::LocalId;
 use syl_span::Span;
 
 #[non_exhaustive]
@@ -45,24 +44,6 @@ pub(crate) struct LetPlaceEmit<'a> {
     pub(crate) args: &'a [ElabCallArg],
     pub(crate) inplace: bool,
     pub(crate) value: &'a ElabExpr,
-}
-
-#[non_exhaustive]
-pub(crate) struct ForLetEmit<'a> {
-    pub(crate) binding_name: &'a str,
-    pub(crate) loop_name: &'a str,
-    pub(crate) range: &'a ElabExpr,
-    pub(crate) body: &'a ElabBlock,
-    pub(crate) span: Span,
-}
-
-#[non_exhaustive]
-pub(crate) struct BindVarEmit<'a> {
-    pub(crate) id: Option<LocalId>,
-    pub(crate) name: &'a str,
-    pub(crate) ty: Option<&'a MirTypeRef>,
-    pub(crate) value: Option<&'a ElabExpr>,
-    pub(crate) span: Span,
 }
 
 #[non_exhaustive]
