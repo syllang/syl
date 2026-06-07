@@ -513,6 +513,10 @@ cell Top<ENABLE: bool>(a: in Bit, b: in Bit, y: out Bit) {
         !eir_dump.contains("__unknown_"),
         "symbolic software-local merges must not leak placeholder idents into EIR:\n{eir_dump}"
     );
+    assert!(
+        !eir_dump.contains("call(choose"),
+        "symbolic const-fn conditions must lower to symbolic EIR instead of backend-visible calls:\n{eir_dump}"
+    );
 
     let metadata = output
         .metadata()

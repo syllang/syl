@@ -490,7 +490,7 @@ where
         } else {
             (Vec::new(), None)
         };
-        let symbolic_cond = self.elab_expr(request.cond, env);
+        let symbolic_cond = self.symbolic_const_condition_expr(request.cond, env)?;
         if let Some(else_env) = else_env.as_ref() {
             self.merge_visible_software_locals_between_branches(
                 &symbolic_cond,
