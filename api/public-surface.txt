@@ -869,6 +869,7 @@ syl_hw|variant|syl_hw::design::HwDirection::Out|unit
 syl_hw|variant|syl_hw::design::HwGuardFrame::IfElse|{ label: String }
 syl_hw|variant|syl_hw::design::HwGuardFrame::IfThen|{ label: String }
 syl_hw|variant|syl_hw::design::HwGuardFrame::Loop|{ label: String }
+syl_hw|variant|syl_hw::design::HwItem::ClockedAssert|{ clock: crate::HwExpr, trigger: crate::HwExpr, message: crate::HwExpr }
 syl_hw|variant|syl_hw::design::HwItem::ClockedStorage|{ clock: crate::HwExpr, target: crate::HwExpr, reset: Option<HwReset>, next: crate::HwExpr }
 syl_hw|variant|syl_hw::design::HwItem::ContinuousDrive|{ lhs: crate::HwExpr, rhs: crate::HwExpr }
 syl_hw|variant|syl_hw::design::HwItem::InitialError|{ message: crate::HwExpr }
@@ -1849,6 +1850,10 @@ syl_sema|variant|syl_sema::diagnostic::error::DriverError::UndrivenSignal|{ name
 syl_sema|variant|syl_sema::diagnostic::error::DriverError::UnknownHardwareObject|{ module: String, name: String }
 syl_sema|variant|syl_sema::diagnostic::error::DriverError::UnknownParameter|{ name: String, callable: String }
 syl_sema|variant|syl_sema::diagnostic::error::DriverError::UnsupportedHardwareValueExpression|unit
+syl_sema|variant|syl_sema::diagnostic::error::EirError::AssertionConditionMustBeBit|unit
+syl_sema|variant|syl_sema::diagnostic::error::EirError::AssertionRequiresClock|unit
+syl_sema|variant|syl_sema::diagnostic::error::EirError::AssertionRequiresSingleCondition|unit
+syl_sema|variant|syl_sema::diagnostic::error::EirError::AssertionStatementOnly|unit
 syl_sema|variant|syl_sema::diagnostic::error::EirError::AssignmentInMap|unit
 syl_sema|variant|syl_sema::diagnostic::error::EirError::ContinuousDriveTargetIsReg|{ name: String }
 syl_sema|variant|syl_sema::diagnostic::error::EirError::DuplicateArgument|{ name: String }
@@ -1865,6 +1870,8 @@ syl_sema|variant|syl_sema::diagnostic::error::EirError::MissingAggregateField|{ 
 syl_sema|variant|syl_sema::diagnostic::error::EirError::RegisterRequiresClock|unit
 syl_sema|variant|syl_sema::diagnostic::error::EirError::RegisterRequiresReset|unit
 syl_sema|variant|syl_sema::diagnostic::error::EirError::RegisterRequiresType|unit
+syl_sema|variant|syl_sema::diagnostic::error::EirError::RuntimeErrorRequiresSingleMessage|unit
+syl_sema|variant|syl_sema::diagnostic::error::EirError::RuntimeErrorStatementOnly|unit
 syl_sema|variant|syl_sema::diagnostic::error::EirError::SignalRequiresType|unit
 syl_sema|variant|syl_sema::diagnostic::error::EirError::TooManyPositionalArguments|{ callable: String }
 syl_sema|variant|syl_sema::diagnostic::error::EirError::UnknownAggregateField|{ ty: String, field: String }
@@ -2118,6 +2125,8 @@ syl_sema|variant|syl_sema::tir::binding::BindingKind::Local|unit
 syl_sema|variant|syl_sema::tir::binding::BindingKind::Port|unit
 syl_sema|variant|syl_sema::tir::binding::BindingRef::Def|(syl_hir::DefId)
 syl_sema|variant|syl_sema::tir::binding::BindingRef::Local|(syl_hir::LocalId)
+syl_sema|variant|syl_sema::tir::builtin::BuiltinIntrinsic::Assert|unit
+syl_sema|variant|syl_sema::tir::builtin::BuiltinIntrinsic::Error|unit
 syl_sema|variant|syl_sema::tir::builtin::BuiltinIntrinsic::HighZ|unit
 syl_sema|variant|syl_sema::tir::builtin::BuiltinIntrinsic::Zero|unit
 syl_sema|variant|syl_sema::tir::phase::Phase::Comb|unit
