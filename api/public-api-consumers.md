@@ -939,6 +939,7 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_hw|variant|syl_hw::design::HwGuardFrame::IfElse|{ label: String }` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|variant|syl_hw::design::HwGuardFrame::IfThen|{ label: String }` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|variant|syl_hw::design::HwGuardFrame::Loop|{ label: String }` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|variant|syl_hw::design::HwItem::ClockedAssert|{ clock: crate::HwExpr, trigger: crate::HwExpr, message: crate::HwExpr }` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|variant|syl_hw::design::HwItem::ClockedStorage|{ clock: crate::HwExpr, target: crate::HwExpr, reset: Option<HwReset>, next: crate::HwExpr }` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|variant|syl_hw::design::HwItem::ContinuousDrive|{ lhs: crate::HwExpr, rhs: crate::HwExpr }` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|variant|syl_hw::design::HwItem::InitialError|{ message: crate::HwExpr }` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
@@ -1919,6 +1920,10 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_sema|variant|syl_sema::diagnostic::error::DriverError::UnknownHardwareObject|{ module: String, name: String }` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
 - `syl_sema|variant|syl_sema::diagnostic::error::DriverError::UnknownParameter|{ name: String, callable: String }` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
 - `syl_sema|variant|syl_sema::diagnostic::error::DriverError::UnsupportedHardwareValueExpression|unit` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
+- `syl_sema|variant|syl_sema::diagnostic::error::EirError::AssertionConditionMustBeBit|unit` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
+- `syl_sema|variant|syl_sema::diagnostic::error::EirError::AssertionRequiresClock|unit` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
+- `syl_sema|variant|syl_sema::diagnostic::error::EirError::AssertionRequiresSingleCondition|unit` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
+- `syl_sema|variant|syl_sema::diagnostic::error::EirError::AssertionStatementOnly|unit` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
 - `syl_sema|variant|syl_sema::diagnostic::error::EirError::AssignmentInMap|unit` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
 - `syl_sema|variant|syl_sema::diagnostic::error::EirError::ContinuousDriveTargetIsReg|{ name: String }` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
 - `syl_sema|variant|syl_sema::diagnostic::error::EirError::DuplicateArgument|{ name: String }` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
@@ -2188,6 +2193,7 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_sema|variant|syl_sema::tir::binding::BindingKind::Port|unit` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
 - `syl_sema|variant|syl_sema::tir::binding::BindingRef::Def|(syl_hir::DefId)` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
 - `syl_sema|variant|syl_sema::tir::binding::BindingRef::Local|(syl_hir::LocalId)` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
+- `syl_sema|variant|syl_sema::tir::builtin::BuiltinIntrinsic::Assert|unit` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
 - `syl_sema|variant|syl_sema::tir::builtin::BuiltinIntrinsic::HighZ|unit` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
 - `syl_sema|variant|syl_sema::tir::builtin::BuiltinIntrinsic::Zero|unit` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
 - `syl_sema|variant|syl_sema::tir::phase::Phase::Comb|unit` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
