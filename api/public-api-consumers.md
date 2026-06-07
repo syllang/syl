@@ -1940,6 +1940,8 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_sema|variant|syl_sema::diagnostic::error::EirError::RegisterRequiresClock|unit` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
 - `syl_sema|variant|syl_sema::diagnostic::error::EirError::RegisterRequiresReset|unit` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
 - `syl_sema|variant|syl_sema::diagnostic::error::EirError::RegisterRequiresType|unit` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
+- `syl_sema|variant|syl_sema::diagnostic::error::EirError::RuntimeErrorRequiresSingleMessage|unit` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
+- `syl_sema|variant|syl_sema::diagnostic::error::EirError::RuntimeErrorStatementOnly|unit` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
 - `syl_sema|variant|syl_sema::diagnostic::error::EirError::SignalRequiresType|unit` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
 - `syl_sema|variant|syl_sema::diagnostic::error::EirError::TooManyPositionalArguments|{ callable: String }` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
 - `syl_sema|variant|syl_sema::diagnostic::error::EirError::UnknownAggregateField|{ ty: String, field: String }` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
@@ -2194,6 +2196,7 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_sema|variant|syl_sema::tir::binding::BindingRef::Def|(syl_hir::DefId)` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
 - `syl_sema|variant|syl_sema::tir::binding::BindingRef::Local|(syl_hir::LocalId)` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
 - `syl_sema|variant|syl_sema::tir::builtin::BuiltinIntrinsic::Assert|unit` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
+- `syl_sema|variant|syl_sema::tir::builtin::BuiltinIntrinsic::Error|unit` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
 - `syl_sema|variant|syl_sema::tir::builtin::BuiltinIntrinsic::HighZ|unit` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
 - `syl_sema|variant|syl_sema::tir::builtin::BuiltinIntrinsic::Zero|unit` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
 - `syl_sema|variant|syl_sema::tir::phase::Phase::Comb|unit` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
