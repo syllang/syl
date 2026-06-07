@@ -1,4 +1,5 @@
 pub(crate) mod for_emit;
+mod next;
 pub(crate) mod place_emit;
 pub(crate) mod request;
 mod software_locals;
@@ -9,7 +10,7 @@ pub(crate) use request::{
 };
 
 use crate::{
-    CompileError, DriverError, EirError,
+    CompileError, EirError,
     const_eval::ConstValue,
     eir::{EirExpr, EirItem, EirPlace, EirReset, EirSignalActivity},
     mir::MirTypeRef,
@@ -351,119 +352,6 @@ where
                 origin: env.origin(request.span),
             },
         ])
-    }
-
-    fn next_map<'b>(
-        &self,
-        body: &'b ElabBlock,
-    ) -> Result<std::collections::HashMap<String, (&'b ElabExpr, Span)>, CompileError> {
-        let mut nexts = std::collections::HashMap::new();
-        for stmt in &body.stmts {
-            if let ElabStmt::Next { name, value, span } = stmt
-                && nexts.insert(name.clone(), (value, *span)).is_some()
-            {
-                return Err(CompileError::lowering_at(
-                    DriverError::DuplicateNextDriver { name: name.clone() },
-                    *span,
-                ));
-            }
-        }
-        Ok(nexts)
-    }
-
-    fn next_expr(
-        &self,
-        name: &str,
-        body: &ElabBlock,
-        env: &Env,
-    ) -> Result<Option<EirExpr>, CompileError> {
-        let direct = self.next_map(body)?;
-        let mut found: Option<(EirExpr, Span)> = None;
-        if let Some((expr, span)) = direct.get(name) {
-            found = Some((self.elab_expr(expr, env), *span));
-        }
-        for stmt in &body.stmts {
-            if let ElabStmt::ElabIf {
-                cond,
-                then_block,
-                else_block,
-                span,
-                ..
-            } = stmt
-            {
-                let conditional = match self.elab_const_bool(cond, env)? {
-                    Some(true) => self.next_expr(name, then_block, env)?,
-                    Some(false) => else_block
-                        .as_ref()
-                        .map(|block| self.next_expr(name, block, env))
-                        .transpose()?
-                        .flatten(),
-                    None => {
-                        let then_next = self.next_expr(name, then_block, env)?;
-                        let else_next = else_block
-                            .as_ref()
-                            .map(|block| self.next_expr(name, block, env))
-                            .transpose()?
-                            .flatten();
-                        if then_next.is_some() || else_next.is_some() {
-                            let hold = env
-                                .vars
-                                .get(name)
-                                .map(|var| var.code.clone())
-                                .unwrap_or_else(|| EirExpr::ident(name));
-                            let then_code = then_next.unwrap_or_else(|| hold.clone());
-                            let else_code = else_next.unwrap_or(hold);
-                            Some(EirExpr::mux(
-                                self.elab_expr(cond, env),
-                                then_code,
-                                else_code,
-                            ))
-                        } else {
-                            None
-                        }
-                    }
-                };
-                if let Some(code) = conditional {
-                    if found.is_some() {
-                        return Err(CompileError::lowering_at(
-                            DriverError::DuplicateNextDriver {
-                                name: name.to_string(),
-                            },
-                            *span,
-                        ));
-                    }
-                    found = Some((code, *span));
-                }
-            }
-        }
-        Ok(found.map(|(expr, _)| expr))
-    }
-
-    fn next_reads(
-        &self,
-        name: &str,
-        body: &ElabBlock,
-        env: &Env,
-    ) -> Result<Vec<EirExpr>, CompileError> {
-        let direct = self.next_map(body)?;
-        let mut reads = Vec::new();
-        if let Some((expr, _)) = direct.get(name) {
-            reads.extend(self.elab_read_places(expr, env));
-        }
-        for stmt in &body.stmts {
-            if let ElabStmt::ElabIf {
-                then_block,
-                else_block,
-                ..
-            } = stmt
-            {
-                reads.extend(self.next_reads(name, then_block, env)?);
-                if let Some(block) = else_block {
-                    reads.extend(self.next_reads(name, block, env)?);
-                }
-            }
-        }
-        Ok(reads)
     }
 
     fn emit_if(&self, request: IfEmit<'_>, env: &mut Env) -> Result<Vec<EirItem>, CompileError> {
