@@ -90,6 +90,60 @@ fn choose(x: bool) -> bool {
 }
 
 #[test]
+fn elaboration_const_fn_call_accepts_struct_aggregate_args() {
+    let verilog = ConstResolutionHarness::new()
+        .compile_sources(&[r#"
+struct Config {
+    enabled: bool,
+}
+
+fn choose(cfg: Config) -> bool {
+    return cfg.enabled
+}
+
+cell Top(y: out Bit) {
+    if choose(Config { enabled: true }) {
+        y := 1
+    } else {
+        compile_error("unreachable")
+    }
+}
+"#])
+        .expect("struct-valued const-fn args must elaborate through const call evaluation");
+
+    assert!(verilog.contains("assign y = 1;"));
+    assert!(!verilog.contains("unreachable"));
+}
+
+#[test]
+fn elaboration_const_fn_struct_return_supports_const_field_access() {
+    let verilog = ConstResolutionHarness::new()
+        .compile_sources(&[r#"
+struct Config {
+    enabled: bool,
+}
+
+fn enable(cfg: Config) -> Config {
+    return Config { enabled: !cfg.enabled }
+}
+
+const CFG: Config = enable(Config { enabled: false })
+
+cell Top(y: out Bit) {
+    if CFG.enabled {
+        y := 1
+    } else {
+        compile_error("unreachable")
+    }
+}
+"#])
+        .expect("struct-valued const-fn returns must remain usable through const field access");
+
+    assert!(verilog.contains("assign y = 1;"));
+    assert!(!verilog.contains("unreachable"));
+}
+
+#[test]
 fn rejects_uppercase_nat_and_bool_in_const_phase_items() {
     let err = ConstResolutionHarness::new()
         .compile_sources(&[r#"
