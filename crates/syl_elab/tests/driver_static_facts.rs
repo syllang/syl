@@ -360,7 +360,12 @@ cell Top(a: in Bit, b: in Bit, y: out Bit) {
         .expect("for-local mutation must remain visible after the loop");
     let metadata = output
         .metadata()
-        .expect("successful elaboration must expose hardware metadata");
+        .unwrap_or_else(|| {
+            panic!(
+                "successful elaboration must expose hardware metadata: output={output:?}, diagnostics={:?}",
+                output.diagnostics()
+            )
+        });
 
     let top_reads = metadata
         .read_facts()
@@ -398,6 +403,53 @@ cell Top(a: in Bit, b: in Bit, y: out Bit) {
             "software struct field assignment must lower without using bundle hardware paths: {err}"
         )
     });
+    let metadata = output
+        .metadata()
+        .unwrap_or_else(|| {
+            panic!(
+                "successful elaboration must expose hardware metadata: output={output:?}, diagnostics={:?}",
+                output.diagnostics()
+            )
+        });
+
+    let top_reads = metadata
+        .read_facts()
+        .iter()
+        .filter(|fact| fact.module() == "Top")
+        .map(|fact| fact.source_place().display())
+        .collect::<Vec<_>>();
+
+    assert!(top_reads.iter().any(|read| read == "b"));
+    assert!(!top_reads.iter().any(|read| read == "a"));
+    assert!(!top_reads.iter().any(|read| read.contains("cfg")));
+}
+
+#[test]
+fn software_struct_local_can_flow_into_const_fn_call() {
+    let output = StaticFactHarness::new()
+        .compile_output(
+            r#"
+struct Config {
+    enabled: bool,
+}
+
+fn choose(cfg: Config) -> bool {
+    return cfg.enabled
+}
+
+cell Top(a: in Bit, b: in Bit, y: out Bit) {
+    var cfg = Config { enabled: true }
+
+    if choose(cfg) {
+        y := b
+    } else {
+        compile_error("unreachable")
+        y := a
+    }
+}
+"#,
+        )
+        .expect("software struct locals must materialize into const-fn elaboration args");
     let metadata = output
         .metadata()
         .unwrap_or_else(|| {
