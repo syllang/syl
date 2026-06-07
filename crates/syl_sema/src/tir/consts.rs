@@ -1,3 +1,5 @@
+mod call_eval;
+
 use super::TypePhaseChecker;
 use crate::{
     hir::resolve::HirResolution,
@@ -271,18 +273,23 @@ impl TirConstEnv {
     ) -> Option<bool> {
         match &expr.node {
             HirExprNode::Bool(value) => Some(*value),
-            HirExprNode::Ident(_) => {
-                if let Some(binding) = self.local_binding(expr, checker) {
-                    return match binding.value {
-                        Some(TirConstValue::Bool(value)) => Some(value),
-                        Some(TirConstValue::Struct(_)) | Some(TirConstValue::Nat(_)) | None => self
-                            .const_item(expr, checker)
-                            .and_then(|item| self.const_bool_value(&item.value, checker)),
-                    };
+            HirExprNode::Ident(_) => self
+                .local_binding(expr, checker)
+                .and_then(|binding| match &binding.value {
+                    Some(TirConstValue::Bool(value)) => Some(*value),
+                    _ => None,
+                })
+                .or_else(|| {
+                    self.const_item(expr, checker)
+                        .and_then(|item| self.const_bool_value(&item.value, checker))
+                }),
+            HirExprNode::Call { .. } => self.const_call_value(expr, checker).and_then(|value| {
+                if let TirConstValue::Bool(value) = value {
+                    Some(value)
+                } else {
+                    None
                 }
-                self.const_item(expr, checker)
-                    .and_then(|item| self.const_bool_value(&item.value, checker))
-            }
+            }),
             HirExprNode::Group(expr) => self.const_bool_value(expr, checker),
             HirExprNode::Field { base, field } => self
                 .const_struct_value(base, checker)
@@ -379,19 +386,23 @@ impl TirConstEnv {
     fn const_nat_value(&self, expr: &HirBodyExpr, checker: &TypePhaseChecker) -> Option<u64> {
         match &expr.node {
             HirExprNode::Int(value) => Some(*value),
-            HirExprNode::Ident(_) => {
-                if let Some(binding) = self.local_binding(expr, checker) {
-                    return match binding.value {
-                        Some(TirConstValue::Nat(value)) => Some(value),
-                        Some(TirConstValue::Struct(_)) | Some(TirConstValue::Bool(_)) | None => {
-                            self.const_item(expr, checker)
-                                .and_then(|item| self.const_nat_value(&item.value, checker))
-                        }
-                    };
+            HirExprNode::Ident(_) => self
+                .local_binding(expr, checker)
+                .and_then(|binding| match &binding.value {
+                    Some(TirConstValue::Nat(value)) => Some(*value),
+                    _ => None,
+                })
+                .or_else(|| {
+                    self.const_item(expr, checker)
+                        .and_then(|item| self.const_nat_value(&item.value, checker))
+                }),
+            HirExprNode::Call { .. } => self.const_call_value(expr, checker).and_then(|value| {
+                if let TirConstValue::Nat(value) = value {
+                    Some(value)
+                } else {
+                    None
                 }
-                self.const_item(expr, checker)
-                    .and_then(|item| self.const_nat_value(&item.value, checker))
-            }
+            }),
             HirExprNode::Group(expr) => self.const_nat_value(expr, checker),
             HirExprNode::Field { base, field } => self
                 .const_struct_value(base, checker)
@@ -466,7 +477,11 @@ impl TirConstEnv {
     ) -> Option<TirConstKind> {
         let item = self.fn_item(callee, checker)?;
         for arg in args {
-            self.expr_kind(&arg.value, checker)?;
+            if self.expr_kind(&arg.value, checker).is_none()
+                && self.struct_def_for_expr(&arg.value, checker).is_none()
+            {
+                return None;
+            }
         }
         item.ret_ty
             .as_ref()
@@ -525,18 +540,23 @@ impl TirConstEnv {
         checker: &TypePhaseChecker,
     ) -> Option<TirConstStructValue> {
         match &expr.node {
-            HirExprNode::Ident(_) => {
-                if let Some(binding) = self.local_binding(expr, checker) {
-                    return match &binding.value {
-                        Some(TirConstValue::Struct(value)) => Some(value.clone()),
-                        _ => self
-                            .const_item(expr, checker)
-                            .and_then(|item| self.const_struct_value(&item.value, checker)),
-                    };
+            HirExprNode::Ident(_) => self
+                .local_binding(expr, checker)
+                .and_then(|binding| match &binding.value {
+                    Some(TirConstValue::Struct(value)) => Some(value.clone()),
+                    _ => None,
+                })
+                .or_else(|| {
+                    self.const_item(expr, checker)
+                        .and_then(|item| self.const_struct_value(&item.value, checker))
+                }),
+            HirExprNode::Call { .. } => self.const_call_value(expr, checker).and_then(|value| {
+                if let TirConstValue::Struct(value) = value {
+                    Some(value)
+                } else {
+                    None
                 }
-                self.const_item(expr, checker)
-                    .and_then(|item| self.const_struct_value(&item.value, checker))
-            }
+            }),
             HirExprNode::Group(expr) => self.const_struct_value(expr, checker),
             HirExprNode::Aggregate { fields, .. } => {
                 let def = self.struct_def_for_expr(expr, checker)?;
