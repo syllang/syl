@@ -327,6 +327,42 @@ cell Top(y: out Bit) {
 }
 
 #[test]
+fn symbolic_struct_const_fn_conditions_do_not_reach_backend_as_calls() {
+    let verilog = TestCompiler::new()
+        .compile(
+            r#"
+struct Config {
+    enabled: bool,
+}
+
+fn choose(cfg: Config) -> bool {
+    return cfg.enabled
+}
+
+cell Top<ENABLE: bool>(a: in Bit, b: in Bit, y: out Bit) {
+    var cfg = Config { enabled: false }
+
+    if ENABLE {
+        cfg.enabled = true
+    }
+
+    if choose(cfg) {
+        y := b
+    } else {
+        y := a
+    }
+}
+"#,
+        )
+        .expect("symbolic const-fn conditions should elaborate into backend-safe generate logic");
+
+    assert!(!verilog.contains("choose("));
+    assert!(verilog.contains("generate"));
+    assert!(verilog.contains("assign y = b;"));
+    assert!(verilog.contains("assign y = a;"));
+}
+
+#[test]
 fn elaborates_loop_local_const_conditions() {
     let verilog = TestCompiler::new()
         .compile(
