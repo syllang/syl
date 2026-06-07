@@ -24,7 +24,8 @@ if git rev-parse --verify --quiet "$diff_base_ref" >/dev/null; then
     run git diff --check "$diff_base_ref"...HEAD
 elif [[ -n "${GITHUB_BASE_REF:-}" ]]; then
     run git fetch --depth=1 origin "$GITHUB_BASE_REF"
-    run git diff --check FETCH_HEAD...HEAD
+    # pull_request merge checkouts can be too shallow to resolve a merge base.
+    run git diff --check FETCH_HEAD HEAD
 else
     printf 'error: diff base %s not found for committed whitespace check\n' \
         "$diff_base_ref" >&2
