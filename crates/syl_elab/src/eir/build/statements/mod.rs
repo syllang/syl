@@ -17,7 +17,6 @@ use crate::{
     eir::{EirExpr, EirItem, EirPlace, EirReset, EirSignalActivity},
     mir::MirTypeRef,
     program::{ElabBlock, ElabExpr, ElabExprNode, ElabStmt},
-    tir::TirType,
 };
 use software_locals::BindVarRequest;
 use syl_span::Span;
