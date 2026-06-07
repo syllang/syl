@@ -86,6 +86,19 @@ impl ConstValueElaborator for ConstMirProgram {
     fn kind_for_type(&self, ty: &MirTypeRef) -> Option<ConstKind> {
         self.evaluator().kind_for_type(ty)
     }
+
+    fn lower_expr(
+        &self,
+        program: &ElabProgram,
+        expr: &ElabExpr,
+        env: &ConstEvalEnv,
+    ) -> Result<ConstExpr, CompileError> {
+        ElabConstLowerer::new(self, program, env).lower(expr)
+    }
+
+    fn function(&self, def: DefId) -> Option<&ConstFunction> {
+        ConstMirProgram::function(self, def)
+    }
 }
 
 #[non_exhaustive]
