@@ -3,12 +3,13 @@ mod calls;
 
 use crate::{
     CompileError,
-    const_eval::{ConstEvalEnv, ConstValue},
+    const_eval::{ConstEvalEnv, ConstKind, ConstValue},
     eir::{EirBinaryOp, EirBound, EirExpr, EirSelectArm, EirSelectMode, EirUnaryOp},
     program::{ElabDefKind, ElabExpr, ElabExprNode, ElabMatchArm, ElabNamedExpr, ElabSelectArm},
 };
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use syl_hir::DefId;
+use syl_sema::ir::const_mir::{ConstStructFieldValue, ConstStructKind, ConstStructValue};
 
 use super::{EirBuilder, Env, VarInfo};
 
@@ -51,22 +52,118 @@ where
     fn const_eval_env(&self, env: &Env) -> ConstEvalEnv {
         let mut out = ConstEvalEnv::with_owner(env.owner);
         for (name, var) in &env.vars {
-            if let Some(value) = self.const_value_for_var(var) {
+            if let Some(value) = self.const_value_for_var(name, var, env) {
                 out.bind(name.clone(), value);
             }
         }
         out
     }
 
-    fn const_value_for_var(&self, var: &VarInfo) -> Option<ConstValue> {
+    fn const_value_for_var(&self, name: &str, var: &VarInfo, env: &Env) -> Option<ConstValue> {
+        let ty = self.canonicalize_const_eval_type(env.owner, &var.ty);
+        let kind = self.const_elaborator.kind_for_type(&ty);
         match &var.code {
             EirExpr::Int(value) => Some(ConstValue::Nat(*value)),
             EirExpr::Bool(value) => Some(ConstValue::Bool(*value)),
-            _ => self
-                .const_elaborator
-                .kind_for_type(&var.ty)
-                .map(ConstValue::Unknown),
+            _ => {
+                if var.software_local
+                    && let Some(ConstKind::Struct(kind)) = kind
+                    && let Some(value) = self.software_local_struct_value(name, kind, env)
+                {
+                    return Some(value);
+                }
+                kind.map(ConstValue::Unknown)
+            }
         }
+    }
+
+    fn software_local_struct_value(
+        &self,
+        root: &str,
+        kind: ConstStructKind,
+        env: &Env,
+    ) -> Option<ConstValue> {
+        let prefix = format!("{root}.");
+        let field_names = env
+            .vars
+            .iter()
+            .filter(|(name, var)| var.software_local && name.starts_with(&prefix))
+            .filter_map(|(name, _)| name[prefix.len()..].split('.').next().map(str::to_string))
+            .collect::<BTreeSet<_>>();
+        if field_names.is_empty() {
+            return None;
+        }
+        let fields = field_names
+            .into_iter()
+            .map(|field_name| {
+                let field_key = format!("{root}.{field_name}");
+                let field_var = env.var(&field_key)?;
+                let field_value = self.const_value_for_var(&field_key, field_var, env)?;
+                Some(ConstStructFieldValue::new(field_name, field_value))
+            })
+            .collect::<Option<Vec<_>>>()?;
+        Some(ConstValue::Struct(ConstStructValue::new(kind, fields)))
+    }
+
+    fn canonicalize_const_eval_type(
+        &self,
+        owner: Option<DefId>,
+        ty: &crate::mir::MirTypeRef,
+    ) -> crate::mir::MirTypeRef {
+        let Some(owner) = owner else {
+            return ty.clone();
+        };
+        if let Some(path) = ty.path() {
+            return self.canonicalize_const_eval_path(owner, ty, path);
+        }
+        if let Some((len, elem)) = ty.array() {
+            return crate::mir::MirTypeRef::array_type(
+                len.clone(),
+                self.canonicalize_const_eval_type(Some(owner), elem),
+                ty.span(),
+            );
+        }
+        if let Some((base, view)) = ty.view_select() {
+            return crate::mir::MirTypeRef::view_select_type(
+                self.canonicalize_const_eval_type(Some(owner), base),
+                view.to_string(),
+                ty.span(),
+            );
+        }
+        if let Some(base) = ty.generic_base() {
+            let args = ty
+                .args()
+                .unwrap_or_default()
+                .iter()
+                .map(|arg| self.canonicalize_const_eval_type(Some(owner), arg))
+                .collect();
+            return crate::mir::MirTypeRef::generic_type(
+                self.canonicalize_const_eval_type(Some(owner), base),
+                args,
+                ty.span(),
+            );
+        }
+        ty.clone()
+    }
+
+    fn canonicalize_const_eval_path(
+        &self,
+        owner: DefId,
+        ty: &crate::mir::MirTypeRef,
+        path: &[String],
+    ) -> crate::mir::MirTypeRef {
+        let def = if path.len() == 1 {
+            self.program.resolve_def_id(owner, &path[0])
+        } else {
+            self.program.canonical_def_id(path)
+        };
+        let Some(def) = def else {
+            return ty.clone();
+        };
+        let Some(canonical_path) = self.program.canonical_path(def) else {
+            return ty.clone();
+        };
+        crate::mir::MirTypeRef::path_type(canonical_path.segments().to_vec(), ty.span())
     }
 
     pub(super) fn elab_expr(&self, expr: &ElabExpr, env: &Env) -> EirExpr {
