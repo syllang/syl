@@ -1,24 +1,68 @@
 use crate::{
     CompileError, ConstEvalError,
-    eir::{EirExpr, EirParamBind},
+    const_mir::ConstExpr,
+    eir::{EirBinaryOp, EirExpr, EirParamBind, EirUnaryOp},
     map_ir::MapGenericArg,
     program::{
         ElabCallArg, ElabCallable, ElabDefKind, ElabExpr, ElabExprNode, ElabResolution,
         ElabSignatureResultBinding,
     },
 };
-use std::collections::HashMap;
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use syl_hir::DefId;
+use syl_sema::ir::const_mir::{ConstExprKind, ConstStmt, Terminator};
 
 use super::{
     EirBuilder, Env,
     builtins::{EirBuiltinIntrinsic, EirBuiltinResolver},
 };
 
+#[derive(Clone)]
+#[non_exhaustive]
+enum SymbolicConstValue {
+    Scalar(EirExpr),
+    Struct(BTreeMap<String, SymbolicConstValue>),
+}
+
+impl SymbolicConstValue {
+    fn into_scalar(self) -> Option<EirExpr> {
+        match self {
+            Self::Scalar(expr) => Some(expr),
+            Self::Struct(_) => None,
+        }
+    }
+
+    fn field(&self, field: &str) -> Option<Self> {
+        match self {
+            Self::Scalar(_) => None,
+            Self::Struct(fields) => fields.get(field).cloned(),
+        }
+    }
+}
+
 impl<'a, C> EirBuilder<'a, C>
 where
     C: crate::const_eval::ConstValueElaborator + ?Sized,
 {
+    pub(in crate::eir::build) fn symbolic_const_condition_expr(
+        &self,
+        expr: &ElabExpr,
+        env: &Env,
+    ) -> Result<EirExpr, CompileError> {
+        let const_env = self.const_eval_env(env);
+        let lowered = self
+            .const_elaborator
+            .lower_expr(self.program, expr, &const_env)?;
+        self.symbolic_const_value(&lowered, env, &BTreeMap::new())
+            .and_then(SymbolicConstValue::into_scalar)
+            .ok_or_else(|| {
+                CompileError::lowering_at(
+                    crate::EirError::InvalidElaborationExpression,
+                    expr.span(),
+                )
+            })
+    }
+
     pub(super) fn elab_call_expr(
         &self,
         callee: &ElabExpr,
@@ -45,6 +89,167 @@ where
                 .map(|arg| self.elab_expr(&arg.value, env))
                 .collect(),
         )
+    }
+
+    fn symbolic_const_value(
+        &self,
+        expr: &ConstExpr,
+        env: &Env,
+        locals: &BTreeMap<String, SymbolicConstValue>,
+    ) -> Option<SymbolicConstValue> {
+        match expr.kind() {
+            ConstExprKind::Local(local) => locals
+                .get(local.name())
+                .cloned()
+                .or_else(|| self.symbolic_named_local(local.name(), env)),
+            ConstExprKind::Unknown(_) => None,
+            ConstExprKind::Nat(value) => Some(SymbolicConstValue::Scalar(EirExpr::Int(*value))),
+            ConstExprKind::Bool(value) => Some(SymbolicConstValue::Scalar(EirExpr::Bool(*value))),
+            ConstExprKind::Aggregate { fields, .. } => Some(SymbolicConstValue::Struct(
+                fields
+                    .iter()
+                    .map(|field| {
+                        Some((
+                            field.name().to_string(),
+                            self.symbolic_const_value(field.value(), env, locals)?,
+                        ))
+                    })
+                    .collect::<Option<BTreeMap<_, _>>>()?,
+            )),
+            ConstExprKind::Field { base, field } => {
+                self.symbolic_const_value(base, env, locals)?.field(field)
+            }
+            ConstExprKind::Unary { op, expr } => Some(SymbolicConstValue::Scalar(EirExpr::unary(
+                self.symbolic_unary_op(*op)?,
+                self.symbolic_const_value(expr, env, locals)?
+                    .into_scalar()?,
+            ))),
+            ConstExprKind::Binary { op, left, right } => {
+                Some(SymbolicConstValue::Scalar(EirExpr::binary(
+                    self.symbolic_binary_op(*op)?,
+                    self.symbolic_const_value(left, env, locals)?
+                        .into_scalar()?,
+                    self.symbolic_const_value(right, env, locals)?
+                        .into_scalar()?,
+                )))
+            }
+            ConstExprKind::Call { callee, args } => {
+                self.symbolic_const_call(*callee, args, env, locals)
+            }
+            ConstExprKind::Unsupported => None,
+            _ => None,
+        }
+    }
+
+    fn symbolic_const_call(
+        &self,
+        callee: DefId,
+        args: &[ConstExpr],
+        env: &Env,
+        locals: &BTreeMap<String, SymbolicConstValue>,
+    ) -> Option<SymbolicConstValue> {
+        let function = self.const_elaborator.function(callee)?;
+        let mut bindings = function
+            .params()
+            .iter()
+            .zip(args)
+            .map(|(param, arg)| Some((param.clone(), self.symbolic_const_value(arg, env, locals)?)))
+            .collect::<Option<BTreeMap<_, _>>>()?;
+        let mut current = function.entry();
+        let mut visited = BTreeSet::new();
+        loop {
+            if !visited.insert(current) {
+                return None;
+            }
+            let block = function.block(current)?;
+            for stmt in block.stmts() {
+                match stmt {
+                    ConstStmt::Assign { local, value } => {
+                        bindings.insert(
+                            local.name().to_string(),
+                            self.symbolic_const_value(value, env, &bindings)?,
+                        );
+                    }
+                    _ => return None,
+                }
+            }
+            match block.terminator() {
+                Terminator::Goto(target) => current = *target,
+                Terminator::Return(Some(value)) => {
+                    return self.symbolic_const_value(value, env, &bindings);
+                }
+                Terminator::Branch { .. } | Terminator::Return(None) => return None,
+                _ => return None,
+            }
+        }
+    }
+
+    fn symbolic_named_local(&self, name: &str, env: &Env) -> Option<SymbolicConstValue> {
+        let var = env.var(name)?;
+        if var.software_local {
+            let ty = self.canonicalize_const_eval_type(env.owner, &var.ty);
+            if matches!(
+                self.const_elaborator.kind_for_type(&ty),
+                Some(crate::const_eval::ConstKind::Struct(_))
+            ) && let Some(value) = self.symbolic_software_local_struct(name, env)
+            {
+                return Some(value);
+            }
+        }
+        Some(SymbolicConstValue::Scalar(var.code.clone()))
+    }
+
+    fn symbolic_software_local_struct(&self, root: &str, env: &Env) -> Option<SymbolicConstValue> {
+        let prefix = format!("{root}.");
+        let field_names = env
+            .vars
+            .iter()
+            .filter(|(name, var)| var.software_local && name.starts_with(&prefix))
+            .filter_map(|(name, _)| name[prefix.len()..].split('.').next().map(str::to_string))
+            .collect::<BTreeSet<_>>();
+        if field_names.is_empty() {
+            return None;
+        }
+        Some(SymbolicConstValue::Struct(
+            field_names
+                .into_iter()
+                .map(|field_name| {
+                    let field_key = format!("{root}.{field_name}");
+                    Some((field_name, self.symbolic_named_local(&field_key, env)?))
+                })
+                .collect::<Option<BTreeMap<_, _>>>()?,
+        ))
+    }
+
+    fn symbolic_unary_op(&self, op: crate::mir::MirUnaryOp) -> Option<EirUnaryOp> {
+        match op {
+            crate::mir::MirUnaryOp::Not | crate::mir::MirUnaryOp::NotWord => Some(EirUnaryOp::Not),
+            crate::mir::MirUnaryOp::Neg => Some(EirUnaryOp::Neg),
+            _ => None,
+        }
+    }
+
+    fn symbolic_binary_op(&self, op: crate::mir::MirBinaryOp) -> Option<EirBinaryOp> {
+        match op {
+            crate::mir::MirBinaryOp::OrOr => Some(EirBinaryOp::OrOr),
+            crate::mir::MirBinaryOp::AndAnd => Some(EirBinaryOp::AndAnd),
+            crate::mir::MirBinaryOp::Eq => Some(EirBinaryOp::Eq),
+            crate::mir::MirBinaryOp::NotEq => Some(EirBinaryOp::NotEq),
+            crate::mir::MirBinaryOp::Lt => Some(EirBinaryOp::Lt),
+            crate::mir::MirBinaryOp::LtEq => Some(EirBinaryOp::LtEq),
+            crate::mir::MirBinaryOp::Gt => Some(EirBinaryOp::Gt),
+            crate::mir::MirBinaryOp::GtEq => Some(EirBinaryOp::GtEq),
+            crate::mir::MirBinaryOp::Add => Some(EirBinaryOp::Add),
+            crate::mir::MirBinaryOp::Sub => Some(EirBinaryOp::Sub),
+            crate::mir::MirBinaryOp::Mul => Some(EirBinaryOp::Mul),
+            crate::mir::MirBinaryOp::Div => Some(EirBinaryOp::Div),
+            crate::mir::MirBinaryOp::Rem => Some(EirBinaryOp::Rem),
+            crate::mir::MirBinaryOp::Shl => Some(EirBinaryOp::Shl),
+            crate::mir::MirBinaryOp::BitAnd => Some(EirBinaryOp::BitAnd),
+            crate::mir::MirBinaryOp::BitOr => Some(EirBinaryOp::BitOr),
+            crate::mir::MirBinaryOp::BitXor => Some(EirBinaryOp::BitXor),
+            _ => None,
+        }
     }
 
     pub(in crate::eir::build) fn elab_expr_name(&self, expr: &ElabExpr) -> Option<String> {
