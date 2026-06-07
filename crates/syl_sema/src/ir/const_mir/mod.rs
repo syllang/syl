@@ -5,7 +5,7 @@ use crate::{
         view::HirDesignViewExt,
     },
     ir::mir::{MirBinaryOp, MirTypeRef, MirUnaryOp},
-    tir::TirDesign,
+    tir::{TirDesign, TirType},
 };
 use std::collections::BTreeMap;
 use syl_hir::{DefId, ExprId, LocalId};
@@ -204,6 +204,8 @@ pub(crate) trait ConstMirLoweringContext {
         expr: &HirBodyExpr,
     ) -> Result<Option<HirResolution>, CompileError>;
 
+    fn expr_type(&self, owner: DefId, expr: &HirBodyExpr) -> Option<&TirType>;
+
     fn const_by_def(&self, def: DefId) -> Option<&HirConstItem>;
 
     fn function_exists(&self, def: DefId) -> bool;
@@ -300,6 +302,44 @@ impl ConstMirLoweringContext for TirDesign {
         expr: &HirBodyExpr,
     ) -> Result<Option<HirResolution>, CompileError> {
         TirDesign::hir(self).expr_resolution(owner, expr)
+    }
+
+    fn expr_type(&self, owner: DefId, expr: &HirBodyExpr) -> Option<&TirType> {
+        let id = match &expr.node {
+            crate::hir::HirExprNode::Ident(name) => TirDesign::hir(self)
+                .expr_resolution(owner, expr)
+                .ok()
+                .flatten()
+                .and_then(|resolution| match resolution {
+                    HirResolution::Local(id) => self
+                        .binding_types()
+                        .get(&crate::tir::BindingRef::Local(id))
+                        .copied(),
+                    HirResolution::Def(id) => self
+                        .binding_types()
+                        .get(&crate::tir::BindingRef::Def(id))
+                        .copied(),
+                    _ => None,
+                })
+                .or_else(|| {
+                    TirDesign::hir(self)
+                        .locals
+                        .iter()
+                        .filter(|local| {
+                            local.owner == owner
+                                && local.name == *name
+                                && local.span.start <= expr.span().start
+                        })
+                        .max_by_key(|local| local.span.start)
+                        .and_then(|local| {
+                            self.binding_types()
+                                .get(&crate::tir::BindingRef::Local(local.id))
+                                .copied()
+                        })
+                })?,
+            _ => *self.expr_types().get(&expr.id())?,
+        };
+        self.type_table().get(id)
     }
 
     fn const_by_def(&self, def: DefId) -> Option<&HirConstItem> {

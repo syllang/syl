@@ -1,7 +1,7 @@
 use super::{ConstExpr, ConstLocalRef, ConstNamedExpr, ConstStructKind};
 use crate::{
     hir::resolve::HirResolution,
-    hir::{HirBodyExpr, HirExprNode, HirNamedExpr},
+    hir::{HirBlock, HirBodyExpr, HirExprNode, HirNamedExpr, HirStmt},
     ir::{
         const_mir::ConstKind,
         mir::{MirBinaryOp, MirTypeRef, MirUnaryOp},
@@ -19,6 +19,14 @@ pub(super) struct ExprLowerer<'a> {
     unsupported: bool,
     unsupported_span: Option<Span>,
     const_stack: BTreeSet<DefId>,
+}
+
+struct StructAssignmentRewrite {
+    base: ConstExpr,
+    kind: ConstStructKind,
+    fields: Vec<String>,
+    updated_value: ConstExpr,
+    span: Span,
 }
 
 impl<'a> ExprLowerer<'a> {
@@ -56,13 +64,15 @@ impl<'a> ExprLowerer<'a> {
         target: &HirBodyExpr,
         value: &HirBodyExpr,
     ) -> Option<(ConstLocalRef, ConstExpr)> {
-        let HirExprNode::Ident(name) = &target.node else {
-            return None;
-        };
-        Some((
-            self.local_ref_for_expr(target, name),
-            self.lower_expr(value),
-        ))
+        match &target.node {
+            HirExprNode::Ident(name) => Some((
+                self.local_ref_for_expr(target, name),
+                self.lower_expr(value),
+            )),
+            HirExprNode::Field { .. } => self.lower_field_assignment(target, value),
+            HirExprNode::Group(inner) => self.lower_local_assignment(inner, value),
+            _ => None,
+        }
     }
 
     pub(super) fn lower_expr(&mut self, expr: &HirBodyExpr) -> ConstExpr {
@@ -212,6 +222,106 @@ impl<'a> ExprLowerer<'a> {
             .map(ConstStructKind::new)
     }
 
+    fn lower_field_assignment(
+        &mut self,
+        target: &HirBodyExpr,
+        value: &HirBodyExpr,
+    ) -> Option<(ConstLocalRef, ConstExpr)> {
+        let (root_expr, local, fields) = self.local_field_path(target)?;
+        let root_kind = self.struct_kind_for_expr(root_expr)?;
+        let root_name = match &root_expr.node {
+            HirExprNode::Ident(name) => name,
+            _ => return None,
+        };
+        let base = ConstExpr::local(local.clone(), root_expr.span()).with_origin(root_expr.id());
+        let updated_value = self.lower_expr(value);
+        let rebuilt = self.rebuild_struct_assignment(StructAssignmentRewrite {
+            base,
+            kind: root_kind,
+            fields,
+            updated_value,
+            span: target.span(),
+        })?;
+        Some((self.local_ref_for_expr(root_expr, root_name), rebuilt))
+    }
+
+    fn local_field_path<'b>(
+        &self,
+        expr: &'b HirBodyExpr,
+    ) -> Option<(&'b HirBodyExpr, ConstLocalRef, Vec<String>)> {
+        let mut current = expr;
+        let mut fields = Vec::new();
+        loop {
+            match &current.node {
+                HirExprNode::Field { base, field } => {
+                    fields.push(field.clone());
+                    current = base;
+                }
+                HirExprNode::Group(inner) => current = inner,
+                HirExprNode::Ident(name) => {
+                    fields.reverse();
+                    return self
+                        .resolved_local_ref(current, name)
+                        .map(|local| (current, local, fields));
+                }
+                _ => return None,
+            }
+        }
+    }
+
+    fn rebuild_struct_assignment(&mut self, rewrite: StructAssignmentRewrite) -> Option<ConstExpr> {
+        let target_field = rewrite.fields.first()?;
+        let struct_item = self.ctx.hir().structs.get(&rewrite.kind.def())?;
+        let mut updated_value = Some(rewrite.updated_value);
+        let fields = struct_item
+            .fields
+            .iter()
+            .map(|field| {
+                let field_name = field.name.clone();
+                let value = if &field_name == target_field {
+                    if rewrite.fields.len() == 1 {
+                        updated_value.take()?
+                    } else {
+                        let ConstKind::Struct(child_kind) = self.const_kind_for_type(&field.ty)?
+                        else {
+                            return None;
+                        };
+                        self.rebuild_struct_assignment(StructAssignmentRewrite {
+                            base: ConstExpr::field(
+                                rewrite.base.clone(),
+                                field_name.clone(),
+                                rewrite.span,
+                            ),
+                            kind: child_kind,
+                            fields: rewrite.fields[1..].to_vec(),
+                            updated_value: updated_value.take()?,
+                            span: rewrite.span,
+                        })?
+                    }
+                } else {
+                    ConstExpr::field(rewrite.base.clone(), field_name.clone(), rewrite.span)
+                };
+                Some(ConstNamedExpr::new(field_name, value))
+            })
+            .collect::<Option<Vec<_>>>()?;
+        Some(ConstExpr::aggregate(rewrite.kind, fields, rewrite.span))
+    }
+
+    fn struct_kind_for_expr(&self, expr: &HirBodyExpr) -> Option<ConstStructKind> {
+        self.ctx
+            .expr_type(self.owner, expr)
+            .and_then(|ty| ty.definition())
+            .or_else(|| match &expr.node {
+                HirExprNode::Ident(name) => self
+                    .resolved_local_ref(expr, name)
+                    .and_then(|local| local.id())
+                    .and_then(|local| self.struct_kind_for_local(local, &mut BTreeSet::new())),
+                _ => None,
+            })
+            .filter(|def| self.ctx.hir().structs.contains_key(def))
+            .map(ConstStructKind::new)
+    }
+
     fn callee_root<'b>(&self, expr: &'b HirBodyExpr) -> Option<&'b HirBodyExpr> {
         let mut current = expr;
         loop {
@@ -238,15 +348,146 @@ impl<'a> ExprLowerer<'a> {
             });
         ConstLocalRef::new(id, name.to_string())
     }
+
+    fn resolved_local_ref(&self, expr: &HirBodyExpr, name: &str) -> Option<ConstLocalRef> {
+        self.ctx
+            .expr_resolution(self.owner, expr)
+            .ok()
+            .flatten()
+            .and_then(|resolution| match resolution {
+                HirResolution::Local(id) => Some(id),
+                _ => None,
+            })
+            .or_else(|| {
+                self.ctx
+                    .hir()
+                    .locals
+                    .iter()
+                    .filter(|local| {
+                        local.owner == self.owner
+                            && local.name == name
+                            && local.span.start <= expr.span().start
+                    })
+                    .max_by_key(|local| local.span.start)
+                    .map(|local| local.id)
+            })
+            .map(|id| ConstLocalRef::new(Some(id), name.to_string()))
+    }
+
+    fn struct_kind_for_local(
+        &self,
+        local: LocalId,
+        visited: &mut BTreeSet<LocalId>,
+    ) -> Option<DefId> {
+        if !visited.insert(local) {
+            return None;
+        }
+        let function = self.ctx.hir().fns.get(&self.owner)?;
+        let from_params = function
+            .params
+            .iter()
+            .find(|param| param.id == Some(local))
+            .and_then(|param| self.struct_kind_for_type(&param.ty))
+            .map(ConstStructKind::def);
+        let from_body = self.struct_kind_for_block_local(&function.body, local, visited);
+        visited.remove(&local);
+        from_params.or(from_body)
+    }
+
+    fn struct_kind_for_block_local(
+        &self,
+        block: &HirBlock,
+        local: LocalId,
+        visited: &mut BTreeSet<LocalId>,
+    ) -> Option<DefId> {
+        for stmt in &block.stmts {
+            match stmt {
+                HirStmt::Const { id, ty, value, .. }
+                | HirStmt::Let {
+                    id,
+                    ty,
+                    value: Some(value),
+                    ..
+                }
+                | HirStmt::Var {
+                    id,
+                    ty,
+                    value: Some(value),
+                    ..
+                } if *id == Some(local) => {
+                    return self.struct_kind_for_decl(ty.as_ref(), Some(value), visited);
+                }
+                HirStmt::ElabIf {
+                    then_block,
+                    else_block,
+                    ..
+                } => {
+                    if let Some(def) = self.struct_kind_for_block_local(then_block, local, visited)
+                    {
+                        return Some(def);
+                    }
+                    if let Some(def) = else_block
+                        .as_ref()
+                        .and_then(|block| self.struct_kind_for_block_local(block, local, visited))
+                    {
+                        return Some(def);
+                    }
+                }
+                HirStmt::While { body, .. } | HirStmt::ElabFor { body, .. } => {
+                    if let Some(def) = self.struct_kind_for_block_local(body, local, visited) {
+                        return Some(def);
+                    }
+                }
+                _ => {}
+            }
+        }
+        None
+    }
+
+    fn struct_kind_for_decl(
+        &self,
+        ty: Option<&MirTypeRef>,
+        value: Option<&HirBodyExpr>,
+        visited: &mut BTreeSet<LocalId>,
+    ) -> Option<DefId> {
+        ty.and_then(|ty| self.struct_kind_for_type(ty))
+            .map(ConstStructKind::def)
+            .or_else(|| value.and_then(|expr| self.struct_kind_for_initializer(expr, visited)))
+    }
+
+    fn struct_kind_for_initializer(
+        &self,
+        expr: &HirBodyExpr,
+        visited: &mut BTreeSet<LocalId>,
+    ) -> Option<DefId> {
+        match &expr.node {
+            HirExprNode::Aggregate { ty, .. } => {
+                self.struct_kind_for_type(ty).map(ConstStructKind::def)
+            }
+            HirExprNode::Ident(name) => self
+                .resolved_local_ref(expr, name)
+                .and_then(|local| local.id())
+                .and_then(|local| self.struct_kind_for_local(local, visited)),
+            HirExprNode::Group(inner) => self.struct_kind_for_initializer(inner, visited),
+            _ => None,
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::super::{ConstExprKind, ConstMirBuilder, ConstMirLoweringContext};
+    use super::super::{
+        ConstEvalEnv, ConstExpr, ConstExprKind, ConstMirBuilder, ConstMirLoweringContext,
+        ConstNamedExpr, ConstStmt, ConstValue,
+    };
     use super::*;
-    use crate::hir::{HirConstItem, HirDesign, lower::HirResolver};
+    use crate::{
+        hir::{HirConstItem, HirDesign, lower::HirResolver},
+        tir::{TirDesign, TirType, TypePhaseChecker},
+    };
+    use std::sync::Arc;
     use syl_hir::DefId;
-    use syl_span::SourceId;
+    use syl_span::{SourceId, Span};
     use syl_syntax::SourceParser;
 
     struct FakeContext {
@@ -268,6 +509,10 @@ mod tests {
             expr: &HirBodyExpr,
         ) -> Result<Option<crate::hir::resolve::HirResolution>, crate::CompileError> {
             Ok(self.hir.expr_resolutions.get(&expr.id()).copied())
+        }
+
+        fn expr_type(&self, _owner: DefId, _expr: &HirBodyExpr) -> Option<&TirType> {
+            None
         }
 
         fn const_by_def(&self, def: DefId) -> Option<&HirConstItem> {
@@ -408,6 +653,131 @@ fn use_width() -> nat {
         }
     }
 
+    #[test]
+    fn lower_fn_struct_field_assignment_rewrites_root_local_assign() {
+        let tir = resolve_tir(
+            r#"
+struct Config {
+    width: nat
+    enabled: bool
+}
+
+fn enable(start: Config) -> Config {
+    var cfg: Config = start
+    cfg.enabled = true
+    return cfg
+}
+"#,
+        );
+        let owner = def_id(tir.hir(), "enable");
+        let config_def = def_id(tir.hir(), "Config");
+        let function_item = tir
+            .hir()
+            .fns
+            .get(&owner)
+            .expect("fixture function should exist");
+        let (target, value) = match &function_item.body.stmts[1] {
+            crate::hir::HirStmt::Assign { target, value, .. } => (target, value),
+            _ => panic!("fixture should contain a field assignment statement"),
+        };
+        let mut exprs = ExprLowerer::new(&tir, owner);
+        let (root_expr, _root_local, fields) = exprs
+            .local_field_path(target)
+            .expect("field assignment should resolve a root-local path");
+        assert_eq!(fields, vec!["enabled".to_string()]);
+        assert_eq!(
+            exprs.struct_kind_for_expr(root_expr),
+            Some(ConstStructKind::new(config_def))
+        );
+        assert!(
+            exprs.lower_local_assignment(target, value).is_some(),
+            "field assignment should rewrite to a root-local assign before full function lowering"
+        );
+
+        let program = ConstMirBuilder::new(&tir)
+            .build()
+            .expect("const MIR should lower field assignment fixture");
+        let function = program
+            .function(owner)
+            .expect("lowered function should be present");
+
+        assert!(
+            !function.is_unsupported(),
+            "field assignment should no longer mark const MIR unsupported"
+        );
+
+        let rewritten_fields = function
+            .blocks
+            .iter()
+            .flat_map(|block| block.stmts.iter())
+            .find_map(|stmt| match stmt {
+                ConstStmt::Assign { local, value }
+                    if local.name() == "cfg"
+                        && matches!(
+                            value.kind(),
+                            ConstExprKind::Aggregate { kind, .. } if kind.def() == config_def
+                        ) =>
+                {
+                    match value.kind() {
+                        ConstExprKind::Aggregate { fields, .. } => Some(fields),
+                        _ => None,
+                    }
+                }
+                _ => None,
+            })
+            .expect("field assignment should rewrite into a root-local aggregate assign");
+
+        let width = rewritten_fields
+            .iter()
+            .find(|field| field.name() == "width")
+            .expect("rewritten aggregate should preserve width");
+        match width.value().kind() {
+            ConstExprKind::Field { base, field } => {
+                assert_eq!(field, "width");
+                assert!(matches!(
+                    base.kind(),
+                    ConstExprKind::Local(local) if local.name() == "cfg"
+                ));
+            }
+            _ => panic!("untouched fields should be projected from the root local"),
+        }
+
+        let enabled = rewritten_fields
+            .iter()
+            .find(|field| field.name() == "enabled")
+            .expect("rewritten aggregate should update enabled");
+        assert!(matches!(enabled.value().kind(), ConstExprKind::Bool(true)));
+
+        let config_kind = program
+            .struct_kind(config_def)
+            .expect("program should retain Config layout");
+        let call = ConstExpr::call(
+            owner,
+            vec![ConstExpr::aggregate(
+                config_kind,
+                vec![
+                    ConstNamedExpr::new("width", ConstExpr::nat(7, Span::new(0, 0))),
+                    ConstNamedExpr::new("enabled", ConstExpr::bool_value(false, Span::new(0, 0))),
+                ],
+                Span::new(0, 0),
+            )],
+            Span::new(0, 0),
+        );
+        let mut evaluator = program.evaluator();
+        let result = evaluator
+            .expr_value(&call, &mut ConstEvalEnv::default())
+            .expect("rewritten field assignment should evaluate");
+
+        match result {
+            ConstValue::Struct(value) => {
+                assert_eq!(value.kind(), config_kind);
+                assert_eq!(value.field_value("width"), Some(&ConstValue::Nat(7)));
+                assert_eq!(value.field_value("enabled"), Some(&ConstValue::Bool(true)));
+            }
+            _ => panic!("function should return updated struct"),
+        }
+    }
+
     fn resolve_hir(source: &str) -> HirDesign {
         let file = SourceParser::new_in(source, SourceId::new(0))
             .parse_file()
@@ -416,6 +786,12 @@ fn use_width() -> nat {
         HirResolver::new(&files)
             .resolve()
             .expect("fixture must resolve HIR")
+    }
+
+    fn resolve_tir(source: &str) -> TirDesign {
+        TypePhaseChecker::new(Arc::new(resolve_hir(source)))
+            .check()
+            .expect("fixture must type-check")
     }
 
     fn def_id(hir: &HirDesign, name: &str) -> DefId {
