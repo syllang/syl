@@ -1,6 +1,7 @@
 use crate::{
     CompileError, EirError,
     eir::EirExpr,
+    eir::build::VarInfo,
     mir::MirTypeRef,
     program::{ElabExpr, ElabExprNode},
     tir::TirType,
@@ -144,26 +145,41 @@ where
 
     pub(super) fn merge_visible_software_locals_between_branches(
         &self,
+        cond: &EirExpr,
         then_env: &Env,
         else_env: &Env,
         target: &mut Env,
     ) {
         for name in self.visible_software_local_names(target, &[then_env, else_env]) {
-            let Some(current) = target.var(&name) else {
+            let Some(current) = target.var(&name).cloned() else {
                 continue;
             };
-            let then_var = then_env.var(&name);
-            let else_var = else_env.var(&name);
-            let merged = match (then_var, else_var) {
-                (Some(then_var), Some(else_var))
-                    if then_var.ty == else_var.ty && then_var.code == else_var.code =>
-                {
-                    (then_var.code.clone(), then_var.ty.clone())
-                }
-                _ => (self.unknown_software_local_expr(&name), current.ty.clone()),
-            };
+            let merged = self.symbolic_branch_merge_value(
+                cond,
+                &current,
+                then_env.var(&name),
+                else_env.var(&name),
+            );
             target.insert_software_local(name, merged.0, merged.1);
         }
+        self.rebuild_visible_software_roots(target);
+    }
+
+    pub(super) fn merge_visible_software_locals_after_conditional_branch(
+        &self,
+        cond: &EirExpr,
+        source: &Env,
+        target: &mut Env,
+    ) {
+        for name in self.visible_software_local_names(target, &[source]) {
+            let Some(current) = target.var(&name).cloned() else {
+                continue;
+            };
+            let merged =
+                self.symbolic_branch_merge_value(cond, &current, source.var(&name), Some(&current));
+            target.insert_software_local(name, merged.0, merged.1);
+        }
+        self.rebuild_visible_software_roots(target);
     }
 
     pub(super) fn merge_visible_software_locals_after_loop(&self, source: &Env, target: &mut Env) {
@@ -207,6 +223,28 @@ where
 
     fn unknown_software_local_expr(&self, name: &str) -> EirExpr {
         EirExpr::ident(format!("__unknown_{}", name.replace('.', "_")))
+    }
+
+    fn symbolic_branch_merge_value(
+        &self,
+        cond: &EirExpr,
+        current: &VarInfo,
+        when_true: Option<&VarInfo>,
+        when_false: Option<&VarInfo>,
+    ) -> (EirExpr, MirTypeRef) {
+        let (then_code, then_ty) = when_true
+            .map(|var| (var.code.clone(), var.ty.clone()))
+            .unwrap_or_else(|| (current.code.clone(), current.ty.clone()));
+        let (else_code, else_ty) = when_false
+            .map(|var| (var.code.clone(), var.ty.clone()))
+            .unwrap_or_else(|| (current.code.clone(), current.ty.clone()));
+        if then_ty == else_ty && then_code == else_code {
+            return (then_code, then_ty);
+        }
+        (
+            EirExpr::mux(cond.clone(), then_code, else_code),
+            current.ty.clone(),
+        )
     }
 
     fn sync_software_local_fields(&self, name: &str, value: Option<&ElabExpr>, env: &mut Env) {
@@ -273,6 +311,18 @@ where
         field_codes.sort_by(|lhs, rhs| lhs.0.cmp(&rhs.0));
         let code = EirExpr::Concat(field_codes.into_iter().map(|(_, code)| code).collect());
         env.insert_software_local(root, code, root_var.ty);
+    }
+
+    fn rebuild_visible_software_roots(&self, env: &mut Env) {
+        let roots = env
+            .vars
+            .iter()
+            .filter(|(_, var)| var.software_local)
+            .filter_map(|(name, _)| name.split_once('.').map(|(root, _)| root.to_string()))
+            .collect::<BTreeSet<_>>();
+        for root in roots {
+            self.rebuild_software_root_binding(&root, env);
+        }
     }
 
     fn unknown_software_local_fields(&self, root: &str, env: &mut Env) {

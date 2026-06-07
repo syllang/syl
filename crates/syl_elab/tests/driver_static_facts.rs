@@ -472,6 +472,70 @@ cell Top(a: in Bit, b: in Bit, y: out Bit) {
 }
 
 #[test]
+fn symbolic_struct_local_const_fn_call_keeps_unknowns_out_of_eir() {
+    let output = StaticFactHarness::new()
+        .compile_output(
+            r#"
+struct Config {
+    enabled: bool,
+}
+
+fn choose(cfg: Config) -> bool {
+    return cfg.enabled
+}
+
+cell Top<ENABLE: bool>(a: in Bit, b: in Bit, y: out Bit) {
+    var cfg = Config { enabled: false }
+
+    if ENABLE {
+        cfg.enabled = true
+    }
+
+    if choose(cfg) {
+        y := b
+    } else {
+        y := a
+    }
+}
+"#,
+        )
+        .expect("symbolic software struct locals must still elaborate through const-fn calls");
+    let eir_dump = output
+        .eir_build()
+        .unwrap_or_else(|| {
+            panic!(
+                "successful elaboration must produce EIR build output: diagnostics={:?}",
+                output.diagnostics()
+            )
+        })
+        .debug_dump();
+    assert!(
+        !eir_dump.contains("__unknown_"),
+        "symbolic software-local merges must not leak placeholder idents into EIR:\n{eir_dump}"
+    );
+
+    let metadata = output
+        .metadata()
+        .unwrap_or_else(|| {
+            panic!(
+                "successful elaboration must expose hardware metadata: output={output:?}, diagnostics={:?}",
+                output.diagnostics()
+            )
+        });
+
+    let top_reads = metadata
+        .read_facts()
+        .iter()
+        .filter(|fact| fact.module() == "Top")
+        .map(|fact| fact.source_place().display())
+        .collect::<Vec<_>>();
+
+    assert!(top_reads.iter().any(|read| read == "a"));
+    assert!(top_reads.iter().any(|read| read == "b"));
+    assert!(!top_reads.iter().any(|read| read.contains("cfg")));
+}
+
+#[test]
 fn explicit_struct_typed_mutable_local_stays_on_software_path() {
     let output = StaticFactHarness::new()
         .compile_output(
