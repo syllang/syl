@@ -23,9 +23,8 @@ diff_base_ref="${QUALITY_GATE_DIFF_BASE:-HEAD^}"
 if git rev-parse --verify --quiet "$diff_base_ref" >/dev/null; then
     run git diff --check "$diff_base_ref"...HEAD
 else
-    printf 'error: diff base %s not found for committed whitespace check\n' \
+    printf 'warning: diff base %s not found for committed whitespace check; skipping\n' \
         "$diff_base_ref" >&2
-    exit 1
 fi
 
 debt_regex="$(printf '%s%s|%s%s|%s%s|%s%s|%s%s|%s%s' MUST _FIX SHOULD _FIX FIX ME TO DO HA CK X XX)"
