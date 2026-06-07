@@ -490,17 +490,27 @@ where
         } else {
             (Vec::new(), None)
         };
+        let symbolic_cond = self.elab_expr(request.cond, env);
         if let Some(else_env) = else_env.as_ref() {
-            self.merge_visible_software_locals_between_branches(&then_env, else_env, env);
+            self.merge_visible_software_locals_between_branches(
+                &symbolic_cond,
+                &then_env,
+                else_env,
+                env,
+            );
         } else {
-            self.merge_visible_software_locals_after_loop(&then_env, env);
+            self.merge_visible_software_locals_after_conditional_branch(
+                &symbolic_cond,
+                &then_env,
+                env,
+            );
         }
         if then_items.is_empty() && else_items.is_empty() {
             return Ok(Vec::new());
         }
         let label = env.unique_label("gen_if", request.span);
         Ok(vec![EirItem::SymbolicStaticIf {
-            cond: self.elab_expr(request.cond, env),
+            cond: symbolic_cond,
             label,
             then_items,
             else_items,
