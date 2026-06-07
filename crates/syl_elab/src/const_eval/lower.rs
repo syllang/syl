@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use syl_hir::DefId;
-use syl_sema::ir::const_mir::ConstNamedExpr;
+use syl_sema::ir::const_mir::{ConstNamedExpr, ConstStructKind};
 
 use super::{ConstEvalEnv, ConstKind, ConstValue, ConstValueElaborator};
 use crate::{
@@ -153,6 +153,9 @@ impl<'program, 'env> ElabConstLowerer<'program, 'env> {
     }
 
     fn ident_expr(&self, expr: &ElabExpr, name: &str) -> Result<ConstExpr, CompileError> {
+        if let Some(value) = self.materialized_struct_local(expr, name) {
+            return Ok(value);
+        }
         if self.env.value(name).is_some() {
             return Ok(ConstExpr::named_local(name, expr.span()));
         }
@@ -213,6 +216,55 @@ impl<'program, 'env> ElabConstLowerer<'program, 'env> {
             field.to_string(),
             expr.span(),
         ))
+    }
+
+    fn materialized_struct_local(&self, expr: &ElabExpr, name: &str) -> Option<ConstExpr> {
+        let owner = self.owner?;
+        let def = self
+            .program
+            .expr_type(owner, expr)
+            .and_then(|ty| ty.definition())
+            .or_else(|| match self.program.expr_resolution(owner, expr) {
+                Some(ElabResolution::Local(local)) => self
+                    .program
+                    .local_type(local)
+                    .and_then(|ty| ty.definition()),
+                _ => None,
+            })?;
+        let kind = self.const_mir.struct_kind(def)?;
+        self.materialize_struct_fields(kind, name, expr.span())
+    }
+
+    fn materialize_struct_fields(
+        &self,
+        kind: ConstStructKind,
+        root: &str,
+        span: syl_span::Span,
+    ) -> Option<ConstExpr> {
+        let fields = self
+            .const_mir
+            .struct_def(kind.def())?
+            .fields()
+            .iter()
+            .map(|field| {
+                let field_path = format!("{root}.{}", field.name());
+                let value = match field.kind() {
+                    Some(ConstKind::Struct(child)) => self
+                        .materialize_struct_fields(child, &field_path, span)
+                        .or_else(|| {
+                            self.env
+                                .value(&field_path)
+                                .map(|_| ConstExpr::named_local(field_path.clone(), span))
+                        })?,
+                    _ => self
+                        .env
+                        .value(&field_path)
+                        .map(|_| ConstExpr::named_local(field_path.clone(), span))?,
+                };
+                Some(ConstNamedExpr::new(field.name().to_string(), value))
+            })
+            .collect::<Option<Vec<_>>>()?;
+        Some(ConstExpr::aggregate(kind, fields, span))
     }
 
     fn resolved_const(&self, expr: &ElabExpr) -> Option<(DefId, &crate::program::ElabConstItem)> {
