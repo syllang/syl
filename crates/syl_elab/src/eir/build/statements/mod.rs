@@ -102,6 +102,8 @@ where
                     span,
                 } => items.extend(self.emit_drive(target, value, *span, env)?),
                 ElabStmt::Expr(expr) => {
+                    let compile_error_as_sv = compile_error_as_sv
+                        || matches!(&expr.node, ElabExprNode::CompileError { .. });
                     items.extend(self.emit_expr_stmt(expr, env, compile_error_as_sv)?);
                 }
                 ElabStmt::ElabIf {
