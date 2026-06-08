@@ -1,7 +1,7 @@
 use crate::{
     CompileError, EirError,
     eir::{EirBinaryOp, EirExpr, EirItem, EirUnaryOp},
-    program::{ElabCallArg, ElabExpr, ElabExprNode, ElabResolution},
+    program::{ElabCallArg, ElabExpr},
 };
 
 use super::{EirBuilder, Env};
