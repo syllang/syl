@@ -13,8 +13,22 @@ use super::package_semantics::{PackageSemanticCacheProbe, PackageSemanticIndex};
 use super::semantic_cache::SemanticCache;
 use super::workspace::WorkspaceSnapshot;
 
-/// The fully resolved analysis snapshot — an immutable view of parsed,
-/// analyzed, and resolved source files for a project.
+/// Parse/workspace resolution result before semantic caches are attached.
+///
+/// Built by the project resolver; [`AnalysisDatabase`](crate::AnalysisDatabase)
+/// wraps it into a full [`AnalysisSnapshot`] with HIR/TIR/elab caches.
+///
+/// # Main usage flow
+///
+/// ```text
+///  ProjectResolver::snapshot
+///         |
+///         v
+///  ResolvedSnapshot   (source_map, files, parse diagnostics, workspace)
+///         |
+///         v
+///  AnalysisSnapshot::new(+ SemanticCache, package shards)
+/// ```
 #[derive(Debug)]
 #[non_exhaustive]
 pub struct ResolvedSnapshot {
@@ -148,10 +162,41 @@ impl AnalysisFile {
     }
 }
 
-/// An immutable snapshot of the analysis state at one point in time.
+/// Immutable project analysis view at one revision — the session aggregate root.
 ///
-/// Includes the source map, parsed files, diagnostics, and workspace
-/// structure. Produced by `AnalysisDatabase::load`.
+/// Produced by [`AnalysisHost::load`](crate::AnalysisHost::load) /
+/// [`snapshot`](crate::AnalysisHost::snapshot) (or the equivalent database
+/// methods). Carries parsed files, workspace graph, and lazy semantic caches
+/// (HIR / TIR / elaboration) shared across packages when possible.
+///
+/// # Main usage flow
+///
+/// ```text
+///  AnalysisHost::load / snapshot
+///              |
+///              v
+///    +----------------------+
+///    |  AnalysisSnapshot    |
+///    |  files + workspace     |
+///    |  semantic caches     |
+///    +----------+-----------+
+///               |
+///     +---------+-----------+--------------------+
+///     |                     |                    |
+///     v                     v                    v
+///  Workspace / AST      Semantic stages      HWIR / emit
+///  files()              hir_analysis()       hwir[ _with_token ]
+///  file_by_uri()        tir_analysis()
+///  source_map()         *_diagnostics_*
+///  workspace()          package_stage_diagnostics_*
+///  diagnostics()        opaque_summaries()
+///
+///  Editor-facing queries (definition / hover / completion / symbols)
+///  live on syl_query::AnalysisQueries implemented for this snapshot.
+/// ```
+///
+/// Token variants return [`ProjectError::Cancelled`] when cooperative
+/// cancellation is observed mid-stage.
 #[derive(Clone, Debug)]
 #[non_exhaustive]
 pub struct AnalysisSnapshot {
@@ -442,6 +487,19 @@ impl AnalysisSnapshot {
     }
 }
 
+/// Thin owned wrapper around an [`AnalysisSnapshot`] for tool-facing APIs.
+///
+/// # Main usage flow
+///
+/// ```text
+///  AnalysisSnapshot
+///         |
+///         v
+///  Project::new(snapshot)
+///         |
+///         +--> snapshot() / files() / diagnostics() / workspace()
+///         +--> ProjectQueries (via syl_query) when needed
+/// ```
 #[derive(Clone, Debug)]
 #[non_exhaustive]
 pub struct Project {

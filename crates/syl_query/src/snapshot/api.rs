@@ -17,10 +17,35 @@ use super::{
     import_completion::ImportPathCompletion,
 };
 
-/// Protocol-neutral query operations layered over a session-owned analysis snapshot.
+/// Protocol-neutral query operations over a session-owned analysis snapshot.
 ///
-/// This is a trait rather than inherent snapshot methods so `syl_session` owns
-/// persisted state while `syl_query` owns editor-facing semantic operations.
+/// Implemented for [`AnalysisSnapshot`](syl_session::AnalysisSnapshot) (and
+/// related project wrappers). Kept as a trait so `syl_session` owns persisted
+/// state while `syl_query` owns editor-facing semantic operations.
+///
+/// # Main usage flow
+///
+/// ```text
+///  AnalysisHost::load / snapshot  -->  AnalysisSnapshot
+///                                            |
+///                                            v
+///                              +------------------------+
+///                              |   AnalysisQueries      |
+///                              +-----------+------------+
+///                                          |
+///            +--------------+--------------+--------------+
+///            |              |              |              |
+///            v              v              v              v
+///       definition*      hover*      completion*    document_symbols
+///       definition_at*   hover_at*   completions_at*   symbols
+///            |
+///            +--> diagnostics grouping APIs (where exposed)
+///            +--> doc_for_item / field / module
+///            +--> opaque_summaries[ _with_token ]
+///
+///  * `_with_token` variants honor cooperative cancellation.
+///  * `_at` variants take UTF-16 LSP positions; non-`_at` take byte positions.
+/// ```
 pub trait AnalysisQueries {
     fn doc_for_item(&self, def_id: DefId) -> Option<&str>;
 
@@ -483,7 +508,25 @@ fn map_project_error(error: ProjectError) -> QueryError {
     }
 }
 
-/// Protocol-neutral diagnostic queries for a session-owned project snapshot.
+/// Protocol-neutral diagnostic queries for a session-owned [`Project`].
+///
+/// Narrower than [`AnalysisQueries`]: diagnostics only, implemented for
+/// [`Project`](syl_session::Project).
+///
+/// # Main usage flow
+///
+/// ```text
+///  Project::new(snapshot)
+///         |
+///         v
+///  ProjectQueries
+///         |
+///     +---+---------------------------+
+///     |                               |
+///     v                               v
+///  document_diagnostics(uri)   grouped_diagnostics()
+///  diagnostics_for(uri)        all_document_diagnostics()
+/// ```
 pub trait ProjectQueries {
     fn all_document_diagnostics(&self) -> Vec<crate::DocumentDiagnostics>;
 
