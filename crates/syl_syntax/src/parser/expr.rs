@@ -1,3 +1,5 @@
+//! Expression and pattern parsing (Pratt + primary forms).
+
 use super::Parser;
 use super::span_ext::PatternSpan;
 use crate::lexer::{Token, TokenKind};
@@ -5,6 +7,36 @@ use crate::*;
 use syl_span::{Diagnostic, Span};
 
 impl Parser {
+    pub(super) fn looks_like_aggregate(&self) -> bool {
+        matches!(
+            self.tokens.get(self.pos),
+            Some(Token {
+                kind: TokenKind::LBrace,
+                ..
+            })
+        ) && matches!(
+            self.tokens.get(self.pos + 1).map(|t| &t.kind),
+            Some(TokenKind::Ident(_))
+        ) && matches!(
+            self.tokens.get(self.pos + 2).map(|t| &t.kind),
+            Some(TokenKind::Colon)
+        )
+    }
+
+    pub(super) fn parse_named_fields(&mut self) -> Result<Vec<NamedExpr>, Vec<Diagnostic>> {
+        let mut fields = Vec::new();
+        while !self.check(&TokenKind::RBrace) && !self.is_eof() {
+            let name = self.expect_ident()?;
+            let start = self.prev_span();
+            self.expect(TokenKind::Colon)?;
+            let value = self.parse_expr(0)?;
+            let span = start.join(value.span());
+            fields.push(NamedExpr::new(name, value, span));
+            self.consume(&TokenKind::Comma);
+        }
+        Ok(fields)
+    }
+
     pub(super) fn looks_like_generic_app(&self) -> bool {
         let mut depth = 0usize;
         let mut idx = self.pos;

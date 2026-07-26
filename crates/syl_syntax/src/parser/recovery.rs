@@ -1,3 +1,5 @@
+//! Error recovery: skip to the next item/statement boundary after a parse error.
+
 use super::Parser;
 use crate::lexer::TokenKind;
 use syl_span::Span;
