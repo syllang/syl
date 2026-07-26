@@ -1,3 +1,8 @@
+//! Walk lowered HIR items and assign expression / side-table indexes.
+//!
+//! Runs after [`super::insert`] has registered defs, locals, and member
+//! declarations. Populates the flat `exprs` arena and related lookup tables.
+
 use crate::{
     hir::lower::HirResolver,
     hir::{
