@@ -1,4 +1,5 @@
 use crate::hir::HirDesign;
+use getset::{CopyGetters, Getters};
 use std::collections::BTreeMap;
 use syl_hir::DefId;
 
@@ -10,10 +11,13 @@ pub enum ProtocolFieldDirection {
     Out,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Getters)]
 #[non_exhaustive]
 pub struct ViewFieldSummary {
+    /// Custom `name() -> &str` projection.
+    #[getset(skip)]
     name: String,
+    #[getset(get = "pub")]
     direction: ProtocolFieldDirection,
 }
 
@@ -24,10 +28,6 @@ impl ViewFieldSummary {
 
     pub fn name(&self) -> &str {
         &self.name
-    }
-
-    pub fn direction(&self) -> &ProtocolFieldDirection {
-        &self.direction
     }
 }
 
@@ -52,12 +52,19 @@ impl ProtocolViewSummary {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Getters, CopyGetters)]
 #[non_exhaustive]
 pub struct ProtocolSummary {
+    #[getset(get_copy = "pub")]
     interface: DefId,
+    /// Custom `name() -> &str` projection.
+    #[getset(skip)]
     name: String,
+    /// Custom slice projection.
+    #[getset(skip)]
     fields: Vec<String>,
+    /// Custom slice projection.
+    #[getset(skip)]
     views: Vec<ProtocolViewSummary>,
 }
 
@@ -74,10 +81,6 @@ impl ProtocolSummary {
             fields,
             views,
         }
-    }
-
-    pub fn interface(&self) -> DefId {
-        self.interface
     }
 
     pub fn name(&self) -> &str {

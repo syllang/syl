@@ -7,6 +7,7 @@ use crate::{
     summary::opaque::OpaqueSummaryTable,
     tir::{TirDesign, TypePhaseChecker},
 };
+use getset::Getters;
 use std::{fmt, sync::Arc};
 use syl_hir::{DefId, HirResolution};
 use syl_span::{SourceId, Span};
@@ -43,8 +44,11 @@ use syl_span::{SourceId, Span};
 ///               v
 ///          TirAnalysis  --->  HardwareCompiler / facts / emit pipeline
 /// ```
+#[derive(Getters)]
+#[getset(get = "pub")]
 #[non_exhaustive]
 pub struct HirAnalysis {
+    #[getset(skip)]
     design: Arc<HirDesign>,
     resolution: ResolutionTable,
 }
@@ -56,10 +60,6 @@ impl HirAnalysis {
             design: Arc::new(design),
             resolution,
         }
-    }
-
-    pub fn resolution(&self) -> &ResolutionTable {
-        &self.resolution
     }
 
     pub fn def_count(&self) -> usize {
@@ -335,6 +335,8 @@ impl fmt::Debug for HirAnalysis {
 ///              v
 ///       ParametricHwDesign / ElaborationOutput
 /// ```
+#[derive(Getters)]
+#[getset(get = "pub")]
 #[non_exhaustive]
 pub struct TirAnalysis {
     design: TirDesign,
@@ -345,14 +347,6 @@ impl TirAnalysis {
     fn new(design: TirDesign) -> Self {
         let facts = SemanticFacts::collect(&design);
         Self { design, facts }
-    }
-
-    pub fn design(&self) -> &TirDesign {
-        &self.design
-    }
-
-    pub fn facts(&self) -> &SemanticFacts {
-        &self.facts
     }
 
     pub fn opaque_summaries(&self) -> &OpaqueSummaryTable {

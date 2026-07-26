@@ -4,15 +4,23 @@ use crate::{
     hir::HirLocalKind,
     tir::{TirDesign, TirType},
 };
+use getset::{CopyGetters, Getters};
 use std::collections::BTreeMap;
 use syl_hir::DefId;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Getters, CopyGetters)]
 #[non_exhaustive]
 pub struct ViewCapabilityFacts {
+    #[getset(get_copy = "pub")]
     interface: DefId,
+    /// Custom `view() -> &str` projection.
+    #[getset(skip)]
     view: String,
+    /// Custom slice projection.
+    #[getset(skip)]
     readable_fields: Vec<String>,
+    /// Custom slice projection.
+    #[getset(skip)]
     writable_fields: Vec<String>,
 }
 
@@ -29,10 +37,6 @@ impl ViewCapabilityFacts {
             readable_fields,
             writable_fields,
         }
-    }
-
-    pub fn interface(&self) -> DefId {
-        self.interface
     }
 
     pub fn view(&self) -> &str {
@@ -66,24 +70,18 @@ pub enum CapabilityKind {
     View(ViewCapabilityFacts),
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Getters, CopyGetters)]
 #[non_exhaustive]
 pub struct CapabilityFacts {
+    #[getset(get_copy = "pub")]
     type_id: TypeId,
+    #[getset(get = "pub")]
     kind: CapabilityKind,
 }
 
 impl CapabilityFacts {
     fn new(type_id: TypeId, kind: CapabilityKind) -> Self {
         Self { type_id, kind }
-    }
-
-    pub fn type_id(&self) -> TypeId {
-        self.type_id
-    }
-
-    pub fn kind(&self) -> &CapabilityKind {
-        &self.kind
     }
 }
 
