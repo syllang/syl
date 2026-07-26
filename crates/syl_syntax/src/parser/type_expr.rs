@@ -111,7 +111,6 @@ impl Parser {
         }
     }
 
-
     pub(super) fn parse_generic_params(&mut self) -> Result<Vec<GenericParam>, Vec<Diagnostic>> {
         let mut params = Vec::new();
         if self.consume(&TokenKind::Lt).is_some() {

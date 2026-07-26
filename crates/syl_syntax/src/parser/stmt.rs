@@ -10,7 +10,6 @@ use std::collections::HashSet;
 use syl_span::Diagnostic;
 
 impl Parser {
-
     pub(super) fn parse_block(&mut self, context: BlockContext) -> Result<Block, Vec<Diagnostic>> {
         let previous_context = self.block_context;
         self.block_context = context;
@@ -184,7 +183,6 @@ impl Parser {
             span: start.join(end),
         })
     }
-
 
     pub(super) fn parse_var_stmt(&mut self) -> Result<Stmt, Vec<Diagnostic>> {
         let start = self.expect(TokenKind::KwVar)?.span;
@@ -467,7 +465,6 @@ impl Parser {
         })
     }
 
-
     fn parse_nested_block_preserving_mutable_scope(
         &mut self,
         context: BlockContext,
@@ -485,6 +482,4 @@ impl Parser {
             }
         }
     }
-
-
 }
