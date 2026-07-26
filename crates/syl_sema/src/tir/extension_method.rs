@@ -59,11 +59,10 @@ impl TirDesign {
                         .binding_types()
                         .get(&super::BindingRef::Local(id))
                         .copied(),
-                    crate::hir::resolve::HirResolution::Def(id) => {
-                        self.binding_types()
-                            .get(&super::BindingRef::Def(id))
-                            .copied()
-                    }
+                    crate::hir::resolve::HirResolution::Def(id) => self
+                        .binding_types()
+                        .get(&super::BindingRef::Def(id))
+                        .copied(),
                     _ => None,
                 })?,
             _ => *self.expr_types().get(&expr.id())?,
