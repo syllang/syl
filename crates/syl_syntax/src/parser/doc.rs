@@ -1,3 +1,5 @@
+//! Doc-comment collection from lossless lexemes, and attachment onto AST items.
+
 use super::Parser;
 use crate::lexer::{Lexeme, LexemeKind, Token, TokenKind};
 use crate::{Item, LosslessToken, LosslessTokenKind};

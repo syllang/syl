@@ -26,22 +26,22 @@ use super::{
 /// # Main usage flow
 ///
 /// ```text
-///  AnalysisHost::load / snapshot  -->  AnalysisSnapshot
-///                                            |
-///                                            v
-///                              +------------------------+
-///                              |   AnalysisQueries      |
-///                              +-----------+------------+
-///                                          |
-///            +--------------+--------------+--------------+
-///            |              |              |              |
-///            v              v              v              v
-///       definition*      hover*      completion*    document_symbols
-///       definition_at*   hover_at*   completions_at*   symbols
-///            |
-///            +--> diagnostics grouping APIs (where exposed)
-///            +--> doc_for_item / field / module
-///            +--> opaque_summaries[ _with_token ]
+///  session load / snapshot  -->  AnalysisSnapshot
+///                                      |
+///                                      v
+///                        +------------------------+
+///                        |   AnalysisQueries      |
+///                        +-----------+------------+
+///                                    |
+///          +--------------+----------+--------------+
+///          |              |          |              |
+///          v              v          v              v
+///     definition*      hover*   completion*   document_symbols
+///     definition_at*   hover_at* completions_at*  symbols
+///          |
+///          +--> diagnostics grouping APIs (where exposed)
+///          +--> doc_for_item / field / module
+///          +--> opaque_summaries[ _with_token ]
 ///
 ///  * `_with_token` variants honor cooperative cancellation.
 ///  * `_at` variants take UTF-16 LSP positions; non-`_at` take byte positions.

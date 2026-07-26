@@ -1,3 +1,5 @@
+//! Type expressions, generics, parameter lists, and declaration field bodies.
+
 use super::Parser;
 use crate::lexer::{Token, TokenKind};
 use crate::*;
@@ -19,6 +21,94 @@ impl Parser {
             };
         }
         Ok(ty)
+    }
+
+    pub(super) fn parse_type_prefix(&mut self) -> Result<TypeExpr, Vec<Diagnostic>> {
+        if let Some(start) = self.consume(&TokenKind::LBracket).map(|token| token.span) {
+            let len = self.parse_expr(0)?;
+            let end = self.expect(TokenKind::RBracket)?.span;
+            let elem = self.parse_type_expr()?;
+            let span = start.join(end).join(elem.span());
+            return Ok(TypeExpr::Array {
+                len: Box::new(len),
+                elem: Box::new(elem),
+                span,
+            });
+        }
+
+        let Some(tok) = self.bump() else {
+            self.error(self.eof_span(), "unexpected end of source");
+            return Err(std::mem::take(&mut self.diagnostics));
+        };
+        let start = tok.span;
+        let mut parts = match tok.kind {
+            TokenKind::Ident(name) => vec![name],
+            TokenKind::Int(value) => vec![value.to_string()],
+            TokenKind::Bool(value) => vec![if value {
+                "true".to_string()
+            } else {
+                "false".to_string()
+            }],
+            _ => {
+                self.error(tok.span, "expected type");
+                return Err(std::mem::take(&mut self.diagnostics));
+            }
+        };
+        while self.consume(&TokenKind::Dot).is_some() {
+            parts.push(self.expect_ident()?);
+        }
+        let path_end = self.prev_span();
+        let mut ty = TypeExpr::Path(parts, start.join(path_end));
+        if self.consume(&TokenKind::Lt).is_some() {
+            let mut args = Vec::new();
+            if !self.check(&TokenKind::Gt) {
+                loop {
+                    args.push(self.parse_type_expr()?);
+                    if self.consume(&TokenKind::Comma).is_none() {
+                        break;
+                    }
+                }
+            }
+            let end = self.expect(TokenKind::Gt)?.span;
+            let span = start.join(end);
+            ty = TypeExpr::Generic {
+                base: Box::new(ty),
+                args,
+                span,
+            };
+        }
+        Ok(ty)
+    }
+
+    pub(super) fn expr_to_type_expr(&mut self, expr: Expr) -> Result<TypeExpr, Vec<Diagnostic>> {
+        match expr {
+            Expr::Ident(name, span) => Ok(TypeExpr::Path(vec![name], span)),
+            Expr::GenericApp { callee, args, span } => {
+                let base = self.expr_to_type_expr(*callee)?;
+                Ok(TypeExpr::Generic {
+                    base: Box::new(base),
+                    args,
+                    span,
+                })
+            }
+            Expr::Field { base, field, span } => {
+                let base = self.expr_to_type_expr(*base)?;
+                match base {
+                    TypeExpr::Path(mut path, base_span) => {
+                        path.push(field);
+                        Ok(TypeExpr::Path(path, base_span.join(span)))
+                    }
+                    _ => {
+                        self.error(span, "invalid aggregate type");
+                        Err(std::mem::take(&mut self.diagnostics))
+                    }
+                }
+            }
+            other => {
+                self.error(other.span(), "expected type-like expression");
+                Err(std::mem::take(&mut self.diagnostics))
+            }
+        }
     }
 
     pub(super) fn parse_generic_params(&mut self) -> Result<Vec<GenericParam>, Vec<Diagnostic>> {

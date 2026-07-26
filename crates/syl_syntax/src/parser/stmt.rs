@@ -1,9 +1,130 @@
-use super::{BlockContext, Parser};
-use crate::lexer::{Token, TokenKind};
-use crate::{Expr, NamedExpr, RegReset, Stmt, TypeExpr};
+//! Statement and block-body parsing.
+//!
+//! Type-expression helpers live in `type_expr.rs`; aggregate field lists for
+//! expressions live in `expr.rs`.
+
+use super::{BlockContext, BlockEntry, Parser};
+use crate::lexer::TokenKind;
+use crate::{Block, Expr, RegReset, Stmt, TypeExpr};
+use std::collections::HashSet;
 use syl_span::Diagnostic;
 
 impl Parser {
+    pub(super) fn parse_block(&mut self, context: BlockContext) -> Result<Block, Vec<Diagnostic>> {
+        let previous_context = self.block_context;
+        self.block_context = context;
+        self.mutable_local_scopes.push(HashSet::new());
+        let result = (|| {
+            let start = self.expect(TokenKind::LBrace)?.span;
+            let mut stmts = Vec::new();
+            let mut tail = None;
+            while !self.check(&TokenKind::RBrace) && !self.is_eof() {
+                let start_pos = self.pos;
+                match self.parse_block_entry(context) {
+                    Ok(BlockEntry::Stmt(stmt)) => stmts.push(*stmt),
+                    Ok(BlockEntry::Tail(expr)) => {
+                        tail = Some(Box::new(expr));
+                        break;
+                    }
+                    Err(mut diagnostics) => {
+                        self.diagnostics.append(&mut diagnostics);
+                        let span = self.recover_stmt_boundary(start_pos);
+                        stmts.push(Stmt::Error { span });
+                    }
+                }
+            }
+            let end = if let Some(tok) = self.consume(&TokenKind::RBrace) {
+                tok.span
+            } else {
+                let span = self.eof_span();
+                self.error(span, "expected RBrace");
+                span
+            };
+            Ok(Block::new(stmts, tail, start.join(end)))
+        })();
+        let _ = self.mutable_local_scopes.pop();
+        self.block_context = previous_context;
+        result
+    }
+
+    fn parse_block_entry(&mut self, context: BlockContext) -> Result<BlockEntry, Vec<Diagnostic>> {
+        if self.check(&TokenKind::KwLet) {
+            return self
+                .parse_let_stmt()
+                .map(|stmt| BlockEntry::Stmt(Box::new(stmt)));
+        }
+        if self.check(&TokenKind::KwConst) {
+            return self
+                .parse_const_stmt()
+                .map(|stmt| BlockEntry::Stmt(Box::new(stmt)));
+        }
+        if self.check(&TokenKind::KwVar) {
+            return self
+                .parse_var_stmt()
+                .map(|stmt| BlockEntry::Stmt(Box::new(stmt)));
+        }
+        if self.check(&TokenKind::KwSignal) {
+            return self
+                .parse_signal_stmt()
+                .map(|stmt| BlockEntry::Stmt(Box::new(stmt)));
+        }
+        if self.check(&TokenKind::KwReg) {
+            return self
+                .parse_reg_stmt()
+                .map(|stmt| BlockEntry::Stmt(Box::new(stmt)));
+        }
+        if self.check(&TokenKind::KwNext) {
+            return self
+                .parse_next_stmt()
+                .map(|stmt| BlockEntry::Stmt(Box::new(stmt)));
+        }
+        if self.check(&TokenKind::KwWhile) {
+            return self
+                .parse_while_stmt()
+                .map(|stmt| BlockEntry::Stmt(Box::new(stmt)));
+        }
+        if self.check(&TokenKind::KwFor) {
+            return self
+                .parse_for_stmt()
+                .map(|stmt| BlockEntry::Stmt(Box::new(stmt)));
+        }
+        if self.check(&TokenKind::KwIf) {
+            return self
+                .parse_if_stmt()
+                .map(|stmt| BlockEntry::Stmt(Box::new(stmt)));
+        }
+        if self.check(&TokenKind::KwReturn) {
+            let span = self.expect(TokenKind::KwReturn)?.span;
+            let expr = if self.check(&TokenKind::Semi) {
+                None
+            } else {
+                Some(self.parse_expr(0)?)
+            };
+            let end = self
+                .consume(&TokenKind::Semi)
+                .map(|token| token.span)
+                .unwrap_or_else(|| expr.as_ref().map(|expr| expr.span()).unwrap_or(span));
+            return Ok(BlockEntry::Stmt(Box::new(Stmt::Return(
+                expr,
+                span.join(end),
+            ))));
+        }
+        let expr = self.parse_expr(0)?;
+        if matches!(
+            self.peek_kind(),
+            Some(TokenKind::Eq) | Some(TokenKind::ColonEq)
+        ) {
+            return self
+                .parse_contextual_assignment_stmt(expr, context)
+                .map(|stmt| BlockEntry::Stmt(Box::new(stmt)));
+        }
+        if self.consume(&TokenKind::Semi).is_some() || !self.check(&TokenKind::RBrace) {
+            Ok(BlockEntry::Stmt(Box::new(Stmt::Expr(expr))))
+        } else {
+            Ok(BlockEntry::Tail(expr))
+        }
+    }
+
     pub(super) fn parse_let_stmt(&mut self) -> Result<Stmt, Vec<Diagnostic>> {
         let start = self.expect(TokenKind::KwLet)?.span;
         let name = self.expect_ident()?;
@@ -61,63 +182,6 @@ impl Parser {
             value,
             span: start.join(end),
         })
-    }
-
-    pub(super) fn parse_type_prefix(&mut self) -> Result<TypeExpr, Vec<Diagnostic>> {
-        if let Some(start) = self.consume(&TokenKind::LBracket).map(|token| token.span) {
-            let len = self.parse_expr(0)?;
-            let end = self.expect(TokenKind::RBracket)?.span;
-            let elem = self.parse_type_expr()?;
-            let span = start.join(end).join(elem.span());
-            return Ok(TypeExpr::Array {
-                len: Box::new(len),
-                elem: Box::new(elem),
-                span,
-            });
-        }
-
-        let Some(tok) = self.bump() else {
-            self.error(self.eof_span(), "unexpected end of source");
-            return Err(std::mem::take(&mut self.diagnostics));
-        };
-        let start = tok.span;
-        let mut parts = match tok.kind {
-            TokenKind::Ident(name) => vec![name],
-            TokenKind::Int(value) => vec![value.to_string()],
-            TokenKind::Bool(value) => vec![if value {
-                "true".to_string()
-            } else {
-                "false".to_string()
-            }],
-            _ => {
-                self.error(tok.span, "expected type");
-                return Err(std::mem::take(&mut self.diagnostics));
-            }
-        };
-        while self.consume(&TokenKind::Dot).is_some() {
-            parts.push(self.expect_ident()?);
-        }
-        let path_end = self.prev_span();
-        let mut ty = TypeExpr::Path(parts, start.join(path_end));
-        if self.consume(&TokenKind::Lt).is_some() {
-            let mut args = Vec::new();
-            if !self.check(&TokenKind::Gt) {
-                loop {
-                    args.push(self.parse_type_expr()?);
-                    if self.consume(&TokenKind::Comma).is_none() {
-                        break;
-                    }
-                }
-            }
-            let end = self.expect(TokenKind::Gt)?.span;
-            let span = start.join(end);
-            ty = TypeExpr::Generic {
-                base: Box::new(ty),
-                args,
-                span,
-            };
-        }
-        Ok(ty)
     }
 
     pub(super) fn parse_var_stmt(&mut self) -> Result<Stmt, Vec<Diagnostic>> {
@@ -401,20 +465,6 @@ impl Parser {
         })
     }
 
-    pub(super) fn parse_named_fields(&mut self) -> Result<Vec<NamedExpr>, Vec<Diagnostic>> {
-        let mut fields = Vec::new();
-        while !self.check(&TokenKind::RBrace) && !self.is_eof() {
-            let name = self.expect_ident()?;
-            let start = self.prev_span();
-            self.expect(TokenKind::Colon)?;
-            let value = self.parse_expr(0)?;
-            let span = start.join(value.span());
-            fields.push(NamedExpr::new(name, value, span));
-            self.consume(&TokenKind::Comma);
-        }
-        Ok(fields)
-    }
-
     fn parse_nested_block_preserving_mutable_scope(
         &mut self,
         context: BlockContext,
@@ -429,53 +479,6 @@ impl Parser {
         for scope in self.mutable_local_scopes.iter_mut().rev() {
             if scope.remove(name) {
                 break;
-            }
-        }
-    }
-
-    pub(super) fn looks_like_aggregate(&self) -> bool {
-        matches!(
-            self.tokens.get(self.pos),
-            Some(Token {
-                kind: TokenKind::LBrace,
-                ..
-            })
-        ) && matches!(
-            self.tokens.get(self.pos + 1).map(|t| &t.kind),
-            Some(TokenKind::Ident(_))
-        ) && matches!(
-            self.tokens.get(self.pos + 2).map(|t| &t.kind),
-            Some(TokenKind::Colon)
-        )
-    }
-
-    pub(super) fn expr_to_type_expr(&mut self, expr: Expr) -> Result<TypeExpr, Vec<Diagnostic>> {
-        match expr {
-            Expr::Ident(name, span) => Ok(TypeExpr::Path(vec![name], span)),
-            Expr::GenericApp { callee, args, span } => {
-                let base = self.expr_to_type_expr(*callee)?;
-                Ok(TypeExpr::Generic {
-                    base: Box::new(base),
-                    args,
-                    span,
-                })
-            }
-            Expr::Field { base, field, span } => {
-                let base = self.expr_to_type_expr(*base)?;
-                match base {
-                    TypeExpr::Path(mut path, base_span) => {
-                        path.push(field);
-                        Ok(TypeExpr::Path(path, base_span.join(span)))
-                    }
-                    _ => {
-                        self.error(span, "invalid aggregate type");
-                        Err(std::mem::take(&mut self.diagnostics))
-                    }
-                }
-            }
-            other => {
-                self.error(other.span(), "expected type-like expression");
-                Err(std::mem::take(&mut self.diagnostics))
             }
         }
     }
