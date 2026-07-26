@@ -1,6 +1,6 @@
 use super::binding::{BindingKind, BindingRef};
 use super::consts::{TirConstEnv, TirConstKind};
-use super::design::TirDesign;
+use super::design::{TirDesign, TirDesignBuilder};
 use super::phase::Phase;
 use super::type_system::{TirType, TirTypeTable, TypeId};
 use crate::capability::CapabilityChecker;
@@ -244,15 +244,15 @@ impl TypePhaseChecker {
     }
 
     pub(super) fn finish(self) -> TirDesign {
-        TirDesign {
-            hir: self.hir,
-            type_table: self.type_table,
-            enum_variant_values: self.enum_variant_values,
-            expr_phases: self.expr_phases,
-            expr_types: self.expr_types,
-            binding_kinds: self.binding_kinds,
-            binding_types: self.binding_types,
-        }
+        TirDesignBuilder::default()
+            .hir(self.hir)
+            .type_table(self.type_table)
+            .enum_variant_values(self.enum_variant_values)
+            .expr_phases(self.expr_phases)
+            .expr_types(self.expr_types)
+            .binding_kinds(self.binding_kinds)
+            .binding_types(self.binding_types)
+            .build()
     }
 
     pub(super) fn collect_errors(&mut self) -> Vec<CompileError> {
