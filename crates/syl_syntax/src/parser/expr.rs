@@ -459,7 +459,6 @@ impl Parser {
             }
             Some(Token {
                 kind: TokenKind::LBrace,
-                span: _,
                 ..
             }) => {
                 self.pos -= 1;
