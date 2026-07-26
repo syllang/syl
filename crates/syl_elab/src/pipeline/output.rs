@@ -12,6 +12,35 @@ use syl_span::Diagnostic;
 
 use super::debug;
 
+/// Multi-stage elaboration result from [`HardwareCompiler::output_for_tir`].
+///
+/// Each stage field is `Some` only if that stage completed. Later stages may
+/// be missing when an earlier stage failed or cancellation stopped the run;
+/// `diagnostics()` always carries what the pipeline reported.
+///
+/// # Main usage flow
+///
+/// ```text
+///  HardwareCompiler::output_for_tir[ _with_token ]
+///              |
+///              v
+///    +----------------------+
+///    |  ElaborationOutput   |
+///    +----------+-----------+
+///               |
+///   stages (each Option<_>):
+///
+///     const_mir() --> map_ir() --> eir_build() --> eir_validation()
+///            --> eir_facts() --> eir() --> driver_facts() --> drc()
+///            --> metadata() --> hwir()
+///
+///   cross-cutting:
+///     diagnostics()
+///     opaque_summaries()   (via metadata, when present)
+///
+///  When only HWIR is needed and failures should abort:
+///    HardwareCompiler::compile_tir  -->  ParametricHwDesign
+/// ```
 #[non_exhaustive]
 pub struct ElaborationOutput {
     pub(super) const_mir: Option<ConstMirStage>,
