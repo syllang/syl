@@ -1,7 +1,41 @@
 use crate::{HwExpr, HwItem, HwOrigin, HwParam, HwPort};
 
-/// A parametric hardware design — like `HwDesign` but preserving origin
-/// information for each item before normalization.
+/// Backend-facing hardware IR root produced by elaboration.
+///
+/// Structurally similar to [`HwDesign`](crate::HwDesign) (an ordered list of
+/// modules), but each item is a [`ParametricHwItem`] that:
+/// - keeps a per-item [`HwOrigin`] — the source span of the construct that
+///   produced it, plus the elaboration expansion stack (which cell
+///   instantiations nested to create it); and
+/// - can still contain open static structure (`StaticIf` / `StaticFor`) rather
+///   than only fully flattened core hardware items.
+///
+/// # Main usage flow
+///
+/// ```text
+///  HardwareCompiler::compile_tir / ElaborationOutput::hwir
+///              |
+///              v
+///    +---------------------+
+///    | ParametricHwDesign  |   modules: [ParametricHwModule]
+///    +----------+----------+
+///               |
+///     +---------+------------------+
+///     |                            |
+///     v                            v
+///  HwValidator::validate    HwNormalizer::normalize
+///  Ok(()) | Report          NormalizedParametricHwDesign
+///                                      |
+///                                      v
+///                         SystemVerilogBackend::emit / debug_dump
+///                                      |
+///                                      v
+///                              SystemVerilog text
+/// ```
+///
+/// Emitters should normalize/validate before lowering; construction via
+/// [`ParametricHwDesign::new`] is also used in unit tests that build HWIR
+/// directly.
 #[derive(Debug)]
 #[non_exhaustive]
 pub struct ParametricHwDesign {
@@ -30,7 +64,10 @@ impl ParametricHwDesign {
     }
 }
 
-/// A parametric hardware module with origin-tracked items.
+/// A module in a [`ParametricHwDesign`]: name, params, ports, and items.
+///
+/// Unlike [`HwModule`](crate::HwModule), items are [`ParametricHwItem`]s, each
+/// carrying its own [`HwOrigin`] and optional static if/for structure.
 #[derive(Debug)]
 #[non_exhaustive]
 pub struct ParametricHwModule {
@@ -83,14 +120,25 @@ impl ParametricHwModule {
     }
 }
 
-/// An item in a parametric module, wrapping `HwItem` with source origin
-/// and the static-if/static-for constructs that drive elaboration.
+/// One item inside a [`ParametricHwModule`].
+///
+/// Every variant carries an [`HwOrigin`]:
+/// - **span** — source file and byte range of the Syl construct that produced
+///   this item; and
+/// - **expansion stack** — nested cell instantiations (callable + instance
+///   names and their spans) that were active when elaboration created it.
+///
+/// That origin is a construction-time snapshot (see [`HwOrigin`]); it is not
+/// updated if later outer expansions appear elsewhere in the pipeline.
+///
+/// Variants also retain static elaboration structure that has not yet been
+/// fully expanded into core hardware:
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum ParametricHwItem {
-    /// A core hardware item with its source origin.
+    /// Core hardware node ([`HwItem`]) plus the origin of that node.
     Core { item: HwItem, origin: HwOrigin },
-    /// Conditional elaboration: `if (cond) then_items else else_items`.
+    /// Compile-time conditional: `if (cond) { then_items } else { else_items }`.
     StaticIf {
         cond: HwExpr,
         label: String,
@@ -98,7 +146,7 @@ pub enum ParametricHwItem {
         else_items: Vec<ParametricHwItem>,
         origin: HwOrigin,
     },
-    /// Replicated elaboration: `for index in start..end`.
+    /// Compile-time replication: `for index in start..end { items }`.
     StaticFor {
         index: String,
         start: HwExpr,

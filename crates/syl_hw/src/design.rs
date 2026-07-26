@@ -1,10 +1,29 @@
 use crate::HwExpr;
 use syl_span::SourceId;
 
-/// A complete elaborated hardware design: an ordered collection of modules.
+/// Core (non-parametric) hardware design: an ordered collection of modules.
 ///
-/// Produced by elaboration from the HIR, this is the input to the
-/// SystemVerilog backend.
+/// Lower-level cousin of [`ParametricHwDesign`](crate::ParametricHwDesign):
+/// modules hold plain [`HwItem`]s without per-item [`HwOrigin`] or open
+/// `StaticIf` / `StaticFor`. Prefer `ParametricHwDesign` as the elaboration →
+/// backend exchange format.
+///
+/// # Main usage flow
+///
+/// ```text
+///  (tests / specialized tooling constructing core HWIR)
+///              |
+///              v
+///    +---------------------+
+///    |      HwDesign       |   new(modules)
+///    +----------+----------+
+///               |
+///               v
+///          modules() / debug_dump()
+///
+///  Production pipeline path uses ParametricHwDesign instead:
+///    elab --> ParametricHwDesign --> normalize --> SystemVerilogBackend
+/// ```
 #[non_exhaustive]
 pub struct HwDesign {
     modules: Vec<HwModule>,

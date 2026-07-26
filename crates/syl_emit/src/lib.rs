@@ -69,10 +69,40 @@ pub enum VerilogError {
     UnsupportedFunctionCall { module: String, name: String },
 }
 
-/// The SystemVerilog code generation backend.
+/// SystemVerilog code generation backend — last stage of the compile pipeline.
 ///
-/// Transforms an elaborated `ParametricHwDesign` into synthesizable
-/// SystemVerilog text. Performs structural validation before emission.
+/// Consumes an elaborated [`ParametricHwDesign`], normalizes/validates it, lowers
+/// to a backend-local SV IR, then prints synthesizable SystemVerilog text.
+///
+/// # Main usage flow
+///
+/// ```text
+///  ParametricHwDesign  (from HardwareCompiler / ElaborationOutput)
+///              |
+///              v
+///    +------------------------+
+///    | SystemVerilogBackend   |   new()
+///    +----------+-------------+
+///               |
+///     +---------+------------------+
+///     |                            |
+///     v                            v
+///   emit(hwir)                 debug_dump(hwir)
+///   Result<String, E>          Result<String, E>
+///   (SV source text)           (SV IR structure dump)
+///
+///  Internally (both paths):
+///
+///    hwir --> HwNormalizer::normalize
+///              |
+///              v
+///         NormalizedParametricHwDesign
+///              |
+///              v
+///         lower to SvDesign
+///              |
+///              +--> emit_text + SV validators  (emit only)
+/// ```
 #[derive(Debug)]
 #[non_exhaustive]
 pub struct SystemVerilogBackend;
