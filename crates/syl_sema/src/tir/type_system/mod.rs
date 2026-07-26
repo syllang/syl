@@ -233,20 +233,20 @@ impl TirType {
 #[cfg(test)]
 impl TirDesign {
     pub fn binding_type_id(&self, binding: BindingRef) -> Option<TypeId> {
-        self.binding_types.get(&binding).copied()
+        self.binding_types().get(&binding).copied()
     }
 
     pub fn binding_type_generic_local(&self, binding: BindingRef) -> Option<LocalId> {
-        let ty = self.binding_types.get(&binding)?;
-        match self.type_table.get(*ty)? {
+        let ty = self.binding_types().get(&binding)?;
+        match self.type_table().get(*ty)? {
             TirType::Named { generic, .. } => *generic,
             _ => None,
         }
     }
 
     pub fn binding_uint_width_local(&self, binding: BindingRef) -> Option<LocalId> {
-        let ty = self.binding_types.get(&binding)?;
-        match self.type_table.get(*ty)? {
+        let ty = self.binding_types().get(&binding)?;
+        match self.type_table().get(*ty)? {
             TirType::UInt { width } => width.local(),
             _ => None,
         }

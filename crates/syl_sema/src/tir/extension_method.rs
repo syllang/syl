@@ -56,17 +56,19 @@ impl TirDesign {
                 .flatten()
                 .and_then(|resolution| match resolution {
                     crate::hir::resolve::HirResolution::Local(id) => self
-                        .binding_types
+                        .binding_types()
                         .get(&super::BindingRef::Local(id))
                         .copied(),
                     crate::hir::resolve::HirResolution::Def(id) => {
-                        self.binding_types.get(&super::BindingRef::Def(id)).copied()
+                        self.binding_types()
+                            .get(&super::BindingRef::Def(id))
+                            .copied()
                     }
                     _ => None,
                 })?,
-            _ => *self.expr_types.get(&expr.id())?,
+            _ => *self.expr_types().get(&expr.id())?,
         };
-        self.type_table.get(id)
+        self.type_table().get(id)
     }
 }
 

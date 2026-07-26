@@ -4,7 +4,7 @@ use crate::{
         ConstEvalEnv, ConstMirBuilder, ConstMirProgram, ConstStructFieldValue, ConstStructValue,
         ConstValue,
     },
-    tir::{TirDesign, TypePhaseChecker},
+    tir::{TypePhaseChecker, design::TirDesignBuilder},
 };
 use std::collections::BTreeMap;
 
@@ -17,15 +17,15 @@ impl TirConstEnv {
         let crate::hir::HirExprNode::Call { .. } = expr.node else {
             return None;
         };
-        let tir = TirDesign {
-            hir: checker.hir.clone(),
-            type_table: checker.type_table.clone(),
-            enum_variant_values: checker.enum_variant_values.clone(),
-            expr_phases: checker.expr_phases.clone(),
-            expr_types: checker.expr_types.clone(),
-            binding_kinds: checker.binding_kinds.clone(),
-            binding_types: checker.binding_types.clone(),
-        };
+        let tir = TirDesignBuilder::default()
+            .hir(checker.hir.clone())
+            .type_table(checker.type_table.clone())
+            .enum_variant_values(checker.enum_variant_values.clone())
+            .expr_phases(checker.expr_phases.clone())
+            .expr_types(checker.expr_types.clone())
+            .binding_kinds(checker.binding_kinds.clone())
+            .binding_types(checker.binding_types.clone())
+            .build();
         let lowering = ConstMirBuilder::new(&tir);
         let lowered = lowering.lower_const_expr(self.owner, expr);
         let program = lowering.build().ok()?;

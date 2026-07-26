@@ -15,6 +15,7 @@ syl_hir.workspace = true
 syl_syntax.workspace = true
 syl_span.workspace = true
 derive_builder.workspace = true
+getset.workspace = true
 strum.workspace = true
 strum_macros.workspace = true
 thiserror.workspace = true

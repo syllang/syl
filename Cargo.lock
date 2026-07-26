@@ -809,6 +809,7 @@ name = "syl_sema"
 version = "0.1.0"
 dependencies = [
  "derive_builder",
+ "getset",
  "strum",
  "strum_macros",
  "syl_elab",
