@@ -3,7 +3,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use syl_sema::{LoweringError, SemanticCompiler, TirError};
+use syl_sema::{LoweringError, SemanticSession, TirError};
 use syl_session::{AnalysisHost, DocumentUri, DocumentVersion};
 use syl_span::Span;
 use syl_syntax::SourceParser;
@@ -115,7 +115,7 @@ cell Bad(x: in Missing) {
     .parse_file()
     .expect("structured error fixture must parse");
     let files = [file];
-    let session = SemanticCompiler::new().session(&files);
+    let session = SemanticSession::new(&files);
     let hir = session
         .resolve_hir()
         .expect("HIR must resolve before TIR error");

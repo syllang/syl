@@ -19,7 +19,7 @@ cell Top(y: out UInt<WIDTH>) {
         .parse_file()
         .expect("software struct const fixture must parse");
     let files = [file];
-    let session = SemanticCompiler::new().session(&files);
+    let session = SemanticSession::new(&files);
     let hir_resolution = session
         .resolve_hir()
         .expect("software struct const fixture must resolve HIR");
@@ -216,7 +216,7 @@ cell Top(y: out Bit) {
 }
 "#;
     let files = parse_sources(&[alpha, beta, app]);
-    let session = SemanticCompiler::new().session_sources(vec![
+    let session = SemanticSession::new_sources(vec![
         SemanticSourceFile::new(vec!["alpha".to_string()], &files[0]),
         SemanticSourceFile::new(vec!["beta".to_string()], &files[1]),
         SemanticSourceFile::new(vec!["app".to_string()], &files[2]),

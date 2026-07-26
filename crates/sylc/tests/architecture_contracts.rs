@@ -179,7 +179,7 @@ fn architecture_session_and_query_use_sema_accessors_not_elab_stage_api() {
         );
     }
     for required in [
-        "SemanticCompiler",
+        "SemanticSession",
         "HirAnalysis",
         "TirAnalysis",
         "HardwareCompiler",

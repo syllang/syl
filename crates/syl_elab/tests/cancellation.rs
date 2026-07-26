@@ -1,15 +1,14 @@
 use std::cell::Cell;
 
 use syl_elab::HardwareCompiler;
-use syl_sema::{SemanticCompiler, TirAnalysis};
+use syl_sema::{SemanticSession, TirAnalysis};
 use syl_syntax::SourceParser;
 
 fn tir_from_source(source: &str) -> TirAnalysis {
     let file = SourceParser::new(source)
         .parse_file()
         .expect("test source must parse");
-    SemanticCompiler::new()
-        .session(&[file])
+    SemanticSession::new(&[file])
         .resolve_hir()
         .expect("test source must resolve to HIR")
         .check_tir()

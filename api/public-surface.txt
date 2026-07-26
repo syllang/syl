@@ -1378,9 +1378,6 @@ syl_sema|method|syl_sema::pipeline::output::StageOutput::map_stage|fn(self: Self
 syl_sema|method|syl_sema::pipeline::output::StageOutput::new|fn(stage: Option<T>, diagnostics: Vec<Diagnostic>) -> Self
 syl_sema|method|syl_sema::pipeline::output::StageOutput::partial_stage|fn(self: &Self) -> Option<&T>
 syl_sema|method|syl_sema::pipeline::output::StageOutput::stage|fn(self: &Self) -> Option<&T>
-syl_sema|method|syl_sema::pipeline::session::SemanticCompiler::new|fn() -> Self
-syl_sema|method|syl_sema::pipeline::session::SemanticCompiler::session_sources|fn(self: &Self, sources: Vec<SemanticSourceFile<'files>>) -> SemanticSession<'files>
-syl_sema|method|syl_sema::pipeline::session::SemanticCompiler::session|fn(self: &Self, files: &[AstFile]) -> SemanticSession<'files>
 syl_sema|method|syl_sema::pipeline::session::SemanticSession::check|fn(self: &Self) -> SemanticOutput
 syl_sema|method|syl_sema::pipeline::session::SemanticSession::diagnostics|fn(self: &Self) -> Vec<Diagnostic>
 syl_sema|method|syl_sema::pipeline::session::SemanticSession::new_sources|fn(sources: Vec<SemanticSourceFile<'files>>) -> Self
@@ -1583,7 +1580,6 @@ syl_sema|struct|syl_sema::pipeline::input::SemanticSourceFile|public
 syl_sema|struct|syl_sema::pipeline::output::HirAnalysisOutput|public
 syl_sema|struct|syl_sema::pipeline::output::SemanticOutput|public
 syl_sema|struct|syl_sema::pipeline::output::StageOutput|public
-syl_sema|struct|syl_sema::pipeline::session::SemanticCompiler|public
 syl_sema|struct|syl_sema::pipeline::session::SemanticSession|public
 syl_sema|struct|syl_sema::query_support::completion::CompletionItem|public
 syl_sema|struct|syl_sema::summary::cell::CellSummaryDeclaration|public
@@ -1730,8 +1726,6 @@ syl_sema|use|ResolutionGraph|named|source=facts::ResolutionGraph
 syl_sema|use|ResolutionGraph|named|source=resolution::ResolutionGraph
 syl_sema|use|ResolutionTable|named|source=facts::ResolutionTable
 syl_sema|use|ResolutionTable|named|source=resolution::ResolutionTable
-syl_sema|use|SemanticCompiler|named|source=pipeline::SemanticCompiler
-syl_sema|use|SemanticCompiler|named|source=session::SemanticCompiler
 syl_sema|use|SemanticDiagnosticStage|named|source=diagnostic::SemanticDiagnosticStage
 syl_sema|use|SemanticDiagnosticStage|named|source=model::SemanticDiagnosticStage
 syl_sema|use|SemanticDiagnostic|named|source=diagnostic::SemanticDiagnostic
