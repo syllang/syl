@@ -3,7 +3,7 @@ mod semantic_facts_support;
 
 use semantic_facts_support::{ExprLookup, def_id, expr_id_at};
 use syl_sema::ir::const_mir::{ConstEvalEnv, ConstExprKind, ConstMirBuilder, ConstValue};
-use syl_sema::{ConstEvalError, HirFactId, LoweringError, SemanticCompiler};
+use syl_sema::{ConstEvalError, HirFactId, LoweringError, SemanticSession};
 use syl_span::SourceId;
 use syl_syntax::SourceParser;
 
@@ -24,10 +24,9 @@ cell Top(y: out UInt<WIDTH>) {
         .parse_file()
         .expect("const determinism fixture must parse");
     let files = [file];
-    let compiler = SemanticCompiler::new();
 
-    let first = compiler.session(&files).check();
-    let second = compiler.session(&files).check();
+    let first = SemanticSession::new(&files).check();
+    let second = SemanticSession::new(&files).check();
     let first_facts = first.facts().expect("first run must expose facts");
     let second_facts = second.facts().expect("second run must expose facts");
     let first_hir = first
@@ -93,7 +92,7 @@ cell Top(y: out UInt<1>) {
         .parse_file()
         .expect("extension fn fixture must parse");
     let files = [file];
-    let output = SemanticCompiler::new().session(&files).check();
+    let output = SemanticSession::new(&files).check();
     let tir = output
         .tir()
         .expect("extension fn fixture must type-check into TIR");
@@ -131,7 +130,7 @@ cell Top(y: out UInt<1>) {
         .parse_file()
         .expect("step-limit fixture must parse");
     let files = [file];
-    let output = SemanticCompiler::new().session(&files).check();
+    let output = SemanticSession::new(&files).check();
     let tir = output
         .tir()
         .expect("step-limit fixture must still type-check into TIR");

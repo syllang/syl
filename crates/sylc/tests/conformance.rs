@@ -6,7 +6,7 @@ use std::{
 use syl_elab::HardwareCompiler;
 use syl_emit::{CompileError as EmitError, SystemVerilogBackend};
 use syl_hw::{HwValidationDiagnostic, ParametricHwDesign, ParametricHwModule};
-use syl_sema::SemanticCompiler;
+use syl_sema::SemanticSession;
 use syl_session::{AnalysisHost, ProjectConfig};
 use syl_span::{Diagnostic, SourceId};
 use syl_syntax::{AstFile, SourceParser};
@@ -33,8 +33,7 @@ fn conformance_parse_cases_are_partitioned_and_code_stable() {
 fn conformance_sema_cases_assert_stable_codes() {
     for case in syl_cases("conformance/sema/positive") {
         let files = parse_case_files(std::slice::from_ref(&case));
-        SemanticCompiler::new()
-            .session(&files)
+        SemanticSession::new(&files)
             .resolve_hir()
             .and_then(|hir| hir.check_tir())
             .unwrap_or_else(|err| panic!("{} should pass sema: {err}", case.display()));
@@ -42,8 +41,7 @@ fn conformance_sema_cases_assert_stable_codes() {
 
     for case in syl_cases("conformance/sema/negative") {
         let files = parse_case_files(std::slice::from_ref(&case));
-        let err = SemanticCompiler::new()
-            .session(&files)
+        let err = SemanticSession::new(&files)
             .resolve_hir()
             .and_then(|hir| hir.check_tir())
             .expect_err("negative sema conformance case should fail");
@@ -55,8 +53,7 @@ fn conformance_sema_cases_assert_stable_codes() {
 fn conformance_elab_cases_assert_stable_codes() {
     for case in syl_cases("conformance/elab/positive") {
         let files = parse_case_files(std::slice::from_ref(&case));
-        let tir = SemanticCompiler::new()
-            .session(&files)
+        let tir = SemanticSession::new(&files)
             .resolve_hir()
             .and_then(|hir| hir.check_tir())
             .unwrap_or_else(|err| panic!("{} should pass sema: {err}", case.display()));
@@ -71,8 +68,7 @@ fn conformance_elab_cases_assert_stable_codes() {
 
     for case in syl_cases("conformance/elab/negative") {
         let files = parse_case_files(std::slice::from_ref(&case));
-        let tir = SemanticCompiler::new()
-            .session(&files)
+        let tir = SemanticSession::new(&files)
             .resolve_hir()
             .and_then(|hir| hir.check_tir())
             .unwrap_or_else(|err| panic!("{} should reach elab: {err}", case.display()));
@@ -166,8 +162,7 @@ fn conformance_parser_differential_lossless_roundtrip_is_stable() {
 
 fn emit_case(case: &Path) -> String {
     let files = parse_case_files(&[case.to_path_buf()]);
-    let tir = SemanticCompiler::new()
-        .session(&files)
+    let tir = SemanticSession::new(&files)
         .resolve_hir()
         .and_then(|hir| hir.check_tir())
         .unwrap_or_else(|err| panic!("{} should pass sema: {err}", case.display()));

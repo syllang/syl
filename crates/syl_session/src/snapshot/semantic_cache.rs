@@ -5,7 +5,7 @@ use std::{
 };
 use syl_elab::{ElaborationOutput, HardwareCompiler};
 use syl_sema::{
-    HirAnalysis, HirAnalysisOutput, OpaqueSummaryTable, SemanticCompiler, SemanticSourceFile,
+    HirAnalysis, HirAnalysisOutput, OpaqueSummaryTable, SemanticSession, SemanticSourceFile,
     StageOutput, TirAnalysis,
 };
 use syl_span::Diagnostic;
@@ -45,9 +45,7 @@ impl SemanticCache {
     pub(crate) fn hir_output(&self) -> &HirAnalysisOutput {
         self.hir.get_or_init(|| {
             let sources = self.semantic_sources();
-            SemanticCompiler::new()
-                .session_sources(sources)
-                .resolve_hir_partial()
+            SemanticSession::new_sources(sources).resolve_hir_partial()
         })
     }
 

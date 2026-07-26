@@ -7,27 +7,6 @@ use crate::{CompileError, HirResolver};
 use syl_span::Diagnostic;
 use syl_syntax::AstFile;
 
-#[derive(Debug, Default)]
-#[non_exhaustive]
-pub struct SemanticCompiler;
-
-impl SemanticCompiler {
-    pub fn new() -> Self {
-        Self
-    }
-
-    pub fn session<'files>(&self, files: &'files [AstFile]) -> SemanticSession<'files> {
-        SemanticSession::new(files)
-    }
-
-    pub fn session_sources<'files>(
-        &self,
-        sources: Vec<SemanticSourceFile<'files>>,
-    ) -> SemanticSession<'files> {
-        SemanticSession::new_sources(sources)
-    }
-}
-
 #[derive(Debug)]
 #[non_exhaustive]
 pub struct SemanticSession<'files> {

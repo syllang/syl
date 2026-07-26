@@ -6,7 +6,7 @@ use syl_hir::{DefId, HirDesign};
 use syl_sema::ir::const_mir::ConstValue;
 use syl_sema::{
     CapabilityKind, ConstFactKey, DomainFact, HirFactId, Layout, ProtocolFieldDirection,
-    SemanticCompiler, SemanticResolution, SemanticSourceFile, WordEncoding,
+    SemanticResolution, SemanticSession, SemanticSourceFile, WordEncoding,
 };
 use syl_span::SourceId;
 
@@ -47,8 +47,7 @@ cell Direct(
 }
 "#;
     let files = parse_sources(&[shared, app]);
-    let compiler = SemanticCompiler::new();
-    let session = compiler.session_sources(vec![
+    let session = SemanticSession::new_sources(vec![
         SemanticSourceFile::new(vec!["shared".to_string()], &files[0]),
         SemanticSourceFile::new(vec!["app".to_string()], &files[1]),
     ]);
@@ -295,7 +294,7 @@ cell Bad(x: in Missing) {
     .parse_file()
     .expect("structured error fixture must parse");
     let files = [file];
-    let session = SemanticCompiler::new().session(&files);
+    let session = SemanticSession::new(&files);
     let hir = session
         .resolve_hir()
         .expect("HIR must resolve before type error");

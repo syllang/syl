@@ -1,14 +1,13 @@
 use std::collections::BTreeSet;
 use syl_elab::{CompileError, ElaborationOutput, HardwareCompiler};
 use syl_hw::ParametricHwDesign;
-use syl_sema::{OpaqueSummaryTable, SemanticCompiler, SemanticSession, SemanticSourceFile};
+use syl_sema::{OpaqueSummaryTable, SemanticSession, SemanticSourceFile};
 use syl_span::SourceId;
 use syl_syntax::AstFile;
 use syl_syntax::SourceParser;
 
 #[derive(Debug, Default)]
 pub struct MiddleCompiler {
-    semantic: SemanticCompiler,
     hardware: HardwareCompiler,
 }
 
@@ -60,7 +59,6 @@ impl<'a> SvOutputProbe<'a> {
 impl MiddleCompiler {
     pub fn new() -> Self {
         Self {
-            semantic: SemanticCompiler::new(),
             hardware: HardwareCompiler::new(),
         }
     }
@@ -68,14 +66,13 @@ impl MiddleCompiler {
     #[allow(dead_code)]
     pub fn with_opaque_summaries(opaque_summaries: OpaqueSummaryTable) -> Self {
         Self {
-            semantic: SemanticCompiler::new(),
             hardware: HardwareCompiler::with_opaque_summaries(opaque_summaries),
         }
     }
 
     #[allow(dead_code)]
     pub fn compile_files(&self, files: &[AstFile]) -> Result<ParametricHwDesign, CompileError> {
-        let hir = self.semantic.session(files).resolve_hir()?;
+        let hir = SemanticSession::new(files).resolve_hir()?;
         let tir = hir.check_tir()?;
         self.hardware.compile_tir(&tir)
     }
@@ -89,14 +86,14 @@ impl MiddleCompiler {
             .iter()
             .map(|(path, ast)| SemanticSourceFile::new(path.clone(), ast))
             .collect();
-        let hir = self.semantic.session_sources(sources).resolve_hir()?;
+        let hir = SemanticSession::new_sources(sources).resolve_hir()?;
         let tir = hir.check_tir()?;
         self.hardware.compile_tir(&tir)
     }
 
     #[allow(dead_code)]
     pub fn output_files(&self, files: &[AstFile]) -> Result<ElaborationOutput, CompileError> {
-        let hir = self.semantic.session(files).resolve_hir()?;
+        let hir = SemanticSession::new(files).resolve_hir()?;
         let tir = hir.check_tir()?;
         Ok(self.hardware.output_for_tir(&tir))
     }
@@ -110,7 +107,7 @@ impl MiddleCompiler {
             .iter()
             .map(|(path, ast)| SemanticSourceFile::new(path.clone(), ast))
             .collect();
-        let hir = self.semantic.session_sources(sources).resolve_hir()?;
+        let hir = SemanticSession::new_sources(sources).resolve_hir()?;
         let tir = hir.check_tir()?;
         Ok(self.hardware.output_for_tir(&tir))
     }
@@ -149,7 +146,7 @@ impl MiddleCompiler {
 
     #[allow(dead_code)]
     pub fn session<'files>(&self, files: &'files [AstFile]) -> SemanticSession<'files> {
-        self.semantic.session(files)
+        SemanticSession::new(files)
     }
 }
 

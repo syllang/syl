@@ -247,12 +247,10 @@ fn architecture_ir_boundaries_expose_debug_dumps() {
     assert!(ast_dump.contains("cell Top"));
 
     let files = [file];
-    let semantic = syl_sema::SemanticCompiler::new();
     let hardware = syl_elab::HardwareCompiler::new();
     let backend = syl_emit::SystemVerilogBackend::new();
 
-    let hir = semantic
-        .session(&files)
+    let hir = syl_sema::SemanticSession::new(&files)
         .resolve_hir()
         .expect("ir architecture source must resolve HIR");
     let hir_dump = hir.debug_dump();

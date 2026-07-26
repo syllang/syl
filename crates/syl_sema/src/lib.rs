@@ -25,8 +25,8 @@ pub use facts::{
 };
 pub use hir::lower::HirResolver;
 pub use pipeline::{
-    DefinitionInfo, HirAnalysis, HirAnalysisOutput, HoverInfo, SemanticCompiler, SemanticOutput,
-    SemanticSession, SemanticSourceFile, StageOutput, TirAnalysis,
+    DefinitionInfo, HirAnalysis, HirAnalysisOutput, HoverInfo, SemanticOutput, SemanticSession,
+    SemanticSourceFile, StageOutput, TirAnalysis,
 };
 pub use query_support::{CompletionItem, CompletionKind};
 pub use summary::{
