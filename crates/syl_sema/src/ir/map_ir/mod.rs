@@ -348,7 +348,7 @@ impl<'a> MapIrBuilder<'a> {
 
     pub fn build(&self) -> Result<MapIrProgram, CompileError> {
         let mut maps = BTreeMap::new();
-        for (owner, map) in &self.ctx.hir().maps {
+        for (owner, map) in self.ctx.hir().maps() {
             maps.insert(*owner, self.lower_map(*owner, map)?);
         }
         Ok(MapIrProgram::new(maps))

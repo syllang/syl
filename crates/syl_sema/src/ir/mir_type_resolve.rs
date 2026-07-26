@@ -26,7 +26,7 @@ impl<'a> MirTypeDefinitionResolver<'a> {
         ty: &MirTypeRef,
     ) -> Option<&'a HirInterfaceItem> {
         let def = self.def_id(owner?, ty)?;
-        self.design.interfaces.get(&def)
+        self.design.interfaces().get(&def)
     }
 
     pub(crate) fn type_name_or_unknown(&self, ty: &MirTypeRef) -> String {
@@ -56,7 +56,7 @@ impl<'a> MirTypeDefinitionResolver<'a> {
             return self.design.resolve_def_id(owner, &path[0]);
         }
         self.design
-            .canonical_def_names
+            .canonical_def_names()
             .get(&HirPath::new(path.to_vec()))
             .copied()
     }

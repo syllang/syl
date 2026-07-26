@@ -22,7 +22,7 @@ impl ConstMirLoweringContext for FakeContext {
     }
 
     fn is_const_owner(&self, owner: DefId) -> bool {
-        self.hir.consts.contains_key(&owner)
+        self.hir.consts().contains_key(&owner)
     }
 
     fn expr_resolution(
@@ -30,7 +30,7 @@ impl ConstMirLoweringContext for FakeContext {
         _owner: DefId,
         expr: &HirBodyExpr,
     ) -> Result<Option<crate::hir::resolve::HirResolution>, crate::CompileError> {
-        Ok(self.hir.expr_resolutions.get(&expr.id()).copied())
+        Ok(self.hir.expr_resolutions().get(&expr.id()).copied())
     }
 
     fn expr_type(&self, _owner: DefId, _expr: &HirBodyExpr) -> Option<&TirType> {
@@ -38,11 +38,11 @@ impl ConstMirLoweringContext for FakeContext {
     }
 
     fn const_by_def(&self, def: DefId) -> Option<&HirConstItem> {
-        self.hir.consts.get(&def)
+        self.hir.consts().get(&def)
     }
 
     fn function_exists(&self, def: DefId) -> bool {
-        self.hir.fns.contains_key(&def)
+        self.hir.fns().contains_key(&def)
     }
 
     fn extension_method_call<'a>(
@@ -71,7 +71,7 @@ fn use_answer() -> nat {
     );
     let owner = def_id(&hir, "use_answer");
     let lookup_expr = hir
-        .fns
+        .fns()
         .get(&owner)
         .and_then(|item| item.body.tail.as_ref())
         .expect("fixture function must have a tail expression")
@@ -102,7 +102,7 @@ const params = Params { width: 7, enabled: true }
     );
     let owner = def_id(&hir, "params");
     let value_expr = hir
-        .consts
+        .consts()
         .get(&owner)
         .map(|item| item.value.clone())
         .expect("fixture const must exist");
@@ -158,7 +158,7 @@ fn use_width() -> nat {
     );
     let owner = def_id(&hir, "use_width");
     let field_expr = hir
-        .fns
+        .fns()
         .get(&owner)
         .and_then(|item| item.body.tail.as_ref())
         .cloned()
@@ -195,7 +195,7 @@ fn enable(start: Config) -> Config {
     let config_def = def_id(tir.hir(), "Config");
     let function_item = tir
         .hir()
-        .fns
+        .fns()
         .get(&owner)
         .expect("fixture function should exist");
     let (target, value) = match &function_item.body.stmts[1] {
@@ -317,7 +317,7 @@ fn resolve_tir(source: &str) -> TirDesign {
 }
 
 fn def_id(hir: &HirDesign, name: &str) -> DefId {
-    hir.defs
+    hir.defs()
         .iter()
         .find(|def| def.name == name)
         .unwrap_or_else(|| panic!("missing definition {name}"))

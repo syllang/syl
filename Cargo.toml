@@ -42,6 +42,7 @@ tower-lsp = "0.20"
 url = "2"
 strum = { version = "0.26", features = ["derive"] }
 strum_macros = "0.26"
+getset = "0.1"
 
 [workspace.metadata.release-plz]
 release = true

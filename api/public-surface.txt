@@ -202,28 +202,6 @@ syl_hir|field|syl_hir::model::HirDef::id|crate::DefId
 syl_hir|field|syl_hir::model::HirDef::kind|HirDefKind
 syl_hir|field|syl_hir::model::HirDef::name|String
 syl_hir|field|syl_hir::model::HirDef::span|syl_span::Span
-syl_hir|field|syl_hir::model::HirDesign::bundles|std::collections::BTreeMap<crate::DefId, HirBundleItem>
-syl_hir|field|syl_hir::model::HirDesign::callables|std::collections::BTreeMap<crate::DefId, HirCallable>
-syl_hir|field|syl_hir::model::HirDesign::canonical_def_names|std::collections::BTreeMap<crate::name::HirPath, crate::DefId>
-syl_hir|field|syl_hir::model::HirDesign::consts|std::collections::BTreeMap<crate::DefId, HirConstItem>
-syl_hir|field|syl_hir::model::HirDesign::def_names|std::collections::BTreeMap<String, Vec<crate::DefId>>
-syl_hir|field|syl_hir::model::HirDesign::defs|Vec<HirDef>
-syl_hir|field|syl_hir::model::HirDesign::enum_variants|std::collections::BTreeMap<HirEnumVariantKey, HirEnumVariant>
-syl_hir|field|syl_hir::model::HirDesign::enums|std::collections::BTreeMap<crate::DefId, HirEnumItem>
-syl_hir|field|syl_hir::model::HirDesign::expr_resolutions|std::collections::BTreeMap<crate::ExprId, crate::resolution::HirResolution>
-syl_hir|field|syl_hir::model::HirDesign::exprs|Vec<HirExpr>
-syl_hir|field|syl_hir::model::HirDesign::extension_methods|HirExtensionMethodIndex
-syl_hir|field|syl_hir::model::HirDesign::field_accesses|Vec<HirFieldAccess>
-syl_hir|field|syl_hir::model::HirDesign::fns|std::collections::BTreeMap<crate::DefId, HirFnItem>
-syl_hir|field|syl_hir::model::HirDesign::imports|Vec<HirImport>
-syl_hir|field|syl_hir::model::HirDesign::interfaces|std::collections::BTreeMap<crate::DefId, HirInterfaceItem>
-syl_hir|field|syl_hir::model::HirDesign::locals|Vec<HirLocal>
-syl_hir|field|syl_hir::model::HirDesign::maps|std::collections::BTreeMap<crate::DefId, HirMapItem>
-syl_hir|field|syl_hir::model::HirDesign::member_decls|Vec<HirMemberDecl>
-syl_hir|field|syl_hir::model::HirDesign::module_docs|std::collections::BTreeMap<syl_span::SourceId, String>
-syl_hir|field|syl_hir::model::HirDesign::packages|Vec<HirPackage>
-syl_hir|field|syl_hir::model::HirDesign::structs|std::collections::BTreeMap<crate::DefId, HirStructItem>
-syl_hir|field|syl_hir::model::HirDesign::type_refs|Vec<HirTypeRef>
 syl_hir|field|syl_hir::model::HirExpr::id|crate::ExprId
 syl_hir|field|syl_hir::model::HirExpr::owner|crate::DefId
 syl_hir|field|syl_hir::model::HirExpr::span|syl_span::Span
@@ -385,25 +363,72 @@ syl_hir|method|syl_hir::ids::LocalId::new|fn(value: usize) -> Self
 syl_hir|method|syl_hir::ids::PackageId::get|fn(self: Self) -> usize
 syl_hir|method|syl_hir::ids::PackageId::new|fn(value: usize) -> Self
 syl_hir|method|syl_hir::model::HirDef::new|fn(id: DefId, name: String, canonical_path: HirPath, kind: HirDefKind, span: Span) -> Self
+syl_hir|method|syl_hir::model::HirDesign::bundles_mut|fn(self: &mut Self) -> &mut BTreeMap<DefId, HirBundleItem>
+syl_hir|method|syl_hir::model::HirDesign::bundles|fn(self: &Self) -> &BTreeMap<DefId, HirBundleItem>
+syl_hir|method|syl_hir::model::HirDesign::callables_mut|fn(self: &mut Self) -> &mut BTreeMap<DefId, HirCallable>
+syl_hir|method|syl_hir::model::HirDesign::callables|fn(self: &Self) -> &BTreeMap<DefId, HirCallable>
+syl_hir|method|syl_hir::model::HirDesign::canonical_def_names_mut|fn(self: &mut Self) -> &mut BTreeMap<HirPath, DefId>
+syl_hir|method|syl_hir::model::HirDesign::canonical_def_names|fn(self: &Self) -> &BTreeMap<HirPath, DefId>
+syl_hir|method|syl_hir::model::HirDesign::consts_mut|fn(self: &mut Self) -> &mut BTreeMap<DefId, HirConstItem>
+syl_hir|method|syl_hir::model::HirDesign::consts|fn(self: &Self) -> &BTreeMap<DefId, HirConstItem>
 syl_hir|method|syl_hir::model::HirDesign::debug_dump|fn(self: &Self) -> String
+syl_hir|method|syl_hir::model::HirDesign::def_names_mut|fn(self: &mut Self) -> &mut BTreeMap<String, Vec<DefId>>
+syl_hir|method|syl_hir::model::HirDesign::def_names|fn(self: &Self) -> &BTreeMap<String, Vec<DefId>>
 syl_hir|method|syl_hir::model::HirDesign::def_name|fn(self: &Self, id: DefId) -> Option<&str>
+syl_hir|method|syl_hir::model::HirDesign::defs_mut|fn(self: &mut Self) -> &mut Vec<HirDef>
+syl_hir|method|syl_hir::model::HirDesign::defs|fn(self: &Self) -> &Vec<HirDef>
+syl_hir|method|syl_hir::model::HirDesign::def|fn(self: &Self, id: DefId) -> Option<&HirDef>
 syl_hir|method|syl_hir::model::HirDesign::doc_for_field|fn(self: &Self, def: DefId, field: &str) -> Option<&str>
 syl_hir|method|syl_hir::model::HirDesign::doc_for_item|fn(self: &Self, def: DefId) -> Option<&str>
 syl_hir|method|syl_hir::model::HirDesign::doc_for_module|fn(self: &Self, source: SourceId) -> Option<&str>
 syl_hir|method|syl_hir::model::HirDesign::empty|fn() -> Self
 syl_hir|method|syl_hir::model::HirDesign::enum_variant_expr|fn(self: &Self, expr: &HirBodyExpr) -> Option<(DefId, &str)>
+syl_hir|method|syl_hir::model::HirDesign::enum_variants_mut|fn(self: &mut Self) -> &mut BTreeMap<HirEnumVariantKey, HirEnumVariant>
+syl_hir|method|syl_hir::model::HirDesign::enum_variants|fn(self: &Self) -> &BTreeMap<HirEnumVariantKey, HirEnumVariant>
+syl_hir|method|syl_hir::model::HirDesign::enums_mut|fn(self: &mut Self) -> &mut BTreeMap<DefId, HirEnumItem>
+syl_hir|method|syl_hir::model::HirDesign::enums|fn(self: &Self) -> &BTreeMap<DefId, HirEnumItem>
+syl_hir|method|syl_hir::model::HirDesign::expr_resolutions_mut|fn(self: &mut Self) -> &mut BTreeMap<ExprId, HirResolution>
+syl_hir|method|syl_hir::model::HirDesign::expr_resolutions|fn(self: &Self) -> &BTreeMap<ExprId, HirResolution>
+syl_hir|method|syl_hir::model::HirDesign::exprs_mut|fn(self: &mut Self) -> &mut Vec<HirExpr>
+syl_hir|method|syl_hir::model::HirDesign::exprs|fn(self: &Self) -> &Vec<HirExpr>
+syl_hir|method|syl_hir::model::HirDesign::expr|fn(self: &Self, id: ExprId) -> Option<&HirExpr>
 syl_hir|method|syl_hir::model::HirDesign::extension_methods_for|fn(self: &Self, receiver: DefId, name: &str) -> &[DefId]
+syl_hir|method|syl_hir::model::HirDesign::extension_methods_mut|fn(self: &mut Self) -> &mut HirExtensionMethodIndex
+syl_hir|method|syl_hir::model::HirDesign::extension_methods|fn(self: &Self) -> &HirExtensionMethodIndex
+syl_hir|method|syl_hir::model::HirDesign::field_accesses_mut|fn(self: &mut Self) -> &mut Vec<HirFieldAccess>
+syl_hir|method|syl_hir::model::HirDesign::field_accesses|fn(self: &Self) -> &Vec<HirFieldAccess>
+syl_hir|method|syl_hir::model::HirDesign::fns_mut|fn(self: &mut Self) -> &mut BTreeMap<DefId, HirFnItem>
+syl_hir|method|syl_hir::model::HirDesign::fns|fn(self: &Self) -> &BTreeMap<DefId, HirFnItem>
 syl_hir|method|syl_hir::model::HirDesign::import_def_at|fn(self: &Self, span: Span) -> Option<DefId>
+syl_hir|method|syl_hir::model::HirDesign::imports_mut|fn(self: &mut Self) -> &mut Vec<HirImport>
+syl_hir|method|syl_hir::model::HirDesign::imports|fn(self: &Self) -> &Vec<HirImport>
+syl_hir|method|syl_hir::model::HirDesign::interfaces_mut|fn(self: &mut Self) -> &mut BTreeMap<DefId, HirInterfaceItem>
+syl_hir|method|syl_hir::model::HirDesign::interfaces|fn(self: &Self) -> &BTreeMap<DefId, HirInterfaceItem>
+syl_hir|method|syl_hir::model::HirDesign::locals_mut|fn(self: &mut Self) -> &mut Vec<HirLocal>
+syl_hir|method|syl_hir::model::HirDesign::locals|fn(self: &Self) -> &Vec<HirLocal>
+syl_hir|method|syl_hir::model::HirDesign::local|fn(self: &Self, id: LocalId) -> Option<&HirLocal>
+syl_hir|method|syl_hir::model::HirDesign::maps_mut|fn(self: &mut Self) -> &mut BTreeMap<DefId, HirMapItem>
+syl_hir|method|syl_hir::model::HirDesign::maps|fn(self: &Self) -> &BTreeMap<DefId, HirMapItem>
 syl_hir|method|syl_hir::model::HirDesign::member_completion_fields_at|fn(self: &Self, owner: DefId, _span: Span) -> Vec<&HirMemberDecl>
 syl_hir|method|syl_hir::model::HirDesign::member_decl_definition_at|fn(self: &Self, span: Span) -> Option<&HirMemberDecl>
+syl_hir|method|syl_hir::model::HirDesign::member_decls_mut|fn(self: &mut Self) -> &mut Vec<HirMemberDecl>
+syl_hir|method|syl_hir::model::HirDesign::member_decls|fn(self: &Self) -> &Vec<HirMemberDecl>
 syl_hir|method|syl_hir::model::HirDesign::member_field_def_at|fn(self: &Self, owner: DefId, span: Span) -> Option<&HirMemberDecl>
+syl_hir|method|syl_hir::model::HirDesign::module_docs_mut|fn(self: &mut Self) -> &mut BTreeMap<SourceId, String>
+syl_hir|method|syl_hir::model::HirDesign::module_docs|fn(self: &Self) -> &BTreeMap<SourceId, String>
 syl_hir|method|syl_hir::model::HirDesign::package_path_for_def|fn(self: &Self, owner: DefId) -> Option<HirPath>
+syl_hir|method|syl_hir::model::HirDesign::packages_mut|fn(self: &mut Self) -> &mut Vec<HirPackage>
+syl_hir|method|syl_hir::model::HirDesign::packages|fn(self: &Self) -> &Vec<HirPackage>
 syl_hir|method|syl_hir::model::HirDesign::register_extension_method|fn(self: &mut Self, receiver: DefId, name: String, method: DefId)
 syl_hir|method|syl_hir::model::HirDesign::resolved_type_def_for_ref|fn(self: &Self, type_ref: &HirTypeRef) -> Option<DefId>
 syl_hir|method|syl_hir::model::HirDesign::semantic_summary_count|fn(self: &Self) -> usize
 syl_hir|method|syl_hir::model::HirDesign::source_def_ids|fn(self: &Self, source: syl_span::SourceId) -> Vec<DefId>
+syl_hir|method|syl_hir::model::HirDesign::structs_mut|fn(self: &mut Self) -> &mut BTreeMap<DefId, HirStructItem>
+syl_hir|method|syl_hir::model::HirDesign::structs|fn(self: &Self) -> &BTreeMap<DefId, HirStructItem>
 syl_hir|method|syl_hir::model::HirDesign::type_def_for_mir_type|fn(self: &Self, owner: DefId, ty: &MirTypeRef) -> Option<DefId>
 syl_hir|method|syl_hir::model::HirDesign::type_ref_at|fn(self: &Self, owner: DefId, span: Span) -> Option<&HirTypeRef>
+syl_hir|method|syl_hir::model::HirDesign::type_refs_mut|fn(self: &mut Self) -> &mut Vec<HirTypeRef>
+syl_hir|method|syl_hir::model::HirDesign::type_refs|fn(self: &Self) -> &Vec<HirTypeRef>
 syl_hir|method|syl_hir::model::HirDesign::view_def_for_type_ref|fn(self: &Self, owner: DefId, ty: &MirTypeRef, span: Span) -> Option<&HirMemberDecl>
 syl_hir|method|syl_hir::model::HirDesign::visible_def_ids|fn(self: &Self, owner: DefId) -> Vec<DefId>
 syl_hir|method|syl_hir::model::HirExpr::new|fn(id: ExprId, owner: DefId, span: Span) -> Self

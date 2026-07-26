@@ -73,13 +73,13 @@ map red() -> Color =
     let highz_owner = def_id(&hir, "highz");
     let red_owner = def_id(&hir, "red");
     let builtin_expr = hir
-        .maps
+        .maps()
         .get(&highz_owner)
         .expect("highz map must exist")
         .body
         .clone();
     let variant_expr = hir
-        .maps
+        .maps()
         .get(&red_owner)
         .expect("red map must exist")
         .body
@@ -111,7 +111,7 @@ fn resolve_hir(source: &str) -> HirDesign {
 }
 
 fn def_id(hir: &HirDesign, name: &str) -> DefId {
-    hir.defs
+    hir.defs()
         .iter()
         .find(|def| def.name == name)
         .unwrap_or_else(|| panic!("missing definition {name}"))

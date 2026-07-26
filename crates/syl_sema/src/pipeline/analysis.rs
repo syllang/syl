@@ -63,11 +63,11 @@ impl HirAnalysis {
     }
 
     pub fn def_count(&self) -> usize {
-        self.design.defs.len()
+        self.design.defs().len()
     }
 
     pub fn local_count(&self) -> usize {
-        self.design.locals.len()
+        self.design.locals().len()
     }
 
     pub fn doc_for_item(&self, def_id: DefId) -> Option<&str> {
@@ -125,7 +125,7 @@ impl HirAnalysis {
     }
 
     pub fn completion_items(&self) -> Vec<CompletionItem> {
-        self.completion_items_for_defs(self.design.defs.iter().map(|def| def.id), None)
+        self.completion_items_for_defs(self.design.defs().iter().map(|def| def.id), None)
     }
 
     pub fn completion_items_at(&self, span: Span) -> Vec<CompletionItem> {
@@ -160,11 +160,11 @@ impl HirAnalysis {
 
     fn expression_definition_at(&self, span: Span) -> Option<DefinitionInfo> {
         let expr = self.expr_at(span)?;
-        let resolution = self.design.expr_resolutions.get(&expr.id)?;
+        let resolution = self.design.expr_resolutions().get(&expr.id)?;
         match resolution {
             HirResolution::Def(id) => self.def_info(*id),
             HirResolution::Local(id) => {
-                let local = self.design.locals.get(id.get())?;
+                let local = self.design.locals().get(id.get())?;
                 Some(DefinitionInfo::new(
                     local.name.clone(),
                     local.kind.into(),
@@ -199,7 +199,7 @@ impl HirAnalysis {
     fn def_decl_definition_at(&self, span: Span) -> Option<DefinitionInfo> {
         let def = self
             .design
-            .defs
+            .defs()
             .iter()
             .filter(|def| {
                 def.span.source == span.source
@@ -226,7 +226,7 @@ impl HirAnalysis {
     }
 
     fn def_info(&self, id: DefId) -> Option<DefinitionInfo> {
-        let def = self.design.defs.get(id.get())?;
+        let def = self.design.defs().get(id.get())?;
         Some(DefinitionInfo::with_doc(
             def.name.clone(),
             def.kind.into(),
@@ -242,7 +242,7 @@ impl HirAnalysis {
     ) -> Vec<CompletionItem> {
         let mut items = Vec::new();
         for id in def_ids {
-            let Some(def) = self.design.defs.get(id.get()) else {
+            let Some(def) = self.design.defs().get(id.get()) else {
                 continue;
             };
             items.push(CompletionItem::new(
@@ -252,7 +252,7 @@ impl HirAnalysis {
             ));
         }
         if let Some((owner, cursor)) = local_scope {
-            for local in &self.design.locals {
+            for local in self.design.locals() {
                 if local.owner != owner || local.span.start > cursor.start {
                     continue;
                 }
@@ -268,7 +268,7 @@ impl HirAnalysis {
 
     fn owner_at(&self, span: Span) -> Option<&HirDef> {
         self.design
-            .defs
+            .defs()
             .iter()
             .filter(|def| {
                 def.span.source == span.source
@@ -280,7 +280,7 @@ impl HirAnalysis {
 
     fn expr_at(&self, span: Span) -> Option<&HirExpr> {
         self.design
-            .exprs
+            .exprs()
             .iter()
             .filter(|expr| {
                 expr.span.source == span.source
@@ -295,9 +295,9 @@ impl fmt::Debug for HirAnalysis {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
             .debug_struct("HirAnalysis")
-            .field("def_count", &self.design.defs.len())
-            .field("local_count", &self.design.locals.len())
-            .field("expr_count", &self.design.exprs.len())
+            .field("def_count", &self.design.defs().len())
+            .field("local_count", &self.design.locals().len())
+            .field("expr_count", &self.design.exprs().len())
             .finish()
     }
 }
@@ -394,7 +394,7 @@ impl TirAnalysis {
     fn expr_at(&self, span: Span) -> Option<&HirExpr> {
         self.design
             .hir()
-            .exprs
+            .exprs()
             .iter()
             .filter(|expr| {
                 expr.span.source == span.source
@@ -405,13 +405,13 @@ impl TirAnalysis {
     }
 
     fn expr_binding_label(&self, expr: &HirExpr) -> Option<String> {
-        match self.design.hir().expr_resolutions.get(&expr.id)? {
+        match self.design.hir().expr_resolutions().get(&expr.id)? {
             HirResolution::Def(id) => {
-                let def = self.design.hir().defs.get(id.get())?;
+                let def = self.design.hir().defs().get(id.get())?;
                 Some(format!("({} {})", <&'static str>::from(def.kind), def.name))
             }
             HirResolution::Local(id) => {
-                let local = self.design.hir().locals.get(id.get())?;
+                let local = self.design.hir().locals().get(id.get())?;
                 Some(format!(
                     "({} {})",
                     <&'static str>::from(local.kind),

@@ -137,7 +137,7 @@ cell Top(y: out UInt<1>) {
     let hir = tir.design().hir();
     let width_def = def_id(hir, "WIDTH");
     let width_item = hir
-        .consts
+        .consts()
         .get(&width_def)
         .expect("WIDTH const item must exist");
     let program = ConstMirBuilder::new(tir.design())

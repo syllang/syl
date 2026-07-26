@@ -32,8 +32,8 @@ impl ConstFacts {
         let mut values = BTreeMap::new();
         let mut cache = BTreeMap::new();
 
-        for def in tir.hir().consts.keys().copied() {
-            let Some(item) = tir.hir().consts.get(&def) else {
+        for def in tir.hir().consts().keys().copied() {
+            let Some(item) = tir.hir().consts().get(&def) else {
                 continue;
             };
             let expr = lowering.lower_const_expr(def, &item.value);

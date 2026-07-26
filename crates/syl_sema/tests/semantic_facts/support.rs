@@ -18,7 +18,7 @@ pub(crate) fn parse_sources(sources: &[&str]) -> Vec<AstFile> {
 }
 
 pub(crate) fn def_id(hir: &HirDesign, name: &str) -> DefId {
-    hir.defs
+    hir.defs()
         .iter()
         .find(|def| def.name == name)
         .unwrap_or_else(|| panic!("missing definition {name}"))
@@ -26,7 +26,7 @@ pub(crate) fn def_id(hir: &HirDesign, name: &str) -> DefId {
 }
 
 pub(crate) fn def_id_by_path(hir: &HirDesign, path: &[&str]) -> DefId {
-    hir.defs
+    hir.defs()
         .iter()
         .find(|def| {
             def.canonical_path
@@ -40,7 +40,7 @@ pub(crate) fn def_id_by_path(hir: &HirDesign, path: &[&str]) -> DefId {
 }
 
 pub(crate) fn local_id(hir: &HirDesign, owner: DefId, name: &str) -> LocalId {
-    hir.locals
+    hir.locals()
         .iter()
         .find(|local| local.owner == owner && local.name == name)
         .unwrap_or_else(|| panic!("missing local {name} in owner {}", owner.get()))
@@ -80,7 +80,7 @@ pub(crate) fn expr_id_at(lookup: ExprLookup<'_>, hir: &HirDesign) -> ExprId {
         .unwrap_or_else(|| panic!("missing needle {}", lookup.needle));
     let start = base + lookup.start_offset;
     let span = Span::new_in(lookup.source_id, start, start + lookup.width);
-    hir.exprs
+    hir.exprs()
         .iter()
         .find(|expr| expr.span == span)
         .unwrap_or_else(|| panic!("missing expr at {}..{}", span.start, span.end))

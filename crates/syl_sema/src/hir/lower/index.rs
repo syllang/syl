@@ -192,9 +192,11 @@ impl<'files> HirResolver<'files> {
     }
 
     fn index_expr(&mut self, owner: DefId, expr: &mut HirBodyExpr) {
-        let id = ExprId::new(self.design.exprs.len());
+        let id = ExprId::new(self.design.exprs().len());
         expr.id = id;
-        self.design.exprs.push(HirExpr::new(id, owner, expr.span()));
+        self.design
+            .exprs_mut()
+            .push(HirExpr::new(id, owner, expr.span()));
         let span = expr.span();
         match &mut expr.node {
             HirExprNode::Unary { expr, .. } | HirExprNode::Group(expr) => {
@@ -224,7 +226,7 @@ impl<'files> HirResolver<'files> {
             }
             HirExprNode::Field { base, field } => {
                 self.index_expr(owner, base);
-                self.design.field_accesses.push(HirFieldAccess::new(
+                self.design.field_accesses_mut().push(HirFieldAccess::new(
                     owner,
                     base.as_ref().clone(),
                     field.clone(),
@@ -274,7 +276,7 @@ impl<'files> HirResolver<'files> {
 
     fn index_mir_type(&mut self, owner: DefId, ty: &MirTypeRef) {
         self.design
-            .type_refs
+            .type_refs_mut()
             .push(HirTypeRef::new(owner, ty.clone()));
         if let Some((_, elem)) = ty.array() {
             self.index_mir_type(owner, elem);

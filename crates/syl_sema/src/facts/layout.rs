@@ -134,7 +134,7 @@ fn layout_for_type(tir: &TirDesign, protocols: &ProtocolFacts, ty: &TirType) -> 
                 name: name.clone(),
                 fields: tir
                     .hir()
-                    .bundles
+                    .bundles()
                     .get(&def)
                     .map(|bundle| {
                         bundle
@@ -156,7 +156,7 @@ fn layout_for_type(tir: &TirDesign, protocols: &ProtocolFacts, ty: &TirType) -> 
                 name: name.clone(),
                 variants: tir
                     .hir()
-                    .enums
+                    .enums()
                     .get(&def)
                     .map(|item| {
                         item.variants

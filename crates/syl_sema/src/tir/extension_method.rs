@@ -176,7 +176,7 @@ fn extension_method_visible(hir: &crate::hir::HirDesign, owner: DefId, method: D
         return false;
     };
     owner_package == method_package
-        || hir.imports.iter().any(|import| {
+        || hir.imports().iter().any(|import| {
             import.package_path == owner_package && import.path == method_package.segments()
         })
 }
@@ -195,7 +195,7 @@ mod tests {
         let second = DefId::new(2);
         let owner = DefId::new(3);
         let mut hir = HirDesign::empty();
-        hir.defs = vec![
+        *hir.defs_mut() = vec![
             def(receiver, "Word", "pkg.Word", HirDefKind::Bundle),
             def(first, "flag", "pkg.flag_a", HirDefKind::Map),
             def(second, "flag", "pkg.flag_b", HirDefKind::Map),

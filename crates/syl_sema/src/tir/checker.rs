@@ -84,7 +84,7 @@ impl TypePhaseChecker {
                     name: "<active owner>".to_string(),
                 },
                 self.current_owner_span
-                    .or_else(|| self.hir.defs.first().map(|def| def.span))
+                    .or_else(|| self.hir.defs().first().map(|def| def.span))
                     .unwrap_or_default(),
             )
         })
@@ -258,51 +258,51 @@ impl TypePhaseChecker {
     pub(super) fn collect_errors(&mut self) -> Vec<CompileError> {
         let hir = self.hir.clone();
         let mut errors = Vec::new();
-        for (owner, item) in &hir.consts {
+        for (owner, item) in hir.consts() {
             self.current_owner = Some(*owner);
-            self.current_owner_span = hir.defs.get(owner.get()).map(|def| def.span);
+            self.current_owner_span = hir.defs().get(owner.get()).map(|def| def.span);
             if let Err(error) = self.check_const(*owner, item, &mut errors) {
                 errors.push(error);
             }
         }
-        for (owner, item) in &hir.fns {
+        for (owner, item) in hir.fns() {
             self.current_owner = Some(*owner);
-            self.current_owner_span = hir.defs.get(owner.get()).map(|def| def.span);
+            self.current_owner_span = hir.defs().get(owner.get()).map(|def| def.span);
             if let Err(error) = self.check_fn(*owner, item, &mut errors) {
                 errors.push(error);
             }
         }
-        for (owner, item) in &hir.enums {
+        for (owner, item) in hir.enums() {
             self.current_owner = Some(*owner);
-            self.current_owner_span = hir.defs.get(owner.get()).map(|def| def.span);
+            self.current_owner_span = hir.defs().get(owner.get()).map(|def| def.span);
             if let Err(error) = self.check_enum(*owner, item) {
                 errors.push(error);
             }
         }
-        for (owner, item) in &hir.bundles {
+        for (owner, item) in hir.bundles() {
             self.current_owner = Some(*owner);
-            self.current_owner_span = hir.defs.get(owner.get()).map(|def| def.span);
+            self.current_owner_span = hir.defs().get(owner.get()).map(|def| def.span);
             if let Err(error) = self.check_bundle(*owner, item, &mut errors) {
                 errors.push(error);
             }
         }
-        for (owner, item) in &hir.interfaces {
+        for (owner, item) in hir.interfaces() {
             self.current_owner = Some(*owner);
-            self.current_owner_span = hir.defs.get(owner.get()).map(|def| def.span);
+            self.current_owner_span = hir.defs().get(owner.get()).map(|def| def.span);
             if let Err(error) = self.check_interface(*owner, item, &mut errors) {
                 errors.push(error);
             }
         }
-        for (owner, callable) in &hir.callables {
+        for (owner, callable) in hir.callables() {
             self.current_owner = Some(*owner);
-            self.current_owner_span = hir.defs.get(owner.get()).map(|def| def.span);
+            self.current_owner_span = hir.defs().get(owner.get()).map(|def| def.span);
             if let Err(error) = self.check_callable(*owner, callable, &mut errors) {
                 errors.push(error);
             }
         }
-        for (owner, map) in &hir.maps {
+        for (owner, map) in hir.maps() {
             self.current_owner = Some(*owner);
-            self.current_owner_span = hir.defs.get(owner.get()).map(|def| def.span);
+            self.current_owner_span = hir.defs().get(owner.get()).map(|def| def.span);
             if let Err(error) = self.check_map(*owner, map, &mut errors) {
                 errors.push(error);
             }

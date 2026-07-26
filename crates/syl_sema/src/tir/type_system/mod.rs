@@ -405,7 +405,7 @@ impl TypePhaseChecker {
 
     fn owner_generic_id(&self, owner: DefId, name: &str) -> Option<LocalId> {
         self.hir
-            .locals
+            .locals()
             .iter()
             .find(|local| {
                 local.owner == owner
@@ -447,18 +447,18 @@ impl TypePhaseChecker {
             return false;
         };
         self.hir
-            .bundles
+            .bundles()
             .get(&base_def)
             .and_then(|item| item.generics.get(index))
             .or_else(|| {
                 self.hir
-                    .structs
+                    .structs()
                     .get(&base_def)
                     .and_then(|item| item.generics.get(index))
             })
             .or_else(|| {
                 self.hir
-                    .interfaces
+                    .interfaces()
                     .get(&base_def)
                     .and_then(|item| item.generics.get(index))
             })

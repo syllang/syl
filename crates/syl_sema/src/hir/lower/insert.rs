@@ -25,13 +25,13 @@ use syl_syntax::{
 
 impl<'files> HirResolver<'files> {
     pub(super) fn insert_package(&mut self, source: &SemanticSourceFile<'_>) {
-        let id = PackageId::new(self.design.packages.len());
+        let id = PackageId::new(self.design.packages().len());
         if let Some(doc) = &source.ast().doc {
             self.design
-                .module_docs
+                .module_docs_mut()
                 .insert(source.ast().source_id, doc.clone());
         }
-        self.design.packages.push(HirPackage::new(
+        self.design.packages_mut().push(HirPackage::new(
             id,
             source.module_path().to_vec(),
             source
@@ -52,7 +52,7 @@ impl<'files> HirResolver<'files> {
             let Item::Use(import) = item else {
                 continue;
             };
-            self.design.imports.push(HirImport::new(
+            self.design.imports_mut().push(HirImport::new(
                 import.path.clone(),
                 package.path.clone(),
                 import.span,
@@ -69,12 +69,12 @@ impl<'files> HirResolver<'files> {
 
     pub(super) fn validate_imports_collect(&self) -> Vec<CompileError> {
         self.design
-            .imports
+            .imports()
             .iter()
             .filter(|import| {
                 !self
                     .design
-                    .canonical_def_names
+                    .canonical_def_names()
                     .contains_key(&HirPath::new(import.path.clone()))
             })
             .map(|import| {
@@ -125,7 +125,7 @@ impl<'files> HirResolver<'files> {
         let owner = self.register_def(package, &item.name, HirDefKind::Const, item.span);
         let mut item = HirConstItem::from(item);
         self.index_const(owner, &mut item);
-        self.design.consts.insert(owner, item);
+        self.design.consts_mut().insert(owner, item);
         Ok(())
     }
 
@@ -138,7 +138,7 @@ impl<'files> HirResolver<'files> {
         self.register_params(owner, &mut item.params);
         self.register_block_locals(owner, &mut item.body);
         self.index_fn(owner, &mut item);
-        self.design.fns.insert(owner, item);
+        self.design.fns_mut().insert(owner, item);
         Ok(())
     }
 
@@ -166,13 +166,15 @@ impl<'files> HirResolver<'files> {
                 ));
             }
             if let Ok(value) = u64::try_from(idx) {
-                self.design.enum_variants.insert(
+                self.design.enum_variants_mut().insert(
                     HirEnumVariantKey::new(owner, variant.name.clone()),
                     HirEnumVariant::new(owner, variant.name.clone(), value, variant.span),
                 );
             }
         }
-        self.design.enums.insert(owner, HirEnumItem::from(item));
+        self.design
+            .enums_mut()
+            .insert(owner, HirEnumItem::from(item));
         Ok(())
     }
 
@@ -189,7 +191,7 @@ impl<'files> HirResolver<'files> {
         self.register_generics(owner, &mut item.generics);
         self.register_bundle_members(owner, &item.fields);
         self.index_bundle(owner, &mut item);
-        self.design.bundles.insert(owner, item);
+        self.design.bundles_mut().insert(owner, item);
         Ok(())
     }
 
@@ -206,7 +208,7 @@ impl<'files> HirResolver<'files> {
         self.register_generics(owner, &mut item.generics);
         self.register_bundle_members(owner, &item.fields);
         self.index_struct(owner, &mut item);
-        self.design.structs.insert(owner, item);
+        self.design.structs_mut().insert(owner, item);
         Ok(())
     }
 
@@ -223,7 +225,7 @@ impl<'files> HirResolver<'files> {
         self.register_generics(owner, &mut item.generics);
         self.register_interface_members(owner, &item.fields, &item.views);
         self.index_interface(owner, &mut item);
-        self.design.interfaces.insert(owner, item);
+        self.design.interfaces_mut().insert(owner, item);
         Ok(())
     }
 
@@ -236,7 +238,7 @@ impl<'files> HirResolver<'files> {
         self.register_generics(owner, &mut item.generics);
         self.register_params(owner, &mut item.params);
         self.index_map(owner, &mut item);
-        self.design.maps.insert(owner, item);
+        self.design.maps_mut().insert(owner, item);
         Ok(())
     }
 
@@ -292,7 +294,7 @@ impl<'files> HirResolver<'files> {
             }
             _ => unreachable!("HirResolver only constructs current callable variants"),
         }
-        self.design.callables.insert(owner, callable);
+        self.design.callables_mut().insert(owner, callable);
         Ok(())
     }
 
@@ -305,7 +307,7 @@ impl<'files> HirResolver<'files> {
     ) -> Result<(), CompileError> {
         if self
             .design
-            .canonical_def_names
+            .canonical_def_names()
             .contains_key(&package.canonical_def_path(name))
         {
             return Err(CompileError::lowering_at(error(name.to_string()), span));
@@ -320,17 +322,17 @@ impl<'files> HirResolver<'files> {
         kind: HirDefKind,
         span: Span,
     ) -> DefId {
-        let id = DefId::new(self.design.defs.len());
+        let id = DefId::new(self.design.defs().len());
         let canonical_path = package.canonical_def_path(name);
         self.design
-            .def_names
+            .def_names_mut()
             .entry(name.to_string())
             .or_default()
             .push(id);
         self.design
-            .canonical_def_names
+            .canonical_def_names_mut()
             .insert(canonical_path.clone(), id);
-        self.design.defs.push(HirDef::new(
+        self.design.defs_mut().push(HirDef::new(
             id,
             name.to_string(),
             canonical_path,
@@ -371,7 +373,7 @@ impl<'files> HirResolver<'files> {
     pub(super) fn register_extension_methods(&mut self) {
         let maps = self
             .design
-            .maps
+            .maps()
             .iter()
             .filter_map(|(owner, item)| {
                 item.params
@@ -382,7 +384,7 @@ impl<'files> HirResolver<'files> {
             .collect::<Vec<_>>();
         let fns = self
             .design
-            .fns
+            .fns()
             .iter()
             .filter_map(|(owner, item)| {
                 item.params
@@ -532,7 +534,7 @@ impl<'files> HirResolver<'files> {
 
     fn register_bundle_members(&mut self, owner: DefId, fields: &[HirFieldDecl]) {
         for field in fields {
-            self.design.member_decls.push(HirMemberDecl::with_doc(
+            self.design.member_decls_mut().push(HirMemberDecl::with_doc(
                 owner,
                 field.doc.clone(),
                 field.name.clone(),
@@ -552,7 +554,7 @@ impl<'files> HirResolver<'files> {
     ) {
         self.register_bundle_members(owner, fields);
         for view in views {
-            self.design.member_decls.push(HirMemberDecl::with_doc(
+            self.design.member_decls_mut().push(HirMemberDecl::with_doc(
                 owner,
                 None,
                 view.name.clone(),
@@ -565,7 +567,7 @@ impl<'files> HirResolver<'files> {
 
     fn register_view_fields(&mut self, owner: DefId, view: &str, fields: &[HirViewField]) {
         for field in fields {
-            self.design.member_decls.push(HirMemberDecl::with_doc(
+            self.design.member_decls_mut().push(HirMemberDecl::with_doc(
                 owner,
                 field.doc.clone(),
                 field.name.clone(),
@@ -584,9 +586,9 @@ impl<'files> HirResolver<'files> {
         kind: HirLocalKind,
         span: Span,
     ) -> LocalId {
-        let id = LocalId::new(self.design.locals.len());
+        let id = LocalId::new(self.design.locals().len());
         self.design
-            .locals
+            .locals_mut()
             .push(HirLocal::new(id, owner, name.to_string(), kind, span));
         id
     }

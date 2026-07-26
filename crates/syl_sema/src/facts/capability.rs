@@ -157,7 +157,7 @@ fn capability_kind_for_id(
                 .views()
                 .iter()
                 .find(|candidate| candidate.name() == view)?;
-            let local = context.tir.hir().locals.get(local_id.get())?;
+            let local = context.tir.hir().locals().get(local_id.get())?;
             let mut readable = Vec::new();
             let mut writable = Vec::new();
             for field in view_summary.fields() {
