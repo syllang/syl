@@ -29,7 +29,7 @@ impl<'checker, 'callee> MapReturnTypeResolver<'checker, 'callee> {
     }
 
     pub(super) fn resolve(&self) -> Option<TirType> {
-        let map = self.checker.hir.maps.get(&self.map_def)?;
+        let map = self.checker.hir.maps().get(&self.map_def)?;
         let ret_ty = map.ret_ty.as_ref()?;
         let bindings = self.generic_bindings().ok()?;
         SubstitutingTypeResolver::new(self.checker, self.map_def, &bindings)
@@ -38,7 +38,7 @@ impl<'checker, 'callee> MapReturnTypeResolver<'checker, 'callee> {
     }
 
     fn generic_bindings(&self) -> Result<Vec<TirGenericBinding>, CompileError> {
-        let Some(map) = self.checker.hir.maps.get(&self.map_def) else {
+        let Some(map) = self.checker.hir.maps().get(&self.map_def) else {
             return Ok(Vec::new());
         };
         let inferred_args = self

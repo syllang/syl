@@ -33,7 +33,7 @@ impl ProgramLoweringInput for TirDesign {
     }
 
     fn expr_resolution(&self, expr: ExprId) -> Option<HirResolution> {
-        self.hir().expr_resolutions.get(&expr).copied()
+        self.hir().expr_resolutions().get(&expr).copied()
     }
 
     fn binding_type(&self, binding: BindingRef) -> Option<TirType> {
@@ -74,7 +74,7 @@ where
     fn build(&self) -> ElabProgram {
         let hir = self.input.hir();
         let enum_max_values =
-            hir.enum_variants
+            hir.enum_variants()
                 .keys()
                 .fold(BTreeMap::new(), |mut max_values, key| {
                     let Some(value) = self.input.enum_variant_value(key) else {
@@ -91,7 +91,7 @@ where
                     max_values
                 });
         let mut visible_defs = BTreeMap::new();
-        for owner in &hir.defs {
+        for owner in hir.defs() {
             for def in self.input.visible_def_ids(owner.id) {
                 if let Some(name) = hir.def_name(def) {
                     visible_defs.insert((owner.id, name.to_string()), def);
@@ -99,7 +99,7 @@ where
             }
         }
         let expr_resolutions_by_id = hir
-            .exprs
+            .exprs()
             .iter()
             .filter_map(|expr| {
                 self.input
@@ -108,7 +108,7 @@ where
             })
             .collect();
         let local_types = hir
-            .locals
+            .locals()
             .iter()
             .filter_map(|local| {
                 self.input
@@ -117,7 +117,7 @@ where
             })
             .collect();
         let expr_types = hir
-            .exprs
+            .exprs()
             .iter()
             .filter_map(|expr| {
                 self.input
@@ -127,7 +127,7 @@ where
             .collect();
         ElabProgram {
             defs: hir
-                .defs
+                .defs()
                 .iter()
                 .map(|def| ElabDef {
                     name: def.name.clone(),
@@ -135,28 +135,28 @@ where
                 })
                 .collect(),
             canonical_paths: hir
-                .defs
+                .defs()
                 .iter()
                 .map(|def| (def.id, def.canonical_path.clone()))
                 .collect(),
             visible_defs,
-            canonical_defs: hir.canonical_def_names.clone(),
+            canonical_defs: hir.canonical_def_names().clone(),
             expr_resolutions_by_id,
-            extension_methods: hir.extension_methods.clone(),
+            extension_methods: hir.extension_methods().clone(),
             expr_types,
             local_types,
             local_kinds: hir
-                .locals
+                .locals()
                 .iter()
                 .map(|local| (local.id, ElabLocalKind::from(local.kind)))
                 .collect(),
             consts: hir
-                .consts
+                .consts()
                 .iter()
                 .map(|(def, item)| (*def, ElabConstItem::from(item)))
                 .collect(),
             enums: hir
-                .enums
+                .enums()
                 .iter()
                 .map(|(def, item)| {
                     (
@@ -166,7 +166,7 @@ where
                 })
                 .collect(),
             enum_variants: hir
-                .enum_variants
+                .enum_variants()
                 .keys()
                 .filter_map(|key| {
                     self.input
@@ -175,17 +175,17 @@ where
                 })
                 .collect(),
             bundles: hir
-                .bundles
+                .bundles()
                 .iter()
                 .map(|(def, item)| (*def, ElabBundleItem::from(item)))
                 .collect(),
             interfaces: hir
-                .interfaces
+                .interfaces()
                 .iter()
                 .map(|(def, item)| (*def, ElabInterfaceItem::from(item)))
                 .collect(),
             callables: hir
-                .callables
+                .callables()
                 .iter()
                 .map(|(def, item)| (*def, ElabCallable::from(item)))
                 .collect(),
@@ -267,7 +267,7 @@ mod tests {
         let blue = HirEnumVariantKey::new(enum_def, "Blue");
 
         let mut hir = HirDesign::empty();
-        hir.defs = vec![
+        *hir.defs_mut() = vec![
             HirDef::new(
                 owner,
                 "Owner".to_string(),
@@ -290,18 +290,18 @@ mod tests {
                 span,
             ),
         ];
-        hir.locals = vec![HirLocal::new(
+        *hir.locals_mut() = vec![HirLocal::new(
             local,
             owner,
             "flag".to_string(),
             HirLocalKind::Let,
             span,
         )];
-        hir.exprs = vec![HirExpr::new(expr, owner, span)];
+        *hir.exprs_mut() = vec![HirExpr::new(expr, owner, span)];
         hir.register_extension_method(enum_def, "decode".to_string(), method_def);
-        hir.enum_variants
+        hir.enum_variants_mut()
             .insert(red.clone(), HirEnumVariant::new(enum_def, "Red", 1, span));
-        hir.enum_variants
+        hir.enum_variants_mut()
             .insert(blue.clone(), HirEnumVariant::new(enum_def, "Blue", 4, span));
 
         let input = TestProgramInput {

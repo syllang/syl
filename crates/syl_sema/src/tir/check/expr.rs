@@ -440,7 +440,7 @@ impl TypePhaseChecker {
                 span,
             ));
         };
-        let Some(bundle) = self.hir.bundles.get(&bundle_def) else {
+        let Some(bundle) = self.hir.bundles().get(&bundle_def) else {
             return Err(CompileError::lowering_at(
                 EirError::UnsupportedHardwareValueExpression,
                 span,

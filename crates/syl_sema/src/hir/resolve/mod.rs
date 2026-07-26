@@ -65,7 +65,7 @@ impl<'a> HirNameResolver<'a> {
     fn resolve_names(&mut self) {
         let consts: Vec<_> = self
             .design
-            .consts
+            .consts()
             .iter()
             .map(|(owner, item)| (*owner, item.clone()))
             .collect();
@@ -74,20 +74,20 @@ impl<'a> HirNameResolver<'a> {
         }
         let fns: Vec<_> = self
             .design
-            .fns
+            .fns()
             .iter()
             .map(|(owner, item)| (*owner, item.clone()))
             .collect();
         for (owner, item) in fns {
             self.resolve_fn(owner, &item);
         }
-        let enums: Vec<_> = self.design.enums.keys().copied().collect();
+        let enums: Vec<_> = self.design.enums().keys().copied().collect();
         for owner in enums {
             self.resolve_enum(owner);
         }
         let interfaces: Vec<_> = self
             .design
-            .interfaces
+            .interfaces()
             .iter()
             .map(|(owner, item)| (*owner, item.clone()))
             .collect();
@@ -96,7 +96,7 @@ impl<'a> HirNameResolver<'a> {
         }
         let maps: Vec<_> = self
             .design
-            .maps
+            .maps()
             .iter()
             .map(|(owner, item)| (*owner, item.clone()))
             .collect();
@@ -105,7 +105,7 @@ impl<'a> HirNameResolver<'a> {
         }
         let callables: Vec<_> = self
             .design
-            .callables
+            .callables()
             .iter()
             .map(|(owner, callable)| (*owner, callable.clone()))
             .collect();
@@ -360,7 +360,7 @@ impl<'a> HirNameResolver<'a> {
     fn record_expr_resolution(&mut self, owner: DefId, expr: &HirBodyExpr) -> Option<ExprId> {
         let id = expr.id();
         debug_assert!(
-            self.design.exprs.get(id.get()).is_some_and(
+            self.design.exprs().get(id.get()).is_some_and(
                 |registered| registered.owner == owner && registered.span == expr.span()
             )
         );
@@ -443,7 +443,7 @@ impl<'a> HirNameResolver<'a> {
     }
 
     fn validate_enum_variant_expr(&mut self, expr: &HirBodyExpr, base: &HirBodyExpr, field: &str) {
-        let Some(HirResolution::Def(def)) = self.design.expr_resolutions.get(&base.id()).copied()
+        let Some(HirResolution::Def(def)) = self.design.expr_resolutions().get(&base.id()).copied()
         else {
             return;
         };
@@ -452,7 +452,7 @@ impl<'a> HirNameResolver<'a> {
         }
         if self
             .design
-            .enum_variants
+            .enum_variants()
             .contains_key(&HirEnumVariantKey::new(def, field))
         {
             return;
@@ -466,9 +466,9 @@ impl<'a> HirNameResolver<'a> {
             return false;
         };
         self.design
-            .canonical_def_names
+            .canonical_def_names()
             .contains_key(&package.with_leaf(name))
-            || self.design.imports.iter().any(|import| {
+            || self.design.imports().iter().any(|import| {
                 import.package_path == package
                     && import.path.last().is_some_and(|leaf| leaf == name)
             })
@@ -478,7 +478,7 @@ impl<'a> HirNameResolver<'a> {
         let package = self.owner_package_path(owner)?;
         if let Some(def) = self
             .design
-            .canonical_def_names
+            .canonical_def_names()
             .get(&package.with_leaf(name))
             .copied()
         {
@@ -486,13 +486,13 @@ impl<'a> HirNameResolver<'a> {
         }
         let candidates = self
             .design
-            .imports
+            .imports()
             .iter()
             .filter(|import| import.package_path == package)
             .filter(|import| import.path.last().is_some_and(|leaf| leaf == name))
             .filter_map(|import| {
                 self.design
-                    .canonical_def_names
+                    .canonical_def_names()
                     .get(&HirPath::new(import.path.clone()))
                     .map(|def| (import.path.join("."), *def))
             })
@@ -517,7 +517,7 @@ impl<'a> HirNameResolver<'a> {
 
     fn owner_package_path(&self, owner: DefId) -> Option<HirPath> {
         self.design
-            .defs
+            .defs()
             .get(owner.get())
             .map(|def| def.canonical_path.parent())
     }

@@ -24,13 +24,13 @@ impl<'a> ConstMirBuilder<'a> {
     pub fn build(&self) -> Result<ConstMirProgram, CompileError> {
         let mut function_index = BTreeMap::new();
         let mut functions = Vec::new();
-        for (owner, item) in &self.ctx.hir().fns {
+        for (owner, item) in self.ctx.hir().fns() {
             function_index.insert(*owner, functions.len());
             functions.push(self.lower_fn(*owner, item));
         }
         let mut structs = BTreeMap::new();
         let mut struct_path_index = BTreeMap::new();
-        for (def, item) in &self.ctx.hir().structs {
+        for (def, item) in self.ctx.hir().structs() {
             let kind = ConstStructKind::new(*def);
             let fields = item
                 .fields
@@ -40,7 +40,7 @@ impl<'a> ConstMirBuilder<'a> {
                         .ctx
                         .hir()
                         .type_def_for_mir_type(*def, &field.ty)
-                        .filter(|field_def| self.ctx.hir().structs.contains_key(field_def))
+                        .filter(|field_def| self.ctx.hir().structs().contains_key(field_def))
                         .map(ConstStructKind::new)
                         .map(super::ConstKind::Struct)
                         .or_else(|| match field.ty.type_name() {
@@ -52,7 +52,7 @@ impl<'a> ConstMirBuilder<'a> {
                 })
                 .collect();
             structs.insert(*def, ConstStructDef::new(kind, item.name.clone(), fields));
-            if let Some(canonical) = self.ctx.hir().defs.get(def.get()) {
+            if let Some(canonical) = self.ctx.hir().defs().get(def.get()) {
                 struct_path_index.insert(canonical.canonical_path.segments().to_vec(), *def);
             }
         }

@@ -43,15 +43,15 @@ cell Top(y: out UInt<WIDTH>) {
     let width_def = def_id(hir, "WIDTH");
     let enabled_def = def_id(hir, "ENABLED");
     let default_item = hir
-        .consts
+        .consts()
         .get(&default_def)
         .expect("DEFAULT const item must exist");
     let width_item = hir
-        .consts
+        .consts()
         .get(&width_def)
         .expect("WIDTH const item must exist");
     let enabled_item = hir
-        .consts
+        .consts()
         .get(&enabled_def)
         .expect("ENABLED const item must exist");
     let builder = ConstMirBuilder::new(tir.design());
@@ -241,11 +241,11 @@ cell Top(y: out Bit) {
     let default_def = def_id_by_path(hir, &["app", "DEFAULT"]);
     let enabled_def = def_id_by_path(hir, &["app", "ENABLED"]);
     let default_item = hir
-        .consts
+        .consts()
         .get(&default_def)
         .expect("DEFAULT const item must exist");
     let enabled_item = hir
-        .consts
+        .consts()
         .get(&enabled_def)
         .expect("ENABLED const item must exist");
     let builder = ConstMirBuilder::new(tir.design());

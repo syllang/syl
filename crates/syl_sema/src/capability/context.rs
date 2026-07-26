@@ -42,7 +42,7 @@ pub(super) trait CapabilityContext {
 
 impl CapabilityContext for HirDesign {
     fn callables(&self) -> &BTreeMap<DefId, HirCallable> {
-        &self.callables
+        self.callables()
     }
 
     fn resolve_place(&self, owner: DefId, expr: &HirBodyExpr) -> PlaceResolution {

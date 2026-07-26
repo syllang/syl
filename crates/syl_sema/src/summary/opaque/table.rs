@@ -63,7 +63,7 @@ impl OpaqueSummaryTable {
         protocols: &ProtocolFacts,
     ) -> Self {
         let mut table = Self::new();
-        for callable in tir.hir().callables.values() {
+        for callable in tir.hir().callables().values() {
             match callable {
                 crate::hir::HirCallable::Cell(item) => {
                     table.register(collect_source_cell_summary(

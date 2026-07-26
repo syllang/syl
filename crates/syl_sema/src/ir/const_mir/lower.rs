@@ -218,7 +218,7 @@ impl<'a> ExprLowerer<'a> {
         self.ctx
             .hir()
             .type_def_for_mir_type(self.owner, ty)
-            .filter(|def| self.ctx.hir().structs.contains_key(def))
+            .filter(|def| self.ctx.hir().structs().contains_key(def))
             .map(ConstStructKind::new)
     }
 
@@ -271,7 +271,7 @@ impl<'a> ExprLowerer<'a> {
 
     fn rebuild_struct_assignment(&mut self, rewrite: StructAssignmentRewrite) -> Option<ConstExpr> {
         let target_field = rewrite.fields.first()?;
-        let struct_item = self.ctx.hir().structs.get(&rewrite.kind.def())?;
+        let struct_item = self.ctx.hir().structs().get(&rewrite.kind.def())?;
         let mut updated_value = Some(rewrite.updated_value);
         let fields = struct_item
             .fields
@@ -318,7 +318,7 @@ impl<'a> ExprLowerer<'a> {
                     .and_then(|local| self.struct_kind_for_local(local, &mut BTreeSet::new())),
                 _ => None,
             })
-            .filter(|def| self.ctx.hir().structs.contains_key(def))
+            .filter(|def| self.ctx.hir().structs().contains_key(def))
             .map(ConstStructKind::new)
     }
 
@@ -361,7 +361,7 @@ impl<'a> ExprLowerer<'a> {
             .or_else(|| {
                 self.ctx
                     .hir()
-                    .locals
+                    .locals()
                     .iter()
                     .filter(|local| {
                         local.owner == self.owner
@@ -382,7 +382,7 @@ impl<'a> ExprLowerer<'a> {
         if !visited.insert(local) {
             return None;
         }
-        let function = self.ctx.hir().fns.get(&self.owner)?;
+        let function = self.ctx.hir().fns().get(&self.owner)?;
         let from_params = function
             .params
             .iter()

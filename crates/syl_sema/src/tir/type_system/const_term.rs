@@ -126,7 +126,7 @@ impl<'checker> TirConstTermResolver<'checker> {
     fn resolve_owner_generic_or_param(&self, name: &str) -> Option<TirConstResolution> {
         self.checker
             .hir
-            .locals
+            .locals()
             .iter()
             .find(|local| {
                 local.owner == self.owner

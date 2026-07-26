@@ -1,6 +1,7 @@
 use crate::name::HirPath;
 use crate::resolution::HirResolution;
 use crate::{DefId, ExprId, LocalId, PackageId};
+use getset::{Getters, MutGetters};
 use std::collections::BTreeMap;
 use strum_macros::IntoStaticStr;
 use syl_span::{SourceId, Span};
@@ -31,33 +32,39 @@ pub use item::{
 
 /// The complete HIR representation of a compiled Syl design.
 ///
-/// `HirDesign` is the top-level container holding every definition,
-/// expression, type reference, and resolution produced during semantic
-/// analysis. It is the input to elaboration.
+/// Aggregate root for HIR: arenas, lookup tables, and item payloads.
+/// Fields are private; use derived getters (`packages()`, …) and mut getters
+/// (`packages_mut()`, …) instead of raw fields. Prefer builders / resolvers for
+/// writes; mut accessors exist so workspace crates can lower without field access.
+///
+/// Built by `syl_sema::HirResolver`, then consumed read-only by TIR, elab, and
+/// query layers.
+#[derive(Getters, MutGetters)]
+#[getset(get = "pub", get_mut = "pub")]
 #[non_exhaustive]
 pub struct HirDesign {
-    pub packages: Vec<HirPackage>,
-    pub module_docs: BTreeMap<SourceId, String>,
-    pub imports: Vec<HirImport>,
-    pub defs: Vec<HirDef>,
-    pub def_names: BTreeMap<String, Vec<DefId>>,
-    pub canonical_def_names: BTreeMap<HirPath, DefId>,
-    pub locals: Vec<HirLocal>,
-    pub exprs: Vec<HirExpr>,
-    pub field_accesses: Vec<HirFieldAccess>,
-    pub type_refs: Vec<HirTypeRef>,
-    pub member_decls: Vec<HirMemberDecl>,
-    pub expr_resolutions: BTreeMap<ExprId, HirResolution>,
-    pub extension_methods: HirExtensionMethodIndex,
-    pub consts: BTreeMap<DefId, HirConstItem>,
-    pub fns: BTreeMap<DefId, HirFnItem>,
-    pub enums: BTreeMap<DefId, HirEnumItem>,
-    pub enum_variants: BTreeMap<HirEnumVariantKey, HirEnumVariant>,
-    pub structs: BTreeMap<DefId, HirStructItem>,
-    pub bundles: BTreeMap<DefId, HirBundleItem>,
-    pub interfaces: BTreeMap<DefId, HirInterfaceItem>,
-    pub maps: BTreeMap<DefId, HirMapItem>,
-    pub callables: BTreeMap<DefId, HirCallable>,
+    packages: Vec<HirPackage>,
+    module_docs: BTreeMap<SourceId, String>,
+    imports: Vec<HirImport>,
+    defs: Vec<HirDef>,
+    def_names: BTreeMap<String, Vec<DefId>>,
+    canonical_def_names: BTreeMap<HirPath, DefId>,
+    locals: Vec<HirLocal>,
+    exprs: Vec<HirExpr>,
+    field_accesses: Vec<HirFieldAccess>,
+    type_refs: Vec<HirTypeRef>,
+    member_decls: Vec<HirMemberDecl>,
+    expr_resolutions: BTreeMap<ExprId, HirResolution>,
+    extension_methods: HirExtensionMethodIndex,
+    consts: BTreeMap<DefId, HirConstItem>,
+    fns: BTreeMap<DefId, HirFnItem>,
+    enums: BTreeMap<DefId, HirEnumItem>,
+    enum_variants: BTreeMap<HirEnumVariantKey, HirEnumVariant>,
+    structs: BTreeMap<DefId, HirStructItem>,
+    bundles: BTreeMap<DefId, HirBundleItem>,
+    interfaces: BTreeMap<DefId, HirInterfaceItem>,
+    maps: BTreeMap<DefId, HirMapItem>,
+    callables: BTreeMap<DefId, HirCallable>,
 }
 
 impl HirDesign {
@@ -87,6 +94,21 @@ impl HirDesign {
             maps: BTreeMap::new(),
             callables: BTreeMap::new(),
         }
+    }
+
+    /// Look up a definition by id.
+    pub fn def(&self, id: DefId) -> Option<&HirDef> {
+        self.defs().get(id.get())
+    }
+
+    /// Look up a local by id.
+    pub fn local(&self, id: LocalId) -> Option<&HirLocal> {
+        self.locals().get(id.get())
+    }
+
+    /// Look up an expression header by id.
+    pub fn expr(&self, id: ExprId) -> Option<&HirExpr> {
+        self.exprs().get(id.get())
     }
 
     /// Returns the name of a definition by its ID.

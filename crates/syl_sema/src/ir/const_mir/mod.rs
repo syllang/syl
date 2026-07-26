@@ -293,7 +293,7 @@ impl ConstMirLoweringContext for TirDesign {
     }
 
     fn is_const_owner(&self, owner: DefId) -> bool {
-        TirDesign::hir(self).consts.contains_key(&owner)
+        TirDesign::hir(self).consts().contains_key(&owner)
     }
 
     fn expr_resolution(
@@ -323,7 +323,7 @@ impl ConstMirLoweringContext for TirDesign {
                 })
                 .or_else(|| {
                     TirDesign::hir(self)
-                        .locals
+                        .locals()
                         .iter()
                         .filter(|local| {
                             local.owner == owner
@@ -343,11 +343,11 @@ impl ConstMirLoweringContext for TirDesign {
     }
 
     fn const_by_def(&self, def: DefId) -> Option<&HirConstItem> {
-        TirDesign::hir(self).consts.get(&def)
+        TirDesign::hir(self).consts().get(&def)
     }
 
     fn function_exists(&self, def: DefId) -> bool {
-        TirDesign::hir(self).fns.contains_key(&def)
+        TirDesign::hir(self).fns().contains_key(&def)
     }
 
     fn extension_method_call<'a>(

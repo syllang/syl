@@ -615,7 +615,7 @@ impl TirConstEnv {
                 .current_owner
                 .and_then(|owner| checker.type_from_mir_type_ref(owner, ty).ok())
                 .and_then(|ty| ty.definition())
-                .filter(|def| checker.hir().structs.contains_key(def)),
+                .filter(|def| checker.hir().structs().contains_key(def)),
             HirExprNode::Group(inner) => self.struct_def_for_expr(inner, checker),
             HirExprNode::Ident(_) => self
                 .local_binding(expr, checker)
@@ -630,7 +630,7 @@ impl TirConstEnv {
             _ => checker
                 .current_owner
                 .and_then(|owner| checker.infer_expr_type(owner, expr).definition())
-                .filter(|def| checker.hir().structs.contains_key(def)),
+                .filter(|def| checker.hir().structs().contains_key(def)),
         }
     }
 
@@ -650,7 +650,7 @@ impl TirConstEnv {
     ) -> Option<&'a HirFnItem> {
         let root = self.callee_root(callee)?;
         let def = self.def_for_expr(root, checker)?;
-        checker.hir.fns.get(&def)
+        checker.hir.fns().get(&def)
     }
 
     fn def_for_expr(&self, expr: &HirBodyExpr, checker: &TypePhaseChecker) -> Option<DefId> {

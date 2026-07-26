@@ -191,13 +191,13 @@ struct TestMapLocals {
 impl TestMapLocals {
     fn from_hir(hir: &crate::hir::HirDesign, name: &str) -> Self {
         let owner = hir
-            .defs
+            .defs()
             .iter()
             .find(|def| def.name == name)
             .expect("map definition should exist")
             .id;
         let generic = hir
-            .locals
+            .locals()
             .iter()
             .find(|local| {
                 local.owner == owner
@@ -207,7 +207,7 @@ impl TestMapLocals {
             .expect("generic local should exist")
             .id;
         let param = hir
-            .locals
+            .locals()
             .iter()
             .find(|local| {
                 local.owner == owner
@@ -229,7 +229,7 @@ struct TestItemLocals<'a> {
 impl<'a> TestItemLocals<'a> {
     fn new(hir: &'a HirDesign, item: &str) -> Self {
         let owner = hir
-            .defs
+            .defs()
             .iter()
             .find(|def| def.name == item)
             .expect("test item definition should exist")
@@ -239,7 +239,7 @@ impl<'a> TestItemLocals<'a> {
 
     fn local(&self, name: &str) -> LocalId {
         self.hir
-            .locals
+            .locals()
             .iter()
             .find(|local| local.owner == self.owner && local.name == name)
             .expect("test local should exist")

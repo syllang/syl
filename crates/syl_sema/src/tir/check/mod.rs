@@ -339,12 +339,12 @@ mod tests {
             .resolve()
             .expect("HIR should resolve before TIR recovery");
         let good = hir
-            .defs
+            .defs()
             .iter()
             .find(|def| def.name == "Good")
             .expect("valid map def should exist");
         let param = hir
-            .locals
+            .locals()
             .iter()
             .find(|local| local.owner == good.id && local.name == "x")
             .expect("valid map param should exist");

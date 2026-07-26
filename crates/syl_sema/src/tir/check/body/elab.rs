@@ -159,7 +159,7 @@ impl TypePhaseChecker {
         let struct_def = explicit_ty
             .as_ref()
             .and_then(TirType::definition)
-            .filter(|def| self.hir().structs.contains_key(def))
+            .filter(|def| self.hir().structs().contains_key(def))
             .or_else(|| {
                 explicit_ty
                     .is_none()

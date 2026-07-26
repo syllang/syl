@@ -40,7 +40,7 @@ impl TirConstEnv {
             };
             let name = checker
                 .hir
-                .locals
+                .locals()
                 .iter()
                 .find(|local| local.id == *id)?
                 .name

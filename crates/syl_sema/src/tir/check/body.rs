@@ -485,7 +485,7 @@ impl TypePhaseChecker {
                     else {
                         return None;
                     };
-                    let local = self.hir.locals.get(id.get())?;
+                    let local = self.hir.locals().get(id.get())?;
                     return matches!(local.kind, HirLocalKind::Reg).then(|| name.clone());
                 }
                 HirExprNode::Field { base, .. } | HirExprNode::Index { base, .. } => {

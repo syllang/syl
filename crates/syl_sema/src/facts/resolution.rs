@@ -241,11 +241,11 @@ pub struct ResolutionGraph {
 impl ResolutionGraph {
     fn collect(hir: &HirDesign) -> Self {
         let mut packages = BTreeMap::new();
-        for package in &hir.packages {
+        for package in hir.packages() {
             let path = HirPath::new(package.path.clone());
             packages.insert(path.clone(), PackageFacts::new(Some(package.id)));
         }
-        for def in &hir.defs {
+        for def in hir.defs() {
             let package_path = def.canonical_path.parent();
             packages
                 .entry(package_path.clone())
@@ -253,9 +253,9 @@ impl ResolutionGraph {
                 .definitions
                 .push(def.id);
         }
-        for import in &hir.imports {
+        for import in hir.imports() {
             let target = hir
-                .canonical_def_names
+                .canonical_def_names()
                 .get(&HirPath::new(import.path.clone()))
                 .copied();
             packages
@@ -291,7 +291,7 @@ impl ResolutionGraph {
             package_nodes.push(PackageSummary::new(package, facts.package_id, path));
 
             for def in facts.definitions {
-                let Some(hir_def) = hir.defs.get(def.get()) else {
+                let Some(hir_def) = hir.defs().get(def.get()) else {
                     continue;
                 };
                 definitions.insert(
@@ -413,7 +413,7 @@ pub struct ResolutionTable {
 impl ResolutionTable {
     pub(crate) fn collect(hir: &HirDesign) -> Self {
         let values = hir
-            .expr_resolutions
+            .expr_resolutions()
             .iter()
             .map(|(expr, resolution)| {
                 (

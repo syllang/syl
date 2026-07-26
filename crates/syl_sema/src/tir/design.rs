@@ -28,8 +28,8 @@ impl TirDesign {
     pub fn debug_dump(&self) -> String {
         format!(
             "tir hir_defs={} hir_locals={} enum_values={} expr_phases={} expr_types={} bindings={} binding_types={}",
-            self.hir.defs.len(),
-            self.hir.locals.len(),
+            self.hir.defs().len(),
+            self.hir.locals().len(),
             self.enum_variant_values.len(),
             self.expr_phases.len(),
             self.expr_types.len(),

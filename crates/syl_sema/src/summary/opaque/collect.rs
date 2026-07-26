@@ -284,7 +284,7 @@ fn summary_layout_for_type(
             name: name.clone(),
             fields: tir
                 .hir()
-                .bundles
+                .bundles()
                 .get(def)
                 .map(|bundle| {
                     bundle
@@ -316,7 +316,7 @@ fn summary_layout_for_type(
             name: name.clone(),
             variants: tir
                 .hir()
-                .enums
+                .enums()
                 .get(def)
                 .map(|item| {
                     item.variants

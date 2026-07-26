@@ -102,7 +102,7 @@ pub struct ProtocolFacts {
 impl ProtocolFacts {
     pub(crate) fn collect(hir: &HirDesign) -> Self {
         let values = hir
-            .interfaces
+            .interfaces()
             .iter()
             .map(|(def, interface)| {
                 let views = interface
