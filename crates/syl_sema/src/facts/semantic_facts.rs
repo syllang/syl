@@ -1,8 +1,14 @@
 use super::{CapabilityTable, ConstFacts, LayoutFacts, ProtocolFacts, ResolutionTable, TypeTable};
 use crate::summary::opaque::OpaqueSummaryTable;
 use crate::tir::TirDesign;
+use getset::Getters;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+/// Collected semantic side tables over a type-checked design.
+///
+/// Aggregate root for facts: fields are private; use derived getters.
+/// Constructed from a finished [`TirDesign`] via crate-internal collection.
+#[derive(Clone, Debug, PartialEq, Eq, Getters)]
+#[getset(get = "pub")]
 #[non_exhaustive]
 pub struct SemanticFacts {
     resolution: ResolutionTable,
@@ -32,33 +38,5 @@ impl SemanticFacts {
             protocols,
             opaque_summaries,
         }
-    }
-
-    pub fn resolution(&self) -> &ResolutionTable {
-        &self.resolution
-    }
-
-    pub fn types(&self) -> &TypeTable {
-        &self.types
-    }
-
-    pub fn capabilities(&self) -> &CapabilityTable {
-        &self.capabilities
-    }
-
-    pub fn consts(&self) -> &ConstFacts {
-        &self.consts
-    }
-
-    pub fn layouts(&self) -> &LayoutFacts {
-        &self.layouts
-    }
-
-    pub fn protocols(&self) -> &ProtocolFacts {
-        &self.protocols
-    }
-
-    pub fn opaque_summaries(&self) -> &OpaqueSummaryTable {
-        &self.opaque_summaries
     }
 }

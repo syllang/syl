@@ -27,19 +27,35 @@ fn architecture_semantic_readme_and_public_facts_facade_stay_explicit() {
         );
     }
 
-    let analysis = format!(
-        "{}\n{}",
-        read_text(&workspace.join("crates/syl_sema/src/pipeline/analysis.rs")),
-        read_text(&workspace.join("crates/syl_sema/src/pipeline/output.rs"))
-    );
+    let analysis = read_text(&workspace.join("crates/syl_sema/src/pipeline/analysis.rs"));
     for required in [
-        "pub fn resolution(&self) -> &ResolutionTable",
-        "pub fn facts(&self) -> Option<&SemanticFacts>",
-        "pub fn facts(&self) -> &SemanticFacts",
+        "#[derive(Getters)]",
+        "resolution: ResolutionTable",
+        "facts: SemanticFacts",
+        "design: TirDesign",
     ] {
         assert!(
             analysis.contains(required),
-            "semantic analysis facade must expose semantic facts: missing {required:?}"
+            "semantic analysis facade must expose semantic facts via getset fields: missing {required:?}"
+        );
+    }
+
+    let output = read_text(&workspace.join("crates/syl_sema/src/pipeline/output.rs"));
+    assert!(
+        output.contains("pub fn facts(&self) -> Option<&SemanticFacts>"),
+        "SemanticOutput must expose optional SemanticFacts"
+    );
+
+    let surface = read_text(&workspace.join("api/public-surface.txt"));
+    for required in [
+        "HirAnalysis::resolution|fn(self: &Self) -> &ResolutionTable",
+        "TirAnalysis::facts|fn(self: &Self) -> &SemanticFacts",
+        "TirAnalysis::design|fn(self: &Self) -> &TirDesign",
+        "SemanticOutput::facts|fn(self: &Self) -> Option<&SemanticFacts>",
+    ] {
+        assert!(
+            surface.contains(required),
+            "public surface must keep semantic facts facade: missing {required:?}"
         );
     }
 }

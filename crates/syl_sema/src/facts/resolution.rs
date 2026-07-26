@@ -1,4 +1,5 @@
 use crate::hir::{HirDefKind, HirDesign};
+use getset::{CopyGetters, Getters};
 use std::collections::BTreeMap;
 use syl_hir::{DefId, ExprId, HirPath, HirResolution, LocalId, PackageId};
 use syl_span::Span;
@@ -91,11 +92,14 @@ impl ImportId {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Getters, CopyGetters)]
 #[non_exhaustive]
 pub struct PackageSummary {
+    #[getset(get_copy = "pub")]
     id: PackageNodeId,
+    #[getset(get_copy = "pub")]
     package_id: Option<PackageId>,
+    #[getset(get = "pub")]
     path: HirPath,
 }
 
@@ -107,27 +111,20 @@ impl PackageSummary {
             path,
         }
     }
-
-    pub fn id(&self) -> PackageNodeId {
-        self.id
-    }
-
-    pub fn package_id(&self) -> Option<PackageId> {
-        self.package_id
-    }
-
-    pub fn path(&self) -> &HirPath {
-        &self.path
-    }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Getters, CopyGetters)]
 #[non_exhaustive]
 pub struct ImportEdge {
+    #[getset(get_copy = "pub")]
     id: ImportId,
+    #[getset(get_copy = "pub")]
     package: PackageNodeId,
+    #[getset(get = "pub")]
     path: HirPath,
+    #[getset(get_copy = "pub")]
     target: Option<DefId>,
+    #[getset(get_copy = "pub")]
     span: Span,
 }
 
@@ -147,36 +144,23 @@ impl ImportEdge {
             span,
         }
     }
-
-    pub fn id(&self) -> ImportId {
-        self.id
-    }
-
-    pub fn package(&self) -> PackageNodeId {
-        self.package
-    }
-
-    pub fn path(&self) -> &HirPath {
-        &self.path
-    }
-
-    pub fn target(&self) -> Option<DefId> {
-        self.target
-    }
-
-    pub fn span(&self) -> Span {
-        self.span
-    }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Getters, CopyGetters)]
 #[non_exhaustive]
 pub struct DefinitionPath {
+    #[getset(get_copy = "pub")]
     def: DefId,
+    #[getset(get_copy = "pub")]
     package: PackageNodeId,
+    /// Kept as a custom `name() -> &str` projection.
+    #[getset(skip)]
     name: String,
+    #[getset(get_copy = "pub")]
     kind: DefinitionKind,
+    #[getset(get = "pub")]
     canonical_path: HirPath,
+    #[getset(get_copy = "pub")]
     span: Span,
 }
 
@@ -201,28 +185,8 @@ impl DefinitionPath {
         }
     }
 
-    pub fn def(&self) -> DefId {
-        self.def
-    }
-
-    pub fn package(&self) -> PackageNodeId {
-        self.package
-    }
-
     pub fn name(&self) -> &str {
         &self.name
-    }
-
-    pub fn kind(&self) -> DefinitionKind {
-        self.kind
-    }
-
-    pub fn canonical_path(&self) -> &HirPath {
-        &self.canonical_path
-    }
-
-    pub fn span(&self) -> Span {
-        self.span
     }
 }
 
@@ -403,10 +367,12 @@ impl ResolutionGraph {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Getters)]
+#[getset(get = "pub")]
 #[non_exhaustive]
 pub struct ResolutionTable {
     graph: ResolutionGraph,
+    #[getset(skip)]
     values: BTreeMap<HirFactId, SemanticResolution>,
 }
 
@@ -426,10 +392,6 @@ impl ResolutionTable {
             graph: ResolutionGraph::collect(hir),
             values,
         }
-    }
-
-    pub fn graph(&self) -> &ResolutionGraph {
-        &self.graph
     }
 
     pub fn get(&self, id: HirFactId) -> Option<SemanticResolution> {
