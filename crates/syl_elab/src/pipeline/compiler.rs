@@ -5,10 +5,49 @@ use syl_span::Diagnostic;
 
 use super::{ElaborationOutput, runner::TirStageRunner};
 
-/// The top-level compiler for hardware elaboration.
+/// Top-level entry for hardware elaboration from typed IR.
 ///
-/// Drives the pipeline from TIR through ConstMIR, MapIR, EIR,
-/// DRC, and HW emission, producing a `ParametricHwDesign`.
+/// Holds optional opaque (external cell) summaries, then drives TIR through
+/// ConstMIR → MapIR → EIR → driver facts / DRC → HWIR lowering.
+///
+/// # Main usage flow
+///
+/// ```text
+///  TirAnalysis  (+ optional OpaqueSummaryTable)
+///              |
+///              v
+///    +---------------------+
+///    |  HardwareCompiler   |   new()
+///    |                     |   with_opaque_summaries(...)
+///    |                     |   register_opaque_summary(...)
+///    +----------+----------+
+///               |
+///     +---------+---------------------------+
+///     |                                     |
+///     v                                     v
+///  compile_tir[ _with_token ]      output_for_tir[ _with_token ]
+///  Result<ParametricHwDesign, E>   ElaborationOutput
+///  (HWIR only; fail-fast)          (all stages + diagnostics)
+///     |                                     |
+///     |                          +----------+-----------+
+///     |                          |          |           |
+///     |                          v          v           v
+///     |                     const_mir()  eir() /    hwir()
+///     |                     map_ir()     drc() /    diagnostics()
+///     |                                  metadata()
+///     v
+///  ParametricHwDesign
+///              |
+///              v
+///  SystemVerilogBackend::emit  /  HwNormalizer::normalize
+/// ```
+///
+/// Typical paths:
+/// - **Strict HWIR**: `compile_tir(&tir)?` then emit.
+/// - **Stage inspection / IDE**: `output_for_tir(&tir)` and read partial stages
+///   even when later stages did not complete.
+/// - **Cancellation**: `*_with_token` variants return `Ok(None)` / partial
+///   output when cooperative cancellation is observed between stages.
 #[derive(Debug, Default)]
 #[non_exhaustive]
 pub struct HardwareCompiler {

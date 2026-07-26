@@ -2,6 +2,25 @@ use super::analysis::{HirAnalysis, TirAnalysis};
 use crate::{facts::SemanticFacts, summary::opaque::OpaqueSummaryTable};
 use syl_span::Diagnostic;
 
+/// Partial stage result: optional successful value plus accumulated diagnostics.
+///
+/// Used by fail-soft paths such as [`HirAnalysis::check_tir_partial`](super::HirAnalysis::check_tir_partial).
+///
+/// # Main usage flow
+///
+/// ```text
+///  some_stage_partial()
+///         |
+///         v
+///    StageOutput<T>
+///         |
+///     +---+------------------+
+///     |                      |
+///     v                      v
+///  stage() /              diagnostics()
+///  into_stage()
+///  partial_stage()
+/// ```
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct StageOutput<T> {
@@ -43,6 +62,33 @@ impl<T> StageOutput<T> {
     }
 }
 
+/// One-shot semantic pipeline result: optional TIR plus accumulated diagnostics.
+///
+/// Produced by [`SemanticSession::check`](super::SemanticSession::check). Prefer
+/// this when callers want HIR+TIR in one call and do not need an intermediate
+/// [`HirAnalysis`](super::HirAnalysis) handle.
+///
+/// # Main usage flow
+///
+/// ```text
+///  SemanticSession::check()
+///              |
+///              v
+///    +---------------------+
+///    |   SemanticOutput    |
+///    +----------+----------+
+///               |
+///     +---------+----------+------------------+
+///     |                    |                  |
+///     v                    v                  v
+///   tir()              facts() /          diagnostics()
+///   Option<Tir>        opaque_summaries()
+///     |
+///     v
+///  HardwareCompiler  (when tir is Some)
+/// ```
+///
+/// If HIR resolution failed, `tir()` is `None` and only HIR diagnostics are set.
 #[derive(Debug)]
 #[non_exhaustive]
 pub struct SemanticOutput {
@@ -72,6 +118,29 @@ impl SemanticOutput {
     }
 }
 
+/// HIR resolution result with diagnostics, always carrying a stage handle.
+///
+/// Produced by [`SemanticSession::resolve_hir_partial`](super::SemanticSession::resolve_hir_partial).
+/// Use when IDE/query code must keep working against partial HIR under errors.
+///
+/// # Main usage flow
+///
+/// ```text
+///  SemanticSession::resolve_hir_partial()
+///              |
+///              v
+///    +---------------------+
+///    |  HirAnalysisOutput  |
+///    +----------+----------+
+///               |
+///     +---------+----------+
+///     |                    |
+///     v                    v
+///  stage()             diagnostics()
+///  &HirAnalysis
+///     |
+///     +---> definition_at / hover_at / check_tir_partial ...
+/// ```
 #[derive(Debug)]
 #[non_exhaustive]
 pub struct HirAnalysisOutput {

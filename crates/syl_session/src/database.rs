@@ -17,10 +17,35 @@ use syl_sema::{OpaqueItemSummary, OpaqueSummaryTable};
 
 pub use revision::DatabaseRevision;
 
-/// The central incremental analysis database.
+/// Central incremental analysis database behind [`AnalysisHost`](crate::AnalysisHost).
 ///
-/// Manages loaded documents, their versions, snapshot caches, and
-/// semantic analysis state. Supports cancel-safe incremental updates.
+/// Owns document overlays, opaque summaries, snapshot caches, and package-level
+/// semantic cache shards. Mutations bump a revision; reads go through cached
+/// immutable [`AnalysisSnapshot`] values and honor cooperative cancellation.
+///
+/// # Main usage flow
+///
+/// ```text
+///  ProjectResolver + overlays + opaque summaries
+///              |
+///              v
+///    +---------------------+
+///    |  AnalysisDatabase   |
+///    +----------+----------+
+///               |
+///     mutations (revision++):
+///       load / set_roots / open|update|close_document
+///       set_opaque_summaries / register_opaque_summary
+///               |
+///               v
+///     snapshot[ _with_token ]  -->  AnalysisSnapshot (cached by key)
+///               |
+///               v
+///     consumers: syl_query::AnalysisQueries, hwir(), diagnostics, ...
+///
+///  Prefer AnalysisHost for the common façade; use database() when tests or
+///  advanced tooling need the store directly.
+/// ```
 #[derive(Debug)]
 #[non_exhaustive]
 pub struct AnalysisDatabase {

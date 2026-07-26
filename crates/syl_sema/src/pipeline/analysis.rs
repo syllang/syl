@@ -11,6 +11,38 @@ use std::{fmt, sync::Arc};
 use syl_hir::{DefId, HirResolution};
 use syl_span::{SourceId, Span};
 
+/// Resolved HIR analysis handle — name resolution complete, types not yet checked.
+///
+/// Produced by [`SemanticSession`](super::SemanticSession::resolve_hir) (or
+/// `resolve_hir_partial`). Owns the HIR design plus a resolution table used for
+/// IDE queries and as input to type checking.
+///
+/// # Main usage flow
+///
+/// ```text
+///  SemanticSession::resolve_hir[ _partial ]
+///              |
+///              v
+///    +---------------------+
+///    |     HirAnalysis     |
+///    |  design + resolution|
+///    +----------+----------+
+///               |
+///     +---------+----------+------------------+
+///     |                    |                  |
+///     v                    v                  v
+///  check_tir()      check_tir_partial()   IDE queries
+///  Result<Tir, E>   StageOutput<Tir>      definition_at
+///  (fail-fast)      (with diagnostics)    hover_at
+///                                         completion_*
+///                                         resolution()
+///                                         doc_for_*
+///     |                    |
+///     +---------+----------+
+///               |
+///               v
+///          TirAnalysis  --->  HardwareCompiler / facts / emit pipeline
+/// ```
 #[non_exhaustive]
 pub struct HirAnalysis {
     design: Arc<HirDesign>,
@@ -54,12 +86,14 @@ impl HirAnalysis {
         self.design.debug_dump()
     }
 
+    /// Type-check HIR → TIR, failing on the first error.
     pub fn check_tir(&self) -> Result<TirAnalysis, CompileError> {
         TypePhaseChecker::new(Arc::clone(&self.design))
             .check()
             .map(TirAnalysis::new)
     }
 
+    /// Type-check HIR → TIR while collecting diagnostics.
     pub fn check_tir_partial(&self) -> StageOutput<TirAnalysis> {
         TypePhaseChecker::new(Arc::clone(&self.design))
             .check_output()
@@ -268,6 +302,39 @@ impl fmt::Debug for HirAnalysis {
     }
 }
 
+/// Typed IR analysis handle — type-checked HIR plus collected semantic facts.
+///
+/// Produced by [`HirAnalysis::check_tir`] / `check_tir_partial`, or via
+/// [`SemanticSession::check`](super::SemanticSession::check) →
+/// [`SemanticOutput::tir`](super::SemanticOutput::tir). This is the stable
+/// hand-off from `syl_sema` into elaboration (`HardwareCompiler`) and query
+/// layers that need typed facts.
+///
+/// # Main usage flow
+///
+/// ```text
+///  HirAnalysis::check_tir[ _partial ]
+///  SemanticSession::check() -> SemanticOutput::tir()
+///              |
+///              v
+///    +---------------------+
+///    |     TirAnalysis     |
+///    | design + facts      |
+///    +----------+----------+
+///               |
+///     +---------+----------+------------------+
+///     |                    |                  |
+///     v                    v                  v
+///  design()            facts()           IDE / tooling
+///  (TirDesign)         opaque_summaries() hover_at
+///                      (SemanticFacts)
+///     |
+///     v
+///  HardwareCompiler::compile_tir / output_for_tir
+///              |
+///              v
+///       ParametricHwDesign / ElaborationOutput
+/// ```
 #[non_exhaustive]
 pub struct TirAnalysis {
     design: TirDesign,

@@ -1,5 +1,26 @@
 use syl_syntax::AstFile;
 
+/// One parsed file plus its logical module path for semantic analysis.
+///
+/// Input unit for [`SemanticSession::new_sources`](super::SemanticSession::new_sources)
+/// when default `file0`/`file1` paths from `SemanticSession::new` are not enough.
+///
+/// # Main usage flow
+///
+/// ```text
+///  AstFile + module_path segments
+///         |
+///         v
+///  SemanticSourceFile::new(path, &ast)
+///         |
+///         v
+///  SemanticSession::new_sources(vec![...])
+///         |
+///         v
+///  resolve_hir / check / ...
+/// ```
+///
+/// `module_path` is a **namespace** identifier (not a filesystem path); see field docs.
 #[derive(Debug)]
 #[non_exhaustive]
 pub struct SemanticSourceFile<'files> {

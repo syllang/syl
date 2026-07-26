@@ -8,8 +8,22 @@ use crate::{ParametricHwDesign, ParametricHwModule};
 pub use diagnostic::{HwBindingKind, HwValidationDiagnostic, HwValidationReport};
 use validator::Validator;
 
-/// Validates a parametric HW design for structural correctness
-/// (duplicate names, missing bindings, etc.).
+/// Structural validator for [`ParametricHwDesign`] (backend-neutral checks).
+///
+/// Catches duplicate names, missing bindings, and similar HWIR invariants
+/// before any target-language emission.
+///
+/// # Main usage flow
+///
+/// ```text
+///  ParametricHwDesign
+///         |
+///         v
+///  HwValidator::validate  -->  Ok(()) | HwValidationReport
+///
+///  Prefer HwNormalizer when the next step is emission:
+///  it validates then wraps the design as NormalizedParametricHwDesign.
+/// ```
 #[derive(Debug, Default)]
 #[non_exhaustive]
 pub struct HwValidator;
@@ -27,7 +41,21 @@ impl HwValidator {
     }
 }
 
-/// Normalizes a parametric HW design — validates and wraps for downstream consumption.
+/// Validates a parametric HW design and wraps it for backend consumption.
+///
+/// # Main usage flow
+///
+/// ```text
+///  ParametricHwDesign
+///         |
+///         v
+///  HwNormalizer::normalize
+///         |
+///         v
+///  NormalizedParametricHwDesign  -->  SystemVerilogBackend (internal path)
+///         |                           or any consumer that requires validated HWIR
+///         +--> design() / modules()
+/// ```
 #[derive(Debug, Default)]
 #[non_exhaustive]
 pub struct HwNormalizer;
@@ -47,7 +75,26 @@ impl HwNormalizer {
     }
 }
 
-/// A validated parametric HW design, ready for the SystemVerilog backend.
+/// A validated [`ParametricHwDesign`], ready for backend lowering.
+///
+/// Proof-carrying wrapper: construction only succeeds after
+/// [`HwNormalizer::normalize`] (or equivalent validation).
+///
+/// # Main usage flow
+///
+/// ```text
+///  HwNormalizer::normalize(&hwir)?
+///         |
+///         v
+///  NormalizedParametricHwDesign
+///         |
+///         +--> design()   // &ParametricHwDesign
+///         +--> modules()
+///         +--> debug_dump()
+///         |
+///         v
+///  backend lower / emit
+/// ```
 #[derive(Debug)]
 #[non_exhaustive]
 pub struct NormalizedParametricHwDesign<'a> {

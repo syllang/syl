@@ -5,10 +5,41 @@ use crate::{
 use std::path::PathBuf;
 use syl_sema::{OpaqueItemSummary, OpaqueSummaryTable};
 
-/// High-level entry point for project-level analysis.
+/// High-level entry point for project-level analysis (CLI / tests / tools).
 ///
-/// Wraps an `AnalysisDatabase` and provides convenience methods for
-/// loading source files and producing analysis snapshots.
+/// Thin façade over [`AnalysisDatabase`]: load roots, manage document overlays
+/// and opaque summaries, then take immutable [`AnalysisSnapshot`]s for queries
+/// or emission.
+///
+/// # Main usage flow
+///
+/// ```text
+///  ProjectConfig / ProjectResolver / paths
+///              |
+///              v
+///    +---------------------+
+///    |    AnalysisHost     |   new() | with_config | with_resolver
+///    +----------+----------+
+///               |
+///     +---------+-----------------------------+
+///     |                                       |
+///     v                                       v
+///  load[ _with_token ](paths)     open/update/close_document
+///  set_roots / register_opaque_*  (editor overlay mutations)
+///               |
+///               v
+///  snapshot[ _with_token ]()
+///               |
+///               v
+///       AnalysisSnapshot
+///               |
+///     +---------+----------+------------------+
+///     |                    |                  |
+///     v                    v                  v
+///  hir_analysis()     tir_analysis()      hwir()
+///  diagnostics...     AnalysisQueries     SystemVerilogBackend
+///                     (via syl_query)
+/// ```
 #[derive(Debug)]
 #[non_exhaustive]
 pub struct AnalysisHost {
