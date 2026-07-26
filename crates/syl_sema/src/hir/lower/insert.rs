@@ -43,7 +43,11 @@ impl<'files> HirResolver<'files> {
         ));
     }
 
-    pub(super) fn insert_imports(&mut self, source: &SemanticSourceFile<'_>, package: &PackageScope) {
+    pub(super) fn insert_imports(
+        &mut self,
+        source: &SemanticSourceFile<'_>,
+        package: &PackageScope,
+    ) {
         for item in &source.ast().items {
             let Item::Use(import) = item else {
                 continue;
@@ -86,7 +90,11 @@ impl<'files> HirResolver<'files> {
             .collect()
     }
 
-    pub(super) fn insert_item(&mut self, item: &Item, package: &PackageScope) -> Result<(), CompileError> {
+    pub(super) fn insert_item(
+        &mut self,
+        item: &Item,
+        package: &PackageScope,
+    ) -> Result<(), CompileError> {
         match item {
             Item::Const(item) => self.insert_const(item, package),
             Item::Fn(item) => self.insert_fn(item, package),

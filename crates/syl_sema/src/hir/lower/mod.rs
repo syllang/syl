@@ -1,8 +1,4 @@
-use crate::{
-    CompileError, SemanticSourceFile,
-    hir::resolve::HirNameResolver,
-    hir::HirDesign,
-};
+use crate::{CompileError, SemanticSourceFile, hir::HirDesign, hir::resolve::HirNameResolver};
 use syl_hir::name::HirPath;
 
 mod index;
