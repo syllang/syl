@@ -45,7 +45,30 @@ impl TirDesignBuilder {
     }
 }
 
+/// Side tables copied from per-owner TIR onto one aggregated arena.
+pub(crate) struct RemappedTirTables {
+    pub(crate) type_table: TirTypeTable,
+    pub(crate) enum_variant_values: BTreeMap<HirEnumVariantKey, u64>,
+    pub(crate) expr_phases: BTreeMap<ExprId, Phase>,
+    pub(crate) expr_types: BTreeMap<ExprId, TypeId>,
+    pub(crate) binding_kinds: BTreeMap<BindingRef, BindingKind>,
+    pub(crate) binding_types: BTreeMap<BindingRef, TypeId>,
+}
+
 impl TirDesign {
+    /// Assembles a design from an aggregated HIR arena and remapped side tables.
+    pub(crate) fn from_remapped(hir: Arc<HirDesign>, tables: RemappedTirTables) -> Self {
+        TirDesignBuilder::default()
+            .hir(hir)
+            .type_table(tables.type_table)
+            .enum_variant_values(tables.enum_variant_values)
+            .expr_phases(tables.expr_phases)
+            .expr_types(tables.expr_types)
+            .binding_kinds(tables.binding_kinds)
+            .binding_types(tables.binding_types)
+            .build()
+    }
+
     /// Returns the underlying resolved HIR design.
     pub fn hir(&self) -> &HirDesign {
         &self.hir

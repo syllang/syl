@@ -97,7 +97,26 @@ impl<'files> SemanticSession<'files> {
     ///
     /// Always returns a stage handle so callers can still query partial HIR.
     pub fn resolve_hir_partial(&self) -> HirAnalysisOutput {
-        let (design, errors) = HirResolver::new_sources(self.semantic_sources()).resolve_partial();
+        self.finish_partial(HirResolver::new_sources(self.semantic_sources()).resolve_partial())
+    }
+
+    /// Like [`resolve_hir_partial`](Self::resolve_hir_partial), and reads each
+    /// import's declaration contract through `contracts` while lowering.
+    pub fn resolve_hir_partial_with_contracts(
+        &self,
+        contracts: &dyn crate::ContractProvider,
+    ) -> HirAnalysisOutput {
+        self.finish_partial(
+            HirResolver::new_sources(self.semantic_sources())
+                .resolve_partial_with_contracts(contracts),
+        )
+    }
+
+    fn finish_partial(
+        &self,
+        resolved: (crate::hir::HirDesign, Vec<CompileError>),
+    ) -> HirAnalysisOutput {
+        let (design, errors) = resolved;
         let diagnostics = errors.into_iter().map(Diagnostic::from).collect();
         HirAnalysisOutput::new(HirAnalysis::new(design), diagnostics)
     }

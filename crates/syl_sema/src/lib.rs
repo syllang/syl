@@ -1,5 +1,6 @@
 pub mod binding;
 mod capability;
+pub mod contract;
 pub mod diagnostic;
 pub mod facts;
 mod hir;
@@ -12,6 +13,11 @@ pub mod tir;
 pub use tir::TypeId;
 
 pub use binding::{ActualFormalBinder, FormalBinding};
+pub use contract::{
+    ContractProvider, DeclarationContract, HardwareContract, SymbolKey, SymbolKind,
+    declaration_contracts, file_symbol_keys, hardware_contract_for, item_has_storage,
+    signature_stub_file,
+};
 pub use diagnostic::{
     CapabilityError, CompileError, ConstEvalError, DriverError, EirError, HirError, HwirError,
     LoweringError, SemanticDiagnostic, SemanticDiagnosticStage, TirError,
@@ -26,7 +32,7 @@ pub use facts::{
 pub use hir::lower::HirResolver;
 pub use pipeline::{
     DefinitionInfo, HirAnalysis, HirAnalysisOutput, HoverInfo, SemanticOutput, SemanticSession,
-    SemanticSourceFile, StageOutput, TirAnalysis,
+    SemanticSourceFile, StageOutput, TirAnalysis, aggregate_owner_hir, aggregate_owner_tir,
 };
 pub use query_support::{CompletionItem, CompletionKind};
 pub use summary::{

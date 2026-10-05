@@ -16,6 +16,7 @@ pub use binding::{BindingKind, BindingRef};
 pub use builtin::{BuiltinIntrinsic, BuiltinResolver};
 pub(crate) use checker::HardwareBlockMode;
 pub use checker::TypePhaseChecker;
+pub(crate) use design::RemappedTirTables;
 pub use design::TirDesign;
 pub use phase::Phase;
 pub use type_system::{TirConstTerm, TirGenericArg, TirType, TirTypeTable, TypeId};

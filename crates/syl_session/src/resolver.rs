@@ -1,13 +1,13 @@
 use crate::{
     AnalysisSnapshot, CancellationToken, DocumentUri, Project, ProjectConfig, ProjectError,
     SourceDocument, collector::SylFileCollector, import_resolver::ImportResolver,
-    snapshot::AnalysisFile, snapshot::AnalysisFileInput, snapshot::PackageSemanticIndex,
-    snapshot::PackageSemanticShard, snapshot::ResolvedSnapshot, snapshot::SemanticCache,
-    snapshot::WorkspaceSnapshot, vfs::FsVfs,
+    query::QueryStore, snapshot::AnalysisFile, snapshot::AnalysisFileInput,
+    snapshot::ResolvedSnapshot, snapshot::WorkspaceSnapshot, vfs::FsVfs,
 };
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::sync::atomic::AtomicUsize;
 use syl_sema::OpaqueSummaryTable;
 use syl_span::{Diagnostic, SourceMap, Span};
 use syl_syntax::parser::SourceParser;
@@ -89,52 +89,14 @@ where
         token: &CancellationToken,
     ) -> Result<Project, ProjectError> {
         let resolved = self.snapshot(paths, &BTreeMap::new(), token)?;
-        let workspace_semantic = Arc::new(SemanticCache::new_sources(
-            resolved
-                .files()
-                .iter()
-                .map(|file| {
-                    crate::snapshot::SemanticCacheSource::new(
-                        file.module_path().to_vec(),
-                        file.ast().clone(),
-                    )
-                })
-                .collect(),
-            OpaqueSummaryTable::new(),
-        ));
-        let package_semantics = PackageSemanticIndex::new(
-            resolved
-                .workspace()
-                .package_graph()
-                .packages()
-                .iter()
-                .map(|package| {
-                    let ast_files = resolved
-                        .files()
-                        .iter()
-                        .filter(|file| package.documents().contains(file.uri()))
-                        .map(|file| {
-                            crate::snapshot::SemanticCacheSource::new(
-                                file.module_path().to_vec(),
-                                file.ast().clone(),
-                            )
-                        })
-                        .collect();
-                    PackageSemanticShard::new(
-                        package.name().to_string(),
-                        package.documents().to_vec(),
-                        Arc::new(SemanticCache::new_sources(
-                            ast_files,
-                            OpaqueSummaryTable::new(),
-                        )),
-                    )
-                })
-                .collect(),
-        );
-        Ok(Project::new(AnalysisSnapshot::new(
+        let mut query = QueryStore::new();
+        let opaque = OpaqueSummaryTable::new();
+        query.publish(&resolved.file_specs(), &opaque, 0);
+        let live = Arc::new(AtomicUsize::new(0));
+        Ok(Project::new(AnalysisSnapshot::from_query(
+            query.generation(),
+            crate::query::LiveGuard::enter(&live),
             resolved,
-            workspace_semantic,
-            package_semantics,
         )))
     }
 

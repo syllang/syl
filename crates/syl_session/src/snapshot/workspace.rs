@@ -106,13 +106,6 @@ impl PackageGraph {
             .iter()
             .find(|package| package.documents.iter().any(|document| document == uri))
     }
-
-    pub(crate) fn packages_for_uri(&self, uri: &DocumentUri) -> Vec<&WorkspacePackage> {
-        self.packages
-            .iter()
-            .filter(|package| package.documents.iter().any(|document| document == uri))
-            .collect()
-    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

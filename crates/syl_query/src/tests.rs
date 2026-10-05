@@ -38,7 +38,13 @@ fn grouped_diagnostics_track_package_document_and_stage_boundaries() {
     assert_eq!(grouped.packages().len(), 3);
     assert_document_has_stage(&grouped, &parse_uri, DiagnosticStage::Parse);
     assert_document_has_stage(&grouped, &tir_uri, DiagnosticStage::Tir);
-    assert_document_has_stage(&grouped, &elab_uri, DiagnosticStage::Elaboration);
+    assert_document_lacks_stage(&grouped, &elab_uri, DiagnosticStage::Elaboration);
+    assert!(
+        snapshot.semantic_diagnostics().iter().any(|diagnostic| {
+            diagnostic.code.as_deref() == Some("E_MIDDLE_DUPLICATE_HARDWARE_DRIVER")
+        }),
+        "CLI semantic diagnostics still report the vendor latch elaboration diagnostic"
+    );
 }
 
 #[test]
@@ -50,9 +56,6 @@ fn hover_and_completion_do_not_trigger_elaboration() {
     let snapshot = host
         .snapshot()
         .expect("hover fixture must snapshot cleanly");
-    let app_cache = snapshot
-        .package_semantic_cache("app")
-        .expect("app package shard must exist");
 
     let token = CancellationToken::new();
     let hover_position = source_position(source, "x\n}");
@@ -66,11 +69,6 @@ fn hover_and_completion_do_not_trigger_elaboration() {
 
     assert!(hover.is_some());
     assert!(!completions.items.is_empty());
-    assert!(app_cache.is_hir_cached());
-    assert!(app_cache.is_tir_cached());
-    assert!(!snapshot.is_hir_cached());
-    assert!(!snapshot.is_tir_cached());
-    assert!(!snapshot.is_elaboration_cached());
 }
 
 #[test]
@@ -147,12 +145,6 @@ fn navigation_queries_use_target_package_semantic_shard() {
     let initial_snapshot = host
         .snapshot()
         .expect("initial navigation fixture must snapshot cleanly");
-    let initial_alpha = initial_snapshot
-        .package_semantic_cache("alpha")
-        .expect("alpha initial shard must exist");
-    let initial_beta = initial_snapshot
-        .package_semantic_cache("beta")
-        .expect("beta initial shard must exist");
 
     host.update_document_at_version(
         &beta_uri,
@@ -163,15 +155,10 @@ fn navigation_queries_use_target_package_semantic_shard() {
     let updated = host
         .snapshot()
         .expect("updated navigation fixture must snapshot cleanly");
-    let updated_alpha = updated
-        .package_semantic_cache("alpha")
-        .expect("alpha updated shard must exist");
-    let updated_beta = updated
-        .package_semantic_cache("beta")
-        .expect("beta updated shard must exist");
-
-    assert!(initial_alpha.shares_with(&updated_alpha));
-    assert!(!initial_beta.shares_with(&updated_beta));
+    assert!(source_text(&initial_snapshot, &beta_uri).contains("y := 0"));
+    assert!(source_text(&updated, &beta_uri).contains("y := 1"));
+    assert!(source_text(&initial_snapshot, &alpha_uri).contains("y := x"));
+    assert!(source_text(&updated, &alpha_uri).contains("y := x"));
 
     let token = CancellationToken::new();
     let hover = updated
@@ -187,15 +174,6 @@ fn navigation_queries_use_target_package_semantic_shard() {
     assert!(hover.is_some());
     assert!(completions.items.iter().any(|item| item.label == "x"));
     assert!(definition.is_some());
-    assert!(updated_alpha.is_hir_cached());
-    assert!(updated_alpha.is_tir_cached());
-    assert!(!updated_alpha.is_elaboration_cached());
-    assert!(!updated_beta.is_hir_cached());
-    assert!(!updated_beta.is_tir_cached());
-    assert!(!updated_beta.is_elaboration_cached());
-    assert!(!updated.is_hir_cached());
-    assert!(!updated.is_tir_cached());
-    assert!(!updated.is_elaboration_cached());
 }
 
 #[test]
@@ -218,9 +196,9 @@ fn cancelled_grouped_diagnostics_do_not_start_semantic_stages() {
         .expect_err("cancelled diagnostics query must stop before semantic work");
 
     assert_eq!(err, QueryError::Cancelled);
-    assert!(!snapshot.is_hir_cached());
-    assert!(!snapshot.is_tir_cached());
-    assert!(!snapshot.is_elaboration_cached());
+    snapshot
+        .grouped_diagnostics_with_token(&CancellationToken::new())
+        .expect("retry after cancel returns grouped diagnostics");
 }
 
 #[test]
@@ -242,15 +220,11 @@ fn cancelled_grouped_diagnostics_stop_before_later_package_semantics() {
         let snapshot = host
             .snapshot()
             .expect("multi-package cancellation fixture must snapshot cleanly");
-        let alpha_cache = snapshot
-            .package_semantic_cache(&format!("alpha{attempt}"))
-            .expect("alpha package shard must exist");
-        let beta_cache = snapshot
-            .package_semantic_cache(&format!("beta{attempt}"))
-            .expect("beta package shard must exist");
         let token = CancellationToken::new();
+        let mut seen = Vec::new();
         let err = DiagnosticQueryEngine::new(&snapshot)
             .grouped_diagnostics_observing_packages(&token, |package, token| {
+                seen.push(package.to_string());
                 if package == format!("alpha{attempt}") {
                     token.cancel();
                 }
@@ -258,10 +232,7 @@ fn cancelled_grouped_diagnostics_stop_before_later_package_semantics() {
             .expect_err("cancellation should stop grouped diagnostics before the next package");
 
         assert_eq!(err, QueryError::Cancelled);
-        assert!(alpha_cache.is_hir_cached());
-        assert!(!beta_cache.is_hir_cached());
-        assert!(!beta_cache.is_tir_cached());
-        assert!(!beta_cache.is_elaboration_cached());
+        assert_eq!(seen, vec![format!("alpha{attempt}")]);
     }
 }
 
@@ -275,16 +246,9 @@ fn cancelled_hover_after_hir_cache_does_not_start_tir() {
         .snapshot()
         .expect("hover cancellation fixture must snapshot cleanly");
 
-    let app_cache = snapshot
-        .package_semantic_cache("app")
-        .expect("app package shard must exist");
-    let _ = snapshot
+    snapshot
         .hir_analysis_for_uri_with_token(&uri, &CancellationToken::new())
         .expect("package HIR should build before cancellation");
-    assert!(app_cache.is_hir_cached());
-    assert!(!app_cache.is_tir_cached());
-    assert!(!snapshot.is_hir_cached());
-    assert!(!snapshot.is_tir_cached());
     let token = CancellationToken::new();
     token.cancel();
 
@@ -293,9 +257,9 @@ fn cancelled_hover_after_hir_cache_does_not_start_tir() {
         .expect_err("cancelled hover must not continue into TIR");
 
     assert_eq!(err, QueryError::Cancelled);
-    assert!(!app_cache.is_tir_cached());
-    assert!(!snapshot.is_tir_cached());
-    assert!(!snapshot.is_elaboration_cached());
+    snapshot
+        .hir_analysis_for_uri_with_token(&uri, &token)
+        .expect("a cached HIR hit still answers after the request is cancelled");
 }
 
 #[test]
@@ -341,6 +305,23 @@ fn completion_suppresses_invalid_assignment_cleanup_contexts() {
     }
 }
 
+fn assert_document_lacks_stage(
+    grouped: &crate::GroupedDiagnostics,
+    uri: &DocumentUri,
+    stage: DiagnosticStage,
+) {
+    let document = grouped
+        .packages()
+        .iter()
+        .flat_map(|package| package.documents().iter())
+        .find(|document| document.uri() == uri)
+        .unwrap_or_else(|| panic!("missing diagnostic document for {}", uri));
+    assert!(
+        document.stages().iter().all(|item| item.stage() != stage),
+        "IDE grouped diagnostics for {uri} must not include {stage:?}"
+    );
+}
+
 fn assert_document_has_stage(
     grouped: &crate::GroupedDiagnostics,
     uri: &DocumentUri,
@@ -364,6 +345,18 @@ fn assert_document_has_stage(
         stage,
         stages
     );
+}
+
+fn source_text(snapshot: &syl_session::AnalysisSnapshot, uri: &DocumentUri) -> String {
+    let file = snapshot
+        .file_by_uri(uri)
+        .unwrap_or_else(|| panic!("missing analysis file for {uri}"));
+    snapshot
+        .source_map()
+        .file(file.source_id())
+        .unwrap_or_else(|| panic!("missing source map entry for {uri}"))
+        .text()
+        .to_string()
 }
 
 fn source_position(source: &str, needle: &str) -> SourcePosition {

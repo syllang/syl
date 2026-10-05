@@ -153,8 +153,7 @@ fn architecture_elab_public_surface_stays_out_of_frontend_semantic_api() {
 fn architecture_session_and_query_use_sema_accessors_not_elab_stage_api() {
     let session_model =
         read_text(&workspace_root().join("crates/syl_session/src/snapshot/model.rs"));
-    let session_cache =
-        read_text(&workspace_root().join("crates/syl_session/src/snapshot/semantic_cache.rs"));
+    let session_cache = read_text(&workspace_root().join("crates/syl_session/src/query.rs"));
     let query_api = read_text(&workspace_root().join("crates/syl_query/src/snapshot/api.rs"));
 
     for forbidden in ["pub fn hir_stage", "pub fn tir_stage"] {
@@ -175,7 +174,7 @@ fn architecture_session_and_query_use_sema_accessors_not_elab_stage_api() {
     for forbidden in ["HirStage", "TirStage", "MiddleCompiler", "TirStageOutput"] {
         assert!(
             !session_cache.contains(forbidden),
-            "syl_session semantic cache must not depend on elab frontend stage types: {forbidden}"
+            "syl_session queries must not depend on elab frontend stage types: {forbidden}"
         );
     }
     for required in [
@@ -187,7 +186,7 @@ fn architecture_session_and_query_use_sema_accessors_not_elab_stage_api() {
     ] {
         assert!(
             session_cache.contains(required),
-            "syl_session semantic cache should use the new sema/elab boundary: {required}"
+            "syl_session queries should use the sema/elab boundary: {required}"
         );
     }
 

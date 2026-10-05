@@ -1,4 +1,9 @@
-use crate::{CompileError, SemanticSourceFile, hir::HirDesign, hir::resolve::HirNameResolver};
+use std::collections::BTreeMap;
+
+use crate::{
+    CompileError, ContractProvider, SemanticSourceFile, hir::HirDesign,
+    hir::resolve::HirNameResolver,
+};
 use syl_hir::name::HirPath;
 
 mod index;
@@ -114,14 +119,63 @@ impl<'files> HirResolver<'files> {
     /// Index and resolve while always returning the best-effort [`HirDesign`].
     ///
     /// Prefer this for IDE / recovery paths that still need a partial graph.
-    pub fn resolve_partial(mut self) -> (HirDesign, Vec<CompileError>) {
+    pub fn resolve_partial(self) -> (HirDesign, Vec<CompileError>) {
+        self.resolve_partial_with(None)
+    }
+
+    /// Same recovery path as [`resolve_partial`](Self::resolve_partial).
+    /// Each import reads that symbol's declaration contract and keeps its signature.
+    pub fn resolve_partial_with_contracts(
+        self,
+        contracts: &dyn ContractProvider,
+    ) -> (HirDesign, Vec<CompileError>) {
+        self.resolve_partial_with(Some(contracts))
+    }
+
+    fn resolve_partial_with(
+        mut self,
+        contracts: Option<&dyn ContractProvider>,
+    ) -> (HirDesign, Vec<CompileError>) {
         let mut errors = self.build_index_collect();
-        if let Err(mut resolve_errors) =
-            HirNameResolver::new_collect(&mut self.design).resolve_collect()
+        let signatures = self.note_import_contracts(contracts);
+        if let Err(mut resolve_errors) = HirNameResolver::new_collect(&mut self.design)
+            .with_import_signatures(signatures)
+            .resolve_collect()
         {
             errors.append(&mut resolve_errors);
         }
         (self.design, errors)
+    }
+
+    /// Signatures name resolution accepts for each import. Only the named symbol's
+    /// contract is read, so an unused declaration in that module is not a dependency.
+    fn note_import_contracts(
+        &self,
+        contracts: Option<&dyn ContractProvider>,
+    ) -> BTreeMap<Vec<String>, String> {
+        let mut signatures = BTreeMap::new();
+        let Some(contracts) = contracts else {
+            return signatures;
+        };
+        for import in self.design.imports() {
+            let Some(name) = import.path.last() else {
+                continue;
+            };
+            let Some(module) = import.path.get(..import.path.len().saturating_sub(1)) else {
+                continue;
+            };
+            if module.is_empty() {
+                continue;
+            }
+            let Some(contract) = contracts.imported_declaration(module, name) else {
+                continue;
+            };
+            if contract.key.name != name.as_str() || contract.signature_source.is_empty() {
+                continue;
+            }
+            signatures.insert(import.path.clone(), contract.signature_source);
+        }
+        signatures
     }
 
     fn build_index(&mut self) -> Result<(), CompileError> {

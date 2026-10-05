@@ -1102,6 +1102,7 @@ syl_query|variant|syl_query::navigation::DocumentSymbolKind::Parameter|unit
 syl_query|variant|syl_query::navigation::DocumentSymbolKind::Type|unit
 syl_query|variant|syl_query::navigation::DocumentSymbolKind::Variable|unit
 syl_query|variant|syl_query::navigation::DocumentSymbolKind::View|unit
+syl_sema|enum|syl_sema::contract::SymbolKind|public
 syl_sema|enum|syl_sema::diagnostic::error::CapabilityError|public
 syl_sema|enum|syl_sema::diagnostic::error::CompileError|public
 syl_sema|enum|syl_sema::diagnostic::error::ConstEvalError|public
@@ -1159,10 +1160,32 @@ syl_sema|enum|syl_sema::tir::type_system::TirGenericArg|public
 syl_sema|enum|syl_sema::tir::type_system::TirType|public
 syl_sema|enum|syl_sema::tir::type_system::const_term::TirConstResolution|public
 syl_sema|enum|syl_sema::tir::type_system::const_term::TirConstTerm|public
+syl_sema|field|syl_sema::contract::DeclarationContract::doc|Option<String>
+syl_sema|field|syl_sema::contract::DeclarationContract::key|SymbolKey
+syl_sema|field|syl_sema::contract::DeclarationContract::signature_source|String
+syl_sema|field|syl_sema::contract::DeclarationContract::use_path|Option<Vec<String>>
+syl_sema|field|syl_sema::contract::HardwareContract::has_storage|bool
+syl_sema|field|syl_sema::contract::HardwareContract::key|SymbolKey
+syl_sema|field|syl_sema::contract::SymbolKey::discriminator|u32
+syl_sema|field|syl_sema::contract::SymbolKey::kind|SymbolKind
+syl_sema|field|syl_sema::contract::SymbolKey::module|Vec<String>
+syl_sema|field|syl_sema::contract::SymbolKey::name|String
 syl_sema|field|syl_sema::tir::type_system::id::TypeId::0|usize
+syl_sema|function|syl_sema::contract::declaration_contracts|fn(module: &[String], text: &str, file: &syl_syntax::AstFile) -> Vec<DeclarationContract>
+syl_sema|function|syl_sema::contract::file_symbol_keys|fn(module: &[String], file: &syl_syntax::AstFile) -> Vec<SymbolKey>
+syl_sema|function|syl_sema::contract::hardware_contract_for|fn(module: &[String], file: &syl_syntax::AstFile) -> Vec<HardwareContract>
+syl_sema|function|syl_sema::contract::item_has_storage|fn(item: &syl_syntax::Item) -> bool
+syl_sema|function|syl_sema::contract::signature_stub_file|fn(file: &syl_syntax::AstFile) -> syl_syntax::AstFile
+syl_sema|function|syl_sema::pipeline::aggregate::aggregate_owner_hir|fn(owners: &[(crate::contract::SymbolKey, &crate::pipeline::output::HirAnalysisOutput)]) -> crate::pipeline::output::HirAnalysisOutput
+syl_sema|function|syl_sema::pipeline::aggregate::aggregate_owner_tir|fn(owners: &[(crate::contract::SymbolKey, &crate::pipeline::output::StageOutput<crate::pipeline::analysis::TirAnalysis>)]) -> crate::pipeline::output::StageOutput<crate::pipeline::analysis::TirAnalysis>
 syl_sema|method|syl_sema::binding::actual_formal::ActualFormalBinder::is_used|fn(self: &Self, name: &str) -> bool
 syl_sema|method|syl_sema::binding::actual_formal::ActualFormalBinder::new|fn(formals: &[F]) -> Self
 syl_sema|method|syl_sema::binding::actual_formal::ActualFormalBinder::resolve|fn(self: &mut Self, callable_name: &str, arg_name: Option<&str>, arg_span: Span) -> Result<&F, CompileError>
+syl_sema|method|syl_sema::contract::DeclarationContract::new|fn(key: SymbolKey, doc: Option<String>, signature_source: impl Into<String>, use_path: Option<Vec<String>>) -> Self
+syl_sema|method|syl_sema::contract::HardwareContract::new|fn(key: SymbolKey, has_storage: bool) -> Self
+syl_sema|method|syl_sema::contract::SymbolKey::new|fn(module: Vec<String>, kind: SymbolKind, name: impl Into<String>, discriminator: u32) -> Self
+syl_sema|method|syl_sema::contract::SymbolKind::from_tag|fn(tag: u8) -> Self
+syl_sema|method|syl_sema::contract::SymbolKind::tag|fn(self: Self) -> u8
 syl_sema|method|syl_sema::diagnostic::error::CapabilityError::code|fn(self: &Self) -> &str
 syl_sema|method|syl_sema::diagnostic::error::CompileError::diagnostic|fn(self: &Self) -> &Diagnostic
 syl_sema|method|syl_sema::diagnostic::error::CompileError::driver_error_with_related|fn(kind: impl Into<LoweringError>, span: Span, related: impl IntoIterator) -> Self
@@ -1249,6 +1272,7 @@ syl_sema|method|syl_sema::facts::types::TypeTable::ty|fn(self: &Self, id: HirFac
 syl_sema|method|syl_sema::hir::lower::HirResolver::new_sources|fn(sources: Vec<SemanticSourceFile<'files>>) -> Self
 syl_sema|method|syl_sema::hir::lower::HirResolver::new|fn(files: &[syl_syntax::AstFile]) -> Self
 syl_sema|method|syl_sema::hir::lower::HirResolver::resolve_collect|fn(self: Self) -> Result<HirDesign, Vec<CompileError>>
+syl_sema|method|syl_sema::hir::lower::HirResolver::resolve_partial_with_contracts|fn(self: Self, contracts: &dyn ContractProvider) -> (HirDesign, Vec<CompileError>)
 syl_sema|method|syl_sema::hir::lower::HirResolver::resolve_partial|fn(self: Self) -> (HirDesign, Vec<CompileError>)
 syl_sema|method|syl_sema::hir::lower::HirResolver::resolve|fn(self: Self) -> Result<HirDesign, CompileError>
 syl_sema|method|syl_sema::ir::const_mir::BasicBlock::stmts|fn(self: &Self) -> &[ConstStmt]
@@ -1407,6 +1431,7 @@ syl_sema|method|syl_sema::pipeline::session::SemanticSession::check|fn(self: &Se
 syl_sema|method|syl_sema::pipeline::session::SemanticSession::diagnostics|fn(self: &Self) -> Vec<Diagnostic>
 syl_sema|method|syl_sema::pipeline::session::SemanticSession::new_sources|fn(sources: Vec<SemanticSourceFile<'files>>) -> Self
 syl_sema|method|syl_sema::pipeline::session::SemanticSession::new|fn(files: &[AstFile]) -> Self
+syl_sema|method|syl_sema::pipeline::session::SemanticSession::resolve_hir_partial_with_contracts|fn(self: &Self, contracts: &dyn crate::ContractProvider) -> HirAnalysisOutput
 syl_sema|method|syl_sema::pipeline::session::SemanticSession::resolve_hir_partial|fn(self: &Self) -> HirAnalysisOutput
 syl_sema|method|syl_sema::pipeline::session::SemanticSession::resolve_hir|fn(self: &Self) -> Result<HirAnalysis, CompileError>
 syl_sema|method|syl_sema::query_support::completion::CompletionItem::kind|fn(self: &Self) -> CompletionKind
@@ -1549,6 +1574,9 @@ syl_sema|method|syl_sema::tir::type_system::table::TirTypeTable::intern|fn(self:
 syl_sema|method|syl_sema::tir::type_system::table::TirTypeTable::iter|fn(self: &Self) -> impl Iterator
 syl_sema|method|syl_sema::tir::type_system::table::TirTypeTable::new|fn() -> Self
 syl_sema|struct|syl_sema::binding::actual_formal::ActualFormalBinder|public
+syl_sema|struct|syl_sema::contract::DeclarationContract|public
+syl_sema|struct|syl_sema::contract::HardwareContract|public
+syl_sema|struct|syl_sema::contract::SymbolKey|public
 syl_sema|struct|syl_sema::diagnostic::model::SemanticDiagnostic|public
 syl_sema|struct|syl_sema::facts::capability::CapabilityFacts|public
 syl_sema|struct|syl_sema::facts::capability::CapabilityTable|public
@@ -1626,7 +1654,12 @@ syl_sema|struct|syl_sema::tir::design::TirDesign|public
 syl_sema|struct|syl_sema::tir::type_system::id::TypeId|public
 syl_sema|struct|syl_sema::tir::type_system::table::TirTypeTable|public
 syl_sema|trait_method|syl_sema::binding::actual_formal::FormalBinding::binding_name|fn(self: &Self) -> &str
+syl_sema|trait_method|syl_sema::contract::ContractProvider::declarations|fn(self: &Self, module: &[String]) -> Vec<DeclarationContract>
+syl_sema|trait_method|syl_sema::contract::ContractProvider::declaration|fn(self: &Self, key: &SymbolKey) -> Option<DeclarationContract>
+syl_sema|trait_method|syl_sema::contract::ContractProvider::hardware|fn(self: &Self, key: &SymbolKey) -> Option<HardwareContract>
+syl_sema|trait_method|syl_sema::contract::ContractProvider::imported_declaration|fn(self: &Self, module: &[String], name: &str) -> Option<DeclarationContract>
 syl_sema|trait|syl_sema::binding::actual_formal::FormalBinding|public
+syl_sema|trait|syl_sema::contract::ContractProvider|public
 syl_sema|use|ActualFormalBinder|named|source=actual_formal::ActualFormalBinder
 syl_sema|use|ActualFormalBinder|named|source=binding::ActualFormalBinder
 syl_sema|use|BackendConstraint|named|source=model::BackendConstraint
@@ -1670,6 +1703,8 @@ syl_sema|use|ConstFactKey|named|source=consts::ConstFactKey
 syl_sema|use|ConstFactKey|named|source=facts::ConstFactKey
 syl_sema|use|ConstFacts|named|source=consts::ConstFacts
 syl_sema|use|ConstFacts|named|source=facts::ConstFacts
+syl_sema|use|ContractProvider|named|source=contract::ContractProvider
+syl_sema|use|DeclarationContract|named|source=contract::DeclarationContract
 syl_sema|use|DefinitionInfo|named|source=analysis::DefinitionInfo
 syl_sema|use|DefinitionInfo|named|source=pipeline::DefinitionInfo
 syl_sema|use|DefinitionKind|named|source=facts::DefinitionKind
@@ -1684,6 +1719,7 @@ syl_sema|use|EirError|named|source=diagnostic::EirError
 syl_sema|use|EirError|named|source=error::EirError
 syl_sema|use|FormalBinding|named|source=actual_formal::FormalBinding
 syl_sema|use|FormalBinding|named|source=binding::FormalBinding
+syl_sema|use|HardwareContract|named|source=contract::HardwareContract
 syl_sema|use|HirAnalysisOutput|named|source=output::HirAnalysisOutput
 syl_sema|use|HirAnalysisOutput|named|source=pipeline::HirAnalysisOutput
 syl_sema|use|HirAnalysis|named|source=analysis::HirAnalysis
@@ -1812,6 +1848,8 @@ syl_sema|use|SummaryView|named|source=summary::opaque::SummaryView
 syl_sema|use|SummaryWordEncoding|named|source=model::SummaryWordEncoding
 syl_sema|use|SummaryWordEncoding|named|source=opaque::SummaryWordEncoding
 syl_sema|use|SummaryWordEncoding|named|source=summary::opaque::SummaryWordEncoding
+syl_sema|use|SymbolKey|named|source=contract::SymbolKey
+syl_sema|use|SymbolKind|named|source=contract::SymbolKind
 syl_sema|use|TirAnalysis|named|source=analysis::TirAnalysis
 syl_sema|use|TirAnalysis|named|source=pipeline::TirAnalysis
 syl_sema|use|TirConstTerm|named|source=const_term::TirConstTerm
@@ -1838,6 +1876,26 @@ syl_sema|use|ViewFieldSummary|named|source=facts::ViewFieldSummary
 syl_sema|use|ViewFieldSummary|named|source=protocol::ViewFieldSummary
 syl_sema|use|WordEncoding|named|source=facts::WordEncoding
 syl_sema|use|WordEncoding|named|source=layout::WordEncoding
+syl_sema|use|aggregate_owner_hir|named|source=aggregate::aggregate_owner_hir
+syl_sema|use|aggregate_owner_hir|named|source=pipeline::aggregate_owner_hir
+syl_sema|use|aggregate_owner_tir|named|source=aggregate::aggregate_owner_tir
+syl_sema|use|aggregate_owner_tir|named|source=pipeline::aggregate_owner_tir
+syl_sema|use|declaration_contracts|named|source=contract::declaration_contracts
+syl_sema|use|file_symbol_keys|named|source=contract::file_symbol_keys
+syl_sema|use|hardware_contract_for|named|source=contract::hardware_contract_for
+syl_sema|use|item_has_storage|named|source=contract::item_has_storage
+syl_sema|use|signature_stub_file|named|source=contract::signature_stub_file
+syl_sema|variant|syl_sema::contract::SymbolKind::Bundle|unit
+syl_sema|variant|syl_sema::contract::SymbolKind::Cell|unit
+syl_sema|variant|syl_sema::contract::SymbolKind::Const|unit
+syl_sema|variant|syl_sema::contract::SymbolKind::Enum|unit
+syl_sema|variant|syl_sema::contract::SymbolKind::Error|unit
+syl_sema|variant|syl_sema::contract::SymbolKind::ExternCell|unit
+syl_sema|variant|syl_sema::contract::SymbolKind::Fn|unit
+syl_sema|variant|syl_sema::contract::SymbolKind::Interface|unit
+syl_sema|variant|syl_sema::contract::SymbolKind::Map|unit
+syl_sema|variant|syl_sema::contract::SymbolKind::Struct|unit
+syl_sema|variant|syl_sema::contract::SymbolKind::Use|unit
 syl_sema|variant|syl_sema::diagnostic::error::CapabilityError::NotDrivable|{ target: String }
 syl_sema|variant|syl_sema::diagnostic::error::CapabilityError::NotReadable|{ target: String }
 syl_sema|variant|syl_sema::diagnostic::error::CapabilityError::SelectGuardRequiresBit|unit
@@ -2279,16 +2337,11 @@ syl_session|method|syl_session::snapshot::model::AnalysisSnapshot::hir_analysis|
 syl_session|method|syl_session::snapshot::model::AnalysisSnapshot::hir_diagnostics_with_token|fn(self: &Self, token: &CancellationToken) -> Result<&[Diagnostic], ProjectError>
 syl_session|method|syl_session::snapshot::model::AnalysisSnapshot::hwir_with_token|fn(self: &Self, token: &CancellationToken) -> Result<Option<&ParametricHwDesign>, ProjectError>
 syl_session|method|syl_session::snapshot::model::AnalysisSnapshot::hwir|fn(self: &Self) -> Option<&ParametricHwDesign>
-syl_session|method|syl_session::snapshot::model::AnalysisSnapshot::is_elaboration_cached|fn(self: &Self) -> bool
-syl_session|method|syl_session::snapshot::model::AnalysisSnapshot::is_hir_cached|fn(self: &Self) -> bool
-syl_session|method|syl_session::snapshot::model::AnalysisSnapshot::is_tir_cached|fn(self: &Self) -> bool
 syl_session|method|syl_session::snapshot::model::AnalysisSnapshot::opaque_summaries_with_token|fn(self: &Self, token: &CancellationToken) -> Result<Option<&OpaqueSummaryTable>, ProjectError>
 syl_session|method|syl_session::snapshot::model::AnalysisSnapshot::opaque_summaries|fn(self: &Self) -> Option<&OpaqueSummaryTable>
 syl_session|method|syl_session::snapshot::model::AnalysisSnapshot::package_name_for_uri|fn(self: &Self, uri: &DocumentUri) -> Option<&str>
-syl_session|method|syl_session::snapshot::model::AnalysisSnapshot::package_semantic_cache|fn(self: &Self, package_name: &str) -> Option<PackageSemanticCacheProbe>
 syl_session|method|syl_session::snapshot::model::AnalysisSnapshot::package_stage_diagnostics_with_token|fn(self: &Self, uri: &DocumentUri, token: &CancellationToken) -> Result<Option<PackageStageDiagnostics>, ProjectError>
 syl_session|method|syl_session::snapshot::model::AnalysisSnapshot::semantic_diagnostics|fn(self: &Self) -> Vec<Diagnostic>
-syl_session|method|syl_session::snapshot::model::AnalysisSnapshot::shares_semantic_cache_with|fn(self: &Self, other: &Self) -> bool
 syl_session|method|syl_session::snapshot::model::AnalysisSnapshot::source_map|fn(self: &Self) -> &SourceMap
 syl_session|method|syl_session::snapshot::model::AnalysisSnapshot::tir_analysis_for_uri_with_token|fn(self: &Self, uri: &DocumentUri, token: &CancellationToken) -> Result<Option<&TirAnalysis>, ProjectError>
 syl_session|method|syl_session::snapshot::model::AnalysisSnapshot::tir_analysis_with_token|fn(self: &Self, token: &CancellationToken) -> Result<Option<&TirAnalysis>, ProjectError>
@@ -2314,10 +2367,6 @@ syl_session|method|syl_session::snapshot::model::ResolvedSnapshot::files|fn(self
 syl_session|method|syl_session::snapshot::model::ResolvedSnapshot::new|fn(source_map: SourceMap, files: Vec<AnalysisFile>, diagnostics: Vec<Diagnostic>, workspace: WorkspaceSnapshot) -> Self
 syl_session|method|syl_session::snapshot::model::ResolvedSnapshot::source_map|fn(self: &Self) -> &SourceMap
 syl_session|method|syl_session::snapshot::model::ResolvedSnapshot::workspace|fn(self: &Self) -> &WorkspaceSnapshot
-syl_session|method|syl_session::snapshot::package_semantics::PackageSemanticCacheProbe::is_elaboration_cached|fn(self: &Self) -> bool
-syl_session|method|syl_session::snapshot::package_semantics::PackageSemanticCacheProbe::is_hir_cached|fn(self: &Self) -> bool
-syl_session|method|syl_session::snapshot::package_semantics::PackageSemanticCacheProbe::is_tir_cached|fn(self: &Self) -> bool
-syl_session|method|syl_session::snapshot::package_semantics::PackageSemanticCacheProbe::shares_with|fn(self: &Self, other: &Self) -> bool
 syl_session|method|syl_session::snapshot::workspace::PackageGraph::package_for_uri|fn(self: &Self, uri: &DocumentUri) -> Option<&WorkspacePackage>
 syl_session|method|syl_session::snapshot::workspace::PackageGraph::packages|fn(self: &Self) -> &[WorkspacePackage]
 syl_session|method|syl_session::snapshot::workspace::PackageImport::path|fn(self: &Self) -> &[String]
@@ -2353,7 +2402,6 @@ syl_session|struct|syl_session::snapshot::model::AnalysisSnapshot|public
 syl_session|struct|syl_session::snapshot::model::PackageStageDiagnostics|public
 syl_session|struct|syl_session::snapshot::model::Project|public
 syl_session|struct|syl_session::snapshot::model::ResolvedSnapshot|public
-syl_session|struct|syl_session::snapshot::package_semantics::PackageSemanticCacheProbe|public
 syl_session|struct|syl_session::snapshot::workspace::PackageGraph|public
 syl_session|struct|syl_session::snapshot::workspace::PackageImport|public
 syl_session|struct|syl_session::snapshot::workspace::SourceDatabaseDocument|public
@@ -2384,8 +2432,6 @@ syl_session|use|PackageGraph|named|source=snapshot::PackageGraph
 syl_session|use|PackageGraph|named|source=workspace::PackageGraph
 syl_session|use|PackageImport|named|source=snapshot::PackageImport
 syl_session|use|PackageImport|named|source=workspace::PackageImport
-syl_session|use|PackageSemanticCacheProbe|named|source=package_semantics::PackageSemanticCacheProbe
-syl_session|use|PackageSemanticCacheProbe|named|source=snapshot::PackageSemanticCacheProbe
 syl_session|use|PackageStageDiagnostics|named|source=model::PackageStageDiagnostics
 syl_session|use|PackageStageDiagnostics|named|source=snapshot::PackageStageDiagnostics
 syl_session|use|ProjectConfigBuilder|named|source=config::ProjectConfigBuilder

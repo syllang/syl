@@ -1,69 +1,17 @@
-use super::SemanticCache;
+//! Package identity for a snapshot. Memos live in the Salsa database, not here.
+
 use crate::DocumentUri;
-use std::{collections::BTreeMap, sync::Arc};
-
-/// Probe interface for checking what analysis stages have cached results.
-///
-/// This is the public face of the semantic cache. Callers can check whether
-/// HIR, TIR, or elaboration results are already cached without triggering a
-/// re-analysis.
-///
-/// **Typical workflow:**
-/// 1. Get a `PackageSemanticCacheProbe` from the snapshot.
-/// 2. Check `is_hir_cached()` / `is_tir_cached()`.
-/// 3. If cached, skip analysis; otherwise, run the stage.
-#[derive(Clone, Debug)]
-#[non_exhaustive]
-pub struct PackageSemanticCacheProbe {
-    semantic: Arc<SemanticCache>,
-}
-
-impl PackageSemanticCacheProbe {
-    pub(crate) fn new(semantic: Arc<SemanticCache>) -> Self {
-        Self { semantic }
-    }
-
-    /// Returns `true` if HIR analysis results are already cached.
-    pub fn is_hir_cached(&self) -> bool {
-        self.semantic.is_hir_cached()
-    }
-
-    /// Returns `true` if TIR (type-inferred) analysis results are already cached.
-    pub fn is_tir_cached(&self) -> bool {
-        self.semantic.is_tir_cached()
-    }
-
-    pub fn is_elaboration_cached(&self) -> bool {
-        self.semantic.is_elaboration_cached()
-    }
-
-    pub fn shares_with(&self, other: &Self) -> bool {
-        Arc::ptr_eq(&self.semantic, &other.semantic)
-    }
-}
+use crate::snapshot::workspace::{WorkspacePackage, WorkspaceSnapshot};
+use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Clone, Debug)]
 pub(crate) struct PackageSemanticShard {
     name: String,
     documents: Vec<DocumentUri>,
-    semantic: Arc<SemanticCache>,
+    closure: Vec<DocumentUri>,
 }
 
 impl PackageSemanticShard {
-    pub(crate) fn new(
-        name: String,
-        mut documents: Vec<DocumentUri>,
-        semantic: Arc<SemanticCache>,
-    ) -> Self {
-        documents.sort();
-        documents.dedup();
-        Self {
-            name,
-            documents,
-            semantic,
-        }
-    }
-
     pub(crate) fn name(&self) -> &str {
         &self.name
     }
@@ -72,16 +20,12 @@ impl PackageSemanticShard {
         &self.documents
     }
 
+    pub(crate) fn closure(&self) -> &[DocumentUri] {
+        &self.closure
+    }
+
     pub(crate) fn contains_document(&self, uri: &DocumentUri) -> bool {
-        self.documents.contains(uri)
-    }
-
-    pub(crate) fn semantic(&self) -> &Arc<SemanticCache> {
-        &self.semantic
-    }
-
-    pub(crate) fn probe(&self) -> PackageSemanticCacheProbe {
-        PackageSemanticCacheProbe::new(Arc::clone(&self.semantic))
+        self.documents.iter().any(|document| document == uri)
     }
 }
 
@@ -91,16 +35,27 @@ pub(crate) struct PackageSemanticIndex {
 }
 
 impl PackageSemanticIndex {
-    pub(crate) fn new(shards: Vec<PackageSemanticShard>) -> Self {
-        let shards = shards
-            .into_iter()
-            .map(|shard| (shard.name.clone(), shard))
+    pub(crate) fn from_workspace(workspace: &WorkspaceSnapshot) -> Self {
+        let shards = workspace
+            .package_graph()
+            .packages()
+            .iter()
+            .map(|package| {
+                let closure = closure_documents(workspace, package);
+                let mut documents = package.documents().to_vec();
+                documents.sort();
+                documents.dedup();
+                (
+                    package.name().to_string(),
+                    PackageSemanticShard {
+                        name: package.name().to_string(),
+                        documents,
+                        closure,
+                    },
+                )
+            })
             .collect();
         Self { shards }
-    }
-
-    pub(crate) fn entry(&self, package_name: &str) -> Option<&PackageSemanticShard> {
-        self.shards.get(package_name)
     }
 
     pub(crate) fn entry_for_uri(&self, uri: &DocumentUri) -> Option<&PackageSemanticShard> {
@@ -113,10 +68,6 @@ impl PackageSemanticIndex {
         self.entry_for_uri(uri).map(PackageSemanticShard::name)
     }
 
-    pub(crate) fn probe(&self, package_name: &str) -> Option<PackageSemanticCacheProbe> {
-        self.entry(package_name).map(PackageSemanticShard::probe)
-    }
-
     pub(crate) fn len(&self) -> usize {
         self.shards.len()
     }
@@ -124,4 +75,44 @@ impl PackageSemanticIndex {
     pub(crate) fn shards(&self) -> impl Iterator<Item = &PackageSemanticShard> {
         self.shards.values()
     }
+}
+
+fn closure_documents(
+    workspace: &WorkspaceSnapshot,
+    package: &WorkspacePackage,
+) -> Vec<DocumentUri> {
+    let mut documents = BTreeSet::new();
+    let mut visited = BTreeSet::new();
+    collect_closure(workspace, package, &mut visited, &mut documents);
+    documents.into_iter().collect()
+}
+
+fn collect_closure(
+    workspace: &WorkspaceSnapshot,
+    package: &WorkspacePackage,
+    visited: &mut BTreeSet<Vec<String>>,
+    documents: &mut BTreeSet<DocumentUri>,
+) {
+    if !visited.insert(package.path().to_vec()) {
+        return;
+    }
+    documents.extend(package.documents().iter().cloned());
+    for import in package.imports() {
+        let Some(imported) = package_for_import(workspace, import.path()) else {
+            continue;
+        };
+        collect_closure(workspace, imported, visited, documents);
+    }
+}
+
+fn package_for_import<'a>(
+    workspace: &'a WorkspaceSnapshot,
+    path: &[String],
+) -> Option<&'a WorkspacePackage> {
+    let package_path = path.get(..path.len().checked_sub(1)?)?;
+    workspace
+        .package_graph()
+        .packages()
+        .iter()
+        .find(|package| package.path() == package_path)
 }
