@@ -2,6 +2,7 @@
 //!
 //! Counters come from the test-only execution log. They are not a public cache probe.
 
+mod elab_tests;
 mod owner_tests;
 
 use std::fs;
@@ -450,6 +451,9 @@ fn ide_queries_do_not_elaborate() {
     let workspace_elaboration = snapshot.execution_count("workspace_elaboration(");
     let unit_elaboration = snapshot.execution_count("unit_elaboration(");
     let hardware = snapshot.execution_count("hardware_contract(");
+    let const_mir = snapshot.execution_count("owner_const_mir(");
+    let map_ir = snapshot.execution_count("owner_map_ir(");
+    let module_eir = snapshot.execution_count("owner_module_eir(");
     let token = CancellationToken::new();
     snapshot
         .hir_analysis_for_uri_with_token(&uri, &token)
@@ -494,7 +498,13 @@ fn ide_queries_do_not_elaborate() {
         unit_elaboration
     );
     assert_eq!(snapshot.execution_count("hardware_contract("), hardware);
+    assert_eq!(snapshot.execution_count("owner_const_mir("), const_mir);
+    assert_eq!(snapshot.execution_count("owner_map_ir("), map_ir);
+    assert_eq!(snapshot.execution_count("owner_module_eir("), module_eir);
     assert_eq!(hardware, 0);
+    assert_eq!(const_mir, 0);
+    assert_eq!(map_ir, 0);
+    assert_eq!(module_eir, 0);
     let cli = snapshot.semantic_diagnostics();
     assert!(
         cli.iter().any(|diagnostic| {
@@ -504,6 +514,9 @@ fn ide_queries_do_not_elaborate() {
     );
     assert!(snapshot.execution_count("workspace_elaboration(") > workspace_elaboration);
     assert!(snapshot.execution_count("hardware_contract(") > hardware);
+    assert!(snapshot.execution_count("owner_const_mir(") > const_mir);
+    assert!(snapshot.execution_count("owner_map_ir(") > map_ir);
+    assert!(snapshot.execution_count("owner_module_eir(") > module_eir);
 }
 
 #[test]

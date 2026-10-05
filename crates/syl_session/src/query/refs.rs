@@ -12,6 +12,101 @@ use syl_syntax::{
     NamedExpr, Param, Pattern, PortDecl, RegReset, ResultBinding, SelectArm, Stmt, TypeExpr,
 };
 
+/// Cell names expanded with `inplace`. A `place`d cell is a separate module.
+pub(super) fn inplace_callees(item: &Item) -> BTreeSet<String> {
+    let mut names = BTreeSet::new();
+    match item {
+        Item::Cell(item) => inplace_block(&item.body, &mut names),
+        Item::Fn(item) => inplace_block(&item.body, &mut names),
+        _ => {}
+    }
+    names
+}
+
+fn inplace_block(block: &Block, names: &mut BTreeSet<String>) {
+    for stmt in &block.stmts {
+        inplace_stmt(stmt, names);
+    }
+    if let Some(tail) = &block.tail {
+        inplace_expr(tail, names);
+    }
+}
+
+fn inplace_stmt(stmt: &Stmt, names: &mut BTreeSet<String>) {
+    match stmt {
+        Stmt::Const { value, .. } => inplace_expr(value, names),
+        Stmt::Let { value, .. } | Stmt::Var { value, .. } | Stmt::Signal { value, .. } => {
+            if let Some(value) = value {
+                inplace_expr(value, names);
+            }
+        }
+        Stmt::Assign { value, .. } | Stmt::Drive { value, .. } | Stmt::Next { value, .. } => {
+            inplace_expr(value, names);
+        }
+        Stmt::While { cond, body, .. } => {
+            inplace_expr(cond, names);
+            inplace_block(body, names);
+        }
+        Stmt::ElabIf {
+            cond,
+            then_block,
+            else_block,
+            ..
+        } => {
+            inplace_expr(cond, names);
+            inplace_block(then_block, names);
+            if let Some(else_block) = else_block {
+                inplace_block(else_block, names);
+            }
+        }
+        Stmt::ElabFor { range, body, .. } => {
+            inplace_expr(range, names);
+            inplace_block(body, names);
+        }
+        Stmt::Expr(expr) => inplace_expr(expr, names),
+        Stmt::Return(Some(value), _) => inplace_expr(value, names),
+        _ => {}
+    }
+}
+
+fn inplace_expr(expr: &Expr, names: &mut BTreeSet<String>) {
+    match expr {
+        Expr::Place {
+            callee, inplace, ..
+        } if *inplace => {
+            if let Some(name) = callee_root(callee) {
+                names.insert(name.to_string());
+            }
+            inplace_expr(callee, names);
+        }
+        Expr::Unary { expr, .. } | Expr::Group(expr, _) => inplace_expr(expr, names),
+        Expr::Binary { left, right, .. } => {
+            inplace_expr(left, names);
+            inplace_expr(right, names);
+        }
+        Expr::Call { callee, args, .. } | Expr::Place { callee, args, .. } => {
+            inplace_expr(callee, names);
+            for arg in args {
+                inplace_expr(&arg.value, names);
+            }
+        }
+        Expr::Block(block) => inplace_block(block, names),
+        Expr::For { range, body, .. } => {
+            inplace_expr(range, names);
+            inplace_block(body, names);
+        }
+        _ => {}
+    }
+}
+
+fn callee_root(expr: &Expr) -> Option<&str> {
+    match expr {
+        Expr::Ident(name, _) => Some(name),
+        Expr::Field { base, .. } | Expr::GenericApp { callee: base, .. } => callee_root(base),
+        _ => None,
+    }
+}
+
 /// Names a signature stub refers to. Generic parameters and undirected value
 /// parameters are skipped. Fields, results, variants, and directed ports do
 /// not hide a const used in a type.

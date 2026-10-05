@@ -580,3 +580,10 @@ impl HwLoweringPass {
 fn first_error(mut errors: Vec<CompileError>) -> CompileError {
     errors.remove(0)
 }
+
+#[path = "module_stage.rs"]
+mod module_stage;
+
+pub(crate) use module_stage::{
+    const_mir_stage, diagnostics_output, map_ir_stage, module_eir_stage, output_from_modules,
+};

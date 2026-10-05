@@ -16,6 +16,20 @@ impl EirRawDesign {
     pub(crate) fn modules(&self) -> &[EirModule] {
         &self.modules
     }
+
+    /// Drops stub modules that were only present so this owner could resolve them.
+    pub(crate) fn retain_named(mut self, name: &str) -> Self {
+        self.modules.retain(|module| module.name() == name);
+        self
+    }
+
+    pub(crate) fn concat(parts: impl IntoIterator<Item = Self>) -> Self {
+        let mut modules = Vec::new();
+        for part in parts {
+            modules.extend(part.modules);
+        }
+        Self { modules }
+    }
 }
 
 #[non_exhaustive]

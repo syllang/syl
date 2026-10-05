@@ -175,7 +175,7 @@ impl EirRead {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 #[non_exhaustive]
 pub(crate) struct EirReset {
     condition: EirExpr,

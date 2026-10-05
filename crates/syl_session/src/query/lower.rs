@@ -114,6 +114,119 @@ pub(super) fn demanded_files(
     owner: SymbolId,
     owner_item: &Item,
 ) -> Vec<(Vec<String>, AstFile)> {
+    let walk = walk_demand(db, revision, owner_file, owner);
+    assemble_files(db, revision, owner, owner_item, &walk)
+}
+
+/// Full bodies elaboration must read, beyond this owner's own item.
+///
+/// Functions and maps are evaluated while lowering this owner. An `inplace`
+/// cell is expanded into this module, so its body is an input. A `place`d
+/// cell is a separate module and is not a companion.
+pub(super) fn elab_companions<'db>(
+    db: &'db dyn SylDb,
+    revision: RevisionInput,
+    owner_file: SourceFileInput,
+    owner: SymbolId<'db>,
+    owner_item: &Item,
+) -> Vec<SymbolId<'db>> {
+    let mut walk = walk_demand(db, revision, owner_file, owner);
+    let mut inplace = super::refs::inplace_callees(owner_item);
+    // Const evaluation and inplace expansion read callee bodies, including
+    // calls nested inside those bodies. `place`d cells stay out: their bodies
+    // are a different module.
+    expand_companion_bodies(db, revision, owner, &mut walk, &mut inplace);
+    let mut companions = Vec::new();
+    let mut seen_ids = BTreeSet::new();
+    for (module, name) in &walk.seen {
+        let Some(file) = file_for_module(db, revision, module) else {
+            continue;
+        };
+        for hit in named_hits(db, file, name) {
+            let include = match hit.key.kind {
+                SymbolKind::Fn | SymbolKind::Map => true,
+                SymbolKind::Cell | SymbolKind::ExternCell => inplace.contains(&hit.key.name),
+                _ => false,
+            };
+            if !include || same_symbol(db, owner, &hit.key) {
+                continue;
+            }
+            let id = (
+                hit.key.module.join("."),
+                hit.key.kind.tag(),
+                hit.key.name.clone(),
+                hit.key.discriminator,
+            );
+            if seen_ids.insert(id) {
+                companions.push(intern_symbol(db, &hit.key));
+            }
+        }
+    }
+    companions
+}
+
+/// Pull full bodies of functions, maps, and `inplace` cells the owner expands.
+fn expand_companion_bodies(
+    db: &dyn SylDb,
+    revision: RevisionInput,
+    owner: SymbolId,
+    walk: &mut DemandWalk,
+    inplace: &mut BTreeSet<String>,
+) {
+    let mut scanned = BTreeSet::new();
+    loop {
+        let mut scanned_new = false;
+        let names = walk.seen.iter().cloned().collect::<Vec<_>>();
+        for (module, name) in names {
+            let Some(file) = file_for_module(db, revision, &module) else {
+                continue;
+            };
+            for hit in named_hits(db, file, &name) {
+                let reads_body = match hit.key.kind {
+                    SymbolKind::Fn | SymbolKind::Map => true,
+                    SymbolKind::Cell | SymbolKind::ExternCell => inplace.contains(&hit.key.name),
+                    _ => false,
+                };
+                if !reads_body {
+                    continue;
+                }
+                let mark = (
+                    hit.key.module.join("."),
+                    hit.key.kind.tag(),
+                    hit.key.name.clone(),
+                    hit.key.discriminator,
+                );
+                if !scanned.insert(mark) || same_symbol(db, owner, &hit.key) {
+                    continue;
+                }
+                scanned_new = true;
+                let symbol = intern_symbol(db, &hit.key);
+                let text = super::owner_item_text(db, file, symbol);
+                for ident in identifiers(text) {
+                    demand_if_present(db, revision, walk, &module, &ident);
+                }
+                let item = super::owner_item(db, file, symbol);
+                for callee in super::refs::inplace_callees(&item.0) {
+                    inplace.insert(callee.clone());
+                    demand_if_present(db, revision, walk, &module, &callee);
+                }
+            }
+        }
+        while let Some((module, name)) = walk.queue.pop() {
+            expand_demand(db, revision, walk, &module, &name);
+        }
+        if !scanned_new {
+            break;
+        }
+    }
+}
+
+fn walk_demand(
+    db: &dyn SylDb,
+    revision: RevisionInput,
+    owner_file: SourceFileInput,
+    owner: SymbolId,
+) -> DemandWalk {
     let owner_module = owner.module(db).clone();
     let mut walk = DemandWalk {
         seen: BTreeSet::new(),
@@ -135,7 +248,7 @@ pub(super) fn demanded_files(
             break;
         }
     }
-    assemble_files(db, revision, owner, owner_item, &walk)
+    walk
 }
 
 /// A signature name can be brought into the owner by a `use` whose leaf is not

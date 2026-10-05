@@ -12,7 +12,7 @@ use std::sync::Arc;
 #[cfg(test)]
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use syl_elab::{ElaborationOutput, HardwareCompiler};
+use syl_elab::ElaborationOutput;
 use syl_sema::{
     DeclarationContract, HardwareContract, HirAnalysisOutput, OpaqueSummaryTable, SemanticSession,
     StageOutput, SymbolKey, SymbolKind, TirAnalysis, declaration_contracts, file_symbol_keys,
@@ -22,6 +22,7 @@ use syl_span::SourceId;
 use syl_syntax::parser::SourceParser;
 use syl_syntax::{AstFile, ErrorItem, Item};
 
+mod elab;
 mod facade;
 mod lower;
 mod refs;
@@ -504,7 +505,6 @@ fn unit_elaboration<'db>(
 ) -> Option<Arc<ElaborationOutput>> {
     observe_cancel(db);
     let files = lower::files_for_uris(db, revision, unit.closure_uris(db));
-    lower::record_hardware(db, revision, &files);
     let hir = unit_hir(db, revision, unit);
     if !hir.diagnostics().is_empty() {
         return None;
@@ -513,11 +513,7 @@ fn unit_elaboration<'db>(
     if !tir.diagnostics().is_empty() {
         return None;
     }
-    let tir = tir.partial_stage()?;
-    let output = HardwareCompiler::with_opaque_summaries(revision.opaque(db).clone())
-        .output_for_tir_with_token(tir, &request_cancelled);
-    unwind_if_request_cancelled(db);
-    Some(Arc::new(output))
+    elab::design_output(db, revision, &files)
 }
 
 #[salsa::tracked(returns(ref), no_eq)]
@@ -526,7 +522,6 @@ fn workspace_elaboration(
     revision: RevisionInput,
 ) -> Option<Arc<ElaborationOutput>> {
     observe_cancel(db);
-    lower::record_hardware(db, revision, revision.files(db));
     let hir = workspace_hir(db, revision);
     if !hir.diagnostics().is_empty() {
         return None;
@@ -535,11 +530,7 @@ fn workspace_elaboration(
     if !tir.diagnostics().is_empty() {
         return None;
     }
-    let tir = tir.partial_stage()?;
-    let output = HardwareCompiler::with_opaque_summaries(revision.opaque(db).clone())
-        .output_for_tir_with_token(tir, &request_cancelled);
-    unwind_if_request_cancelled(db);
-    Some(Arc::new(output))
+    elab::design_output(db, revision, revision.files(db))
 }
 
 #[salsa::tracked(returns(ref))]

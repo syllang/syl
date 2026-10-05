@@ -1,5 +1,5 @@
 use super::{EirBound, EirExpr, EirOrigin, EirPlace, EirReset, EirSignalActivity};
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 #[non_exhaustive]
 pub(crate) struct EirModule {
     doc: Option<String>,
@@ -78,7 +78,7 @@ enum EirModuleKind {
     Extern,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 #[non_exhaustive]
 pub(crate) struct EirParam {
     doc: Option<String>,
@@ -113,7 +113,7 @@ impl EirParam {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 #[non_exhaustive]
 pub(crate) struct EirPort {
     doc: Option<String>,
@@ -177,7 +177,7 @@ pub(crate) enum EirDirection {
     Out,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 #[non_exhaustive]
 pub(crate) enum EirItem {
     StaticParam {
@@ -240,7 +240,7 @@ pub(crate) enum EirItem {
     },
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 #[non_exhaustive]
 pub(crate) struct EirCellExpansion {
     callable: String,
@@ -274,7 +274,7 @@ impl EirCellExpansion {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 #[non_exhaustive]
 pub(crate) struct EirInstance {
     module: String,
@@ -330,7 +330,7 @@ impl EirInstance {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 #[non_exhaustive]
 pub(crate) struct EirParamBind {
     name: String,
@@ -354,7 +354,7 @@ impl EirParamBind {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 #[non_exhaustive]
 pub(crate) struct EirConnection {
     formal: String,
