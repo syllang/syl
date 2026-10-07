@@ -6,6 +6,7 @@ mod cancel_tests;
 mod cycle_tests;
 mod elab_tests;
 mod owner_tests;
+mod perf_tests;
 
 use std::fs;
 use std::path::PathBuf;
