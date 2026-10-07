@@ -26,7 +26,7 @@ WP0 did not leave a checked-in baseline. The caps used for the cutover check, an
 - cold MVP load, diagnostics, HWIR, and SystemVerilog emit: p50 ≤ 31000 µs, p95 ≤ 42000 µs
 - four live MVP snapshots kept at once: `VmRSS` and `VmHWM` ≤ 40000 KB
 
-The shipping tree meets both. That tree is `415ddb1` plus the same-key cancellation lock and the const-cycle guard.
+The shipping tree meets both. That tree is the module split (`e63394a`) plus the const-cycle guard and the same-key cancellation lock.
 
 | measurement | n | p50 µs | p95 µs |
 | --- | ---: | ---: | ---: |
@@ -43,9 +43,9 @@ On that tree a body edit and a signature edit each ran `owner_module_eir` once a
 
 ## WP3 split
 
-`fdb782c` keeps Const MIR, Map IR, EIR, driver facts, and DRC in one elaboration query. `415ddb1` splits Const MIR, Map IR, and one module's EIR into their own queries. Driver facts, DRC, and HWIR stay one design aggregate. The comparison copied this harness into throwaway worktrees and did not commit it there.
+`f918f2c` keeps Const MIR, Map IR, EIR, driver facts, and DRC in one elaboration query. `e63394a` splits Const MIR, Map IR, and one module's EIR into their own queries. Driver facts, DRC, and HWIR stay one design aggregate. The comparison copied this harness into throwaway worktrees and did not commit it there. Those commits were reworded after the run; the measured trees are the same.
 
-| measurement | fdb782c p50 / p95 | 415ddb1 p50 / p95 |
+| measurement | monolithic p50 / p95 | module split p50 / p95 |
 | --- | --- | --- |
 | cold pair µs | 274 / 970 | 351 / 1066 |
 | repeated IDE µs | 0 / 1 | 0 / 1 |
