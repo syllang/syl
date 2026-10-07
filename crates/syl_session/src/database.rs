@@ -192,6 +192,7 @@ impl AnalysisDatabase {
             .publish(&specs, &self.opaque_summaries, live_count);
         Ok(AnalysisSnapshot::from_query(
             self.query.generation(),
+            self.query.inflight(),
             crate::query::LiveGuard::enter(&self.live),
             resolved,
         ))

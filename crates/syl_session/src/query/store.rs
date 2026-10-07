@@ -4,7 +4,7 @@
 
 use std::collections::BTreeMap;
 use std::fmt;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 
 use salsa::Setter;
 use syl_sema::OpaqueSummaryTable;
@@ -137,6 +137,9 @@ impl Generation {
 
 pub(crate) struct QueryStore {
     current: Arc<Mutex<Generation>>,
+    /// Held for the whole query. Publish takes the write side, so two queries
+    /// can share one Salsa database and a publish waits until they finish.
+    inflight: Arc<RwLock<()>>,
 }
 
 impl fmt::Debug for QueryStore {
@@ -149,11 +152,16 @@ impl QueryStore {
     pub(crate) fn new() -> Self {
         Self {
             current: Arc::new(Mutex::new(Generation::new())),
+            inflight: Arc::new(RwLock::new(())),
         }
     }
 
     pub(crate) fn generation(&self) -> Arc<Mutex<Generation>> {
         Arc::clone(&self.current)
+    }
+
+    pub(crate) fn inflight(&self) -> Arc<RwLock<()>> {
+        Arc::clone(&self.inflight)
     }
 
     pub(crate) fn publish(
@@ -162,6 +170,10 @@ impl QueryStore {
         opaque: &OpaqueSummaryTable,
         _live: usize,
     ) {
+        let _inflight = self
+            .inflight
+            .write()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         let mut current = lock(&self.current);
         if current.inputs_changed(specs, opaque) {
             current.install(specs, opaque);

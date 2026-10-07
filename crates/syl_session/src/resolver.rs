@@ -95,6 +95,7 @@ where
         let live = Arc::new(AtomicUsize::new(0));
         Ok(Project::new(AnalysisSnapshot::from_query(
             query.generation(),
+            query.inflight(),
             crate::query::LiveGuard::enter(&live),
             resolved,
         )))

@@ -22,11 +22,20 @@ use syl_span::SourceId;
 use syl_syntax::parser::SourceParser;
 use syl_syntax::{AstFile, ErrorItem, Item};
 
+#[cfg(test)]
+mod cycle_probe;
 mod elab;
 mod facade;
 mod lower;
+#[cfg(test)]
+mod pause;
 mod refs;
 mod store;
+
+#[cfg(test)]
+pub(crate) use cycle_probe::run as probe_query_cycle;
+#[cfg(test)]
+pub(crate) use pause::QueryGate;
 
 pub(crate) use store::{Generation, QueryStore};
 
@@ -522,6 +531,13 @@ fn workspace_elaboration(
     revision: RevisionInput,
 ) -> Option<Arc<ElaborationOutput>> {
     observe_cancel(db);
+    #[cfg(test)]
+    {
+        // The pause holds this query's claim. Cancellation is checked again
+        // after the pause so a cancelled owner drops the claim without storing.
+        pause::wait_if_armed();
+        unwind_if_request_cancelled(db);
+    }
     let hir = workspace_hir(db, revision);
     if !hir.diagnostics().is_empty() {
         return None;

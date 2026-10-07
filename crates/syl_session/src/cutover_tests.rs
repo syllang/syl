@@ -2,6 +2,8 @@
 //!
 //! Counters come from the test-only execution log. They are not a public cache probe.
 
+mod cancel_tests;
+mod cycle_tests;
 mod elab_tests;
 mod owner_tests;
 

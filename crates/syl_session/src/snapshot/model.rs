@@ -10,7 +10,7 @@ use std::{
     collections::BTreeSet,
     fmt,
     path::{Path, PathBuf},
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, RwLock},
 };
 use syl_hw::ParametricHwDesign;
 use syl_sema::{HirAnalysis, OpaqueSummaryTable, TirAnalysis};
@@ -35,7 +35,7 @@ use super::workspace::WorkspaceSnapshot;
 ///  ResolvedSnapshot   (source_map, files, parse diagnostics, workspace)
 ///         |
 ///         v
-///  AnalysisSnapshot::from_query(generation, live, resolved)
+///  AnalysisSnapshot::from_query(generation, inflight, live, resolved)
 /// ```
 #[derive(Debug)]
 #[non_exhaustive]
@@ -232,6 +232,8 @@ pub struct AnalysisSnapshot {
     // Host memo database. Later publishes advance it in place. `frozen_specs`
     // are this snapshot's inputs when that database has moved on.
     generation: Arc<Mutex<Generation>>,
+    /// Shared with the host. Queries hold a read guard so publish waits.
+    inflight: Arc<RwLock<()>>,
     frozen_specs: Vec<FileSpec>,
     frozen_opaque: OpaqueSummaryTable,
     owned: Arc<Mutex<Option<Arc<Mutex<Generation>>>>>,
@@ -301,6 +303,7 @@ impl PackageStageDiagnostics {
 impl AnalysisSnapshot {
     pub(crate) fn from_query(
         generation: Arc<Mutex<Generation>>,
+        inflight: Arc<RwLock<()>>,
         live: LiveGuard,
         parts: ResolvedSnapshot,
     ) -> Self {
@@ -321,6 +324,7 @@ impl AnalysisSnapshot {
         };
         Self {
             generation,
+            inflight,
             frozen_specs,
             frozen_opaque,
             owned: Arc::new(Mutex::new(None)),
@@ -574,15 +578,28 @@ impl AnalysisSnapshot {
     }
 
     fn with_db<T>(&self, body: impl FnOnce(&SylDatabase, RevisionInput) -> T) -> T {
-        {
+        let _inflight = self
+            .inflight
+            .read()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let host = {
             let generation = lock_generation(&self.generation);
-            if !generation.inputs_changed(&self.frozen_specs, &self.frozen_opaque) {
-                return body(&generation.db, generation.revision);
+            if generation.inputs_changed(&self.frozen_specs, &self.frozen_opaque) {
+                None
+            } else {
+                Some((generation.db.clone(), generation.revision))
             }
+        };
+        if let Some((db, revision)) = host {
+            return body(&db, revision);
         }
+        drop(_inflight);
         let owned = self.frozen_generation();
-        let generation = lock_generation(&owned);
-        body(&generation.db, generation.revision)
+        let (db, revision) = {
+            let generation = lock_generation(&owned);
+            (generation.db.clone(), generation.revision)
+        };
+        body(&db, revision)
     }
 
     fn frozen_generation(&self) -> Arc<Mutex<Generation>> {
@@ -599,6 +616,11 @@ impl AnalysisSnapshot {
         )));
         *slot = Some(Arc::clone(&created));
         created
+    }
+
+    #[cfg(test)]
+    pub(crate) fn probe_query_cycle(&self) {
+        self.with_db(|db, revision| crate::query::probe_query_cycle(db, revision));
     }
 
     #[cfg(test)]
