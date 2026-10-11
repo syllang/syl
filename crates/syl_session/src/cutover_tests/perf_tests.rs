@@ -8,7 +8,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
-use crate::{AnalysisHost, AnalysisSnapshot, CancellationToken, ProjectConfig};
+use crate::{AnalysisHost, AnalysisSnapshot, CancellationToken, DocumentUri, ProjectConfig};
 
 use super::TempTree;
 
@@ -20,6 +20,7 @@ const IDE_SAMPLES: usize = 21;
 fn query_cutover_measurements() {
     let cold = samples(SAMPLES, cold_pair);
     let ide = repeat_ide();
+    let stages = stage_samples();
     let body = edit_samples(false);
     let signature = edit_samples(true);
     let mvp = samples(SAMPLES, cold_mvp);
@@ -30,9 +31,9 @@ fn query_cutover_measurements() {
         "release"
     };
     println!(
-        "SYL_PERF_SESSION {{\"profile\":\"{profile}\",\"cold_pair_us\":{},\"repeat_ide_us\":{},\"body_edit_us\":{},\"signature_edit_us\":{},\"cold_mvp_hwir_us\":{},\"body_edit_modules\":{},\"body_edit_designs\":{},\"signature_edit_modules\":{},\"signature_edit_designs\":{},\"four_snapshot_rss_kb\":{},\"four_snapshot_hwm_kb\":{}}}",
+        "SYL_PERF_SESSION {{\"profile\":\"{profile}\",\"cold_pair_us\":{},\"repeat_ide_us\":{},\"body_edit_us\":{},\"signature_edit_us\":{},\"cold_mvp_hwir_us\":{},\"body_edit_modules\":{},\"body_edit_designs\":{},\"signature_edit_modules\":{},\"signature_edit_designs\":{},\"four_snapshot_rss_kb\":{},\"four_snapshot_hwm_kb\":{},\"stages\":{}}}",
         stats(&cold),
-        stats(&ide),
+        stats(&ide.times),
         stats(&body.times),
         stats(&signature.times),
         stats(&mvp),
@@ -42,6 +43,7 @@ fn query_cutover_measurements() {
         signature.design_delta,
         memory.0,
         memory.1,
+        stages,
     );
 }
 
@@ -66,17 +68,15 @@ fn cold_mvp() -> Duration {
     started.elapsed()
 }
 
-fn repeat_ide() -> Vec<u128> {
+struct IdeSample {
+    times: Vec<u128>,
+}
+
+fn repeat_ide() -> IdeSample {
     let fixture = Pair::new();
     let snapshot = fixture.snapshot();
-    let uri = snapshot
-        .files()
-        .iter()
-        .find(|file| file.module_path() == ["app".to_string()])
-        .expect("app module")
-        .uri()
-        .clone();
-    let mut samples = Vec::with_capacity(IDE_SAMPLES);
+    let uri = app_uri(&snapshot);
+    let mut times = Vec::with_capacity(IDE_SAMPLES);
     for _ in 0..IDE_SAMPLES {
         let started = Instant::now();
         let token = CancellationToken::new();
@@ -93,9 +93,80 @@ fn repeat_ide() -> Vec<u128> {
             .expect("diagnostics")
             .expect("stages");
         let _ = snapshot.file_by_uri(&uri).expect("symbols").ast();
-        samples.push(elapsed_us(started.elapsed()));
+        times.push(elapsed_us(started.elapsed()));
     }
-    samples
+    IdeSample { times }
+}
+
+fn stage_samples() -> String {
+    let mut parse_us = Vec::with_capacity(SAMPLES);
+    let mut hir_us = Vec::with_capacity(SAMPLES);
+    let mut tir_us = Vec::with_capacity(SAMPLES);
+    let mut elab_us = Vec::with_capacity(SAMPLES);
+    let mut counts = StageCounts::default();
+    for _ in 0..SAMPLES {
+        let fixture = Pair::new();
+        let snapshot = fixture.snapshot();
+        let uri = app_uri(&snapshot);
+        let token = CancellationToken::new();
+        let parsed_before = snapshot.execution_count("parsed_file(");
+        let hir_before = snapshot.execution_count("owner_hir(");
+        let tir_before = snapshot.execution_count("owner_tir(");
+        let elab_before = snapshot.execution_count("workspace_elaboration(");
+        let started = Instant::now();
+        let _ = snapshot.file_by_uri(&uri).expect("file").ast();
+        parse_us.push(elapsed_us(started.elapsed()));
+        let started = Instant::now();
+        snapshot
+            .hir_analysis_for_uri_with_token(&uri, &token)
+            .expect("hir")
+            .expect("hir stage");
+        hir_us.push(elapsed_us(started.elapsed()));
+        let started = Instant::now();
+        snapshot
+            .tir_analysis_for_uri_with_token(&uri, &token)
+            .expect("tir")
+            .expect("tir stage");
+        tir_us.push(elapsed_us(started.elapsed()));
+        let started = Instant::now();
+        let _ = snapshot.hwir();
+        elab_us.push(elapsed_us(started.elapsed()));
+        counts = StageCounts {
+            parse: snapshot.execution_count("parsed_file(") - parsed_before,
+            hir: snapshot.execution_count("owner_hir(") - hir_before,
+            tir: snapshot.execution_count("owner_tir(") - tir_before,
+            elab: snapshot.execution_count("workspace_elaboration(") - elab_before,
+        };
+    }
+    format!(
+        "{{\"n\":{SAMPLES},\"parse_us\":{},\"hir_us\":{},\"tir_us\":{},\"elab_us\":{},\"parse_count\":{},\"hir_count\":{},\"tir_count\":{},\"elab_count\":{}}}",
+        stats(&parse_us),
+        stats(&hir_us),
+        stats(&tir_us),
+        stats(&elab_us),
+        counts.parse,
+        counts.hir,
+        counts.tir,
+        counts.elab,
+    )
+}
+
+#[derive(Default)]
+struct StageCounts {
+    parse: usize,
+    hir: usize,
+    tir: usize,
+    elab: usize,
+}
+
+fn app_uri(snapshot: &AnalysisSnapshot) -> DocumentUri {
+    snapshot
+        .files()
+        .iter()
+        .find(|file| file.module_path() == ["app".to_string()])
+        .expect("app module")
+        .uri()
+        .clone()
 }
 
 struct EditSample {
