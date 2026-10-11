@@ -4,7 +4,11 @@ These are the language and query rules the cutover tests lock. A Salsa query cyc
 
 The session evidence is `language_recursion_returns_deterministic_diagnostics` and `salsa_query_cycle_is_not_a_language_diagnostic` in `crates/syl_session/src/cutover_tests/cycle_tests.rs`. The same snapshot produces the report twice. Spans are `source:start..end` byte offsets in that snapshot's source map.
 
-Diagnostic order is the stage order parse, HIR, TIR, then semantic. Inside one stage the messages stay in the order that stage emits them. A case with one diagnostic in a stage has no second message to sort. `semantic` diagnostics for more than one package shard are the concatenation of each shard, so one import error can appear once per shard. The missing-import fixture shows that order: HIR reports `E_MIDDLE_UNKNOWN_IMPORT` and then `E_MIDDLE_UNRESOLVED_NAME`; TIR reports the unresolved name; each semantic shard repeats the import error and then the unresolved name.
+The stage order in this document is the display order of the cycle report in `report` (`crates/syl_session/src/cutover_tests/cycle_tests.rs`). That report asks parse, HIR, TIR, and semantic separately and prints those sections in that order. Inside one section the messages stay in the order that call returns them. A section with one diagnostic has no second message to sort.
+
+That display order is not a merged production diagnostic list. `semantic_diagnostics` returns the first non-empty stage among HIR, TIR, and elaboration (`diagnostics_from` in `crates/syl_session/src/query/lower.rs`). It does not concatenate those stages, and it does not include parse diagnostics. When more than one package shard is present, the semantic section is the concatenation of those per-shard results, so one import error can appear once per shard. The IDE grouped diagnostic API keeps parse, HIR, and TIR in separate stage groups and leaves the elaboration group empty. It does not build one combined list.
+
+The missing-import fixture shows the report: HIR reports `E_MIDDLE_UNKNOWN_IMPORT` and then `E_MIDDLE_UNRESOLVED_NAME`; TIR reports the unresolved name; each semantic shard repeats that HIR pair and does not append the TIR diagnostic again.
 
 ## Import and name graph
 
