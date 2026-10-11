@@ -2,7 +2,9 @@
 
 These are the language and query rules the cutover tests lock. A Salsa query cycle is not a Syl diagnostic. Salsa cycle recovery does not decide a language result.
 
-The session evidence is `language_recursion_returns_deterministic_diagnostics` and `salsa_query_cycle_is_not_a_language_diagnostic` in `crates/syl_session/src/cutover_tests/cycle_tests.rs`. The same snapshot produces the report twice. Spans are `source:start..end` byte offsets in that snapshot's source map. `semantic` diagnostics for more than one package shard are the concatenation of each shard, so one import error can appear once per shard.
+The session evidence is `language_recursion_returns_deterministic_diagnostics` and `salsa_query_cycle_is_not_a_language_diagnostic` in `crates/syl_session/src/cutover_tests/cycle_tests.rs`. The same snapshot produces the report twice. Spans are `source:start..end` byte offsets in that snapshot's source map.
+
+Diagnostic order is the stage order parse, HIR, TIR, then semantic. Inside one stage the messages stay in the order that stage emits them. A case with one diagnostic in a stage has no second message to sort. `semantic` diagnostics for more than one package shard are the concatenation of each shard, so one import error can appear once per shard. The missing-import fixture shows that order: HIR reports `E_MIDDLE_UNKNOWN_IMPORT` and then `E_MIDDLE_UNRESOLVED_NAME`; TIR reports the unresolved name; each semantic shard repeats the import error and then the unresolved name.
 
 ## Import and name graph
 

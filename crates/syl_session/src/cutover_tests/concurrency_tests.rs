@@ -1,7 +1,8 @@
-//! Two revisions of one file answer at the same time, and dropping one
-//! snapshot does not cancel the other revision's query.
+//! Two revisions of one file run a tracked query at the same time, and
+//! dropping one snapshot does not cancel the other revision's query.
 
-use std::sync::{Arc, Barrier};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 
 use crate::query::QueryGate;
@@ -12,14 +13,42 @@ use super::TempTree;
 #[test]
 fn overlapping_revisions_read_their_own_text_and_spans() {
     let (older, newer, _host, _root) = two_revisions();
-    let start = Arc::new(Barrier::new(2));
-    let end = Arc::new(Barrier::new(2));
-    let older_start = Arc::clone(&start);
-    let older_end = Arc::clone(&end);
-    let newer_start = Arc::clone(&start);
-    let newer_end = Arc::clone(&end);
-    let older_thread = thread::spawn(move || observe(&older, &older_start, &older_end));
-    let newer_thread = thread::spawn(move || observe(&newer, &newer_start, &newer_end));
+    let older_gate = QueryGate::new();
+    let newer_gate = QueryGate::new();
+    let _release_older = ReleaseOnDrop(Arc::clone(&older_gate));
+    let _release_newer = ReleaseOnDrop(Arc::clone(&newer_gate));
+    let older_done = Arc::new(AtomicBool::new(false));
+    let newer_done = Arc::new(AtomicBool::new(false));
+    let older_armed = Arc::clone(&older_gate);
+    let newer_armed = Arc::clone(&newer_gate);
+    let older_flag = Arc::clone(&older_done);
+    let newer_flag = Arc::clone(&newer_done);
+    let older_thread = thread::spawn(move || {
+        older_armed.arm();
+        let seen = elaborate_and_observe(&older);
+        older_flag.store(true, Ordering::Release);
+        seen
+    });
+    let newer_thread = thread::spawn(move || {
+        newer_armed.arm();
+        let seen = elaborate_and_observe(&newer);
+        newer_flag.store(true, Ordering::Release);
+        seen
+    });
+
+    older_gate.entered();
+    newer_gate.entered();
+    assert!(
+        !older_done.load(Ordering::Acquire),
+        "S0 left workspace_elaboration before S1 entered it"
+    );
+    assert!(
+        !newer_done.load(Ordering::Acquire),
+        "S1 left workspace_elaboration before both queries were inside it"
+    );
+    older_gate.release();
+    newer_gate.release();
+
     let older_seen = older_thread.join().expect("older revision");
     let newer_seen = newer_thread.join().expect("newer revision");
 
@@ -106,23 +135,23 @@ struct Seen {
     diagnostics: usize,
 }
 
-fn observe(snapshot: &AnalysisSnapshot, start: &Barrier, end: &Barrier) -> Seen {
-    start.wait();
+fn elaborate_and_observe(snapshot: &AnalysisSnapshot) -> Seen {
+    let modules = module_count(snapshot).expect("workspace_elaboration");
+    assert!(modules >= 1, "the tracked elaboration query must finish");
     let uri = snapshot.files()[0].uri().clone();
     let text = snapshot
         .input_text(uri.as_str())
         .expect("input text")
         .to_string();
-    let source_id = snapshot.file_by_uri(&uri).expect("file").source_id();
+    let file = snapshot.file_by_uri(&uri).expect("file");
     let map_text = snapshot
         .source_map()
-        .file(source_id)
+        .file(file.source_id())
         .expect("span file")
         .text()
         .to_string();
-    let _ast = snapshot.file_by_uri(&uri).expect("ast").ast();
+    let _ast = file.ast();
     let diagnostics = snapshot.semantic_diagnostics().len();
-    end.wait();
     Seen {
         text,
         map_text,
