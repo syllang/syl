@@ -35,6 +35,8 @@ These `syl_session` tests are the evidence for the decisions the preflight was m
 - Input refresh: `disk_import_root_config_std_and_documents_refresh_inputs` in the same file.
 - Same-key cancellation: `cancelled_owner_does_not_store_while_same_key_waiter_finishes` in `crates/syl_session/src/cutover_tests/cancel_tests.rs`. Cancelling one in-flight `workspace_elaboration` does not store a success memo; the other request for that key finishes, and a later retry reuses the complete result.
 - Request isolation without sharing one key claim: `cancelling_one_request_does_not_stop_another` in `crates/syl_session/src/cutover_tests.rs`.
+- Overlapping revisions: `overlapping_revisions_read_their_own_text_and_spans` in `crates/syl_session/src/cutover_tests/concurrency_tests.rs`. S0 and S1 read between the same pair of barriers. Each thread's input text and source-map text stay on its own revision.
+- Snapshot drop: `dropping_the_old_snapshot_does_not_cancel_the_new_revision` and `dropping_the_new_snapshot_does_not_cancel_the_old_revision` in the same file. One snapshot is dropped while the other revision is inside `workspace_elaboration`. The running revision still returns its own hardware result.
 - Language recursion versus a query cycle: `language_recursion_returns_deterministic_diagnostics` and `salsa_query_cycle_is_not_a_language_diagnostic` in `crates/syl_session/src/cutover_tests/cycle_tests.rs`. The probe query calls itself and panics with `dependency graph cycle`.
 
 `AnalysisSnapshot` is `Send`. The Salsa database's thread-local state is `Send` and not `Sync`, so the generation stays behind a `Mutex`. Two queries share one database by cloning it out of that mutex and holding an in-flight read guard. Publish takes the write guard first.

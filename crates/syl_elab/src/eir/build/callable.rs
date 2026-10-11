@@ -23,6 +23,8 @@ where
     pub(crate) program: &'a ElabProgram,
     /// Const item defs currently being inlined. A repeat is a language cycle.
     pub(super) const_cycle: RefCell<BTreeSet<DefId>>,
+    /// Map defs currently being inlined. A repeat is a language cycle.
+    pub(super) map_cycle: RefCell<BTreeSet<DefId>>,
 }
 
 #[non_exhaustive]
@@ -71,6 +73,7 @@ where
             map_ir,
             program,
             const_cycle: RefCell::new(BTreeSet::new()),
+            map_cycle: RefCell::new(BTreeSet::new()),
         }
     }
 

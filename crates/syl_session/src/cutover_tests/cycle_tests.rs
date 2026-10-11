@@ -95,6 +95,40 @@ fn cases() -> Vec<(&'static str, Vec<(&'static str, &'static str)>)> {
                 "fn burn(limit: nat) -> nat {\n    var i: nat = 0\n    while i < limit {\n        i = i + 1\n    }\n    return i\n}\nconst WIDTH: nat = burn(20000)\ncell Top(y: out UInt<WIDTH>) { y := 0 }\n",
             )],
         ),
+        (
+            "map call",
+            vec![(
+                "top.syl",
+                "map ping(x: Bit) -> Bit =\n    x\ncell Top(x: in Bit, y: out Bit) { y := ping(x) }\n",
+            )],
+        ),
+        (
+            "map recursion",
+            vec![(
+                "top.syl",
+                "map ping(x: Bit) -> Bit =\n    pong(x)\nmap pong(x: Bit) -> Bit =\n    ping(x)\ncell Top(x: in Bit, y: out Bit) { y := ping(x) }\n",
+            )],
+        ),
+        (
+            "missing imported name",
+            vec![
+                (
+                    "a.syl",
+                    "use b.missing\ncell Top(y: out Bit) { y := missing }\n",
+                ),
+                ("b.syl", "use a.Top\nfn beta() -> nat { return 2 }\n"),
+            ],
+        ),
+        (
+            "cross-module const name cycle",
+            vec![
+                (
+                    "a.syl",
+                    "use b.beta\nconst alpha: nat = beta\ncell Top(y: out UInt<alpha>) { y := 0 }\n",
+                ),
+                ("b.syl", "use a.alpha\nconst beta: nat = alpha\n"),
+            ],
+        ),
     ]
 }
 
@@ -117,8 +151,8 @@ port Top y unsupported(const cycle)
 enum discriminant cycle
 parse: none
 hir: none
-tir: E_MIDDLE_REQUIRES_NAT enum discriminant State.Idle requires nat expression
-semantic: E_MIDDLE_REQUIRES_NAT enum discriminant State.Idle requires nat expression
+tir: E_MIDDLE_REQUIRES_NAT enum discriminant State.Idle requires nat expression @0:24..28
+semantic: E_MIDDLE_REQUIRES_NAT enum discriminant State.Idle requires nat expression @0:24..28
 hwir_modules=0
 ---
 struct field cycle
@@ -152,6 +186,41 @@ tir: none
 semantic: none
 hwir_modules=1
 port Top y call(burn,20000)
+---
+map call
+parse: none
+hir: none
+tir: none
+semantic: none
+hwir_modules=1
+port Top x 1
+port Top y 1
+---
+map recursion
+parse: none
+hir: none
+tir: none
+semantic: E_MIDDLE_UNSUPPORTED_HW_VALUE_EXPR expression is not supported by hardware value lowering @0:110..122
+hwir_modules=0
+---
+missing imported name
+parse: none
+hir: E_MIDDLE_UNKNOWN_IMPORT unknown import b.missing at 0..13 @0:0..13
+hir: E_MIDDLE_UNRESOLVED_NAME unresolved name missing @0:42..49
+tir: E_MIDDLE_UNRESOLVED_NAME unresolved name missing @0:42..49
+semantic: E_MIDDLE_UNKNOWN_IMPORT unknown import b.missing at 0..13 @0:0..13
+semantic: E_MIDDLE_UNRESOLVED_NAME unresolved name missing @0:42..49
+semantic: E_MIDDLE_UNKNOWN_IMPORT unknown import b.missing at 0..13 @0:0..13
+semantic: E_MIDDLE_UNRESOLVED_NAME unresolved name missing @0:42..49
+hwir_modules=0
+---
+cross-module const name cycle
+parse: none
+hir: none
+tir: none
+semantic: none
+hwir_modules=1
+port Top y unsupported(const cycle)
 ---
 ";
 
@@ -210,9 +279,12 @@ fn push_diagnostics(lines: &mut Vec<String>, stage: &str, diagnostics: &[syl_spa
     }
     for diagnostic in diagnostics {
         lines.push(format!(
-            "{stage}: {} {}",
+            "{stage}: {} {} @{}:{}..{}",
             diagnostic.code.as_deref().unwrap_or("-"),
-            diagnostic.message
+            diagnostic.message,
+            diagnostic.span.source.get(),
+            diagnostic.span.start,
+            diagnostic.span.end
         ));
     }
 }
