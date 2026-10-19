@@ -7,6 +7,21 @@ workspace/package graph snapshots, and the private Salsa database that memoizes
 compiler queries. `WorkspacePackage` is a workspace-graph node keyed by module
 path. It is not a Rust package and it is not a semantic compilation unit.
 
+The session model follows explicit object ownership:
+
+- `AnalysisHost` is the application service and public command boundary.
+- `AnalysisDatabase` is the aggregate root for publication and query ownership.
+- `SessionState` owns mutable inputs, document overlays, opaque summaries, and
+  the revision clock.
+- `ProjectResolver` is the infrastructure/domain service for VFS and import
+  policy; `SnapshotAssembler` owns one snapshot build lifecycle.
+- `ModulePath` is the value object that constructs and validates module
+  identity; `PackageClosure` is the package-graph domain service for transitive
+  semantic dependencies.
+- `AnalysisSnapshot`, `WorkspaceSnapshot`, `PackageGraph`, and their child
+  records are immutable read models. Salsa tracked functions remain thin
+  framework adapters because Salsa requires their function shape.
+
 ## Inputs
 
 - workspace roots, project configuration, and VFS access

@@ -316,7 +316,7 @@ impl AnalysisSnapshot {
         files.sort_by(|lhs, rhs| lhs.uri().cmp(rhs.uri()));
         let package_semantics = PackageSemanticIndex::from_workspace(&workspace);
         let (frozen_specs, frozen_opaque) = {
-            let current = lock_generation(&generation);
+            let current = Self::lock_generation(&generation);
             (
                 current.file_specs(),
                 current.revision.opaque(&current.db).clone(),
@@ -368,8 +368,8 @@ impl AnalysisSnapshot {
         };
         Self::check_cancellation(token)?;
         let name = package.name().to_string();
-        let local = copied_uris(package.documents());
-        let closure = copied_uris(package.closure());
+        let local = Self::copied_uris(package.documents());
+        let closure = Self::copied_uris(package.closure());
         let source_ids = self.package_source_ids(package.documents());
         let parse = self
             .diagnostics()
@@ -411,7 +411,7 @@ impl AnalysisSnapshot {
         }
         self.package_semantics
             .shards()
-            .map(shard_inputs)
+            .map(Self::shard_inputs)
             .collect::<Vec<_>>()
             .into_iter()
             .flat_map(|(name, local, closure)| {
@@ -567,7 +567,7 @@ impl AnalysisSnapshot {
         let Some(package) = self.package_semantics.entry_for_uri(uri) else {
             return Ok(None);
         };
-        let (name, local, closure) = shard_inputs(package);
+        let (name, local, closure) = Self::shard_inputs(package);
         let value = catch_query(token, || {
             self.with_db(|db, revision| {
                 let unit = make_unit(db, &name, local.clone(), closure.clone());
@@ -583,7 +583,7 @@ impl AnalysisSnapshot {
             .read()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
         let host = {
-            let generation = lock_generation(&self.generation);
+            let generation = Self::lock_generation(&self.generation);
             if generation.inputs_changed(&self.frozen_specs, &self.frozen_opaque) {
                 None
             } else {
@@ -596,7 +596,7 @@ impl AnalysisSnapshot {
         drop(_inflight);
         let owned = self.frozen_generation();
         let (db, revision) = {
-            let generation = lock_generation(&owned);
+            let generation = Self::lock_generation(&owned);
             (generation.db.clone(), generation.revision)
         };
         body(&db, revision)
@@ -627,7 +627,7 @@ impl AnalysisSnapshot {
     pub(crate) fn execution_count(&self, needle: &str) -> usize {
         // The host database stays on this snapshot. Counts come from that
         // database even after a later publish moves its inputs.
-        let generation = lock_generation(&self.generation);
+        let generation = Self::lock_generation(&self.generation);
         generation.db.execution_count(needle)
     }
 
@@ -650,24 +650,23 @@ impl AnalysisSnapshot {
         }
         Ok(())
     }
-}
+    fn lock_generation(generation: &Mutex<Generation>) -> std::sync::MutexGuard<'_, Generation> {
+        generation
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
 
-fn lock_generation(generation: &Mutex<Generation>) -> std::sync::MutexGuard<'_, Generation> {
-    generation
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner())
-}
+    fn copied_uris(uris: &[DocumentUri]) -> Vec<String> {
+        uris.iter().map(|uri| uri.as_str().to_string()).collect()
+    }
 
-fn copied_uris(uris: &[DocumentUri]) -> Vec<String> {
-    uris.iter().map(|uri| uri.as_str().to_string()).collect()
-}
-
-fn shard_inputs(package: &PackageSemanticShard) -> (String, Vec<String>, Vec<String>) {
-    (
-        package.name().to_string(),
-        copied_uris(package.documents()),
-        copied_uris(package.closure()),
-    )
+    fn shard_inputs(package: &PackageSemanticShard) -> (String, Vec<String>, Vec<String>) {
+        (
+            package.name().to_string(),
+            Self::copied_uris(package.documents()),
+            Self::copied_uris(package.closure()),
+        )
+    }
 }
 
 /// Thin owned wrapper around an [`AnalysisSnapshot`] for tool-facing APIs.

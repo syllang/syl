@@ -1,14 +1,15 @@
 mod documents;
 mod revision;
+mod state;
 
 use crate::{
     AnalysisSnapshot, CancellationToken, DocumentUri, DocumentVersion, ProjectConfig, ProjectError,
-    ProjectResolver, SourceDocument, collector::SylFileCollector, query::QueryStore,
+    ProjectResolver, SourceDocument, query::QueryStore,
 };
-use documents::DocumentStore;
+use state::SessionState;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::AtomicUsize;
 use syl_sema::{OpaqueItemSummary, OpaqueSummaryTable};
 
 pub use revision::DatabaseRevision;
@@ -43,11 +44,8 @@ pub use revision::DatabaseRevision;
 #[derive(Debug)]
 #[non_exhaustive]
 pub struct AnalysisDatabase {
-    resolver: ProjectResolver,
-    documents: DocumentStore,
-    opaque_summaries: OpaqueSummaryTable,
+    state: SessionState,
     query: QueryStore,
-    revision: DatabaseRevision,
     live: Arc<AtomicUsize>,
 }
 
@@ -57,16 +55,17 @@ impl AnalysisDatabase {
     }
 
     pub fn with_config(config: ProjectConfig) -> Self {
-        Self::with_resolver(ProjectResolver::with_config(config))
+        Self::from_state(SessionState::with_config(config))
     }
 
     pub fn with_resolver(resolver: ProjectResolver) -> Self {
+        Self::from_state(SessionState::with_resolver(resolver))
+    }
+
+    fn from_state(state: SessionState) -> Self {
         Self {
-            resolver,
-            documents: DocumentStore::default(),
-            opaque_summaries: OpaqueSummaryTable::new(),
+            state,
             query: QueryStore::new(),
-            revision: DatabaseRevision::initial(),
             live: Arc::new(AtomicUsize::new(0)),
         }
     }
@@ -80,24 +79,16 @@ impl AnalysisDatabase {
         inputs: &[PathBuf],
         token: &CancellationToken,
     ) -> Result<AnalysisSnapshot, ProjectError> {
-        let mut roots = Vec::new();
-        {
-            let mut collector = SylFileCollector::new(&mut roots);
-            for input in inputs {
-                collector.collect(input)?;
-            }
-        }
-        self.set_roots(roots);
+        self.state.load_inputs(inputs)?;
         self.snapshot_with_token(token)
     }
 
     pub fn set_roots(&mut self, roots: Vec<PathBuf>) {
-        self.documents.set_roots(roots);
-        self.advance_revision();
+        self.state.set_roots(roots);
     }
 
     pub fn roots(&self) -> &[PathBuf] {
-        self.documents.roots()
+        self.state.roots()
     }
 
     pub fn open_document(
@@ -106,9 +97,7 @@ impl AnalysisDatabase {
         text: String,
         version: DocumentVersion,
     ) -> DocumentVersion {
-        self.documents.open_document(uri, text, version);
-        self.advance_revision();
-        version
+        self.state.open_document(uri, text, version)
     }
 
     pub fn update_document(
@@ -116,8 +105,7 @@ impl AnalysisDatabase {
         uri: &DocumentUri,
         text: String,
     ) -> Result<DocumentVersion, ProjectError> {
-        let version = self.documents.next_document_version(uri)?;
-        self.update_document_at_version(uri, text, version)
+        self.state.update_document(uri, text)
     }
 
     pub fn update_document_at_version(
@@ -126,43 +114,31 @@ impl AnalysisDatabase {
         text: String,
         version: DocumentVersion,
     ) -> Result<DocumentVersion, ProjectError> {
-        self.documents.update_document(uri, text, version)?;
-        self.advance_revision();
-        Ok(version)
+        self.state.update_document_at_version(uri, text, version)
     }
 
     pub fn close_document(&mut self, uri: &DocumentUri) -> Option<SourceDocument> {
-        let removed = self.documents.close_document(uri);
-        if removed.is_some() {
-            self.advance_revision();
-        }
-        removed
+        self.state.close_document(uri)
     }
 
     pub fn overlay(&self, uri: &DocumentUri) -> Option<&SourceDocument> {
-        self.documents.overlay(uri)
+        self.state.overlay(uri)
     }
 
     pub fn opaque_summaries(&self) -> &OpaqueSummaryTable {
-        &self.opaque_summaries
+        self.state.opaque_summaries()
     }
 
     pub fn set_opaque_summaries(&mut self, opaque_summaries: OpaqueSummaryTable) {
-        if self.opaque_summaries == opaque_summaries {
-            return;
-        }
-        self.opaque_summaries = opaque_summaries;
-        self.advance_revision();
+        self.state.set_opaque_summaries(opaque_summaries);
     }
 
     pub fn register_opaque_summary(&mut self, summary: OpaqueItemSummary) {
-        let mut opaque_summaries = self.opaque_summaries.clone();
-        opaque_summaries.register(summary);
-        self.set_opaque_summaries(opaque_summaries);
+        self.state.register_opaque_summary(summary);
     }
 
     pub fn revision(&self) -> DatabaseRevision {
-        self.revision
+        self.state.revision()
     }
 
     pub fn snapshot(&mut self) -> Result<AnalysisSnapshot, ProjectError> {
@@ -183,23 +159,15 @@ impl AnalysisDatabase {
         &mut self,
         token: &CancellationToken,
     ) -> Result<AnalysisSnapshot, ProjectError> {
-        let inputs = self.documents.snapshot_inputs();
-        let (roots, overlays) = inputs.into_resolver_inputs();
-        let resolved = self.resolver.snapshot(roots, overlays, token)?;
+        let resolved = self.state.resolve(token)?;
         let specs = resolved.file_specs();
-        let live_count = self.live.load(Ordering::SeqCst);
-        self.query
-            .publish(&specs, &self.opaque_summaries, live_count);
+        self.query.publish(&specs, self.state.opaque_summaries());
         Ok(AnalysisSnapshot::from_query(
             self.query.generation(),
             self.query.inflight(),
             crate::query::LiveGuard::enter(&self.live),
             resolved,
         ))
-    }
-
-    fn advance_revision(&mut self) {
-        self.revision = self.revision.next();
     }
 }
 

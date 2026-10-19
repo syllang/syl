@@ -41,7 +41,7 @@ impl PackageSemanticIndex {
             .packages()
             .iter()
             .map(|package| {
-                let closure = closure_documents(workspace, package);
+                let closure = PackageClosure::new(workspace).collect(package);
                 let mut documents = package.documents().to_vec();
                 documents.sort();
                 documents.dedup();
@@ -77,42 +77,49 @@ impl PackageSemanticIndex {
     }
 }
 
-fn closure_documents(
-    workspace: &WorkspaceSnapshot,
-    package: &WorkspacePackage,
-) -> Vec<DocumentUri> {
-    let mut documents = BTreeSet::new();
-    let mut visited = BTreeSet::new();
-    collect_closure(workspace, package, &mut visited, &mut documents);
-    documents.into_iter().collect()
-}
-
-fn collect_closure(
-    workspace: &WorkspaceSnapshot,
-    package: &WorkspacePackage,
-    visited: &mut BTreeSet<Vec<String>>,
-    documents: &mut BTreeSet<DocumentUri>,
-) {
-    if !visited.insert(package.path().to_vec()) {
-        return;
-    }
-    documents.extend(package.documents().iter().cloned());
-    for import in package.imports() {
-        let Some(imported) = package_for_import(workspace, import.path()) else {
-            continue;
-        };
-        collect_closure(workspace, imported, visited, documents);
-    }
-}
-
-fn package_for_import<'a>(
+/// Domain service for collecting a package's transitive source closure.
+///
+/// The visited set is an invariant of the operation: import cycles must be
+/// harmless and each document must occur once in the resulting read model.
+struct PackageClosure<'a> {
     workspace: &'a WorkspaceSnapshot,
-    path: &[String],
-) -> Option<&'a WorkspacePackage> {
-    let package_path = path.get(..path.len().checked_sub(1)?)?;
-    workspace
-        .package_graph()
-        .packages()
-        .iter()
-        .find(|package| package.path() == package_path)
+    visited: BTreeSet<Vec<String>>,
+    documents: BTreeSet<DocumentUri>,
+}
+
+impl<'a> PackageClosure<'a> {
+    fn new(workspace: &'a WorkspaceSnapshot) -> Self {
+        Self {
+            workspace,
+            visited: BTreeSet::new(),
+            documents: BTreeSet::new(),
+        }
+    }
+
+    fn collect(mut self, package: &WorkspacePackage) -> Vec<DocumentUri> {
+        self.visit(package);
+        self.documents.into_iter().collect()
+    }
+
+    fn visit(&mut self, package: &WorkspacePackage) {
+        if !self.visited.insert(package.path().to_vec()) {
+            return;
+        }
+        self.documents.extend(package.documents().iter().cloned());
+        let imports = package.imports().to_vec();
+        for import in imports {
+            if let Some(imported) = self.package_for_import(import.path()).cloned() {
+                self.visit(&imported);
+            }
+        }
+    }
+
+    fn package_for_import(&self, path: &[String]) -> Option<&WorkspacePackage> {
+        let package_path = path.get(..path.len().checked_sub(1)?)?;
+        self.workspace
+            .package_graph()
+            .packages()
+            .iter()
+            .find(|package| package.path() == package_path)
+    }
 }

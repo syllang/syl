@@ -164,12 +164,7 @@ impl QueryStore {
         Arc::clone(&self.inflight)
     }
 
-    pub(crate) fn publish(
-        &mut self,
-        specs: &[FileSpec],
-        opaque: &OpaqueSummaryTable,
-        _live: usize,
-    ) {
+    pub(crate) fn publish(&mut self, specs: &[FileSpec], opaque: &OpaqueSummaryTable) {
         let _inflight = self
             .inflight
             .write()
