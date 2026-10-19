@@ -30,6 +30,23 @@ pub enum TirConstResolution {
 }
 
 impl TirConstTerm {
+    pub(crate) fn remap_ids(
+        &self,
+        def_of: &impl Fn(DefId) -> Option<DefId>,
+        local_of: &impl Fn(LocalId) -> Option<LocalId>,
+    ) -> Self {
+        match self {
+            Self::Named { name, resolution } => Self::Named {
+                name: name.clone(),
+                resolution: resolution.and_then(|resolution| match resolution {
+                    TirConstResolution::Def(id) => def_of(id).map(TirConstResolution::Def),
+                    TirConstResolution::Local(id) => local_of(id).map(TirConstResolution::Local),
+                }),
+            },
+            other => other.clone(),
+        }
+    }
+
     pub fn label(&self) -> String {
         match self {
             Self::Unknown => "<unknown>".to_string(),

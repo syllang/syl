@@ -58,7 +58,7 @@ where
             map_env: &mut map_env,
             replacements: &replacements,
         });
-        self.map_expr(map.body(), &map_env)
+        self.inline_map(map_id, || self.map_expr(map.body(), &map_env))
     }
 
     pub(super) fn map_call_expr(
@@ -86,7 +86,7 @@ where
             map_env: &mut map_env,
             replacements: &replacements,
         });
-        self.map_expr(map.body(), &map_env)
+        self.inline_map(callee, || self.map_expr(map.body(), &map_env))
     }
 
     pub(super) fn map_extension_call_expr(
@@ -114,7 +114,7 @@ where
             map_env: &mut map_env,
             replacements: &replacements,
         });
-        self.map_expr(map.body(), &map_env)
+        self.inline_map(callee, || self.map_expr(map.body(), &map_env))
     }
 
     pub(super) fn map_callee_from_elab(
@@ -226,6 +226,18 @@ where
                 _ => return Vec::new(),
             }
         }
+    }
+
+    /// A map body that reaches its own def is not a value. The guard is on the
+    /// builder, so nested inlining sees the same set. A panic leaves the def
+    /// marked until the builder is dropped.
+    fn inline_map(&self, map_id: DefId, inline: impl FnOnce() -> EirExpr) -> EirExpr {
+        if !self.map_cycle.borrow_mut().insert(map_id) {
+            return EirExpr::unsupported("map cycle");
+        }
+        let value = inline();
+        self.map_cycle.borrow_mut().remove(&map_id);
+        value
     }
 
     fn map_expr(&self, expr: &MapExpr, env: &Env) -> EirExpr {

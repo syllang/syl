@@ -29,12 +29,6 @@ fn architecture_query_lsp_session_owns_workspace_and_package_scoped_cache_invali
     let initial_snapshot = host
         .snapshot()
         .expect("query/lsp combined package fixture must snapshot");
-    let initial_first = initial_snapshot
-        .package_semantic_cache("first")
-        .expect("first package shard must exist");
-    let initial_second = initial_snapshot
-        .package_semantic_cache("second")
-        .expect("second package shard must exist");
 
     host.update_document_at_version(
         &second_uri,
@@ -45,12 +39,10 @@ fn architecture_query_lsp_session_owns_workspace_and_package_scoped_cache_invali
     let updated = host
         .snapshot()
         .expect("query/lsp updated package fixture must snapshot");
-    let updated_first = updated
-        .package_semantic_cache("first")
-        .expect("first package shard must still exist");
-    let updated_second = updated
-        .package_semantic_cache("second")
-        .expect("second package shard must still exist");
+    assert!(source_text(&initial_snapshot, &second_uri).contains("y := 0"));
+    assert!(source_text(&updated, &second_uri).contains("y := 1"));
+    assert!(source_text(&initial_snapshot, &first_uri).contains("y := 1"));
+    assert!(source_text(&updated, &first_uri).contains("y := 1"));
     let updated_packages = updated.workspace().package_graph().packages();
     assert_eq!(updated_packages.len(), 2);
     assert!(
@@ -66,8 +58,6 @@ fn architecture_query_lsp_session_owns_workspace_and_package_scoped_cache_invali
         2,
         "workspace snapshot should stay session-owned and track live documents"
     );
-    assert!(initial_first.shares_with(&updated_first));
-    assert!(!initial_second.shares_with(&updated_second));
 }
 
 #[test]
@@ -91,12 +81,6 @@ fn architecture_query_lsp_navigation_uses_target_package_semantic_shard() {
     let initial_snapshot = host
         .snapshot()
         .expect("initial navigation fixture must snapshot");
-    let initial_alpha = initial_snapshot
-        .package_semantic_cache("alpha")
-        .expect("alpha initial shard must exist");
-    let initial_beta = initial_snapshot
-        .package_semantic_cache("beta")
-        .expect("beta initial shard must exist");
 
     host.update_document_at_version(
         &beta_uri,
@@ -107,15 +91,10 @@ fn architecture_query_lsp_navigation_uses_target_package_semantic_shard() {
     let updated = host
         .snapshot()
         .expect("updated navigation fixture must snapshot");
-    let updated_alpha = updated
-        .package_semantic_cache("alpha")
-        .expect("alpha updated shard must exist");
-    let updated_beta = updated
-        .package_semantic_cache("beta")
-        .expect("beta updated shard must exist");
-
-    assert!(initial_alpha.shares_with(&updated_alpha));
-    assert!(!initial_beta.shares_with(&updated_beta));
+    assert!(source_text(&initial_snapshot, &beta_uri).contains("y := 0"));
+    assert!(source_text(&updated, &beta_uri).contains("y := 1"));
+    assert!(source_text(&initial_snapshot, &alpha_uri).contains("y := x"));
+    assert!(source_text(&updated, &alpha_uri).contains("y := x"));
 
     let token = CancellationToken::new();
     let hover = updated
@@ -131,13 +110,6 @@ fn architecture_query_lsp_navigation_uses_target_package_semantic_shard() {
     assert!(hover.is_some());
     assert!(completions.items.iter().any(|item| item.label == "x"));
     assert!(definition.is_some());
-    assert!(updated_alpha.is_hir_cached());
-    assert!(updated_alpha.is_tir_cached());
-    assert!(!updated_beta.is_hir_cached());
-    assert!(!updated_beta.is_tir_cached());
-    assert!(!updated.is_hir_cached());
-    assert!(!updated.is_tir_cached());
-    assert!(!updated.is_elaboration_cached());
 }
 
 #[test]
@@ -225,7 +197,13 @@ fn architecture_query_lsp_grouped_diagnostics_and_partial_failure_stages_stay_di
     assert_eq!(grouped.packages().len(), 3);
     assert_document_has_stage(&grouped, &parse_uri, DiagnosticStage::Parse);
     assert_document_has_stage(&grouped, &tir_uri, DiagnosticStage::Tir);
-    assert_document_has_stage(&grouped, &elab_uri, DiagnosticStage::Elaboration);
+    assert_document_lacks_stage(&grouped, &elab_uri, DiagnosticStage::Elaboration);
+    assert!(
+        snapshot.semantic_diagnostics().iter().any(|diagnostic| {
+            diagnostic.code.as_deref() == Some("E_MIDDLE_DUPLICATE_HARDWARE_DRIVER")
+        }),
+        "CLI semantic diagnostics still report the vendor latch elaboration diagnostic"
+    );
 }
 
 #[test]
@@ -237,9 +215,6 @@ fn architecture_query_lsp_hover_and_completion_do_not_emit_and_respect_cancellat
     let snapshot = query_host
         .snapshot()
         .expect("hover fixture must snapshot cleanly");
-    let app_cache = snapshot
-        .package_semantic_cache("app")
-        .expect("app package shard must exist");
 
     let token = CancellationToken::new();
     let hover = snapshot
@@ -251,11 +226,6 @@ fn architecture_query_lsp_hover_and_completion_do_not_emit_and_respect_cancellat
 
     assert!(hover.is_some());
     assert!(!completions.items.is_empty());
-    assert!(app_cache.is_hir_cached());
-    assert!(app_cache.is_tir_cached());
-    assert!(!snapshot.is_hir_cached());
-    assert!(!snapshot.is_tir_cached());
-    assert!(!snapshot.is_elaboration_cached());
 
     let cancel_uri = DocumentUri::new("untitled:syl/app");
     let mut cancel_host = AnalysisHost::new();
@@ -267,10 +237,7 @@ fn architecture_query_lsp_hover_and_completion_do_not_emit_and_respect_cancellat
     let cancelled_snapshot = cancel_host
         .snapshot()
         .expect("cancellation fixture must snapshot cleanly");
-    let cancel_cache = cancelled_snapshot
-        .package_semantic_cache("app")
-        .expect("cancellation app shard must exist");
-    let _ = cancelled_snapshot
+    cancelled_snapshot
         .hir_analysis_for_uri_with_token(&cancel_uri, &CancellationToken::new())
         .expect("package HIR should build before cancellation");
     let cancelled = CancellationToken::new();
@@ -280,11 +247,9 @@ fn architecture_query_lsp_hover_and_completion_do_not_emit_and_respect_cancellat
         .expect_err("cancelled hover must stop before TIR/elaboration");
 
     assert_eq!(err, QueryError::Cancelled);
-    assert!(cancel_cache.is_hir_cached());
-    assert!(!cancel_cache.is_tir_cached());
-    assert!(!cancelled_snapshot.is_hir_cached());
-    assert!(!cancelled_snapshot.is_tir_cached());
-    assert!(!cancelled_snapshot.is_elaboration_cached());
+    cancelled_snapshot
+        .hir_analysis_for_uri_with_token(&cancel_uri, &cancelled)
+        .expect("a cached HIR hit still answers after the request is cancelled");
 }
 
 #[test]
@@ -310,6 +275,23 @@ fn architecture_query_lsp_lsp_adapter_stays_protocol_only() {
     }
 }
 
+fn assert_document_lacks_stage(
+    grouped: &syl_query::GroupedDiagnostics,
+    uri: &DocumentUri,
+    stage: DiagnosticStage,
+) {
+    let document = grouped
+        .packages()
+        .iter()
+        .flat_map(|package| package.documents().iter())
+        .find(|document| document.uri() == uri)
+        .unwrap_or_else(|| panic!("missing grouped diagnostics for {}", uri));
+    assert!(
+        document.stages().iter().all(|item| item.stage() != stage),
+        "IDE grouped diagnostics for {uri} must not include {stage:?}"
+    );
+}
+
 fn assert_document_has_stage(
     grouped: &syl_query::GroupedDiagnostics,
     uri: &DocumentUri,
@@ -327,6 +309,18 @@ fn assert_document_has_stage(
         uri,
         stage
     );
+}
+
+fn source_text(snapshot: &syl_session::AnalysisSnapshot, uri: &DocumentUri) -> String {
+    let file = snapshot
+        .file_by_uri(uri)
+        .unwrap_or_else(|| panic!("missing analysis file for {uri}"));
+    snapshot
+        .source_map()
+        .file(file.source_id())
+        .unwrap_or_else(|| panic!("missing source map entry for {uri}"))
+        .text()
+        .to_string()
 }
 
 fn source_position(source: &str, needle: &str) -> SourcePosition {

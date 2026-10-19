@@ -1,25 +1,21 @@
 use crate::{
     AnalysisSnapshot, CancellationToken, DocumentUri, Project, ProjectConfig, ProjectError,
     SourceDocument, collector::SylFileCollector, import_resolver::ImportResolver,
-    snapshot::AnalysisFile, snapshot::AnalysisFileInput, snapshot::PackageSemanticIndex,
-    snapshot::PackageSemanticShard, snapshot::ResolvedSnapshot, snapshot::SemanticCache,
-    snapshot::WorkspaceSnapshot, vfs::FsVfs,
+    query::QueryStore, snapshot::AnalysisFile, snapshot::AnalysisFileInput,
+    snapshot::ResolvedSnapshot, snapshot::WorkspaceSnapshot, vfs::FsVfs,
 };
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::sync::atomic::AtomicUsize;
 use syl_sema::OpaqueSummaryTable;
-use syl_span::{Diagnostic, SourceMap, Span};
+use syl_span::{Diagnostic, SourceId, SourceMap, Span};
 use syl_syntax::parser::SourceParser;
 use syl_syntax::{AstFile, Item};
 
-struct SnapshotBuildContext<'a> {
-    source_map: &'a mut SourceMap,
-    files: &'a mut Vec<AnalysisFile>,
-    diagnostics: &'a mut Vec<Diagnostic>,
-    queued: &'a mut VecDeque<PathBuf>,
-    overlay_imports: &'a OverlayImportIndex,
-}
+#[cfg(test)]
+#[path = "resolver_test.rs"]
+mod resolver_test;
 
 #[derive(Debug)]
 #[non_exhaustive]
@@ -89,52 +85,15 @@ where
         token: &CancellationToken,
     ) -> Result<Project, ProjectError> {
         let resolved = self.snapshot(paths, &BTreeMap::new(), token)?;
-        let workspace_semantic = Arc::new(SemanticCache::new_sources(
-            resolved
-                .files()
-                .iter()
-                .map(|file| {
-                    crate::snapshot::SemanticCacheSource::new(
-                        file.module_path().to_vec(),
-                        file.ast().clone(),
-                    )
-                })
-                .collect(),
-            OpaqueSummaryTable::new(),
-        ));
-        let package_semantics = PackageSemanticIndex::new(
-            resolved
-                .workspace()
-                .package_graph()
-                .packages()
-                .iter()
-                .map(|package| {
-                    let ast_files = resolved
-                        .files()
-                        .iter()
-                        .filter(|file| package.documents().contains(file.uri()))
-                        .map(|file| {
-                            crate::snapshot::SemanticCacheSource::new(
-                                file.module_path().to_vec(),
-                                file.ast().clone(),
-                            )
-                        })
-                        .collect();
-                    PackageSemanticShard::new(
-                        package.name().to_string(),
-                        package.documents().to_vec(),
-                        Arc::new(SemanticCache::new_sources(
-                            ast_files,
-                            OpaqueSummaryTable::new(),
-                        )),
-                    )
-                })
-                .collect(),
-        );
-        Ok(Project::new(AnalysisSnapshot::new(
+        let mut query = QueryStore::new();
+        let opaque = OpaqueSummaryTable::new();
+        query.publish(&resolved.file_specs(), &opaque);
+        let live = Arc::new(AtomicUsize::new(0));
+        Ok(Project::new(AnalysisSnapshot::from_query(
+            query.generation(),
+            query.inflight(),
+            crate::query::LiveGuard::enter(&live),
             resolved,
-            workspace_semantic,
-            package_semantics,
         )))
     }
 
@@ -144,85 +103,115 @@ where
         overlays: &BTreeMap<DocumentUri, SourceDocument>,
         token: &CancellationToken,
     ) -> Result<ResolvedSnapshot, ProjectError> {
-        if token.is_cancelled() {
-            return Err(ProjectError::Cancelled);
-        }
-        let roots = paths.clone();
-        let mut queued: VecDeque<PathBuf> = paths.into();
-        let mut overlay_queued: VecDeque<DocumentUri> = overlays.keys().cloned().collect();
-        let overlay_imports = OverlayImportIndex::new(overlays);
-        let mut seen = BTreeSet::new();
-        let mut source_map = SourceMap::new();
-        let mut files = Vec::new();
-        let mut diagnostics = Vec::new();
-        while !queued.is_empty() || !overlay_queued.is_empty() {
-            if token.is_cancelled() {
-                return Err(ProjectError::Cancelled);
-            }
-            if let Some(path) = queued.pop_front() {
-                let path = self.normalize_path(path)?;
-                let uri = DocumentUri::from_file_path(&path);
-                if !seen.insert(uri.clone()) {
-                    continue;
-                }
-                let document = self.load_document(path, uri, overlays)?;
-                let mut context = SnapshotBuildContext {
-                    source_map: &mut source_map,
-                    files: &mut files,
-                    diagnostics: &mut diagnostics,
-                    queued: &mut queued,
-                    overlay_imports: &overlay_imports,
-                };
-                self.add_document(document, &mut context);
-                continue;
-            }
+        SnapshotAssembler::new(self, paths, overlays).build(token)
+    }
+}
 
-            let Some(uri) = overlay_queued.pop_front() else {
-                continue;
-            };
-            if !seen.insert(uri.clone()) {
-                continue;
-            }
-            if let Some(document) = overlays.get(&uri) {
-                let mut context = SnapshotBuildContext {
-                    source_map: &mut source_map,
-                    files: &mut files,
-                    diagnostics: &mut diagnostics,
-                    queued: &mut queued,
-                    overlay_imports: &overlay_imports,
-                };
-                self.add_document(document.clone(), &mut context);
+/// Application service that turns project inputs into one immutable snapshot.
+///
+/// The resolver supplies policy and infrastructure. The assembler owns the
+/// short-lived build state (queues, de-duplication, source map and diagnostics)
+/// so the resolver itself remains a reusable service rather than a mutable
+/// procedure with a large parameter list.
+struct SnapshotAssembler<'resolver, 'inputs, V>
+where
+    V: crate::vfs::Vfs,
+{
+    resolver: &'resolver ProjectResolver<V>,
+    roots: Vec<PathBuf>,
+    overlays: &'inputs BTreeMap<DocumentUri, SourceDocument>,
+    overlay_imports: OverlayImportCatalog,
+    queued_paths: VecDeque<PathBuf>,
+    queued_overlays: VecDeque<DocumentUri>,
+    seen: BTreeSet<DocumentUri>,
+    source_map: SourceMap,
+    files: Vec<AnalysisFile>,
+    diagnostics: Vec<Diagnostic>,
+}
+
+impl<'resolver, 'inputs, V> SnapshotAssembler<'resolver, 'inputs, V>
+where
+    V: crate::vfs::Vfs,
+{
+    fn new(
+        resolver: &'resolver ProjectResolver<V>,
+        roots: Vec<PathBuf>,
+        overlays: &'inputs BTreeMap<DocumentUri, SourceDocument>,
+    ) -> Self {
+        let queued_overlays = overlays.keys().cloned().collect();
+        Self {
+            resolver,
+            queued_paths: roots.clone().into(),
+            roots,
+            overlays,
+            overlay_imports: OverlayImportCatalog::from_documents(overlays),
+            queued_overlays,
+            seen: BTreeSet::new(),
+            source_map: SourceMap::new(),
+            files: Vec::new(),
+            diagnostics: Vec::new(),
+        }
+    }
+
+    fn build(mut self, token: &CancellationToken) -> Result<ResolvedSnapshot, ProjectError> {
+        Self::ensure_active(token)?;
+        while !self.queued_paths.is_empty() || !self.queued_overlays.is_empty() {
+            Self::ensure_active(token)?;
+            if let Some(path) = self.queued_paths.pop_front() {
+                self.visit_path(path)?;
+            } else if let Some(uri) = self.queued_overlays.pop_front() {
+                self.visit_overlay(uri)?;
             }
         }
-        let workspace = WorkspaceSnapshot::collect(roots, &files);
+        let workspace = WorkspaceSnapshot::collect(self.roots, &self.files);
         Ok(ResolvedSnapshot::new(
-            source_map,
-            files,
-            diagnostics,
+            self.source_map,
+            self.files,
+            self.diagnostics,
             workspace,
         ))
     }
 
-    fn add_document(&self, document: SourceDocument, context: &mut SnapshotBuildContext<'_>) {
-        let source_id = context
+    fn visit_path(&mut self, path: PathBuf) -> Result<(), ProjectError> {
+        let path = self.normalize_path(path)?;
+        let uri = DocumentUri::from_file_path(&path);
+        if !self.seen.insert(uri.clone()) {
+            return Ok(());
+        }
+        let document = self.load_document(path, uri)?;
+        self.add_document(document);
+        Ok(())
+    }
+
+    fn visit_overlay(&mut self, uri: DocumentUri) -> Result<(), ProjectError> {
+        if !self.seen.insert(uri.clone()) {
+            return Ok(());
+        }
+        if let Some(document) = self.overlays.get(&uri) {
+            self.add_document(document.clone());
+        }
+        Ok(())
+    }
+
+    fn add_document(&mut self, document: SourceDocument) {
+        let source_id = self
             .source_map
             .add_file(document.uri().as_str(), document.text());
         let parsed = SourceParser::new_in(document.text(), source_id).parse_file_partial();
         let ast_node_index = parsed.node_index().clone();
-        let parsed_diagnostics = parsed.diagnostics;
         let ast = parsed.file;
-        context.diagnostics.extend(parsed_diagnostics);
+        self.diagnostics.extend(parsed.diagnostics);
         let (module_path, mut module_diagnostics) =
-            self.module_path_for_document(&document, source_id);
-        context.diagnostics.append(&mut module_diagnostics);
-        self.queue_imports(document.uri(), &ast, context);
-        context.files.push(AnalysisFile::new(AnalysisFileInput {
+            ModulePath::for_document(self.resolver, &document, source_id);
+        self.diagnostics.append(&mut module_diagnostics);
+        self.queue_imports(document.uri(), &ast);
+        self.files.push(AnalysisFile::new(AnalysisFileInput {
             source_id,
             path: document.path().map(Path::to_path_buf),
             uri: document.uri().clone(),
             version: document.version(),
             origin: document.origin().clone(),
-            module_path,
+            module_path: module_path.into_parts(),
             ast_node_index,
             ast,
         }));
@@ -232,28 +221,24 @@ where
         &self,
         path: PathBuf,
         uri: DocumentUri,
-        overlays: &BTreeMap<DocumentUri, SourceDocument>,
     ) -> Result<SourceDocument, ProjectError> {
-        if let Some(document) = overlays.get(&uri) {
+        if let Some(document) = self.overlays.get(&uri) {
             return Ok(document.clone());
         }
-        let source = self.import_resolver.vfs().read_to_string(&path)?;
+        let source = self.resolver.import_resolver.vfs().read_to_string(&path)?;
         Ok(SourceDocument::from_disk(path, source))
     }
 
-    fn queue_imports(
-        &self,
-        importer: &DocumentUri,
-        file: &AstFile,
-        context: &mut SnapshotBuildContext<'_>,
-    ) {
+    fn queue_imports(&mut self, importer: &DocumentUri, file: &AstFile) {
         for item in &file.items {
-            let Item::Use(item) = item else {
-                continue;
-            };
-            match self.resolve_use(&item.path, context.overlay_imports) {
-                Some(path) => context.queued.push_back(path),
-                None => context.diagnostics.push(
+            let Item::Use(item) = item else { continue };
+            match self
+                .resolver
+                .import_resolver
+                .resolve_use(&item.path, |path| self.overlay_imports.contains(path))
+            {
+                Some(path) => self.queued_paths.push_back(path),
+                None => self.diagnostics.push(
                     Diagnostic::new(
                         item.span,
                         format!(
@@ -269,35 +254,46 @@ where
         }
     }
 
-    fn resolve_use(
-        &self,
-        parts: &[String],
-        overlay_imports: &OverlayImportIndex,
-    ) -> Option<PathBuf> {
-        self.import_resolver
-            .resolve_use(parts, |path| overlay_imports.contains(path))
-    }
-
     fn normalize_path(&self, path: PathBuf) -> Result<PathBuf, ProjectError> {
-        if self.import_resolver.vfs().exists(&path) {
-            self.import_resolver.vfs().canonicalize(&path)
+        if self.resolver.import_resolver.vfs().exists(&path) {
+            self.resolver.import_resolver.vfs().canonicalize(&path)
         } else {
             Ok(path)
         }
     }
 
-    fn module_path_for_document(
-        &self,
+    fn ensure_active(token: &CancellationToken) -> Result<(), ProjectError> {
+        if token.is_cancelled() {
+            Err(ProjectError::Cancelled)
+        } else {
+            Ok(())
+        }
+    }
+}
+
+/// Value object for a module identity.
+///
+/// Module paths are validated and constructed together so callers cannot
+/// accidentally use a path without applying the session's naming rules.
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct ModulePath {
+    parts: Vec<String>,
+}
+
+impl ModulePath {
+    fn for_document<V: crate::vfs::Vfs>(
+        resolver: &ProjectResolver<V>,
         document: &SourceDocument,
-        source_id: syl_span::SourceId,
-    ) -> (Vec<String>, Vec<Diagnostic>) {
-        let parts = document
+        source_id: SourceId,
+    ) -> (Self, Vec<Diagnostic>) {
+        let path = document
             .path()
-            .and_then(|path| self.module_path_for_path(path))
-            .unwrap_or_else(|| self.fallback_module_path(document));
-        let diagnostics = parts
+            .and_then(|path| Self::for_path(resolver, path))
+            .unwrap_or_else(|| Self::fallback(document));
+        let diagnostics = path
+            .parts
             .iter()
-            .filter(|part| !is_valid_module_segment(part))
+            .filter(|part| !Self::is_valid_segment(part))
             .map(|part| {
                 Diagnostic::new(
                     Span::new_in(source_id, 0, 0),
@@ -307,91 +303,98 @@ where
                 .with_source("syl_session")
             })
             .collect();
-        (parts, diagnostics)
+        (path, diagnostics)
     }
 
-    fn module_path_for_path(&self, path: &Path) -> Option<Vec<String>> {
-        for root in self.import_resolver.config().std_roots() {
-            if let Some(mut parts) = self.module_path_relative_to_root(path, root) {
+    fn into_parts(self) -> Vec<String> {
+        self.parts
+    }
+
+    fn for_path<V: crate::vfs::Vfs>(resolver: &ProjectResolver<V>, path: &Path) -> Option<Self> {
+        for root in resolver.import_resolver.config().std_roots() {
+            if let Some(mut parts) = Self::relative_to_root(resolver, path, root) {
                 parts.insert(0, "std".to_string());
-                return Some(parts);
+                return Some(Self { parts });
             }
         }
-        for root in self.import_resolver.config().workspace_roots() {
-            if let Some(parts) = self.module_path_relative_to_root(path, root) {
-                return Some(parts);
+        for root in resolver.import_resolver.config().workspace_roots() {
+            if let Some(parts) = Self::relative_to_root(resolver, path, root) {
+                return Some(Self { parts });
             }
         }
-        for root in self.import_resolver.config().package_roots() {
-            if let Some(parts) = self.module_path_relative_to_root(path, root) {
-                return Some(parts);
+        for root in resolver.import_resolver.config().package_roots() {
+            if let Some(parts) = Self::relative_to_root(resolver, path, root) {
+                return Some(Self { parts });
             }
         }
         path.file_stem()
             .and_then(|stem| stem.to_str())
-            .map(|stem| vec![stem.to_string()])
+            .map(|stem| Self {
+                parts: vec![stem.to_string()],
+            })
     }
 
-    fn fallback_module_path(&self, document: &SourceDocument) -> Vec<String> {
-        document
+    fn fallback(document: &SourceDocument) -> Self {
+        let parts = document
             .uri()
             .as_str()
             .rsplit(['/', ':'])
             .find(|segment| !segment.is_empty())
             .map(|segment| vec![segment.to_string()])
-            .unwrap_or_else(|| vec!["scratch".to_string()])
+            .unwrap_or_else(|| vec!["scratch".to_string()]);
+        Self { parts }
     }
 
-    fn module_path_relative_to_root(&self, path: &Path, root: &Path) -> Option<Vec<String>> {
-        module_path_relative_to(path, root).or_else(|| {
-            self.import_resolver
+    fn relative_to_root<V: crate::vfs::Vfs>(
+        resolver: &ProjectResolver<V>,
+        path: &Path,
+        root: &Path,
+    ) -> Option<Vec<String>> {
+        Self::relative_to(path, root).or_else(|| {
+            resolver
+                .import_resolver
                 .vfs()
                 .canonicalize(root)
                 .ok()
-                .and_then(|root| module_path_relative_to(path, &root))
+                .and_then(|root| Self::relative_to(path, &root))
         })
     }
-}
 
-fn module_path_relative_to(path: &Path, root: &Path) -> Option<Vec<String>> {
-    let relative = path.strip_prefix(root).ok()?;
-    let mut parts = Vec::new();
-    for component in relative.components() {
-        let segment = component.as_os_str().to_str()?;
-        if segment == "." {
-            continue;
-        }
-        if let Some(stem) = segment.strip_suffix(".syl") {
-            parts.push(stem.to_string());
-        } else {
-            parts.push(segment.to_string());
-        }
+    fn relative_to(path: &Path, root: &Path) -> Option<Vec<String>> {
+        let relative = path.strip_prefix(root).ok()?;
+        let parts = relative
+            .components()
+            .filter_map(|component| component.as_os_str().to_str())
+            .filter(|segment| *segment != ".")
+            .map(|segment| segment.strip_suffix(".syl").unwrap_or(segment).to_string())
+            .collect::<Vec<_>>();
+        (!parts.is_empty()).then_some(parts)
     }
-    (!parts.is_empty()).then_some(parts)
-}
 
-fn is_valid_module_segment(segment: &str) -> bool {
-    let mut chars = segment.chars();
-    let Some(first) = chars.next() else {
-        return false;
-    };
-    (first == '_' || first.is_ascii_alphabetic())
-        && chars.all(|ch| ch == '_' || ch.is_ascii_alphanumeric())
+    fn is_valid_segment(segment: &str) -> bool {
+        let mut chars = segment.chars();
+        let Some(first) = chars.next() else {
+            return false;
+        };
+        (first == '_' || first.is_ascii_alphabetic())
+            && chars.all(|ch| ch == '_' || ch.is_ascii_alphanumeric())
+    }
 }
 
 #[derive(Debug)]
 #[non_exhaustive]
-struct OverlayImportIndex {
+struct OverlayImportCatalog {
     paths: BTreeSet<PathBuf>,
 }
 
-impl OverlayImportIndex {
-    fn new(overlays: &BTreeMap<DocumentUri, SourceDocument>) -> Self {
-        let paths = overlays
-            .values()
-            .filter_map(|document| document.path().map(Path::to_path_buf))
-            .collect();
-        Self { paths }
+impl OverlayImportCatalog {
+    fn from_documents(overlays: &BTreeMap<DocumentUri, SourceDocument>) -> Self {
+        Self {
+            paths: overlays
+                .values()
+                .filter_map(|document| document.path().map(Path::to_path_buf))
+                .collect(),
+        }
     }
 
     fn contains(&self, path: &Path) -> bool {

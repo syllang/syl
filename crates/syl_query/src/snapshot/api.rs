@@ -271,6 +271,9 @@ impl AnalysisQueries for AnalysisSnapshot {
         let Some(file) = self.file_by_uri(uri) else {
             return Vec::new();
         };
+        // Outline text comes from the file AST. URI HIR is the file index and
+        // declaration contract; it does not run elaboration, HWIR, or emit.
+        let _ = self.hir_analysis_for_uri_with_token(uri, &CancellationToken::new());
         DocumentSymbolCollector::new(self, file).collect()
     }
 

@@ -1,8 +1,6 @@
 use crate::{DocumentUri, DocumentVersion, ProjectError, SourceDocument};
 use std::{collections::BTreeMap, path::PathBuf};
 
-use super::cache::{DocumentKey, SnapshotKey};
-
 #[derive(Debug, Default)]
 #[non_exhaustive]
 pub(crate) struct DocumentStore {
@@ -24,12 +22,10 @@ impl DocumentStore {
         uri: DocumentUri,
         text: String,
         version: DocumentVersion,
-    ) -> Option<DocumentKey> {
+    ) {
         let path = uri.to_file_path();
         let document = SourceDocument::from_overlay(uri.clone(), text, version, path);
-        self.overlays
-            .insert(uri, document)
-            .map(|document| DocumentKey::from_document(&document))
+        self.overlays.insert(uri, document);
     }
 
     pub(crate) fn update_document(
@@ -37,7 +33,7 @@ impl DocumentStore {
         uri: &DocumentUri,
         text: String,
         version: DocumentVersion,
-    ) -> Result<Option<DocumentKey>, ProjectError> {
+    ) -> Result<(), ProjectError> {
         let document = self
             .overlays
             .get_mut(uri)
@@ -51,9 +47,8 @@ impl DocumentStore {
                 current: document.version().get(),
             });
         }
-        let previous = DocumentKey::new(uri.clone(), document.version());
         document.replace_text(text, version);
-        Ok(Some(previous))
+        Ok(())
     }
 
     pub(crate) fn next_document_version(
@@ -96,17 +91,5 @@ impl<'a> DocumentInputs<'a> {
         self,
     ) -> (Vec<PathBuf>, &'a BTreeMap<DocumentUri, SourceDocument>) {
         (self.roots, self.overlays)
-    }
-
-    pub(crate) fn roots(&self) -> &[PathBuf] {
-        &self.roots
-    }
-
-    pub(crate) fn overlays(&self) -> &BTreeMap<DocumentUri, SourceDocument> {
-        self.overlays
-    }
-
-    pub(crate) fn snapshot_key(&self) -> SnapshotKey {
-        SnapshotKey::from_inputs(self)
     }
 }

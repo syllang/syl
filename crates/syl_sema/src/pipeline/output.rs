@@ -148,7 +148,7 @@ pub struct HirAnalysisOutput {
 }
 
 impl HirAnalysisOutput {
-    pub(super) fn new(stage: HirAnalysis, diagnostics: Vec<Diagnostic>) -> Self {
+    pub(crate) fn new(stage: HirAnalysis, diagnostics: Vec<Diagnostic>) -> Self {
         Self {
             output: StageOutput::new(Some(stage), diagnostics),
         }

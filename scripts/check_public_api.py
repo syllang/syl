@@ -201,6 +201,28 @@ def owner_name(data, impl_for):
     return type_name(impl_for)
 
 
+def associated_owner_path(data, path):
+    """Return an inherent impl owner for rustdoc's alternate function encoding.
+
+    Rustdoc JSON versions disagree about whether some inherent methods appear as
+    children of an `impl` item or as public functions whose path includes the
+    owning type. Normalize the latter form so the API snapshot does not depend
+    on the toolchain used to generate it.
+    """
+    if len(path) < 2:
+        return None
+    owner_path = path[:-1]
+    for raw_id, path_info in data["paths"].items():
+        if path_info.get("path") != owner_path:
+            continue
+        if path_info.get("kind") in {"struct", "enum"}:
+            return "::".join(owner_path)
+        item = data["index"].get(str(raw_id))
+        if item is not None and inner_kind(item) in {"struct", "enum"}:
+            return "::".join(owner_path)
+    return None
+
+
 def records_for_package(package):
     data = rustdoc_json(package)
     records = []
@@ -222,7 +244,14 @@ def records_for_package(package):
             if str(item_id) not in data["paths"]:
                 continue
             path = item_path(data, item_id, f"{package}::{item['name']}")
-            records.append(f"{package}|{kind}|{path}|{item_signature(item)}")
+            record_kind = kind
+            if kind == "function":
+                record_kind = (
+                    "method"
+                    if associated_owner_path(data, path.split("::"))
+                    else "function"
+                )
+            records.append(f"{package}|{record_kind}|{path}|{item_signature(item)}")
             records.extend(child_records(data, package, path, item))
     return records
 

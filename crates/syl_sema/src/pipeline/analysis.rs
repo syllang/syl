@@ -54,12 +54,16 @@ pub struct HirAnalysis {
 }
 
 impl HirAnalysis {
-    pub(super) fn new(design: HirDesign) -> Self {
+    pub(crate) fn new(design: HirDesign) -> Self {
         let resolution = ResolutionTable::collect(&design);
         Self {
             design: Arc::new(design),
             resolution,
         }
+    }
+
+    pub(crate) fn design(&self) -> &HirDesign {
+        &self.design
     }
 
     pub fn def_count(&self) -> usize {
@@ -344,7 +348,7 @@ pub struct TirAnalysis {
 }
 
 impl TirAnalysis {
-    fn new(design: TirDesign) -> Self {
+    pub(crate) fn new(design: TirDesign) -> Self {
         let facts = SemanticFacts::collect(&design);
         Self { design, facts }
     }

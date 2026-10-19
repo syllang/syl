@@ -1,7 +1,9 @@
-use super::{context::CapabilityContext, model::EndpointSide, place::Place};
+use super::{
+    callable::CallableResolver, context::CapabilityContext, model::EndpointSide, place::Place,
+};
 use crate::{
     CompileError, TirError,
-    hir::{HirBodyExpr, HirCallable},
+    hir::HirBodyExpr,
     ir::mir::{MirConstExprFacts, MirTypeRef},
 };
 use std::collections::{BTreeMap, BTreeSet};
@@ -54,14 +56,15 @@ pub(super) fn record_let_view_field_schema(
     local: LocalId,
     value: &HirBodyExpr,
 ) -> Result<(), CompileError> {
-    let Some((callee_def, _, callable)) = callable_from_value(ctx, owner, value) else {
+    let resolver = CallableResolver::new(ctx);
+    let Some(resolved) = resolver.resolve_value(owner, value) else {
         return Ok(());
     };
-    let Some(result_ty) = callable.result().map(|result| &result.ty) else {
+    let Some(result_ty) = resolved.callable.result().map(|result| &result.ty) else {
         return Ok(());
     };
     let Some(schema) =
-        resolve_view_field_schema(ctx, callee_def, result_ty, EndpointSide::Returned)?
+        resolve_view_field_schema(ctx, resolved.def, result_ty, EndpointSide::Returned)?
     else {
         return Ok(());
     };
@@ -139,50 +142,4 @@ fn append_type_args(label: &mut String, args: Option<&[MirTypeRef]>) {
     label.push('<');
     label.push_str(&args.iter().map(type_label).collect::<Vec<_>>().join(", "));
     label.push('>');
-}
-
-fn callable_from_value<'a>(
-    ctx: &'a dyn CapabilityContext,
-    owner: DefId,
-    expr: &HirBodyExpr,
-) -> Option<(DefId, String, &'a HirCallable)> {
-    match &expr.node {
-        crate::hir::HirExprNode::Call { callee, .. }
-        | crate::hir::HirExprNode::Place { callee, .. } => callable_for_callee(ctx, owner, callee),
-        _ => None,
-    }
-}
-
-fn callable_for_callee<'a>(
-    ctx: &'a dyn CapabilityContext,
-    owner: DefId,
-    callee: &HirBodyExpr,
-) -> Option<(DefId, String, &'a HirCallable)> {
-    let root = callee_root(callee)?;
-    let Some(crate::hir::resolve::HirResolution::Def(def)) =
-        ctx.expr_resolution(owner, root).ok()?
-    else {
-        return None;
-    };
-    let kind = ctx.def_kind(def)?;
-    if !matches!(
-        kind,
-        crate::hir::HirDefKind::Cell | crate::hir::HirDefKind::ExternCell
-    ) {
-        return None;
-    }
-    let name = ctx.def_name(def)?.to_string();
-    let callable = ctx.callable_by_def(def)?;
-    Some((def, name, callable))
-}
-
-fn callee_root(mut callee: &HirBodyExpr) -> Option<&HirBodyExpr> {
-    loop {
-        match &callee.node {
-            crate::hir::HirExprNode::Ident(_) => return Some(callee),
-            crate::hir::HirExprNode::GenericApp { callee: inner, .. }
-            | crate::hir::HirExprNode::Group(inner) => callee = inner,
-            _ => return None,
-        }
-    }
 }

@@ -6,7 +6,7 @@ use std::{
 #[test]
 fn architecture_debt_markers_match_quality_gate_script() {
     let workspace = workspace_root();
-    let self_path = workspace.join("crates/sylc/tests/architecture_markers.rs");
+    let self_path = workspace.join("crates/sylc/tests/architecture_markers_test.rs");
     let violations = unresolved_debt_markers(&workspace, &self_path);
 
     assert!(
@@ -318,15 +318,15 @@ fn repeated_crate_domain_paths(workspace: &Path) -> Vec<String> {
 
 fn internal_test_inventory() -> Vec<String> {
     [
-        "crates/sylc/tests/architecture_backend_emit.rs",
-        "crates/sylc/tests/architecture_elaboration.rs",
-        "crates/sylc/tests/architecture_opaque_summaries.rs",
-        "crates/sylc/tests/architecture_query_lsp.rs",
-        "crates/sylc/tests/architecture_semantic_analysis.rs",
-        "crates/sylc/tests/architecture_std_sources.rs",
-        "crates/sylc/tests/conformance.rs",
-        "crates/sylc/tests/driver_overlap.rs",
-        "crates/sylc/tests/interface_regression.rs",
+        "crates/sylc/tests/architecture_backend_emit_test.rs",
+        "crates/sylc/tests/architecture_elaboration_test.rs",
+        "crates/sylc/tests/architecture_opaque_summaries_test.rs",
+        "crates/sylc/tests/architecture_query_lsp_test.rs",
+        "crates/sylc/tests/architecture_semantic_analysis_test.rs",
+        "crates/sylc/tests/architecture_std_sources_test.rs",
+        "crates/sylc/tests/conformance_test.rs",
+        "crates/sylc/tests/driver_overlap_test.rs",
+        "crates/sylc/tests/interface_regression_test.rs",
         "crates/sylc/tests/support/mod.rs",
     ]
     .into_iter()
@@ -547,7 +547,7 @@ fn remaining_sylc_internal_test_imports(workspace: &Path) -> Vec<PathBuf> {
     let test_root = workspace.join("crates/sylc/tests");
     let mut paths = Vec::new();
     for path in rs_files_under(&test_root) {
-        if path.file_name().and_then(|name| name.to_str()) == Some("architecture_markers.rs") {
+        if path.file_name().and_then(|name| name.to_str()) == Some("architecture_markers_test.rs") {
             continue;
         }
         let text = read_text(path.clone());

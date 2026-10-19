@@ -165,17 +165,31 @@ where
         };
         crate::mir::MirTypeRef::path_type(canonical_path.segments().to_vec(), ty.span())
     }
+    fn elab_ident(&self, name: &str, env: &Env) -> EirExpr {
+        if let Some(var) = env.vars.get(name) {
+            return var.code.clone();
+        }
+        let Some(owner) = env.owner else {
+            return EirExpr::ident(name);
+        };
+        let Some(item) = self.const_for_name(Some(owner), name) else {
+            return EirExpr::ident(name);
+        };
+        let Some(def) = self.program.resolve_def_id(owner, name) else {
+            return EirExpr::ident(name);
+        };
+        // Same recovery as const MIR: a const that reaches itself is not a value.
+        if !self.const_cycle.borrow_mut().insert(def) {
+            return EirExpr::unsupported("const cycle");
+        }
+        let value = self.elab_expr(&item.value, env);
+        self.const_cycle.borrow_mut().remove(&def);
+        value
+    }
+
     pub(super) fn elab_expr(&self, expr: &ElabExpr, env: &Env) -> EirExpr {
         match &expr.node {
-            ElabExprNode::Ident(name) => {
-                if let Some(var) = env.vars.get(name) {
-                    var.code.clone()
-                } else if let Some(item) = self.const_for_name(env.owner, name) {
-                    self.elab_expr(&item.value, env)
-                } else {
-                    EirExpr::ident(name)
-                }
-            }
+            ElabExprNode::Ident(name) => self.elab_ident(name, env),
             ElabExprNode::Int(value) => EirExpr::Int(*value),
             ElabExprNode::Bool(value) => EirExpr::Bool(*value),
             ElabExprNode::Str(value) => EirExpr::Str(value.clone()),

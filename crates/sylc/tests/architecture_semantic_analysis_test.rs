@@ -74,9 +74,6 @@ cell Top(x: in Bit, y: out Bit) {
     let snapshot = host
         .snapshot()
         .expect("semantic query fixture must snapshot cleanly");
-    assert!(!snapshot.is_hir_cached());
-    assert!(!snapshot.is_tir_cached());
-    assert!(!snapshot.is_elaboration_cached());
     let file = snapshot
         .files()
         .first()
@@ -94,9 +91,6 @@ cell Top(x: in Bit, y: out Bit) {
 
     assert_eq!(definition.name(), "x");
     assert!(hover.text().contains("Bit"));
-    assert!(snapshot.is_hir_cached());
-    assert!(snapshot.is_tir_cached());
-    assert!(!snapshot.is_elaboration_cached());
 }
 
 #[test]
@@ -241,12 +235,12 @@ fn architecture_semantic_hardware_integration_tests_stay_inventoried() {
     assert_eq!(
         actual,
         vec![
-            "crates/syl_sema/tests/alias_resolution.rs".to_string(),
-            "crates/syl_sema/tests/bundle_resolution.rs".to_string(),
-            "crates/syl_sema/tests/cell_summary.rs".to_string(),
-            "crates/syl_sema/tests/const_resolution.rs".to_string(),
+            "crates/syl_sema/tests/alias_resolution_test.rs".to_string(),
+            "crates/syl_sema/tests/bundle_resolution_test.rs".to_string(),
+            "crates/syl_sema/tests/cell_summary_test.rs".to_string(),
+            "crates/syl_sema/tests/const_resolution_test.rs".to_string(),
             "crates/syl_sema/tests/support/mod.rs".to_string(),
-            "crates/syl_sema/tests/tir_semantics.rs".to_string(),
+            "crates/syl_sema/tests/tir_semantics_test.rs".to_string(),
         ],
         "sema integration tests that still touch hardware layers must stay explicitly inventoried"
     );

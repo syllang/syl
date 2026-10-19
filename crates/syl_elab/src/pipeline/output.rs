@@ -189,6 +189,13 @@ impl EirBuildStage {
         }
     }
 
+    pub(crate) fn into_raw(self) -> EirRawDesign {
+        match Arc::try_unwrap(self.design) {
+            Ok(design) => design,
+            Err(design) => EirRawDesign::new(design.modules().to_vec()),
+        }
+    }
+
     pub fn debug_dump(&self) -> String {
         debug::eir_build_stage_dump(self)
     }

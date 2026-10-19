@@ -7,6 +7,8 @@ use crate::{
         ElabCallable, ElabCallableItem, ElabExternCellItem, ElabProgram, ElabSignatureGenericParam,
     },
 };
+use std::cell::RefCell;
+use std::collections::BTreeSet;
 use syl_hir::DefId;
 
 use super::Env;
@@ -19,6 +21,10 @@ where
     pub(crate) const_elaborator: &'a C,
     pub(crate) map_ir: &'a MapIrProgram,
     pub(crate) program: &'a ElabProgram,
+    /// Const item defs currently being inlined. A repeat is a language cycle.
+    pub(super) const_cycle: RefCell<BTreeSet<DefId>>,
+    /// Map defs currently being inlined. A repeat is a language cycle.
+    pub(super) map_cycle: RefCell<BTreeSet<DefId>>,
 }
 
 #[non_exhaustive]
@@ -66,6 +72,8 @@ where
             const_elaborator,
             map_ir,
             program,
+            const_cycle: RefCell::new(BTreeSet::new()),
+            map_cycle: RefCell::new(BTreeSet::new()),
         }
     }
 

@@ -12,6 +12,8 @@ readme = "README.md"
 
 [dependencies]
 derive_builder.workspace = true
+salsa.workspace = true
+salsa-macro-rules.workspace = true
 syl_elab.workspace = true
 syl_hw.workspace = true
 syl_sema.workspace = true
