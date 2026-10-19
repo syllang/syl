@@ -114,8 +114,10 @@ pub(super) fn demanded_files(
     owner: SymbolId,
     owner_item: &Item,
 ) -> Vec<(Vec<String>, AstFile)> {
-    let walk = walk_demand(db, revision, owner_file, owner);
-    assemble_files(db, revision, owner, owner_item, &walk)
+    let mut resolver = DemandResolver::new(db, revision);
+    resolver.seed(owner_file, owner);
+    resolver.resolve();
+    resolver.assemble_files(owner, owner_item)
 }
 
 /// Full bodies elaboration must read, beyond this owner's own item.
@@ -130,275 +132,280 @@ pub(super) fn elab_companions<'db>(
     owner: SymbolId<'db>,
     owner_item: &Item,
 ) -> Vec<SymbolId<'db>> {
-    let mut walk = walk_demand(db, revision, owner_file, owner);
-    let mut inplace = super::refs::inplace_callees(owner_item);
-    // Const evaluation and inplace expansion read callee bodies, including
-    // calls nested inside those bodies. `place`d cells stay out: their bodies
-    // are a different module.
-    expand_companion_bodies(db, revision, owner, &mut walk, &mut inplace);
-    let mut companions = Vec::new();
-    let mut seen_ids = BTreeSet::new();
-    for (module, name) in &walk.seen {
-        let Some(file) = file_for_module(db, revision, module) else {
-            continue;
-        };
-        for hit in named_hits(db, file, name) {
-            let include = match hit.key.kind {
-                SymbolKind::Fn | SymbolKind::Map => true,
-                SymbolKind::Cell | SymbolKind::ExternCell => inplace.contains(&hit.key.name),
-                _ => false,
-            };
-            if !include || same_symbol(db, owner, &hit.key) {
-                continue;
+    let mut resolver = DemandResolver::new(db, revision);
+    resolver.seed(owner_file, owner);
+    resolver
+        .inplace
+        .extend(super::refs::inplace_callees(owner_item));
+    resolver.resolve();
+    resolver.expand_companion_bodies(owner);
+    resolver.companions(owner)
+}
+
+/// Resolves the declaration and body closure needed by one owner query.
+///
+/// The resolver owns both the work queue and the companion scan state. Keeping
+/// these together makes the traversal phases explicit: seed, resolve names,
+/// then (when elaborating) expand the bodies of the selected companions.
+struct DemandResolver<'db> {
+    db: &'db dyn SylDb,
+    revision: RevisionInput,
+    owner_module: String,
+    walk: DemandWalk,
+    inplace: BTreeSet<String>,
+    scanned: BTreeSet<(String, u8, String, u32)>,
+}
+
+impl<'db> DemandResolver<'db> {
+    fn new(db: &'db dyn SylDb, revision: RevisionInput) -> Self {
+        Self {
+            db,
+            revision,
+            owner_module: String::new(),
+            walk: DemandWalk {
+                seen: BTreeSet::new(),
+                queue: Vec::new(),
+                modules: Vec::new(),
+            },
+            inplace: BTreeSet::new(),
+            scanned: BTreeSet::new(),
+        }
+    }
+
+    fn seed(&mut self, owner_file: SourceFileInput, owner: SymbolId) {
+        self.owner_module = owner.module(self.db).clone();
+        self.demand(&self.owner_module.clone(), owner.name(self.db));
+        let text = super::owner_item_text(self.db, owner_file, owner);
+        for name in identifiers(text) {
+            self.demand_if_present(&self.owner_module.clone(), &name);
+        }
+    }
+
+    fn resolve(&mut self) {
+        loop {
+            while let Some((module, name)) = self.walk.queue.pop() {
+                self.expand_demand(&module, &name);
             }
-            let id = (
-                hit.key.module.join("."),
-                hit.key.kind.tag(),
-                hit.key.name.clone(),
-                hit.key.discriminator,
-            );
-            if seen_ids.insert(id) {
-                companions.push(intern_symbol(db, &hit.key));
+            let before = self.walk.seen.len();
+            self.demand_owner_uses();
+            if self.walk.seen.len() == before {
+                break;
             }
         }
     }
-    companions
-}
 
-/// Pull full bodies of functions, maps, and `inplace` cells the owner expands.
-fn expand_companion_bodies(
-    db: &dyn SylDb,
-    revision: RevisionInput,
-    owner: SymbolId,
-    walk: &mut DemandWalk,
-    inplace: &mut BTreeSet<String>,
-) {
-    let mut scanned = BTreeSet::new();
-    loop {
-        let mut scanned_new = false;
-        let names = walk.seen.iter().cloned().collect::<Vec<_>>();
-        for (module, name) in names {
-            let Some(file) = file_for_module(db, revision, &module) else {
+    /// A signature name can be brought into the owner by a `use` whose leaf is
+    /// not written in the owner body. Only those uses are read, so an unused
+    /// import stays out of the dependency set.
+    fn demand_owner_uses(&mut self) {
+        let names = self
+            .walk
+            .seen
+            .iter()
+            .map(|(_, name)| name.clone())
+            .collect::<Vec<_>>();
+        for name in names {
+            if self
+                .walk
+                .seen
+                .contains(&(self.owner_module.clone(), name.clone()))
+            {
+                continue;
+            }
+            let Some(file) = file_for_module(self.db, self.revision, &self.owner_module) else {
                 continue;
             };
-            for hit in named_hits(db, file, &name) {
-                let reads_body = match hit.key.kind {
+            let has_use = named_hits(self.db, file, &name)
+                .iter()
+                .any(|hit| matches!(hit.key.kind, SymbolKind::Use));
+            if has_use {
+                self.demand(&self.owner_module.clone(), &name);
+            }
+        }
+    }
+
+    fn demand(&mut self, module: &str, name: &str) {
+        if !self
+            .walk
+            .seen
+            .insert((module.to_string(), name.to_string()))
+        {
+            return;
+        }
+        if !self.walk.modules.iter().any(|seen| seen == module) {
+            self.walk.modules.push(module.to_string());
+        }
+        self.walk.queue.push((module.to_string(), name.to_string()));
+    }
+
+    fn demand_if_present(&mut self, module: &str, name: &str) {
+        if self
+            .walk
+            .seen
+            .contains(&(module.to_string(), name.to_string()))
+        {
+            return;
+        }
+        let Some(file) = file_for_module(self.db, self.revision, module) else {
+            return;
+        };
+        if named_hits(self.db, file, name).is_empty() {
+            return;
+        }
+        self.demand(module, name);
+    }
+
+    fn expand_demand(&mut self, module: &str, name: &str) {
+        let Some(file) = file_for_module(self.db, self.revision, module) else {
+            return;
+        };
+        for hit in named_hits(self.db, file, name) {
+            let symbol = intern_symbol(self.db, &hit.key);
+            let contract = declaration_contract(self.db, self.revision, symbol);
+            if let Some(path) = contract.use_path.clone() {
+                let Some(target) = import_module(&path) else {
+                    continue;
+                };
+                let Some(leaf) = path.last() else {
+                    continue;
+                };
+                self.demand(&target, leaf);
+                continue;
+            }
+            // Binders (parameter and generic names) are not reads. Type paths
+            // and value expressions are. Tokenizing the signature text pulls
+            // `const x` through `fn helper(x: nat)`.
+            let signature = super::symbol_signature(self.db, self.revision, file, symbol);
+            for ident in super::refs::signature_references(&signature.item) {
+                self.demand_if_present(module, &ident);
+            }
+        }
+    }
+
+    /// Pull full bodies of functions, maps, and `inplace` cells the owner expands.
+    fn expand_companion_bodies(&mut self, owner: SymbolId) {
+        loop {
+            let mut scanned_new = false;
+            let names = self.walk.seen.iter().cloned().collect::<Vec<_>>();
+            for (module, name) in names {
+                let Some(file) = file_for_module(self.db, self.revision, &module) else {
+                    continue;
+                };
+                for hit in named_hits(self.db, file, &name) {
+                    let reads_body = match hit.key.kind {
+                        SymbolKind::Fn | SymbolKind::Map => true,
+                        SymbolKind::Cell | SymbolKind::ExternCell => {
+                            self.inplace.contains(&hit.key.name)
+                        }
+                        _ => false,
+                    };
+                    if !reads_body {
+                        continue;
+                    }
+                    let mark = (
+                        hit.key.module.join("."),
+                        hit.key.kind.tag(),
+                        hit.key.name.clone(),
+                        hit.key.discriminator,
+                    );
+                    if !self.scanned.insert(mark) || same_symbol(self.db, owner, &hit.key) {
+                        continue;
+                    }
+                    scanned_new = true;
+                    let symbol = intern_symbol(self.db, &hit.key);
+                    let text = super::owner_item_text(self.db, file, symbol);
+                    for ident in identifiers(text) {
+                        self.demand_if_present(&module, &ident);
+                    }
+                    let item = super::owner_item(self.db, file, symbol);
+                    for callee in super::refs::inplace_callees(&item.0) {
+                        self.inplace.insert(callee.clone());
+                        self.demand_if_present(&module, &callee);
+                    }
+                }
+            }
+            while let Some((module, name)) = self.walk.queue.pop() {
+                self.expand_demand(&module, &name);
+            }
+            if !scanned_new {
+                break;
+            }
+        }
+    }
+
+    fn companions<'a>(&'a self, owner: SymbolId) -> Vec<SymbolId<'db>> {
+        let mut companions = Vec::new();
+        let mut seen_ids = BTreeSet::new();
+        for (module, name) in &self.walk.seen {
+            let Some(file) = file_for_module(self.db, self.revision, module) else {
+                continue;
+            };
+            for hit in named_hits(self.db, file, name) {
+                let include = match hit.key.kind {
                     SymbolKind::Fn | SymbolKind::Map => true,
-                    SymbolKind::Cell | SymbolKind::ExternCell => inplace.contains(&hit.key.name),
+                    SymbolKind::Cell | SymbolKind::ExternCell => {
+                        self.inplace.contains(&hit.key.name)
+                    }
                     _ => false,
                 };
-                if !reads_body {
+                if !include || same_symbol(self.db, owner, &hit.key) {
                     continue;
                 }
-                let mark = (
+                let id = (
                     hit.key.module.join("."),
                     hit.key.kind.tag(),
                     hit.key.name.clone(),
                     hit.key.discriminator,
                 );
-                if !scanned.insert(mark) || same_symbol(db, owner, &hit.key) {
+                if seen_ids.insert(id) {
+                    companions.push(intern_symbol(self.db, &hit.key));
+                }
+            }
+        }
+        companions
+    }
+
+    fn assemble_files(&self, owner: SymbolId, owner_item: &Item) -> Vec<(Vec<String>, AstFile)> {
+        let owner_module = owner.module(self.db);
+        let mut files = Vec::new();
+        for module in &self.walk.modules {
+            let Some(file) = file_for_module(self.db, self.revision, module) else {
+                continue;
+            };
+            let mut hits = Vec::new();
+            for (seen_module, name) in &self.walk.seen {
+                if seen_module != module {
                     continue;
                 }
-                scanned_new = true;
-                let symbol = intern_symbol(db, &hit.key);
-                let text = super::owner_item_text(db, file, symbol);
-                for ident in identifiers(text) {
-                    demand_if_present(db, revision, walk, &module, &ident);
+                hits.extend(named_hits(self.db, file, name));
+            }
+            hits.sort_by_key(|hit| hit.index);
+            hits.dedup_by_key(|hit| hit.index);
+            if hits.is_empty() {
+                continue;
+            }
+            let mut items = Vec::new();
+            for hit in hits {
+                let symbol = intern_symbol(self.db, &hit.key);
+                if module == owner_module && same_symbol(self.db, owner, &hit.key) {
+                    items.push(owner_item.clone());
+                } else {
+                    items.push(
+                        super::symbol_signature(self.db, self.revision, file, symbol)
+                            .item
+                            .clone(),
+                    );
                 }
-                let item = super::owner_item(db, file, symbol);
-                for callee in super::refs::inplace_callees(&item.0) {
-                    inplace.insert(callee.clone());
-                    demand_if_present(db, revision, walk, &module, &callee);
-                }
             }
+            let source_id = SourceId::new(*file.source_id(self.db) as usize);
+            let doc = super::file_module_doc(self.db, file).clone();
+            files.push((
+                file.module_path(self.db).clone(),
+                AstFile::with_source_doc(source_id, doc, items),
+            ));
         }
-        while let Some((module, name)) = walk.queue.pop() {
-            expand_demand(db, revision, walk, &module, &name);
-        }
-        if !scanned_new {
-            break;
-        }
+        files
     }
-}
-
-fn walk_demand(
-    db: &dyn SylDb,
-    revision: RevisionInput,
-    owner_file: SourceFileInput,
-    owner: SymbolId,
-) -> DemandWalk {
-    let owner_module = owner.module(db).clone();
-    let mut walk = DemandWalk {
-        seen: BTreeSet::new(),
-        queue: Vec::new(),
-        modules: Vec::new(),
-    };
-    demand(&mut walk, &owner_module, owner.name(db));
-    let text = super::owner_item_text(db, owner_file, owner);
-    for name in identifiers(text) {
-        demand_if_present(db, revision, &mut walk, &owner_module, &name);
-    }
-    loop {
-        while let Some((module, name)) = walk.queue.pop() {
-            expand_demand(db, revision, &mut walk, &module, &name);
-        }
-        let before = walk.seen.len();
-        demand_owner_uses(db, revision, &mut walk, &owner_module);
-        if walk.seen.len() == before {
-            break;
-        }
-    }
-    walk
-}
-
-/// A signature name can be brought into the owner by a `use` whose leaf is not
-/// written in the owner body. Only those uses are read, so an unused import
-/// stays out of the dependency set.
-fn demand_owner_uses(
-    db: &dyn SylDb,
-    revision: RevisionInput,
-    walk: &mut DemandWalk,
-    owner_module: &str,
-) {
-    let names = walk
-        .seen
-        .iter()
-        .map(|(_, name)| name.clone())
-        .collect::<Vec<_>>();
-    for name in names {
-        demand_owner_use(db, revision, walk, owner_module, &name);
-    }
-}
-
-fn demand_owner_use(
-    db: &dyn SylDb,
-    revision: RevisionInput,
-    walk: &mut DemandWalk,
-    module: &str,
-    name: &str,
-) {
-    if walk.seen.contains(&(module.to_string(), name.to_string())) {
-        return;
-    }
-    let Some(file) = file_for_module(db, revision, module) else {
-        return;
-    };
-    let has_use = named_hits(db, file, name)
-        .iter()
-        .any(|hit| matches!(hit.key.kind, SymbolKind::Use));
-    if has_use {
-        demand(walk, module, name);
-    }
-}
-
-fn demand(walk: &mut DemandWalk, module: &str, name: &str) {
-    if !walk.seen.insert((module.to_string(), name.to_string())) {
-        return;
-    }
-    if !walk.modules.iter().any(|seen| seen == module) {
-        walk.modules.push(module.to_string());
-    }
-    walk.queue.push((module.to_string(), name.to_string()));
-}
-
-fn demand_if_present(
-    db: &dyn SylDb,
-    revision: RevisionInput,
-    walk: &mut DemandWalk,
-    module: &str,
-    name: &str,
-) {
-    if walk.seen.contains(&(module.to_string(), name.to_string())) {
-        return;
-    }
-    let Some(file) = file_for_module(db, revision, module) else {
-        return;
-    };
-    if named_hits(db, file, name).is_empty() {
-        return;
-    }
-    demand(walk, module, name);
-}
-
-fn expand_demand(
-    db: &dyn SylDb,
-    revision: RevisionInput,
-    walk: &mut DemandWalk,
-    module: &str,
-    name: &str,
-) {
-    let Some(file) = file_for_module(db, revision, module) else {
-        return;
-    };
-    for hit in named_hits(db, file, name) {
-        let symbol = intern_symbol(db, &hit.key);
-        let contract = declaration_contract(db, revision, symbol);
-        if let Some(path) = contract.use_path.clone() {
-            let Some(target) = import_module(&path) else {
-                continue;
-            };
-            let Some(leaf) = path.last() else {
-                continue;
-            };
-            demand(walk, &target, leaf);
-            continue;
-        }
-        // Binders (parameter and generic names) are not reads. Type paths and
-        // value expressions are. Tokenizing the signature text pulls `const x`
-        // through `fn helper(x: nat)`.
-        let signature = super::symbol_signature(db, revision, file, symbol);
-        for ident in super::refs::signature_references(&signature.item) {
-            demand_if_present(db, revision, walk, module, &ident);
-        }
-    }
-}
-
-fn assemble_files(
-    db: &dyn SylDb,
-    revision: RevisionInput,
-    owner: SymbolId,
-    owner_item: &Item,
-    walk: &DemandWalk,
-) -> Vec<(Vec<String>, AstFile)> {
-    let owner_module = owner.module(db);
-    let mut files = Vec::new();
-    for module in &walk.modules {
-        let Some(file) = file_for_module(db, revision, module) else {
-            continue;
-        };
-        let mut hits = Vec::new();
-        for (seen_module, name) in &walk.seen {
-            if seen_module != module {
-                continue;
-            }
-            hits.extend(named_hits(db, file, name));
-        }
-        hits.sort_by_key(|hit| hit.index);
-        hits.dedup_by_key(|hit| hit.index);
-        if hits.is_empty() {
-            continue;
-        }
-        let mut items = Vec::new();
-        for hit in hits {
-            let symbol = intern_symbol(db, &hit.key);
-            if module == owner_module && same_symbol(db, owner, &hit.key) {
-                items.push(owner_item.clone());
-            } else {
-                items.push(
-                    super::symbol_signature(db, revision, file, symbol)
-                        .item
-                        .clone(),
-                );
-            }
-        }
-        let source_id = SourceId::new(*file.source_id(db) as usize);
-        let doc = super::file_module_doc(db, file).clone();
-        files.push((
-            file.module_path(db).clone(),
-            AstFile::with_source_doc(source_id, doc, items),
-        ));
-    }
-    files
 }
 
 fn named_hits(db: &dyn SylDb, file: SourceFileInput, name: &str) -> Vec<super::NamedHit> {
