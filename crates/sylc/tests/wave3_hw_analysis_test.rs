@@ -229,13 +229,13 @@ fn ram_variants_pass_black_box_lowering_lint_synthesis_and_cycle_simulation() {
         ),
         (
             "SimpleDualPortRam",
-            "mem_write(storage, clk, we, waddr, data); mem_read_sync(storage, clk, re, raddr, y)",
+            "mem_write((storage), clk, we, waddr, data); mem_read_sync(((storage)), clk, re, raddr, y)",
             false,
             false,
         ),
         (
             "DistributedRam",
-            "mem_write(storage, clk, we, waddr, data); y := storage[raddr]",
+            "mem_write(((storage)), clk, we, waddr, data); let word = storage[raddr]; y := word",
             true,
             false,
         ),
@@ -333,4 +333,23 @@ fn cdc_attribute_edit_invalidates_cross_package_consumers() {
             .any(|d| d.code.as_deref() == Some("E_MIDDLE_CDC_VIOLATION")),
         "{after:?}"
     );
+}
+
+#[test]
+fn memory_read_lets_emit_the_same_sv_as_direct_combinational_reads() {
+    let direct = emit(&ram_source(
+        "Ram",
+        "mem_write(storage, clk, we, waddr, data); y := storage[raddr]",
+    ));
+    for read in [
+        "let word = storage[raddr]; y := word",
+        "let word: UInt<W> = storage[raddr]; let forwarded = word; y := forwarded",
+        "let word = ((storage)[raddr]); y := word",
+    ] {
+        let actual = emit(&ram_source(
+            "Ram",
+            &format!("mem_write(((storage)), clk, we, waddr, data); {read}"),
+        ));
+        assert_eq!(actual, direct, "{read}");
+    }
 }
