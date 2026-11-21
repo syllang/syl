@@ -16,6 +16,8 @@ path = "src/main.rs"
 
 [dependencies]
 clap.workspace = true
+serde.workspace = true
+serde_json.workspace = true
 syl_emit.workspace = true
 syl_session.workspace = true
 syl_span.workspace = true
