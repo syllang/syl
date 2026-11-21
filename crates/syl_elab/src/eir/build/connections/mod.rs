@@ -313,14 +313,18 @@ where
                 },
             )?;
         }
-        Ok(vec![EirItem::Instance(EirInstance::new(
-            callable_name,
-            params,
-            safe_name,
-            request.inst_name,
-            conns,
-            request.env.origin(request.span),
-        ))])
+        let target = self.canonical_path(callable_def, &callable_name);
+        Ok(vec![EirItem::Instance(
+            EirInstance::new(
+                callable_name,
+                params,
+                safe_name,
+                request.inst_name,
+                conns,
+                request.env.origin(request.span),
+            )
+            .with_target_canonical_path(target),
+        )])
     }
 
     fn emit_cell_inline(

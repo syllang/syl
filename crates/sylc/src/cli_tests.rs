@@ -31,9 +31,10 @@ fn legacy_and_subcommand_invocations_share_global_options() {
     let legacy = parse(&["sylc", "--out", "o.sv", "--std-root", "s", "a.syl"]).unwrap();
     assert_eq!(
         legacy.mode,
-        RunMode::Emit {
-            out_path: Some("o.sv".into())
-        }
+        RunMode::Emit(OutputArgs {
+            out_path: Some("o.sv".into()),
+            ..Default::default()
+        })
     );
     assert_eq!(legacy.inputs, [PathBuf::from("a.syl")]);
     assert_eq!(legacy.common.std_roots, [PathBuf::from("s")]);
@@ -145,9 +146,10 @@ fn repeated_root_recovery_respects_equals_values_and_end_of_options() {
     assert_eq!(invocation.common.manifest, Some("check".into()));
     assert_eq!(
         invocation.mode,
-        RunMode::Emit {
-            out_path: Some("emit".into())
-        }
+        RunMode::Emit(OutputArgs {
+            out_path: Some("emit".into()),
+            ..Default::default()
+        })
     );
 }
 
@@ -170,4 +172,32 @@ fn repeated_roots_preserve_non_utf8_paths() {
             PathBuf::from("second")
         ]
     );
+}
+
+#[test]
+fn multi_file_options_require_emission_and_consistent_destinations() {
+    for flag in [
+        vec!["--out-dir", "dir"],
+        vec!["--filelist", "list"],
+        vec!["--source-comments"],
+    ] {
+        for before in [true, false] {
+            let mut args = vec!["sylc"];
+            if !before {
+                args.push("check");
+            }
+            args.extend_from_slice(&flag);
+            if before {
+                args.push("check");
+            }
+            assert!(parse(&args).is_err(), "{args:?}");
+        }
+    }
+    for args in [
+        vec!["sylc", "--out", "one", "emit", "--out-dir", "many"],
+        vec!["sylc", "emit", "--out", "one", "--out-dir", "many"],
+        vec!["sylc", "--filelist", "list"],
+    ] {
+        assert!(parse(&args).is_err(), "{args:?}");
+    }
 }

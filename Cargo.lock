@@ -950,8 +950,6 @@ dependencies = [
 name = "syl_emit"
 version = "0.1.0"
 dependencies = [
- "strum",
- "strum_macros",
  "syl_hw",
  "thiserror",
 ]

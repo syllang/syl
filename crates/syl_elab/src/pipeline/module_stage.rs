@@ -46,7 +46,9 @@ pub(crate) fn output_from_modules<C: Fn() -> bool + ?Sized>(
             .iter()
             .map(|stage| EirRawDesign::new(stage.design.modules().to_vec())),
     );
-    let eir_build = EirBuildStage::new(raw);
+    let eir_build = EirBuildStage::new(EirRawDesign::new(crate::eir::EirModule::disambiguate(
+        raw.modules().to_vec(),
+    )));
     let mut diagnostics = Vec::new();
     if cancellation() {
         return empty_output();

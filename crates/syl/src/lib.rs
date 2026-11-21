@@ -8,7 +8,10 @@
 //! crates. Use those crates directly only when working on compiler internals or
 //! stage-specific tooling.
 
-pub use syl_emit::SystemVerilogBackend;
+pub use syl_emit::{
+    EmitOptions, EmittedSvBundle, EmittedSvFile, SourceLocation, SourceLocationLookup,
+    SystemVerilogBackend,
+};
 pub use syl_query::{AnalysisQueries, ProjectQueries};
 pub use syl_session::{
     AnalysisFile, AnalysisHost, AnalysisSnapshot, DocumentOrigin, DocumentUri, DocumentVersion,

@@ -50,6 +50,8 @@ impl<'a> HwLowerer<'a> {
                 .collect::<Result<Vec<_>, _>>()?,
             self.lower_items(module.items())?,
         )
+        .with_canonical_path(module.canonical_path().to_vec())
+        .with_origin(module.origin().map(|origin| self.lower_origin(origin)))
         .with_doc(module.doc().map(ToOwned::to_owned)))
     }
 
@@ -220,7 +222,8 @@ impl<'a> HwLowerer<'a> {
                 .iter()
                 .map(|connection| self.lower_connection(connection, origin.span()))
                 .collect::<Result<Vec<_>, _>>()?,
-        ))
+        )
+        .with_target_canonical_path(instance.target_canonical_path().to_vec()))
     }
 
     fn lower_param_bind(&self, bind: &crate::eir::EirParamBind) -> HwParamBind {

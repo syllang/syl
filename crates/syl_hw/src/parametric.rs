@@ -71,6 +71,8 @@ impl ParametricHwDesign {
 #[derive(Debug)]
 #[non_exhaustive]
 pub struct ParametricHwModule {
+    canonical_path: Vec<String>,
+    origin: Option<HwOrigin>,
     doc: Option<String>,
     name: String,
     params: Vec<HwParam>,
@@ -86,6 +88,8 @@ impl ParametricHwModule {
         items: Vec<ParametricHwItem>,
     ) -> Self {
         Self {
+            canonical_path: Vec::new(),
+            origin: None,
             doc: None,
             name: name.into(),
             params,
@@ -117,6 +121,20 @@ impl ParametricHwModule {
 
     pub fn items(&self) -> &[ParametricHwItem] {
         &self.items
+    }
+    pub fn with_canonical_path(mut self, path: Vec<String>) -> Self {
+        self.canonical_path = path;
+        self
+    }
+    pub fn canonical_path(&self) -> &[String] {
+        &self.canonical_path
+    }
+    pub fn with_origin(mut self, origin: Option<HwOrigin>) -> Self {
+        self.origin = origin;
+        self
+    }
+    pub fn origin(&self) -> Option<&HwOrigin> {
+        self.origin.as_ref()
     }
 }
 

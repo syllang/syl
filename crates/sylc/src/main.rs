@@ -9,7 +9,7 @@ use std::{
     path::{Path, PathBuf},
     process::ExitCode,
 };
-use syl_emit::SystemVerilogBackend;
+use syl_emit::{EmitOptions, SourceLocation, SourceLocationLookup, SystemVerilogBackend};
 use syl_session::{AnalysisHost, FsVfs, ProjectConfig, ProjectManifest, Vfs};
 use syl_span::{Diagnostic, DiagnosticSeverity, SourceMap, Span};
 
@@ -104,16 +104,67 @@ fn run(invocation: CliInvocation, cwd: &Path, report: &mut Report) -> Result<(),
             "clean analysis snapshot did not produce a hardware graph",
         )
     })?;
-    let verilog = SystemVerilogBackend::new()
-        .emit(hwir)
-        .map_err(|err| cli_error("E_EMIT", err.to_string()))?;
-    if let RunMode::Emit {
-        out_path: Some(path),
-    } = invocation.mode
-    {
-        fs::write(&path, verilog).map_err(|err| {
-            cli_error("E_IO", format!("failed to write {}: {err}", path.display()))
+    let RunMode::Emit(output) = invocation.mode else {
+        return Ok(());
+    };
+    let backend = SystemVerilogBackend::new();
+    let options = EmitOptions::new().with_source_comments(output.source_comments);
+    let lookup = SourceLookup(&report.source_map);
+    if let Some(dir) = output.out_dir {
+        let bundle = backend
+            .emit_files_with_options(hwir, &options, Some(&lookup))
+            .map_err(|err| cli_error("E_EMIT", err.to_string()))?;
+        let list = output.filelist.unwrap_or_else(|| dir.join("filelist.f"));
+        fs::create_dir_all(&dir).map_err(|err| {
+            cli_error("E_IO", format!("failed to create {}: {err}", dir.display()))
         })?;
+        let directory = fs::canonicalize(&dir).map_err(project_error_io)?;
+        let list_parent = list
+            .parent()
+            .filter(|p| !p.as_os_str().is_empty())
+            .unwrap_or(Path::new("."));
+        let list_dir = fs::canonicalize(list_parent).map_err(project_error_io)?;
+        let list_target = output_target(&list).map_err(project_error_io)?;
+        for file in bundle.files() {
+            if output_target(&directory.join(file.file_name())).map_err(project_error_io)?
+                == list_target
+            {
+                return Err(cli_error(
+                    "E_CLI",
+                    "filelist path collides with a generated module",
+                ));
+            }
+        }
+        let mut filelist = String::new();
+        for file in bundle.files() {
+            write_output(&dir.join(file.file_name()), file.content())?;
+            if list_dir != directory {
+                let path = directory.join(file.file_name());
+                let entry = path.to_string_lossy();
+                if entry.contains(char::is_whitespace) {
+                    filelist.push('"');
+                    filelist.push_str(&entry);
+                    filelist.push('"');
+                } else {
+                    filelist.push_str(&entry);
+                }
+                filelist.push('\n');
+            }
+        }
+        return write_output(
+            &list,
+            if list_dir == directory {
+                bundle.filelist()
+            } else {
+                &filelist
+            },
+        );
+    }
+    let verilog = backend
+        .emit_with_options(hwir, &options, Some(&lookup))
+        .map_err(|err| cli_error("E_EMIT", err.to_string()))?;
+    if let Some(path) = output.out_path {
+        write_output(&path, &verilog)?;
     } else {
         io::stdout()
             .lock()
@@ -121,6 +172,49 @@ fn run(invocation: CliInvocation, cwd: &Path, report: &mut Report) -> Result<(),
             .map_err(|err| cli_error("E_IO", format!("failed to write stdout: {err}")))?;
     }
     Ok(())
+}
+
+struct SourceLookup<'a>(&'a SourceMap);
+impl SourceLocationLookup for SourceLookup<'_> {
+    fn lookup(&self, index: usize, offset: usize) -> Option<SourceLocation> {
+        let id = syl_span::SourceId::new(index);
+        let file = self.0.file(id)?;
+        let position = file.utf16_range(Span::new_in(id, offset, offset))?.start;
+        Some(SourceLocation::new(file.uri(), position.line + 1))
+    }
+}
+
+/// Resolve an output destination even if its final file has yet to be created.
+fn output_target(path: &Path) -> io::Result<PathBuf> {
+    let mut destination = path.to_owned();
+    loop {
+        match fs::canonicalize(&destination) {
+            Ok(target) => return Ok(target),
+            Err(err) if err.kind() == io::ErrorKind::NotFound => {}
+            Err(err) => return Err(err),
+        }
+        let parent = destination
+            .parent()
+            .filter(|p| !p.as_os_str().is_empty())
+            .unwrap_or(Path::new("."));
+        let parent = fs::canonicalize(parent)?;
+        match fs::read_link(&destination) {
+            Ok(target) => destination = parent.join(target),
+            Err(err) if err.kind() == io::ErrorKind::NotFound => {
+                let name = destination.file_name().ok_or(err)?;
+                return Ok(parent.join(name));
+            }
+            Err(err) => return Err(err),
+        }
+    }
+}
+
+fn project_error_io(err: io::Error) -> Box<Diagnostic> {
+    cli_error("E_IO", err.to_string())
+}
+fn write_output(path: &Path, contents: &str) -> Result<(), Box<Diagnostic>> {
+    fs::write(path, contents)
+        .map_err(|err| cli_error("E_IO", format!("failed to write {}: {err}", path.display())))
 }
 
 fn resolve_manifest(

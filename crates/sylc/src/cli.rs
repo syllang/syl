@@ -33,12 +33,8 @@ pub(crate) struct SylcApp {
     pub command: Option<SylcCommand>,
     #[command(flatten)]
     pub common: CommonArgs,
-    /// Output path for legacy direct invocation.
-    #[arg(long = "out", value_name = "OUTPUT")]
-    pub out_path: Option<PathBuf>,
-    /// Input files or directories for legacy direct invocation.
-    #[arg(value_name = "FILE_OR_DIR")]
-    pub inputs: Vec<PathBuf>,
+    #[command(flatten)]
+    pub legacy: EmitArgs,
 }
 
 #[derive(Debug, Subcommand)]
@@ -55,16 +51,60 @@ pub(crate) struct CheckArgs {
 }
 #[derive(Debug, Args)]
 pub(crate) struct EmitArgs {
-    #[arg(long = "out", value_name = "OUTPUT")]
-    pub out_path: Option<PathBuf>,
+    #[command(flatten)]
+    pub output: OutputArgs,
     #[arg(value_name = "FILE_OR_DIR")]
     pub inputs: Vec<PathBuf>,
 }
 
+#[derive(Debug, Default, PartialEq, Eq, Args)]
+pub(crate) struct OutputArgs {
+    /// Write a single SystemVerilog file.
+    #[arg(long = "out", value_name = "OUTPUT", conflicts_with = "out_dir")]
+    pub out_path: Option<PathBuf>,
+    /// Write one SystemVerilog file per module and a dependency-ordered filelist.
+    #[arg(long, value_name = "DIR")]
+    pub out_dir: Option<PathBuf>,
+    /// Set the filelist path (defaults to <out-dir>/filelist.f).
+    #[arg(long, value_name = "PATH")]
+    pub filelist: Option<PathBuf>,
+    /// Include Syl source locations in the SystemVerilog.
+    #[arg(long)]
+    pub source_comments: bool,
+}
+impl OutputArgs {
+    fn merge(self, other: Self) -> Result<Self, String> {
+        fn path(
+            a: Option<PathBuf>,
+            b: Option<PathBuf>,
+            flag: &str,
+        ) -> Result<Option<PathBuf>, String> {
+            if a.is_some() && b.is_some() {
+                return Err(format!("{flag} was specified more than once"));
+            }
+            Ok(a.or(b))
+        }
+        Ok(Self {
+            out_path: path(self.out_path, other.out_path, "--out")?,
+            out_dir: path(self.out_dir, other.out_dir, "--out-dir")?,
+            filelist: path(self.filelist, other.filelist, "--filelist")?,
+            source_comments: self.source_comments || other.source_comments,
+        })
+    }
+    fn validate(&self) -> Result<(), String> {
+        if self.out_path.is_some() && self.out_dir.is_some() {
+            return Err("--out and --out-dir are mutually exclusive".into());
+        }
+        if self.filelist.is_some() && self.out_dir.is_none() {
+            return Err("--filelist requires --out-dir".into());
+        }
+        Ok(())
+    }
+}
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum RunMode {
     Check,
-    Emit { out_path: Option<PathBuf> },
+    Emit(OutputArgs),
 }
 #[derive(Debug)]
 pub(crate) struct CliInvocation {
@@ -97,35 +137,28 @@ impl SylcApp {
     pub(crate) fn into_invocation(self) -> Result<CliInvocation, String> {
         let (mode, inputs) = match self.command {
             Some(SylcCommand::Check(args)) => {
-                if self.out_path.is_some() {
-                    return Err("--out is only valid for `emit`".into());
+                if self.legacy.output != OutputArgs::default() {
+                    return Err("output options are only valid for `emit`".into());
                 }
-                if !self.inputs.is_empty() {
+                if !self.legacy.inputs.is_empty() {
                     return Err("unexpected positional arguments before `check`".into());
                 }
                 (RunMode::Check, args.inputs)
             }
             Some(SylcCommand::Emit(args)) => {
-                if self.out_path.is_some() && args.out_path.is_some() {
-                    return Err("--out was specified more than once".into());
-                }
-                if !self.inputs.is_empty() {
+                if !self.legacy.inputs.is_empty() {
                     return Err("unexpected positional arguments before `emit`".into());
                 }
                 (
-                    RunMode::Emit {
-                        out_path: args.out_path.or(self.out_path),
-                    },
+                    RunMode::Emit(self.legacy.output.merge(args.output)?),
                     args.inputs,
                 )
             }
-            None => (
-                RunMode::Emit {
-                    out_path: self.out_path,
-                },
-                self.inputs,
-            ),
+            None => (RunMode::Emit(self.legacy.output), self.legacy.inputs),
         };
+        if let RunMode::Emit(output) = &mode {
+            output.validate()?;
+        }
         Ok(CliInvocation {
             common: self.common,
             mode,
@@ -146,7 +179,15 @@ fn explicit_option_values(args: &[OsString]) -> Vec<OsString> {
         let mut arg = arg.clone();
         if matches!(
             arg.to_str(),
-            Some("--manifest" | "--out" | "--std-root" | "--package-root" | "--diagnostics-format")
+            Some(
+                "--manifest"
+                    | "--out-dir"
+                    | "--filelist"
+                    | "--out"
+                    | "--std-root"
+                    | "--package-root"
+                    | "--diagnostics-format"
+            )
         ) && let Some(value) = args.peek()
             && (!value.as_encoded_bytes().starts_with(b"-") || *value == "-")
         {

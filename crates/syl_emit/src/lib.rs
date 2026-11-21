@@ -1,4 +1,8 @@
 mod check;
+mod files;
+pub use files::{
+    EmitOptions, EmittedSvBundle, EmittedSvFile, SourceLocation, SourceLocationLookup,
+};
 mod lower;
 mod sv_ir;
 
@@ -114,15 +118,24 @@ impl SystemVerilogBackend {
 
     /// Emits a debug dump of the generated SV module structure.
     pub fn debug_dump(&self, hwir: &ParametricHwDesign) -> Result<String, CompileError> {
-        let design = self.compile_sv_design(hwir)?;
+        let design = self.compile_sv_design(hwir, false, None)?;
         Ok(design.debug_dump())
     }
 
     /// Compiles the design into a SystemVerilog source string.
     /// Validates both the backend output and the SV syntax.
     pub fn emit(&self, hwir: &ParametricHwDesign) -> Result<String, CompileError> {
-        let design = self.compile_sv_design(hwir)?;
-        let text = design.emit_text();
+        self.emit_with_options(hwir, &EmitOptions::default(), None)
+    }
+
+    pub fn emit_with_options(
+        &self,
+        hwir: &ParametricHwDesign,
+        options: &EmitOptions,
+        lookup: Option<&dyn SourceLocationLookup>,
+    ) -> Result<String, CompileError> {
+        let design = self.compile_sv_design(hwir, options.source_comments, lookup)?;
+        let text = sv_ir::printer::text(&design.modules, options.header_comment);
         check::SvBackendValidator::new(&design).validate()?;
         check::SvSourceValidator::new().validate(&text)?;
         Ok(text)
@@ -131,11 +144,13 @@ impl SystemVerilogBackend {
     fn compile_sv_design(
         &self,
         hwir: &ParametricHwDesign,
+        source_comments: bool,
+        lookup: Option<&dyn SourceLocationLookup>,
     ) -> Result<sv_ir::SvDesign, CompileError> {
         let normalized = HwNormalizer::new()
             .normalize(hwir)
             .map_err(CompileError::invalid_hwir)?;
-        lower::SvEmitter::new(normalized.design()).lower()
+        lower::SvEmitter::new(normalized.design(), source_comments, lookup).lower()
     }
 }
 

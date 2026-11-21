@@ -203,6 +203,13 @@ fn same_named_cells_in_different_modules_do_not_collide_in_module_eir_stage() {
         .expect("same-name elaboration");
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
     let hwir = snapshot.hwir().expect("same-name hwir");
+    for module in hwir
+        .modules()
+        .iter()
+        .filter(|m| m.name().ends_with("__Sub"))
+    {
+        assert_eq!(module.canonical_path().join("__"), module.name());
+    }
     let mut modules = hwir
         .modules()
         .iter()
@@ -220,8 +227,8 @@ fn same_named_cells_in_different_modules_do_not_collide_in_module_eir_stage() {
         modules,
         vec![
             ("Mid".to_string(), vec!["m_out".to_string()]),
-            ("Sub".to_string(), vec!["y".to_string()]),
-            ("Sub".to_string(), vec!["z".to_string()]),
+            ("a__Sub".to_string(), vec!["y".to_string()]),
+            ("b__Sub".to_string(), vec!["z".to_string()]),
         ],
         "each module owner must emit only its canonical cell without colliding on unqualified name"
     );

@@ -197,3 +197,16 @@ fn normalizer_returns_borrowed_valid_design() {
     assert_eq!(normalized.debug_dump(), design.debug_dump());
     assert_eq!(normalized.modules().len(), 1);
 }
+
+#[test]
+fn canonical_paths_and_module_origin_round_trip() {
+    let path = vec!["pkg".to_string(), "Child".to_string()];
+    let module = ParametricHwModule::new("pkg__Child", vec![], vec![], vec![])
+        .with_origin(Some(origin()))
+        .with_canonical_path(path.clone());
+    let instance =
+        HwInstance::new("pkg__Child", vec![], "u", vec![]).with_target_canonical_path(path.clone());
+    assert_eq!(instance.target_canonical_path(), path);
+    assert_eq!(module.canonical_path(), path);
+    assert_eq!(module.origin(), Some(&origin()));
+}

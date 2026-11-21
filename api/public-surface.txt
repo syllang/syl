@@ -162,13 +162,42 @@ syl_elab|variant|syl_elab::metadata::model::HardwareCreateKind::Signal|unit
 syl_elab|variant|syl_elab::metadata::model::HardwareCreateKind::Storage|unit
 syl_emit|enum|syl_emit::CompileError|public
 syl_emit|enum|syl_emit::VerilogError|public
+syl_emit|field|syl_emit::files::EmitOptions::header_comment|bool
+syl_emit|field|syl_emit::files::EmitOptions::source_comments|bool
 syl_emit|method|syl_emit::CompileError::invalid_hwir|fn(report: syl_hw::HwValidationReport) -> Self
 syl_emit|method|syl_emit::CompileError::unsupported_hwir|fn(message: impl Into<String>) -> Self
 syl_emit|method|syl_emit::CompileError::verilog|fn(kind: VerilogError) -> Self
 syl_emit|method|syl_emit::SystemVerilogBackend::debug_dump|fn(self: &Self, hwir: &ParametricHwDesign) -> Result<String, CompileError>
+syl_emit|method|syl_emit::SystemVerilogBackend::emit_files_with_options|fn(self: &Self, hwir: &ParametricHwDesign, options: &EmitOptions, lookup: Option<&dyn SourceLocationLookup>) -> Result<EmittedSvBundle, CompileError>
+syl_emit|method|syl_emit::SystemVerilogBackend::emit_files|fn(self: &Self, hwir: &ParametricHwDesign) -> Result<EmittedSvBundle, CompileError>
+syl_emit|method|syl_emit::SystemVerilogBackend::emit_with_options|fn(self: &Self, hwir: &ParametricHwDesign, options: &EmitOptions, lookup: Option<&dyn SourceLocationLookup>) -> Result<String, CompileError>
 syl_emit|method|syl_emit::SystemVerilogBackend::emit|fn(self: &Self, hwir: &ParametricHwDesign) -> Result<String, CompileError>
 syl_emit|method|syl_emit::SystemVerilogBackend::new|fn() -> Self
+syl_emit|method|syl_emit::files::EmitOptions::new|fn() -> Self
+syl_emit|method|syl_emit::files::EmitOptions::with_header_comment|fn(self: Self, enabled: bool) -> Self
+syl_emit|method|syl_emit::files::EmitOptions::with_source_comments|fn(self: Self, enabled: bool) -> Self
+syl_emit|method|syl_emit::files::EmittedSvBundle::filelist_lines|fn(self: &Self) -> Vec<&str>
+syl_emit|method|syl_emit::files::EmittedSvBundle::filelist|fn(self: &Self) -> &str
+syl_emit|method|syl_emit::files::EmittedSvBundle::files|fn(self: &Self) -> &[EmittedSvFile]
+syl_emit|method|syl_emit::files::EmittedSvFile::canonical_path|fn(self: &Self) -> &[String]
+syl_emit|method|syl_emit::files::EmittedSvFile::content|fn(self: &Self) -> &str
+syl_emit|method|syl_emit::files::EmittedSvFile::file_name|fn(self: &Self) -> &str
+syl_emit|method|syl_emit::files::EmittedSvFile::module_name|fn(self: &Self) -> &str
+syl_emit|method|syl_emit::files::SourceLocation::file|fn(self: &Self) -> &str
+syl_emit|method|syl_emit::files::SourceLocation::line|fn(self: &Self) -> usize
+syl_emit|method|syl_emit::files::SourceLocation::new|fn(file: impl Into<String>, line: usize) -> Self
 syl_emit|struct|syl_emit::SystemVerilogBackend|public
+syl_emit|struct|syl_emit::files::EmitOptions|public
+syl_emit|struct|syl_emit::files::EmittedSvBundle|public
+syl_emit|struct|syl_emit::files::EmittedSvFile|public
+syl_emit|struct|syl_emit::files::SourceLocation|public
+syl_emit|trait_method|syl_emit::files::SourceLocationLookup::lookup|fn(self: &Self, source_index: usize, byte_offset: usize) -> Option<SourceLocation>
+syl_emit|trait|syl_emit::files::SourceLocationLookup|public
+syl_emit|use|EmitOptions|named|source=files::EmitOptions
+syl_emit|use|EmittedSvBundle|named|source=files::EmittedSvBundle
+syl_emit|use|EmittedSvFile|named|source=files::EmittedSvFile
+syl_emit|use|SourceLocationLookup|named|source=files::SourceLocationLookup
+syl_emit|use|SourceLocation|named|source=files::SourceLocation
 syl_emit|variant|syl_emit::CompileError::InvalidHwir|{ report: syl_hw::HwValidationReport }
 syl_emit|variant|syl_emit::CompileError::UnsupportedHwir|{ message: String }
 syl_emit|variant|syl_emit::CompileError::Verilog|{ kind: VerilogError }
@@ -781,6 +810,8 @@ syl_hw|method|syl_hw::design::HwInstance::module|fn(self: &Self) -> &str
 syl_hw|method|syl_hw::design::HwInstance::name|fn(self: &Self) -> &str
 syl_hw|method|syl_hw::design::HwInstance::new|fn(module: impl Into<String>, params: Vec<HwParamBind>, name: impl Into<String>, connections: Vec<HwConnection>) -> Self
 syl_hw|method|syl_hw::design::HwInstance::params|fn(self: &Self) -> &[HwParamBind]
+syl_hw|method|syl_hw::design::HwInstance::target_canonical_path|fn(self: &Self) -> &[String]
+syl_hw|method|syl_hw::design::HwInstance::with_target_canonical_path|fn(self: Self, path: Vec<String>) -> Self
 syl_hw|method|syl_hw::design::HwModule::doc|fn(self: &Self) -> Option<&str>
 syl_hw|method|syl_hw::design::HwModule::items|fn(self: &Self) -> &[HwItem]
 syl_hw|method|syl_hw::design::HwModule::name|fn(self: &Self) -> &str
@@ -790,6 +821,7 @@ syl_hw|method|syl_hw::design::HwModule::ports|fn(self: &Self) -> &[HwPort]
 syl_hw|method|syl_hw::design::HwModule::with_doc|fn(self: Self, doc: Option<String>) -> Self
 syl_hw|method|syl_hw::design::HwOrigin::expansion_stack|fn(self: &Self) -> &[HwExpansion]
 syl_hw|method|syl_hw::design::HwOrigin::new|fn(source: SourceId, span_start: usize, span_end: usize, expansion_stack: Vec<HwExpansion>) -> Self
+syl_hw|method|syl_hw::design::HwOrigin::source_index|fn(self: &Self) -> usize
 syl_hw|method|syl_hw::design::HwOrigin::source|fn(self: &Self) -> SourceId
 syl_hw|method|syl_hw::design::HwOrigin::span_end|fn(self: &Self) -> usize
 syl_hw|method|syl_hw::design::HwOrigin::span_start|fn(self: &Self) -> usize
@@ -821,13 +853,17 @@ syl_hw|method|syl_hw::parametric::ParametricHwDesign::modules|fn(self: &Self) ->
 syl_hw|method|syl_hw::parametric::ParametricHwDesign::new|fn(modules: Vec<ParametricHwModule>) -> Self
 syl_hw|method|syl_hw::parametric::ParametricHwItem::core|fn(item: HwItem, origin: HwOrigin) -> Self
 syl_hw|method|syl_hw::parametric::ParametricHwItem::origin|fn(self: &Self) -> &HwOrigin
+syl_hw|method|syl_hw::parametric::ParametricHwModule::canonical_path|fn(self: &Self) -> &[String]
 syl_hw|method|syl_hw::parametric::ParametricHwModule::doc|fn(self: &Self) -> Option<&str>
 syl_hw|method|syl_hw::parametric::ParametricHwModule::items|fn(self: &Self) -> &[ParametricHwItem]
 syl_hw|method|syl_hw::parametric::ParametricHwModule::name|fn(self: &Self) -> &str
 syl_hw|method|syl_hw::parametric::ParametricHwModule::new|fn(name: impl Into<String>, params: Vec<HwParam>, ports: Vec<HwPort>, items: Vec<ParametricHwItem>) -> Self
+syl_hw|method|syl_hw::parametric::ParametricHwModule::origin|fn(self: &Self) -> Option<&HwOrigin>
 syl_hw|method|syl_hw::parametric::ParametricHwModule::params|fn(self: &Self) -> &[HwParam]
 syl_hw|method|syl_hw::parametric::ParametricHwModule::ports|fn(self: &Self) -> &[HwPort]
+syl_hw|method|syl_hw::parametric::ParametricHwModule::with_canonical_path|fn(self: Self, path: Vec<String>) -> Self
 syl_hw|method|syl_hw::parametric::ParametricHwModule::with_doc|fn(self: Self, doc: Option<String>) -> Self
+syl_hw|method|syl_hw::parametric::ParametricHwModule::with_origin|fn(self: Self, origin: Option<HwOrigin>) -> Self
 syl_hw|method|syl_hw::place::HwPlace::display|fn(self: &Self) -> String
 syl_hw|method|syl_hw::place::HwPlaceExpr::display|fn(self: &Self) -> String
 syl_hw|method|syl_hw::validate::HwNormalizer::new|fn() -> Self
@@ -3224,6 +3260,9 @@ syl|use|Diagnostic|named|source=syl_span::Diagnostic
 syl|use|DocumentOrigin|named|source=syl_session::DocumentOrigin
 syl|use|DocumentUri|named|source=syl_session::DocumentUri
 syl|use|DocumentVersion|named|source=syl_session::DocumentVersion
+syl|use|EmitOptions|named|source=syl_emit::EmitOptions
+syl|use|EmittedSvBundle|named|source=syl_emit::EmittedSvBundle
+syl|use|EmittedSvFile|named|source=syl_emit::EmittedSvFile
 syl|use|FsVfs|named|source=syl_session::FsVfs
 syl|use|MANIFEST_FILE_NAME|named|source=syl_session::MANIFEST_FILE_NAME
 syl|use|ParseOutput|named|source=syl_syntax::ParseOutput
@@ -3237,6 +3276,8 @@ syl|use|Project|named|source=syl_session::Project
 syl|use|SourceDocument|named|source=syl_session::SourceDocument
 syl|use|SourceFile|named|source=syl_span::SourceFile
 syl|use|SourceId|named|source=syl_span::SourceId
+syl|use|SourceLocationLookup|named|source=syl_emit::SourceLocationLookup
+syl|use|SourceLocation|named|source=syl_emit::SourceLocation
 syl|use|SourceMap|named|source=syl_span::SourceMap
 syl|use|SourceParser|named|source=syl_syntax::SourceParser
 syl|use|SourcePosition|named|source=syl_span::SourcePosition

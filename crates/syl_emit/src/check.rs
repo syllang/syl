@@ -28,7 +28,7 @@ impl<'a> SvBackendValidator<'a> {
     fn check_item(&self, module: &SvModule, item: &SvItem) -> Result<(), CompileError> {
         match item {
             SvItem::LocalParam { value, .. } => Self::check_expr(&module.name, value),
-            SvItem::Wire { .. } | SvItem::Reg { .. } => Ok(()),
+            SvItem::Source(_) | SvItem::Wire { .. } | SvItem::Reg { .. } => Ok(()),
             SvItem::Assign { lhs, rhs } => {
                 Self::check_expr(&module.name, lhs)?;
                 Self::check_expr(&module.name, rhs)
