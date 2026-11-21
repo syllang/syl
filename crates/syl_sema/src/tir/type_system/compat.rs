@@ -1,7 +1,7 @@
 use super::const_term::TirConstResolution;
 use super::{TirConstTerm, TirGenericArg, TirType, TypePhaseChecker};
 use crate::hir::view::HirDesignViewExt;
-use crate::tir::{BuiltinIntrinsic, BuiltinResolver, consts::TirConstEnv};
+use crate::tir::{BindingKind, BindingRef, BuiltinIntrinsic, BuiltinResolver, consts::TirConstEnv};
 use crate::{CompileError, TirError, hir::HirBodyExpr};
 use std::collections::BTreeMap;
 use syl_hir::{DefId, LocalId};
@@ -21,27 +21,58 @@ pub(in crate::tir) fn is_int_literal(expr: &HirBodyExpr) -> bool {
 }
 
 impl TypePhaseChecker {
-    fn is_contextual_hardware_literal(&self, owner: DefId, expr: &HirBodyExpr) -> bool {
+    fn is_contextual_hardware_value(&self, owner: DefId, expr: &HirBodyExpr) -> bool {
         use crate::hir::HirExprNode;
         match &expr.node {
-            HirExprNode::Group(inner) => self.is_contextual_hardware_literal(owner, inner),
+            HirExprNode::Group(inner) => self.is_contextual_hardware_value(owner, inner),
             HirExprNode::Match { arms, .. } => {
                 !arms.is_empty()
                     && arms
                         .iter()
-                        .all(|arm| self.is_contextual_hardware_literal(owner, &arm.value))
+                        .all(|arm| self.is_contextual_hardware_value(owner, &arm.value))
             }
             HirExprNode::Select { arms, .. } => {
                 !arms.is_empty()
                     && arms
                         .iter()
-                        .all(|arm| self.is_contextual_hardware_literal(owner, &arm.value))
+                        .all(|arm| self.is_contextual_hardware_value(owner, &arm.value))
             }
             HirExprNode::Call { callee, .. } => matches!(
                 BuiltinResolver::new(&self.hir, Some(owner)).resolve_call_callee(callee),
                 Some(BuiltinIntrinsic::Zero | BuiltinIntrinsic::HighZ)
             ),
-            _ => is_int_literal(expr),
+            _ => {
+                // Software matches share this helper but keep literal-only coercion.
+                is_int_literal(expr)
+                    || (!self.hir.fns().contains_key(&owner) && self.is_const_nat_expr(owner, expr))
+            }
+        }
+    }
+
+    fn is_const_nat_expr(&self, owner: DefId, expr: &HirBodyExpr) -> bool {
+        use crate::hir::{HirExprNode, resolve::HirResolution};
+        if !matches!(self.infer_expr_type(owner, expr), TirType::Nat) {
+            return false;
+        }
+        match &expr.node {
+            HirExprNode::Int(_) => true,
+            HirExprNode::Ident(_) => match self.hir.expr_resolution(owner, expr).ok().flatten() {
+                Some(HirResolution::Def(def)) => self.hir.consts().contains_key(&def),
+                Some(HirResolution::Local(id)) => matches!(
+                    self.binding_kinds.get(&BindingRef::Local(id)),
+                    Some(BindingKind::Const | BindingKind::Generic)
+                ),
+                _ => false,
+            },
+            HirExprNode::Group(inner) | HirExprNode::Unary { expr: inner, .. } => {
+                self.is_const_nat_expr(owner, inner)
+            }
+            HirExprNode::Binary { left, right, .. } => {
+                self.is_const_nat_expr(owner, left) && self.is_const_nat_expr(owner, right)
+            }
+            _ => TirConstEnv::from_generics(owner, &[], self)
+                .const_nat_value(expr, self)
+                .is_some(),
         }
     }
 
@@ -119,7 +150,7 @@ impl TypePhaseChecker {
                 self.types_compatible_for_return(
                     expected,
                     &self.infer_expr_type(owner, expr),
-                    is_int_literal(expr),
+                    self.is_contextual_hardware_value(owner, expr),
                 )
             }),
         }
@@ -159,11 +190,11 @@ impl TypePhaseChecker {
             .into_iter()
             .map(|expr| (expr, self.infer_expr_type(owner, expr)))
             .collect::<Vec<_>>();
-        // Literals and zero/high-Z intrinsics take their hardware type from a typed arm.
+        // Constant nats and zero/high-Z intrinsics take their hardware type from a typed arm.
         let expected = values
             .iter()
             .find(|(expr, ty)| {
-                !self.is_contextual_hardware_literal(owner, expr) && !matches!(ty, TirType::Unknown)
+                !self.is_contextual_hardware_value(owner, expr) && !matches!(ty, TirType::Unknown)
             })
             .or_else(|| {
                 values
@@ -177,7 +208,7 @@ impl TypePhaseChecker {
             if !self.types_compatible_for_return(
                 expected,
                 actual,
-                self.is_contextual_hardware_literal(owner, expr),
+                self.is_contextual_hardware_value(owner, expr),
             ) {
                 errors.push(CompileError::lowering_at(
                     TirError::TypeMismatch {
@@ -297,7 +328,7 @@ impl TypePhaseChecker {
         for expr in values {
             let ty = self.infer_expr_type(owner, expr);
             if !matches!(ty, TirType::Unknown) {
-                if !self.is_contextual_hardware_literal(owner, expr) {
+                if !self.is_contextual_hardware_value(owner, expr) {
                     return ty;
                 }
                 literal = ty;
