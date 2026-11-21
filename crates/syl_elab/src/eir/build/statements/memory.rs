@@ -52,7 +52,11 @@ impl<C: crate::const_eval::ConstValueElaborator + ?Sized> EirBuilder<'_, C> {
                 expr.span(),
             ));
         }
-        let ElabExprNode::Ident(name) = &args[0].value.node else {
+        let mut memory_arg = &args[0].value;
+        while let ElabExprNode::Group(inner) = &memory_arg.node {
+            memory_arg = inner;
+        }
+        let ElabExprNode::Ident(name) = &memory_arg.node else {
             return Err(CompileError::lowering_at(
                 EirError::MemoryTargetMustBeMem {
                     name: "<expression>".into(),

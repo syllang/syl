@@ -182,3 +182,52 @@ fn declared_memory_bridge_only_trusts_its_named_data_path() {
         }
     }
 }
+
+#[test]
+fn combinational_memory_reads_can_flow_through_let_bindings() {
+    for read in [
+        "let word = storage[b]; y := word",
+        "let word: UInt<8> = storage[b]; y := word",
+        "let word = storage[b]; let forwarded = word; y := forwarded",
+        "let word = storage[b]; let masked = word and data; y := masked",
+    ] {
+        check(
+            &format!("mem_write(storage, clk, we, a, data); {read}"),
+            None,
+        );
+        let output = compile(&format!(
+            "cell Ram{PORTS} {{ mem storage: [16] UInt<8> mem_write(storage, clk, we, a, data); {read} }}"
+        ));
+        let facts = output.eir_facts().unwrap();
+        assert!(facts.contains_read("Ram", "storage"));
+        assert!(facts.contains_read("Ram", "b"));
+        assert!(!facts.contains_read("Ram", "idx(storage,b)"));
+    }
+}
+
+#[test]
+fn memory_intrinsics_accept_parenthesized_memory_identifiers() {
+    for memory in ["storage", "(storage)", "(((storage)))"] {
+        check(
+            &format!(
+                "mem_write({memory}, clk, we, a, data); mem_read_sync({memory}, clk, re, b, y)"
+            ),
+            None,
+        );
+    }
+}
+
+#[test]
+fn let_bound_memory_reads_preserve_cdc_checks_on_the_address() {
+    let output = compile(
+        "cell Ram<A: Domain, B: Domain>(ca: in Clock<A>, ra: in Reset<A>, cb: in Clock<B>, rb: in Reset<B>, we: in Bit, addr: in UInt<4>, data: in UInt<8>) -> y: UInt<8> { reg qa: UInt<4> reset(ra, 0) next qa := addr mem storage: [16] UInt<8> mem_write(storage, cb, we, addr, data); let word = storage[qa]; reg qb: UInt<8> reset(rb, 0) next qb := word y := qb }",
+    );
+    assert!(output.eir_facts().unwrap().contains_read("Ram", "qa"));
+    assert!(
+        output.diagnostics().iter().any(
+            |d| d.code.as_deref() == Some("E_MIDDLE_CDC_VIOLATION") && d.message.contains("qa")
+        ),
+        "{:?}",
+        output.diagnostics()
+    );
+}
