@@ -426,9 +426,13 @@ fn verilator_lints_dependency_ordered_filelist() {
         fs::read_to_string(project.0.join("sv/filelist.f")).unwrap(),
         "Child.sv\nTop.sv\n"
     );
+    lint_filelist(&project.0.join("sv"), "filelist.f");
+}
+
+fn lint_filelist(dir: &Path, list: &str) {
     match Command::new("verilator")
-        .current_dir(project.0.join("sv"))
-        .args(["--lint-only", "--sv", "-f", "filelist.f"])
+        .current_dir(dir)
+        .args(["--lint-only", "--sv", "-f", list])
         .output()
     {
         Ok(output) => success(&output),
@@ -436,5 +440,53 @@ fn verilator_lints_dependency_ordered_filelist() {
             eprintln!("verilator unavailable")
         }
         Err(err) => panic!("{err}"),
+    }
+}
+
+#[test]
+fn custom_filelist_quotes_module_paths_with_spaces() {
+    let project = TestProject::new();
+    project.write("top.syl", CLEAN);
+    success(&project.run(
+        ".",
+        &[
+            "emit",
+            "--out-dir",
+            "generated sv",
+            "--filelist",
+            "custom.f",
+            "top.syl",
+        ],
+    ));
+    let module = project.0.join("generated sv/Top.sv");
+    assert_eq!(
+        fs::read_to_string(project.0.join("custom.f")).unwrap(),
+        format!("\"{}\"\n", module.display())
+    );
+    lint_filelist(&project.0, "custom.f");
+}
+
+#[cfg(unix)]
+#[test]
+fn custom_filelist_rejects_symlinks_to_module_outputs() {
+    let project = TestProject::new();
+    project.write("top.syl", CLEAN);
+    std::os::unix::fs::symlink("sv/Top.sv", project.0.join("custom.f")).unwrap();
+    let module = project.0.join("sv/Top.sv");
+    for existing in [false, true] {
+        if existing {
+            fs::write(&module, "previous output").unwrap();
+        }
+        let output = project.run(
+            ".",
+            &["--out-dir", "sv", "--filelist", "custom.f", "top.syl"],
+        );
+        failure(&output);
+        assert!(String::from_utf8_lossy(&output.stderr).contains("filelist path collides"));
+        if existing {
+            assert_eq!(fs::read_to_string(&module).unwrap(), "previous output");
+        } else {
+            assert!(!module.exists());
+        }
     }
 }

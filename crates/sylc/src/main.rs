@@ -124,22 +124,31 @@ fn run(invocation: CliInvocation, cwd: &Path, report: &mut Report) -> Result<(),
             .filter(|p| !p.as_os_str().is_empty())
             .unwrap_or(Path::new("."));
         let list_dir = fs::canonicalize(list_parent).map_err(project_error_io)?;
-        if list_dir == directory
-            && bundle
-                .files()
-                .iter()
-                .any(|f| Some(std::ffi::OsStr::new(f.file_name())) == list.file_name())
-        {
-            return Err(cli_error(
-                "E_CLI",
-                "filelist path collides with a generated module",
-            ));
+        let list_target = output_target(&list).map_err(project_error_io)?;
+        for file in bundle.files() {
+            if output_target(&directory.join(file.file_name())).map_err(project_error_io)?
+                == list_target
+            {
+                return Err(cli_error(
+                    "E_CLI",
+                    "filelist path collides with a generated module",
+                ));
+            }
         }
         let mut filelist = String::new();
         for file in bundle.files() {
             write_output(&dir.join(file.file_name()), file.content())?;
             if list_dir != directory {
-                filelist.push_str(&format!("{}\n", directory.join(file.file_name()).display()));
+                let path = directory.join(file.file_name());
+                let entry = path.to_string_lossy();
+                if entry.contains(char::is_whitespace) {
+                    filelist.push('"');
+                    filelist.push_str(&entry);
+                    filelist.push('"');
+                } else {
+                    filelist.push_str(&entry);
+                }
+                filelist.push('\n');
             }
         }
         return write_output(
@@ -172,6 +181,31 @@ impl SourceLocationLookup for SourceLookup<'_> {
         let file = self.0.file(id)?;
         let position = file.utf16_range(Span::new_in(id, offset, offset))?.start;
         Some(SourceLocation::new(file.uri(), position.line + 1))
+    }
+}
+
+/// Resolve an output destination even if its final file has yet to be created.
+fn output_target(path: &Path) -> io::Result<PathBuf> {
+    let mut destination = path.to_owned();
+    loop {
+        match fs::canonicalize(&destination) {
+            Ok(target) => return Ok(target),
+            Err(err) if err.kind() == io::ErrorKind::NotFound => {}
+            Err(err) => return Err(err),
+        }
+        let parent = destination
+            .parent()
+            .filter(|p| !p.as_os_str().is_empty())
+            .unwrap_or(Path::new("."));
+        let parent = fs::canonicalize(parent)?;
+        match fs::read_link(&destination) {
+            Ok(target) => destination = parent.join(target),
+            Err(err) if err.kind() == io::ErrorKind::NotFound => {
+                let name = destination.file_name().ok_or(err)?;
+                return Ok(parent.join(name));
+            }
+            Err(err) => return Err(err),
+        }
     }
 }
 
