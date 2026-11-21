@@ -129,6 +129,9 @@ pub struct HwOrigin {
 }
 
 impl HwOrigin {
+    pub fn source_index(&self) -> usize {
+        self.source.get()
+    }
     pub fn new(
         source: SourceId,
         span_start: usize,
@@ -432,6 +435,7 @@ impl HwReset {
 #[derive(Debug)]
 #[non_exhaustive]
 pub struct HwInstance {
+    target_canonical_path: Vec<String>,
     module: String,
     params: Vec<HwParamBind>,
     name: String,
@@ -446,6 +450,7 @@ impl HwInstance {
         connections: Vec<HwConnection>,
     ) -> Self {
         Self {
+            target_canonical_path: Vec::new(),
             module: module.into(),
             params,
             name: name.into(),
@@ -471,6 +476,13 @@ impl HwInstance {
     /// Returns the port connections for this instance.
     pub fn connections(&self) -> &[HwConnection] {
         &self.connections
+    }
+    pub fn with_target_canonical_path(mut self, path: Vec<String>) -> Self {
+        self.target_canonical_path = path;
+        self
+    }
+    pub fn target_canonical_path(&self) -> &[String] {
+        &self.target_canonical_path
     }
 }
 
