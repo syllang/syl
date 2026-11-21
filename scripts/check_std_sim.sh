@@ -19,7 +19,7 @@ simulate() {
     local package=$1 top=$2 flags="-std=c++17 ${3:-}"
     lint "$package" "$top"
     verilator --cc --exe --build -j 2 --sv --top-module "$top" --Mdir "$tmp/$top" \
-        -CFLAGS "$flags" "$tmp/$package.sv" "$workspace/tests/sim/tb_$package.cpp" -o sim
+        -CFLAGS "$flags" "$tmp/$package.sv" "$workspace/tests/sim/${package}_test.cpp" -o sim
     "$tmp/$top/sim"
     echo "PASS $top"
 }

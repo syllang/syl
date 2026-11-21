@@ -9,6 +9,7 @@ fn emitted_std_components_pass_cycle_simulation() {
         }
         result => assert!(result.expect("run verilator").status.success()),
     }
+    // The shared script builds and runs tests/sim/<package>_test.cpp against emitted SV.
     let script = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../scripts/check_std_sim.sh");
     let status = Command::new("bash")
         .arg(script)
