@@ -11,6 +11,9 @@ homepage.workspace = true
 readme = "README.md"
 
 [dependencies]
+serde.workspace = true
+serde_json.workspace = true
+toml.workspace = true
 derive_builder.workspace = true
 salsa.workspace = true
 salsa-macro-rules.workspace = true

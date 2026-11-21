@@ -2235,6 +2235,8 @@ syl_sema|variant|syl_sema::tir::type_system::const_term::TirConstTerm::Expr|{ la
 syl_sema|variant|syl_sema::tir::type_system::const_term::TirConstTerm::Named|{ name: String, resolution: Option<TirConstResolution> }
 syl_sema|variant|syl_sema::tir::type_system::const_term::TirConstTerm::NatLiteral|(u64)
 syl_sema|variant|syl_sema::tir::type_system::const_term::TirConstTerm::Unknown|unit
+syl_session|assoc_const|syl_session::manifest::ProjectManifest::FILE_NAME|public
+syl_session|constant|syl_session::manifest::MANIFEST_FILE_NAME|&str
 syl_session|enum|syl_session::config::ProjectConfigBuilderError|public
 syl_session|enum|syl_session::document::DocumentOrigin|public
 syl_session|enum|syl_session::error::ProjectError|public
@@ -2291,6 +2293,8 @@ syl_session|method|syl_session::document::SourceDocument::version|fn(self: &Self
 syl_session|method|syl_session::host::AnalysisHost::close_document|fn(self: &mut Self, uri: &DocumentUri) -> Option<SourceDocument>
 syl_session|method|syl_session::host::AnalysisHost::database_mut|fn(self: &mut Self) -> &mut AnalysisDatabase
 syl_session|method|syl_session::host::AnalysisHost::database|fn(self: &Self) -> &AnalysisDatabase
+syl_session|method|syl_session::host::AnalysisHost::from_manifest|fn(manifest: &ProjectManifest) -> Result<Self, ProjectError>
+syl_session|method|syl_session::host::AnalysisHost::load_manifest_opaque_summaries|fn(self: &mut Self, manifest: &ProjectManifest) -> Result<(), ProjectError>
 syl_session|method|syl_session::host::AnalysisHost::load_with_token|fn(self: &mut Self, inputs: &[PathBuf], token: &CancellationToken) -> Result<AnalysisSnapshot, ProjectError>
 syl_session|method|syl_session::host::AnalysisHost::load|fn(self: &mut Self, inputs: &[PathBuf]) -> Result<AnalysisSnapshot, ProjectError>
 syl_session|method|syl_session::host::AnalysisHost::new|fn() -> Self
@@ -2312,6 +2316,24 @@ syl_session|method|syl_session::import_resolver::ImportResolver::new|fn(config: 
 syl_session|method|syl_session::import_resolver::ImportResolver::resolve_use|fn(self: &Self, parts: &[String], overlay_exists: F) -> Option<PathBuf>
 syl_session|method|syl_session::import_resolver::ImportResolver::vfs|fn(self: &Self) -> &V
 syl_session|method|syl_session::import_resolver::ImportResolver::with_vfs|fn(config: ProjectConfig, vfs: V) -> Self
+syl_session|method|syl_session::manifest::ProjectManifest::discover_and_load_with_vfs|fn(start: &Path, vfs: &V) -> Result<Option<Self>, ProjectError>
+syl_session|method|syl_session::manifest::ProjectManifest::discover_and_load|fn(start: &Path) -> Result<Option<Self>, ProjectError>
+syl_session|method|syl_session::manifest::ProjectManifest::discover_with_vfs|fn(start: &Path, vfs: &V) -> Result<Option<PathBuf>, ProjectError>
+syl_session|method|syl_session::manifest::ProjectManifest::discover|fn(start: &Path) -> Result<Option<PathBuf>, ProjectError>
+syl_session|method|syl_session::manifest::ProjectManifest::edition|fn(self: &Self) -> Option<&str>
+syl_session|method|syl_session::manifest::ProjectManifest::load_opaque_summaries_with_vfs|fn(self: &Self, vfs: &V) -> Result<OpaqueSummaryTable, ProjectError>
+syl_session|method|syl_session::manifest::ProjectManifest::load_opaque_summaries|fn(self: &Self) -> Result<OpaqueSummaryTable, ProjectError>
+syl_session|method|syl_session::manifest::ProjectManifest::load_with_vfs|fn(path: &Path, vfs: &V) -> Result<Self, ProjectError>
+syl_session|method|syl_session::manifest::ProjectManifest::load|fn(path: &Path) -> Result<Self, ProjectError>
+syl_session|method|syl_session::manifest::ProjectManifest::manifest_path|fn(self: &Self) -> &Path
+syl_session|method|syl_session::manifest::ProjectManifest::name|fn(self: &Self) -> Option<&str>
+syl_session|method|syl_session::manifest::ProjectManifest::opaque_summary_paths|fn(self: &Self) -> &[PathBuf]
+syl_session|method|syl_session::manifest::ProjectManifest::package_roots|fn(self: &Self) -> &[PathBuf]
+syl_session|method|syl_session::manifest::ProjectManifest::root_dir|fn(self: &Self) -> &Path
+syl_session|method|syl_session::manifest::ProjectManifest::std_roots|fn(self: &Self) -> &[PathBuf]
+syl_session|method|syl_session::manifest::ProjectManifest::to_project_config|fn(self: &Self) -> ProjectConfig
+syl_session|method|syl_session::manifest::ProjectManifest::version|fn(self: &Self) -> Option<&str>
+syl_session|method|syl_session::manifest::ProjectManifest::workspace_roots|fn(self: &Self) -> &[PathBuf]
 syl_session|method|syl_session::resolver::ProjectResolver::config|fn(self: &Self) -> &ProjectConfig
 syl_session|method|syl_session::resolver::ProjectResolver::load_paths_with_token|fn(self: &Self, paths: Vec<PathBuf>, token: &CancellationToken) -> Result<Project, ProjectError>
 syl_session|method|syl_session::resolver::ProjectResolver::load_paths|fn(self: &Self, paths: Vec<PathBuf>) -> Result<Project, ProjectError>
@@ -2399,6 +2421,7 @@ syl_session|struct|syl_session::document::DocumentVersion|public
 syl_session|struct|syl_session::document::SourceDocument|public
 syl_session|struct|syl_session::host::AnalysisHost|public
 syl_session|struct|syl_session::import_resolver::ImportResolver|public
+syl_session|struct|syl_session::manifest::ProjectManifest|public
 syl_session|struct|syl_session::resolver::ProjectResolver|public
 syl_session|struct|syl_session::snapshot::model::AnalysisFile|public
 syl_session|struct|syl_session::snapshot::model::AnalysisSnapshot|public
@@ -2431,6 +2454,7 @@ syl_session|use|DocumentUri|named|source=uri::DocumentUri
 syl_session|use|DocumentVersion|named|source=document::DocumentVersion
 syl_session|use|FsVfs|named|source=vfs::FsVfs
 syl_session|use|ImportResolver|named|source=import_resolver::ImportResolver
+syl_session|use|MANIFEST_FILE_NAME|named|source=manifest::MANIFEST_FILE_NAME
 syl_session|use|PackageGraph|named|source=snapshot::PackageGraph
 syl_session|use|PackageGraph|named|source=workspace::PackageGraph
 syl_session|use|PackageImport|named|source=snapshot::PackageImport
@@ -2440,6 +2464,7 @@ syl_session|use|PackageStageDiagnostics|named|source=snapshot::PackageStageDiagn
 syl_session|use|ProjectConfigBuilder|named|source=config::ProjectConfigBuilder
 syl_session|use|ProjectConfig|named|source=config::ProjectConfig
 syl_session|use|ProjectError|named|source=error::ProjectError
+syl_session|use|ProjectManifest|named|source=manifest::ProjectManifest
 syl_session|use|ProjectResolver|named|source=resolver::ProjectResolver
 syl_session|use|Project|named|source=model::Project
 syl_session|use|Project|named|source=snapshot::Project
@@ -2462,6 +2487,10 @@ syl_session|variant|syl_session::document::DocumentOrigin::Overlay|unit
 syl_session|variant|syl_session::error::ProjectError::Cancelled|unit
 syl_session|variant|syl_session::error::ProjectError::Canonicalize|{ path: std::path::PathBuf, source: std::io::Error }
 syl_session|variant|syl_session::error::ProjectError::DocumentNotOpen|{ uri: String }
+syl_session|variant|syl_session::error::ProjectError::ManifestInvalid|{ path: std::path::PathBuf, message: String }
+syl_session|variant|syl_session::error::ProjectError::ManifestParse|{ path: std::path::PathBuf, message: String }
+syl_session|variant|syl_session::error::ProjectError::OpaqueSummaryInvalid|{ path: std::path::PathBuf, message: String }
+syl_session|variant|syl_session::error::ProjectError::OpaqueSummaryParse|{ path: std::path::PathBuf, message: String }
 syl_session|variant|syl_session::error::ProjectError::ReadDirEntry|{ path: std::path::PathBuf, source: std::io::Error }
 syl_session|variant|syl_session::error::ProjectError::ReadDir|{ path: std::path::PathBuf, source: std::io::Error }
 syl_session|variant|syl_session::error::ProjectError::Read|{ path: std::path::PathBuf, source: std::io::Error }

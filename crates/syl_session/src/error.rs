@@ -6,6 +6,14 @@ use thiserror::Error;
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum ProjectError {
+    #[error("failed to parse manifest {path}: {message}")]
+    ManifestParse { path: PathBuf, message: String },
+    #[error("invalid manifest {path}: {message}")]
+    ManifestInvalid { path: PathBuf, message: String },
+    #[error("failed to parse opaque summary {path}: {message}")]
+    OpaqueSummaryParse { path: PathBuf, message: String },
+    #[error("invalid opaque summary {path}: {message}")]
+    OpaqueSummaryInvalid { path: PathBuf, message: String },
     #[error("analysis was cancelled")]
     Cancelled,
     #[error("failed to read {path}: {source}")]

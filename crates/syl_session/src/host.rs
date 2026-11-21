@@ -1,6 +1,6 @@
 use crate::{
     AnalysisDatabase, AnalysisSnapshot, CancellationToken, DocumentUri, DocumentVersion,
-    ProjectConfig, ProjectError, ProjectResolver, SourceDocument,
+    ProjectConfig, ProjectError, ProjectManifest, ProjectResolver, SourceDocument,
 };
 use std::path::PathBuf;
 use syl_sema::{OpaqueItemSummary, OpaqueSummaryTable};
@@ -47,6 +47,25 @@ pub struct AnalysisHost {
 }
 
 impl AnalysisHost {
+    /// Construct a host from a manifest, including its trusted opaque summaries.
+    pub fn from_manifest(manifest: &ProjectManifest) -> Result<Self, ProjectError> {
+        let mut host = Self::with_config(manifest.to_project_config());
+        host.load_manifest_opaque_summaries(manifest)?;
+        Ok(host)
+    }
+
+    /// Merge manifest summaries into existing overlays, publishing only changes.
+    pub fn load_manifest_opaque_summaries(
+        &mut self,
+        manifest: &ProjectManifest,
+    ) -> Result<(), ProjectError> {
+        let loaded = manifest.load_opaque_summaries()?;
+        let mut summaries = self.opaque_summaries().clone();
+        summaries.merge_from(&loaded);
+        self.set_opaque_summaries(summaries);
+        Ok(())
+    }
+
     pub fn new() -> Self {
         Self::with_config(ProjectConfig::new())
     }
