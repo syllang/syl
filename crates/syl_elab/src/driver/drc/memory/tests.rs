@@ -231,3 +231,20 @@ fn let_bound_memory_reads_preserve_cdc_checks_on_the_address() {
         output.diagnostics()
     );
 }
+
+#[test]
+fn memory_read_lets_do_not_treat_static_indices_as_hardware_objects() {
+    for read in ["y := storage[I]", "let word = storage[I]; y := word"] {
+        let output = compile(&format!(
+            "cell Ram<I: nat>{PORTS} {{ mem storage: [16] UInt<8> mem_write(storage, clk, we, a, data); {read} }}"
+        ));
+        assert!(
+            output.diagnostics().is_empty(),
+            "{:?}",
+            output.diagnostics()
+        );
+        let facts = output.eir_facts().unwrap();
+        assert!(facts.contains_read("Ram", "storage"));
+        assert!(!facts.contains_read("Ram", "I"));
+    }
+}

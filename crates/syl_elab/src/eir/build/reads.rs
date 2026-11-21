@@ -182,6 +182,12 @@ where
             {
                 root = value;
             }
+            if env.vars.values().any(|v| {
+                &v.code == root
+                    && (v.software_local || self.const_elaborator.kind_for_type(&v.ty).is_some())
+            }) {
+                return;
+            }
             // Let bindings inline their value. Recognize the expanded memory
             // root so unpacked reads never use packed-vector bounds checks.
             let read = if env.vars.values().any(|v| v.is_memory && &v.code == root) {
