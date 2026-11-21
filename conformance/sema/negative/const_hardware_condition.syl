@@ -1,0 +1,7 @@
+cell Bad(enable: in Bit, y: out Bit) {
+    if enable {
+        y := 1
+    } else {
+        y := 0
+    }
+}

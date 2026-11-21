@@ -1,0 +1,9 @@
+interface Link<T> {
+    data: T
+    view sink {
+        in data
+    }
+}
+cell Bad(up: in Link<Bit>.sink) {
+    up.data := 1
+}

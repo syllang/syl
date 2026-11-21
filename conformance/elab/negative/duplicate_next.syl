@@ -1,0 +1,6 @@
+cell Bad<D: Domain>(clk: in Clock<D>, rst: in Reset<D>) -> y: Bit {
+    reg state: Bit reset(rst, 0)
+    next state := 0
+    next state := 1
+    y := state
+}

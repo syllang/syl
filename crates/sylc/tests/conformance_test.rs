@@ -3,9 +3,11 @@ use std::{
     path::{Path, PathBuf},
 };
 
+#[path = "support/conformance_backend_test.rs"]
+mod backend_fixtures;
+
 use syl_elab::HardwareCompiler;
-use syl_emit::{CompileError as EmitError, SystemVerilogBackend};
-use syl_hw::{HwValidationDiagnostic, ParametricHwDesign, ParametricHwModule};
+use syl_emit::SystemVerilogBackend;
 use syl_sema::SemanticSession;
 use syl_session::{AnalysisHost, ProjectConfig};
 use syl_span::{Diagnostic, SourceId};
@@ -44,7 +46,7 @@ fn conformance_sema_cases_assert_stable_codes() {
         let err = SemanticSession::new(&files)
             .resolve_hir()
             .and_then(|hir| hir.check_tir())
-            .expect_err("negative sema conformance case should fail");
+            .expect_err(&format!("{} should fail sema", case.display()));
         assert_expected_codes(&case, &[err.to_diagnostic()]);
     }
 }
@@ -90,22 +92,21 @@ fn conformance_backend_snapshot_and_negative_validation_are_executable() {
         );
     }
 
-    let err = SystemVerilogBackend::new()
-        .emit(&ParametricHwDesign::new(vec![
-            ParametricHwModule::new("Dup", Vec::new(), Vec::new(), Vec::new()),
-            ParametricHwModule::new("Dup", Vec::new(), Vec::new(), Vec::new()),
-        ]))
-        .expect_err("duplicate HW modules must fail backend validation");
-    let code = match err {
-        EmitError::InvalidHwir { report } => match report.diagnostics() {
-            [HwValidationDiagnostic::DuplicateModule { .. }, ..] => "E_HW_DUPLICATE_MODULE",
-            other => panic!("unexpected backend diagnostics: {other:?}"),
-        },
-        other => panic!("unexpected backend error: {other:?}"),
-    };
-    let expected =
-        read_text(&workspace_root().join("conformance/backend/negative/duplicate_module.codes"));
-    assert_eq!(code, expected.trim());
+    for case in cases_with_extension("conformance/backend/negative", "hwir") {
+        let design = backend_fixtures::read_design(&case);
+        let err = SystemVerilogBackend::new()
+            .emit(&design)
+            .expect_err(&format!(
+                "{} should fail backend validation",
+                case.display()
+            ));
+        assert_eq!(
+            backend_fixtures::error_codes(&err),
+            expected_codes(&case),
+            "{} backend diagnostics must use stable codes: {err}",
+            case.display()
+        );
+    }
 }
 
 #[test]
@@ -204,12 +205,18 @@ fn assert_expected_codes(case: &Path, diagnostics: &[Diagnostic]) {
 }
 
 fn expected_codes(case: &Path) -> Vec<String> {
-    read_text(&case.with_extension("codes"))
+    let codes: Vec<_> = read_text(&case.with_extension("codes"))
         .lines()
         .map(str::trim)
         .filter(|line| !line.is_empty())
         .map(ToOwned::to_owned)
-        .collect()
+        .collect();
+    assert!(
+        !codes.is_empty(),
+        "{} must expect a diagnostic",
+        case.display()
+    );
+    codes
 }
 
 fn diagnostic_codes(diagnostics: &[Diagnostic]) -> Vec<String> {
@@ -225,6 +232,10 @@ fn diagnostic_codes(diagnostics: &[Diagnostic]) -> Vec<String> {
 }
 
 fn syl_cases(relative: &str) -> Vec<PathBuf> {
+    cases_with_extension(relative, "syl")
+}
+
+fn cases_with_extension(relative: &str, extension: &str) -> Vec<PathBuf> {
     let dir = workspace_root().join(relative);
     let mut cases = Vec::new();
     for entry in fs::read_dir(&dir)
@@ -233,11 +244,16 @@ fn syl_cases(relative: &str) -> Vec<PathBuf> {
         let path = entry
             .unwrap_or_else(|err| panic!("failed to read conformance entry: {err}"))
             .path();
-        if path.extension().and_then(|ext| ext.to_str()) == Some("syl") {
+        if path.extension().and_then(|ext| ext.to_str()) == Some(extension) {
             cases.push(path);
         }
     }
     cases.sort();
+    assert!(
+        !cases.is_empty(),
+        "{} must contain test cases",
+        dir.display()
+    );
     cases
 }
 

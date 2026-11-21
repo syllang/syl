@@ -1,0 +1,6 @@
+interface Link {
+    data: Bit
+    view source {
+        out
+    }
+}

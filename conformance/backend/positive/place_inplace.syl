@@ -1,0 +1,8 @@
+cell Increment<W: nat>(x: in UInt<W>) -> y: UInt<W> {
+    y := x + 1
+}
+cell Twice(x: in UInt<8>, y: out UInt<8>) {
+    let first = place Increment<8>(x: x)
+    let second = inplace Increment<8>(x: first)
+    y := second
+}

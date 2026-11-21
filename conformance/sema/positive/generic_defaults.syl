@@ -1,0 +1,8 @@
+const WORD_W: nat = 8
+cell Identity<W: nat = WORD_W,>(x: in UInt<W>) -> y: UInt<W> {
+    y := x
+}
+cell Top(x: in UInt<8>, y: out UInt<8>) {
+    let result = place Identity(x: x)
+    y := result
+}

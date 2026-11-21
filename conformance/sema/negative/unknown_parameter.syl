@@ -1,0 +1,7 @@
+cell Identity<T>(x: in T) -> y: T {
+    y := x
+}
+cell Bad(x: in Bit, y: out Bit) {
+    let result = place Identity<Bit>(missing: x)
+    y := result
+}

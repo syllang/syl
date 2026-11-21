@@ -1,0 +1,10 @@
+cell Select<ENABLED: bool>(x: in Bit, y: out Bit) {
+    signal tmp: Bit
+    if ENABLED {
+        tmp := x
+        y := tmp
+    } else {
+        tmp := 0
+        y := tmp
+    }
+}

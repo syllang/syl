@@ -1,0 +1,4 @@
+enum State {
+    Idle = 1,
+    Busy = 1,
+}

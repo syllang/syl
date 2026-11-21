@@ -1,0 +1,4 @@
+enum Op { Pass }
+map decode(op: Op) -> Bit = match op {
+    .Pass 1,
+}

@@ -1,0 +1,9 @@
+enum Op {
+    Add = 1,
+    Xor = 4,
+}
+map calculate<W: nat>(op: Op, a: UInt<W>, b: UInt<W>) -> UInt<W> =
+    match op {
+        .Add => a + b,
+        .Xor => a xor b,
+    }

@@ -1,0 +1,11 @@
+fn double(value: nat) -> nat {
+    return value + value
+}
+const WIDTH: nat = double(4)
+cell Word(x: in UInt<WIDTH>, y: out UInt<WIDTH>) {
+    if WIDTH == 8 {
+        y := x
+    } else {
+        compile_error("constant evaluation changed")
+    }
+}

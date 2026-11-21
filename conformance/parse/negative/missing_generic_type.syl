@@ -1,0 +1,2 @@
+cell Bad<W: >(x: in Bit) {
+}

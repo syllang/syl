@@ -1,0 +1,4 @@
+cell Bad(x: in UInt<2>, y: out UInt<2>) {
+    y := x
+    y[0] := 1
+}

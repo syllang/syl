@@ -1,0 +1,13 @@
+enum Op {
+    Add = 1,
+    Xor = 4,
+    Pass = 7,
+}
+map calculate(op: Op, a: UInt<8>, b: UInt<8>) -> UInt<8> = match op {
+    .Add => a + b,
+    .Xor => a xor b,
+    .Pass => a,
+}
+cell Alu(op: in Op, a: in UInt<8>, b: in UInt<8>, y: out UInt<8>) {
+    y := calculate(op, a, b)
+}

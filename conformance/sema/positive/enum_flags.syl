@@ -1,0 +1,11 @@
+@layout(flags)
+enum Access {
+    None = 0,
+    Read = 1,
+    Write = 2,
+    Execute = 4,
+}
+map executable(value: Access) -> Bit = value eq Access.Execute
+cell Check(value: in Access, result: out Bit) {
+    result := executable(value)
+}
