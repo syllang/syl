@@ -172,25 +172,16 @@ impl DriverBitRange {
         {
             return false;
         }
-        if self.low.is_strictly_greater_than(&other.high)
-            || other.low.is_strictly_greater_than(&self.high)
-        {
-            return false;
-        }
-        true
+        !(self.low.is_strictly_greater_than(&other.high)
+            || other.low.is_strictly_greater_than(&self.high))
     }
 
     pub(crate) fn may_contain_index(&self, index: u64) -> bool {
         if let Some(range) = self.static_range() {
             return range.contains(index);
         }
-        if self.low.value().is_some_and(|low| index < low) {
-            return false;
-        }
-        if self.high.value().is_some_and(|high| index > high) {
-            return false;
-        }
-        true
+        self.low.value().is_none_or(|low| index >= low)
+            && self.high.value().is_none_or(|high| index <= high)
     }
 
     pub(crate) fn static_range(&self) -> Option<DriverStaticRange> {
