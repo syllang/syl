@@ -232,13 +232,42 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_elab|variant|syl_elab::metadata::model::HardwareCreateKind::Storage|unit` - Compiler internals and architecture tests that need explicit elaboration stages, hardware metadata, and HWIR lowering evidence.
 - `syl_emit|enum|syl_emit::CompileError|public` - CLI, facade, and backend tests that emit or validate SystemVerilog from normalized HWIR.
 - `syl_emit|enum|syl_emit::VerilogError|public` - CLI, facade, and backend tests that emit or validate SystemVerilog from normalized HWIR.
+- `syl_emit|field|syl_emit::files::EmitOptions::header_comment|bool` - CLI, facade, and backend tests that emit or validate SystemVerilog from normalized HWIR.
+- `syl_emit|field|syl_emit::files::EmitOptions::source_comments|bool` - CLI, facade, and backend tests that emit or validate SystemVerilog from normalized HWIR.
 - `syl_emit|method|syl_emit::CompileError::invalid_hwir|fn(report: syl_hw::HwValidationReport) -> Self` - CLI, facade, and backend tests that emit or validate SystemVerilog from normalized HWIR.
 - `syl_emit|method|syl_emit::CompileError::unsupported_hwir|fn(message: impl Into<String>) -> Self` - CLI, facade, and backend tests that emit or validate SystemVerilog from normalized HWIR.
 - `syl_emit|method|syl_emit::CompileError::verilog|fn(kind: VerilogError) -> Self` - CLI, facade, and backend tests that emit or validate SystemVerilog from normalized HWIR.
 - `syl_emit|method|syl_emit::SystemVerilogBackend::debug_dump|fn(self: &Self, hwir: &ParametricHwDesign) -> Result<String, CompileError>` - CLI, facade, and backend tests that emit or validate SystemVerilog from normalized HWIR.
+- `syl_emit|method|syl_emit::SystemVerilogBackend::emit_files_with_options|fn(self: &Self, hwir: &ParametricHwDesign, options: &EmitOptions, lookup: Option<&dyn SourceLocationLookup>) -> Result<EmittedSvBundle, CompileError>` - CLI, facade, and backend tests that emit or validate SystemVerilog from normalized HWIR.
+- `syl_emit|method|syl_emit::SystemVerilogBackend::emit_files|fn(self: &Self, hwir: &ParametricHwDesign) -> Result<EmittedSvBundle, CompileError>` - CLI, facade, and backend tests that emit or validate SystemVerilog from normalized HWIR.
+- `syl_emit|method|syl_emit::SystemVerilogBackend::emit_with_options|fn(self: &Self, hwir: &ParametricHwDesign, options: &EmitOptions, lookup: Option<&dyn SourceLocationLookup>) -> Result<String, CompileError>` - CLI, facade, and backend tests that emit or validate SystemVerilog from normalized HWIR.
 - `syl_emit|method|syl_emit::SystemVerilogBackend::emit|fn(self: &Self, hwir: &ParametricHwDesign) -> Result<String, CompileError>` - CLI, facade, and backend tests that emit or validate SystemVerilog from normalized HWIR.
 - `syl_emit|method|syl_emit::SystemVerilogBackend::new|fn() -> Self` - CLI, facade, and backend tests that emit or validate SystemVerilog from normalized HWIR.
+- `syl_emit|method|syl_emit::files::EmitOptions::new|fn() -> Self` - CLI, facade, and backend tests that emit or validate SystemVerilog from normalized HWIR.
+- `syl_emit|method|syl_emit::files::EmitOptions::with_header_comment|fn(self: Self, enabled: bool) -> Self` - CLI, facade, and backend tests that emit or validate SystemVerilog from normalized HWIR.
+- `syl_emit|method|syl_emit::files::EmitOptions::with_source_comments|fn(self: Self, enabled: bool) -> Self` - CLI, facade, and backend tests that emit or validate SystemVerilog from normalized HWIR.
+- `syl_emit|method|syl_emit::files::EmittedSvBundle::filelist_lines|fn(self: &Self) -> Vec<&str>` - CLI, facade, and backend tests that emit or validate SystemVerilog from normalized HWIR.
+- `syl_emit|method|syl_emit::files::EmittedSvBundle::filelist|fn(self: &Self) -> &str` - CLI, facade, and backend tests that emit or validate SystemVerilog from normalized HWIR.
+- `syl_emit|method|syl_emit::files::EmittedSvBundle::files|fn(self: &Self) -> &[EmittedSvFile]` - CLI, facade, and backend tests that emit or validate SystemVerilog from normalized HWIR.
+- `syl_emit|method|syl_emit::files::EmittedSvFile::canonical_path|fn(self: &Self) -> &[String]` - CLI, facade, and backend tests that emit or validate SystemVerilog from normalized HWIR.
+- `syl_emit|method|syl_emit::files::EmittedSvFile::content|fn(self: &Self) -> &str` - CLI, facade, and backend tests that emit or validate SystemVerilog from normalized HWIR.
+- `syl_emit|method|syl_emit::files::EmittedSvFile::file_name|fn(self: &Self) -> &str` - CLI, facade, and backend tests that emit or validate SystemVerilog from normalized HWIR.
+- `syl_emit|method|syl_emit::files::EmittedSvFile::module_name|fn(self: &Self) -> &str` - CLI, facade, and backend tests that emit or validate SystemVerilog from normalized HWIR.
+- `syl_emit|method|syl_emit::files::SourceLocation::file|fn(self: &Self) -> &str` - CLI, facade, and backend tests that emit or validate SystemVerilog from normalized HWIR.
+- `syl_emit|method|syl_emit::files::SourceLocation::line|fn(self: &Self) -> usize` - CLI, facade, and backend tests that emit or validate SystemVerilog from normalized HWIR.
+- `syl_emit|method|syl_emit::files::SourceLocation::new|fn(file: impl Into<String>, line: usize) -> Self` - CLI, facade, and backend tests that emit or validate SystemVerilog from normalized HWIR.
 - `syl_emit|struct|syl_emit::SystemVerilogBackend|public` - CLI, facade, and backend tests that emit or validate SystemVerilog from normalized HWIR.
+- `syl_emit|struct|syl_emit::files::EmitOptions|public` - CLI, facade, and backend tests that emit or validate SystemVerilog from normalized HWIR.
+- `syl_emit|struct|syl_emit::files::EmittedSvBundle|public` - CLI, facade, and backend tests that emit or validate SystemVerilog from normalized HWIR.
+- `syl_emit|struct|syl_emit::files::EmittedSvFile|public` - CLI, facade, and backend tests that emit or validate SystemVerilog from normalized HWIR.
+- `syl_emit|struct|syl_emit::files::SourceLocation|public` - CLI, facade, and backend tests that emit or validate SystemVerilog from normalized HWIR.
+- `syl_emit|trait_method|syl_emit::files::SourceLocationLookup::lookup|fn(self: &Self, source_index: usize, byte_offset: usize) -> Option<SourceLocation>` - CLI, facade, and backend tests that emit or validate SystemVerilog from normalized HWIR.
+- `syl_emit|trait|syl_emit::files::SourceLocationLookup|public` - CLI, facade, and backend tests that emit or validate SystemVerilog from normalized HWIR.
+- `syl_emit|use|EmitOptions|named|source=files::EmitOptions` - CLI, facade, and backend tests that emit or validate SystemVerilog from normalized HWIR.
+- `syl_emit|use|EmittedSvBundle|named|source=files::EmittedSvBundle` - CLI, facade, and backend tests that emit or validate SystemVerilog from normalized HWIR.
+- `syl_emit|use|EmittedSvFile|named|source=files::EmittedSvFile` - CLI, facade, and backend tests that emit or validate SystemVerilog from normalized HWIR.
+- `syl_emit|use|SourceLocationLookup|named|source=files::SourceLocationLookup` - CLI, facade, and backend tests that emit or validate SystemVerilog from normalized HWIR.
+- `syl_emit|use|SourceLocation|named|source=files::SourceLocation` - CLI, facade, and backend tests that emit or validate SystemVerilog from normalized HWIR.
 - `syl_emit|variant|syl_emit::CompileError::InvalidHwir|{ report: syl_hw::HwValidationReport }` - CLI, facade, and backend tests that emit or validate SystemVerilog from normalized HWIR.
 - `syl_emit|variant|syl_emit::CompileError::UnsupportedHwir|{ message: String }` - CLI, facade, and backend tests that emit or validate SystemVerilog from normalized HWIR.
 - `syl_emit|variant|syl_emit::CompileError::Verilog|{ kind: VerilogError }` - CLI, facade, and backend tests that emit or validate SystemVerilog from normalized HWIR.
@@ -851,6 +880,8 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_hw|method|syl_hw::design::HwInstance::name|fn(self: &Self) -> &str` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwInstance::new|fn(module: impl Into<String>, params: Vec<HwParamBind>, name: impl Into<String>, connections: Vec<HwConnection>) -> Self` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwInstance::params|fn(self: &Self) -> &[HwParamBind]` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|method|syl_hw::design::HwInstance::target_canonical_path|fn(self: &Self) -> &[String]` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|method|syl_hw::design::HwInstance::with_target_canonical_path|fn(self: Self, path: Vec<String>) -> Self` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwModule::doc|fn(self: &Self) -> Option<&str>` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwModule::items|fn(self: &Self) -> &[HwItem]` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwModule::name|fn(self: &Self) -> &str` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
@@ -860,6 +891,7 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_hw|method|syl_hw::design::HwModule::with_doc|fn(self: Self, doc: Option<String>) -> Self` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwOrigin::expansion_stack|fn(self: &Self) -> &[HwExpansion]` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwOrigin::new|fn(source: SourceId, span_start: usize, span_end: usize, expansion_stack: Vec<HwExpansion>) -> Self` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|method|syl_hw::design::HwOrigin::source_index|fn(self: &Self) -> usize` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwOrigin::source|fn(self: &Self) -> SourceId` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwOrigin::span_end|fn(self: &Self) -> usize` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwOrigin::span_start|fn(self: &Self) -> usize` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
@@ -891,13 +923,17 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_hw|method|syl_hw::parametric::ParametricHwDesign::new|fn(modules: Vec<ParametricHwModule>) -> Self` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::parametric::ParametricHwItem::core|fn(item: HwItem, origin: HwOrigin) -> Self` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::parametric::ParametricHwItem::origin|fn(self: &Self) -> &HwOrigin` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|method|syl_hw::parametric::ParametricHwModule::canonical_path|fn(self: &Self) -> &[String]` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::parametric::ParametricHwModule::doc|fn(self: &Self) -> Option<&str>` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::parametric::ParametricHwModule::items|fn(self: &Self) -> &[ParametricHwItem]` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::parametric::ParametricHwModule::name|fn(self: &Self) -> &str` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::parametric::ParametricHwModule::new|fn(name: impl Into<String>, params: Vec<HwParam>, ports: Vec<HwPort>, items: Vec<ParametricHwItem>) -> Self` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|method|syl_hw::parametric::ParametricHwModule::origin|fn(self: &Self) -> Option<&HwOrigin>` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::parametric::ParametricHwModule::params|fn(self: &Self) -> &[HwParam]` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::parametric::ParametricHwModule::ports|fn(self: &Self) -> &[HwPort]` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|method|syl_hw::parametric::ParametricHwModule::with_canonical_path|fn(self: Self, path: Vec<String>) -> Self` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::parametric::ParametricHwModule::with_doc|fn(self: Self, doc: Option<String>) -> Self` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|method|syl_hw::parametric::ParametricHwModule::with_origin|fn(self: Self, origin: Option<HwOrigin>) -> Self` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::place::HwPlace::display|fn(self: &Self) -> String` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::place::HwPlaceExpr::display|fn(self: &Self) -> String` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::validate::HwNormalizer::new|fn() -> Self` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
@@ -3294,6 +3330,9 @@ exported; adding or changing a surface line requires updating this section.
 - `syl|use|DocumentOrigin|named|source=syl_session::DocumentOrigin` - Stable facade for embedding applications and downstream tools that need parsing, sessions, queries, diagnostics, and SystemVerilog emission without depending on compiler internals.
 - `syl|use|DocumentUri|named|source=syl_session::DocumentUri` - Stable facade for embedding applications and downstream tools that need parsing, sessions, queries, diagnostics, and SystemVerilog emission without depending on compiler internals.
 - `syl|use|DocumentVersion|named|source=syl_session::DocumentVersion` - Stable facade for embedding applications and downstream tools that need parsing, sessions, queries, diagnostics, and SystemVerilog emission without depending on compiler internals.
+- `syl|use|EmitOptions|named|source=syl_emit::EmitOptions` - Stable facade for embedding applications and downstream tools that need parsing, sessions, queries, diagnostics, and SystemVerilog emission without depending on compiler internals.
+- `syl|use|EmittedSvBundle|named|source=syl_emit::EmittedSvBundle` - Stable facade for embedding applications and downstream tools that need parsing, sessions, queries, diagnostics, and SystemVerilog emission without depending on compiler internals.
+- `syl|use|EmittedSvFile|named|source=syl_emit::EmittedSvFile` - Stable facade for embedding applications and downstream tools that need parsing, sessions, queries, diagnostics, and SystemVerilog emission without depending on compiler internals.
 - `syl|use|FsVfs|named|source=syl_session::FsVfs` - Stable facade for embedding applications and downstream tools that need parsing, sessions, queries, diagnostics, and SystemVerilog emission without depending on compiler internals.
 - `syl|use|MANIFEST_FILE_NAME|named|source=syl_session::MANIFEST_FILE_NAME` - Stable facade for embedding applications and downstream tools that need parsing, sessions, queries, diagnostics, and SystemVerilog emission without depending on compiler internals.
 - `syl|use|ParseOutput|named|source=syl_syntax::ParseOutput` - Stable facade for embedding applications and downstream tools that need parsing, sessions, queries, diagnostics, and SystemVerilog emission without depending on compiler internals.
@@ -3307,6 +3346,8 @@ exported; adding or changing a surface line requires updating this section.
 - `syl|use|SourceDocument|named|source=syl_session::SourceDocument` - Stable facade for embedding applications and downstream tools that need parsing, sessions, queries, diagnostics, and SystemVerilog emission without depending on compiler internals.
 - `syl|use|SourceFile|named|source=syl_span::SourceFile` - Stable facade for embedding applications and downstream tools that need parsing, sessions, queries, diagnostics, and SystemVerilog emission without depending on compiler internals.
 - `syl|use|SourceId|named|source=syl_span::SourceId` - Stable facade for embedding applications and downstream tools that need parsing, sessions, queries, diagnostics, and SystemVerilog emission without depending on compiler internals.
+- `syl|use|SourceLocationLookup|named|source=syl_emit::SourceLocationLookup` - Stable facade for embedding applications and downstream tools that need parsing, sessions, queries, diagnostics, and SystemVerilog emission without depending on compiler internals.
+- `syl|use|SourceLocation|named|source=syl_emit::SourceLocation` - Stable facade for embedding applications and downstream tools that need parsing, sessions, queries, diagnostics, and SystemVerilog emission without depending on compiler internals.
 - `syl|use|SourceMap|named|source=syl_span::SourceMap` - Stable facade for embedding applications and downstream tools that need parsing, sessions, queries, diagnostics, and SystemVerilog emission without depending on compiler internals.
 - `syl|use|SourceParser|named|source=syl_syntax::SourceParser` - Stable facade for embedding applications and downstream tools that need parsing, sessions, queries, diagnostics, and SystemVerilog emission without depending on compiler internals.
 - `syl|use|SourcePosition|named|source=syl_span::SourcePosition` - Stable facade for embedding applications and downstream tools that need parsing, sessions, queries, diagnostics, and SystemVerilog emission without depending on compiler internals.
