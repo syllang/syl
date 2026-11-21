@@ -6,7 +6,9 @@ use super::{
 };
 use crate::CompileError;
 use crate::eir::EirRawDesign;
-use crate::pipeline::{ConstMirStage, EirBuildStage, ElaborationOutput, MapIrStage};
+use crate::pipeline::{
+    ConstMirStage, EirBuildStage, EirValidationStage, ElaborationOutput, MapIrStage,
+};
 use syl_sema::{OpaqueSummaryTable, TirAnalysis};
 use syl_span::Diagnostic;
 
@@ -18,19 +20,19 @@ pub(crate) fn map_ir_stage(tir: &TirAnalysis) -> Result<MapIrStage, CompileError
     MapIrPass::run(tir)
 }
 
-/// Elaborates one owner. Companion cells used only as stubs are omitted.
+/// Elaborates one owner identified by its canonical path.
 ///
-/// Validation runs on the retained module. Stub modules exist so const
-/// evaluation and `place` can see signatures; they are not this owner's output.
+/// Stub and companion cells stay in the elaboration program for `place` and
+/// `inplace` resolution, without being lowered as separate top-level modules.
 pub(crate) fn module_eir_stage(
     tir: &TirAnalysis,
     const_mir: &ConstMirStage,
     map_ir: &MapIrStage,
-    module_name: &str,
+    canonical_path: &[String],
 ) -> Result<EirBuildStage, CompileError> {
-    let stage = EirBuildPass::run(tir, const_mir, map_ir)?;
-    let stage = EirBuildStage::new(stage.into_raw().retain_named(module_name));
+    let mut stage = EirBuildPass::run_module(tir, const_mir, map_ir, canonical_path)?;
     let _ = EirValidationPass::run(&stage)?;
+    stage.mark_validated();
     Ok(stage)
 }
 
@@ -46,31 +48,28 @@ pub(crate) fn output_from_modules<C: Fn() -> bool + ?Sized>(
     );
     let eir_build = EirBuildStage::new(raw);
     let mut diagnostics = Vec::new();
-    let none = || ElaborationOutput {
-        const_mir: None,
-        map_ir: None,
-        eir_build: None,
-        eir_validation: None,
-        eir_facts: None,
-        eir: None,
-        driver_facts: None,
-        drc: None,
-        metadata: None,
-        hwir: None,
-        diagnostics: diagnostics.clone(),
-    };
     if cancellation() {
-        return none();
+        return empty_output();
     }
-    let eir_validation = match EirValidationPass::run(&eir_build) {
-        Ok(stage) => Some(stage),
-        Err(error) => {
-            diagnostics.push(Diagnostic::from(error));
-            return ElaborationOutput {
-                eir_build: Some(eir_build),
-                diagnostics,
-                ..empty_output()
-            };
+    let eir_validation = if modules.iter().all(|stage| stage.is_validated()) {
+        Some(EirValidationStage::new(eir_build.design.modules().len()))
+    } else {
+        let unvalidated_modules = modules
+            .iter()
+            .filter(|stage| !stage.is_validated())
+            .flat_map(|stage| stage.design.modules().iter().cloned())
+            .collect();
+        let unvalidated = EirBuildStage::new(EirRawDesign::new(unvalidated_modules));
+        match EirValidationPass::run(&unvalidated) {
+            Ok(_) => Some(EirValidationStage::new(eir_build.design.modules().len())),
+            Err(error) => {
+                diagnostics.push(Diagnostic::from(error));
+                return ElaborationOutput {
+                    eir_build: Some(eir_build),
+                    diagnostics,
+                    ..empty_output()
+                };
+            }
         }
     };
     if cancellation() {

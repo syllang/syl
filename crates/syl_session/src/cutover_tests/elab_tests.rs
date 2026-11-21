@@ -181,6 +181,52 @@ fn opaque_overlay_reuses_module_stages() {
     assert_eq!(newer.execution_count("workspace_elaboration("), designs + 1);
 }
 
+#[test]
+fn same_named_cells_in_different_modules_do_not_collide_in_module_eir_stage() {
+    let root = super::TempTree::new();
+    fs::write(
+        root.path.join("b.syl"),
+        "cell Sub(z: out Bit) { z := 1 }\ncell Mid(m_out: out Bit) { let s = inplace Sub(z: m_out) }\n",
+    )
+    .unwrap();
+    fs::write(
+        root.path.join("a.syl"),
+        "use b.Mid\ncell Sub(y: out Bit) { let m = inplace Mid(m_out: y) }\n",
+    )
+    .unwrap();
+    let mut host =
+        AnalysisHost::with_config(ProjectConfig::new().with_workspace_root(root.path.clone()));
+    host.set_roots(vec![root.path.join("a.syl")]);
+    let snapshot = host.snapshot().expect("same-name cell snapshot");
+    let diagnostics = snapshot
+        .elaboration_diagnostics_with_token(&CancellationToken::new())
+        .expect("same-name elaboration");
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let hwir = snapshot.hwir().expect("same-name hwir");
+    let mut modules = hwir
+        .modules()
+        .iter()
+        .map(|module| {
+            let ports = module
+                .ports()
+                .iter()
+                .map(|port| port.name().to_string())
+                .collect::<Vec<_>>();
+            (module.name().to_string(), ports)
+        })
+        .collect::<Vec<_>>();
+    modules.sort();
+    assert_eq!(
+        modules,
+        vec![
+            ("Mid".to_string(), vec!["m_out".to_string()]),
+            ("Sub".to_string(), vec!["y".to_string()]),
+            ("Sub".to_string(), vec!["z".to_string()]),
+        ],
+        "each module owner must emit only its canonical cell without colliding on unqualified name"
+    );
+}
+
 fn elaborate(snapshot: &crate::AnalysisSnapshot) {
     snapshot
         .elaboration_diagnostics_with_token(&CancellationToken::new())

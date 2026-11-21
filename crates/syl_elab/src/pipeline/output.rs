@@ -180,20 +180,23 @@ impl MapIrStage {
 #[non_exhaustive]
 pub struct EirBuildStage {
     pub(super) design: Arc<EirRawDesign>,
+    validated: bool,
 }
 
 impl EirBuildStage {
     pub(super) fn new(design: EirRawDesign) -> Self {
         Self {
             design: Arc::new(design),
+            validated: false,
         }
     }
 
-    pub(crate) fn into_raw(self) -> EirRawDesign {
-        match Arc::try_unwrap(self.design) {
-            Ok(design) => design,
-            Err(design) => EirRawDesign::new(design.modules().to_vec()),
-        }
+    pub(super) fn mark_validated(&mut self) {
+        self.validated = true;
+    }
+
+    pub(super) fn is_validated(&self) -> bool {
+        self.validated
     }
 
     pub fn debug_dump(&self) -> String {

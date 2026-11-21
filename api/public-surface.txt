@@ -45,7 +45,7 @@ syl_elab|method|syl_elab::pipeline::compiler::HardwareCompiler::diagnostics_outp
 syl_elab|method|syl_elab::pipeline::compiler::HardwareCompiler::diagnostics_with_token|fn(self: &Self, tir: &TirAnalysis, cancellation: &F) -> Vec<Diagnostic>
 syl_elab|method|syl_elab::pipeline::compiler::HardwareCompiler::diagnostics|fn(self: &Self, tir: &TirAnalysis) -> Vec<Diagnostic>
 syl_elab|method|syl_elab::pipeline::compiler::HardwareCompiler::map_ir_stage|fn(self: &Self, tir: &TirAnalysis) -> Result<MapIrStage, CompileError>
-syl_elab|method|syl_elab::pipeline::compiler::HardwareCompiler::module_eir_stage|fn(self: &Self, tir: &TirAnalysis, const_mir: &ConstMirStage, map_ir: &MapIrStage, module_name: &str) -> Result<EirBuildStage, CompileError>
+syl_elab|method|syl_elab::pipeline::compiler::HardwareCompiler::module_eir_stage|fn(self: &Self, tir: &TirAnalysis, const_mir: &ConstMirStage, map_ir: &MapIrStage, canonical_path: &[String]) -> Result<EirBuildStage, CompileError>
 syl_elab|method|syl_elab::pipeline::compiler::HardwareCompiler::new|fn() -> Self
 syl_elab|method|syl_elab::pipeline::compiler::HardwareCompiler::opaque_summaries|fn(self: &Self) -> &OpaqueSummaryTable
 syl_elab|method|syl_elab::pipeline::compiler::HardwareCompiler::output_for_tir_with_token|fn(self: &Self, tir: &TirAnalysis, cancellation: &F) -> ElaborationOutput

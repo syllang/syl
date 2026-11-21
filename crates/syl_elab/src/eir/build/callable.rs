@@ -57,6 +57,15 @@ where
         let _map_ir_nodes = self.map_ir.len();
         EirBuilder::new(self.program, self.const_elaborator, self.map_ir).build_raw_design()
     }
+
+    pub(crate) fn build_raw_module(
+        self,
+        canonical_path: &[String],
+    ) -> Result<EirRawDesign, CompileError> {
+        let _map_ir_nodes = self.map_ir.len();
+        EirBuilder::new(self.program, self.const_elaborator, self.map_ir)
+            .build_raw_module(canonical_path)
+    }
 }
 
 impl<'a, C> EirBuilder<'a, C>
@@ -80,16 +89,35 @@ where
     pub(crate) fn build_raw_design(&self) -> Result<EirRawDesign, CompileError> {
         let mut modules = Vec::new();
         for (owner, callable) in self.program.callables() {
-            match callable {
-                ElabCallable::Cell(item) => {
-                    modules.push(self.build_callable(*owner, item)?);
-                }
-                ElabCallable::Extern(item) => {
-                    modules.push(self.build_extern(*owner, item)?);
-                }
-            }
+            modules.push(self.build_callable_entry(*owner, callable)?);
         }
         Ok(EirRawDesign::new(modules))
+    }
+
+    pub(crate) fn build_raw_module(
+        &self,
+        canonical_path: &[String],
+    ) -> Result<EirRawDesign, CompileError> {
+        let Some(owner) = self.program.canonical_def_id(canonical_path) else {
+            return Ok(EirRawDesign::new(Vec::new()));
+        };
+        let Some(callable) = self.program.callable_by_def(owner) else {
+            return Ok(EirRawDesign::new(Vec::new()));
+        };
+        Ok(EirRawDesign::new(vec![
+            self.build_callable_entry(owner, callable)?,
+        ]))
+    }
+
+    fn build_callable_entry(
+        &self,
+        owner: DefId,
+        callable: &ElabCallable,
+    ) -> Result<EirModule, CompileError> {
+        match callable {
+            ElabCallable::Cell(item) => self.build_callable(owner, item),
+            ElabCallable::Extern(item) => self.build_extern(owner, item),
+        }
     }
 
     fn build_callable(

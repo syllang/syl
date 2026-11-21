@@ -137,16 +137,17 @@ impl HardwareCompiler {
         super::runner::map_ir_stage(tir)
     }
 
-    /// One hardware module. Companion cells used only as stubs are omitted.
+    /// One hardware module identified by its canonical path. Companion and stub
+    /// cells stay available for expansion without being lowered as top-level modules.
     pub fn module_eir_stage(
         &self,
         tir: &TirAnalysis,
         const_mir: &ConstMirStage,
         map_ir: &MapIrStage,
-        module_name: &str,
+        canonical_path: &[String],
     ) -> Result<EirBuildStage, CompileError> {
         let _ = self;
-        super::runner::module_eir_stage(tir, const_mir, map_ir, module_name)
+        super::runner::module_eir_stage(tir, const_mir, map_ir, canonical_path)
     }
 
     /// Design-level driver facts, DRC, and HWIR from per-module EIR.

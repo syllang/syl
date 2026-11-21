@@ -133,10 +133,16 @@ fn owner_module_eir<'db>(
     let Ok(map_ir) = map_ir.as_ref().as_ref() else {
         return Arc::new(Err(map_ir.as_ref().as_ref().unwrap_err().clone()));
     };
-    let name = symbol.name(db).clone();
+    let mut canonical_path: Vec<String> = symbol
+        .module(db)
+        .split('.')
+        .filter(|segment| !segment.is_empty())
+        .map(str::to_string)
+        .collect();
+    canonical_path.push(symbol.name(db).clone());
     Arc::new(
         HardwareCompiler::new()
-            .module_eir_stage(analysis, const_mir, map_ir, &name)
+            .module_eir_stage(analysis, const_mir, map_ir, &canonical_path)
             .map_err(Diagnostic::from),
     )
 }

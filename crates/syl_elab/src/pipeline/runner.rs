@@ -494,6 +494,19 @@ impl EirBuildPass {
     ) -> Result<EirBuildStage, CompileError> {
         ElabStage::from_tir(tir.design()).build_raw_eir(const_mir, map_ir)
     }
+
+    fn run_module(
+        tir: &TirAnalysis,
+        const_mir: &ConstMirStage,
+        map_ir: &MapIrStage,
+        canonical_path: &[String],
+    ) -> Result<EirBuildStage, CompileError> {
+        ElabStage::from_tir(tir.design()).build_raw_eir_for_module(
+            const_mir,
+            map_ir,
+            canonical_path,
+        )
+    }
 }
 
 #[non_exhaustive]
