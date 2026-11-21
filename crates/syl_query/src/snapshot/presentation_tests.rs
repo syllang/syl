@@ -74,6 +74,34 @@ fn hints_cover_types_widths_domains_and_range_filtering() {
 }
 
 #[test]
+fn reset_domain_hints_preserve_identity_with_mode_and_polarity_qualifiers() {
+    for qualifiers in [
+        "",
+        ", Sync, ActiveHigh",
+        ", Sync, ActiveLow",
+        ", Async, ActiveHigh",
+        ", Async, ActiveLow",
+    ] {
+        let text = format!(
+            "cell C<CoreClk: Domain>(clk: in Clock<CoreClk>, rst: in Reset<CoreClk{qualifiers}>) {{ reg q: Bit reset(rst, 0); next q := 0; }}"
+        );
+        let (s, uri) = snapshot(&text);
+        assert!(s.diagnostics().is_empty(), "{:?}", s.diagnostics());
+        let hints = s.inlay_hints(
+            &uri,
+            SourceRange::new(SourcePosition::new(0, 0), SourcePosition::new(1, 0)),
+        );
+        assert!(
+            hints
+                .iter()
+                .any(|h| h.label == "@CoreClk"
+                    && h.tooltip.as_deref() == Some("reset domain: CoreClk")),
+            "{hints:?}"
+        );
+    }
+}
+
+#[test]
 fn semantic_classes_modifiers_utf16_and_multiline_strings() {
     let text = "/// docs\nuse util.Sub;\nconst S = \"💡\ntext\";\n@packed bundle Word { bits: UInt<8> }\nenum Mode { A, B }\ninterface Bus { data: Bit, view Tx { out data } }\nfn f(x: nat) -> nat { let a = 1; a + x }\ncell Top(x: in Bit, y: out Bit) { signal s := x; reg r: Bit; next r := s; y := r; } // end\n";
     let (s, uris) = workspace(&[
