@@ -120,6 +120,41 @@ impl<'a> SvEmitter<'a> {
 
     fn lower_core_item(&self, item: &HwItem) -> Result<SvItem, CompileError> {
         match item {
+            HwItem::MemoryDecl {
+                name,
+                elem_width,
+                depth,
+            } => Ok(SvItem::MemoryDecl {
+                name: name.clone(),
+                elem_width: elem_width.clone(),
+                depth: depth.clone(),
+            }),
+            HwItem::MemoryWrite {
+                clock,
+                memory,
+                enable,
+                addr,
+                data,
+            } => Ok(SvItem::MemoryWrite {
+                clock: self.lower_expr(clock)?,
+                memory: memory.clone(),
+                enable: self.lower_expr(enable)?,
+                addr: self.lower_expr(addr)?,
+                data: self.lower_expr(data)?,
+            }),
+            HwItem::MemorySyncRead {
+                clock,
+                memory,
+                enable,
+                addr,
+                target,
+            } => Ok(SvItem::MemorySyncRead {
+                clock: self.lower_expr(clock)?,
+                memory: memory.clone(),
+                enable: self.lower_expr(enable)?,
+                addr: self.lower_expr(addr)?,
+                target: self.lower_expr(target)?,
+            }),
             HwItem::StaticParam { name, value } => Ok(SvItem::LocalParam {
                 name: name.clone(),
                 value: self.lower_expr(value)?,
@@ -209,10 +244,21 @@ impl<'a> SvEmitter<'a> {
     }
 
     fn lower_reset(&self, reset: &HwReset) -> Result<SvReset, CompileError> {
-        Ok(SvReset::new(
+        let mut lowered = SvReset::new(
             self.lower_expr(reset.condition())?,
             self.lower_expr(reset.value())?,
-        ))
+        );
+        lowered.mode = match reset.mode() {
+            syl_hw::HwResetMode::Sync => SvResetMode::Sync,
+            syl_hw::HwResetMode::Async => SvResetMode::Async,
+            _ => return Err(CompileError::unsupported_hwir("unknown reset mode")),
+        };
+        lowered.polarity = match reset.polarity() {
+            syl_hw::HwResetPolarity::ActiveHigh => SvResetPolarity::ActiveHigh,
+            syl_hw::HwResetPolarity::ActiveLow => SvResetPolarity::ActiveLow,
+            _ => return Err(CompileError::unsupported_hwir("unknown reset polarity")),
+        };
+        Ok(lowered)
     }
 
     fn lower_instance(&self, instance: &HwInstance) -> Result<SvInstance, CompileError> {

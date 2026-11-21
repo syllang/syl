@@ -1,4 +1,6 @@
-use super::{SvExpr, SvInstance, SvItem, SvModule, SvParam, SvSelectArm};
+use super::{
+    SvExpr, SvInstance, SvItem, SvModule, SvParam, SvResetMode, SvResetPolarity, SvSelectArm,
+};
 
 /// Owns the output buffer while rendering backend IR.
 ///
@@ -110,6 +112,56 @@ impl<'a> SvPrinter<'a> {
                 self.out
                     .push_str(&format!("{pad}reg {}{};\n", range_prefix(width), name));
             }
+            SvItem::MemoryDecl {
+                name,
+                elem_width,
+                depth,
+            } => {
+                let last = depth
+                    .parse::<u64>()
+                    .ok()
+                    .filter(|d| *d > 0)
+                    .map(|d| (d - 1).to_string())
+                    .unwrap_or_else(|| format!("({depth})-1"));
+                self.out.push_str(&format!(
+                    "{pad}reg {}{name} [0:{last}];\n",
+                    range_prefix(elem_width)
+                ));
+            }
+            SvItem::MemoryWrite {
+                clock,
+                memory,
+                enable,
+                addr,
+                data,
+            } => {
+                self.out.push_str(&format!("{pad}always @(posedge "));
+                self.expr(clock);
+                self.out.push_str(&format!(") begin\n{pad}  if ("));
+                self.expr(enable);
+                self.out.push_str(&format!(") {memory}["));
+                self.expr(addr);
+                self.out.push_str("] <= ");
+                self.expr(data);
+                self.out.push_str(&format!(";\n{pad}end\n"));
+            }
+            SvItem::MemorySyncRead {
+                clock,
+                memory,
+                enable,
+                addr,
+                target,
+            } => {
+                self.out.push_str(&format!("{pad}always @(posedge "));
+                self.expr(clock);
+                self.out.push_str(&format!(") begin\n{pad}  if ("));
+                self.expr(enable);
+                self.out.push_str(") ");
+                self.expr(target);
+                self.out.push_str(&format!(" <= {memory}["));
+                self.expr(addr);
+                self.out.push_str(&format!("];\n{pad}end\n"));
+            }
             SvItem::Assign { lhs, rhs } => {
                 self.out.push_str(&format!("{pad}assign "));
                 self.expr(lhs);
@@ -125,10 +177,24 @@ impl<'a> SvPrinter<'a> {
             } => {
                 self.out.push_str(&format!("{pad}always @(posedge "));
                 self.expr(clock);
+                if let Some(reset) = reset
+                    && reset.mode == SvResetMode::Async
+                {
+                    self.out
+                        .push_str(if reset.polarity == SvResetPolarity::ActiveLow {
+                            " or negedge "
+                        } else {
+                            " or posedge "
+                        });
+                    self.expr(&reset.condition);
+                }
                 self.out.push_str(") begin\n");
                 self.out.push_str(&format!("{pad}  "));
                 if let Some(reset) = reset {
                     self.out.push_str("if (");
+                    if reset.polarity == SvResetPolarity::ActiveLow {
+                        self.out.push('!');
+                    }
                     self.expr(&reset.condition);
                     self.out.push_str(") ");
                     self.expr(target);

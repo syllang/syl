@@ -176,6 +176,25 @@ pub(super) enum SvItem {
     InitialError {
         message: SvExpr,
     },
+    MemoryDecl {
+        name: String,
+        elem_width: String,
+        depth: String,
+    },
+    MemoryWrite {
+        clock: SvExpr,
+        memory: String,
+        enable: SvExpr,
+        addr: SvExpr,
+        data: SvExpr,
+    },
+    MemorySyncRead {
+        clock: SvExpr,
+        memory: String,
+        enable: SvExpr,
+        addr: SvExpr,
+        target: SvExpr,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -318,13 +337,33 @@ impl From<SvBinaryOp> for &'static str {
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub(super) struct SvReset {
+    pub(super) mode: SvResetMode,
+    pub(super) polarity: SvResetPolarity,
     pub(super) condition: SvExpr,
     pub(super) value: SvExpr,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
+pub(super) enum SvResetMode {
+    Sync,
+    Async,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
+pub(super) enum SvResetPolarity {
+    ActiveHigh,
+    ActiveLow,
+}
+
 impl SvReset {
     pub(super) fn new(condition: SvExpr, value: SvExpr) -> Self {
-        Self { condition, value }
+        Self {
+            condition,
+            value,
+            mode: SvResetMode::Sync,
+            polarity: SvResetPolarity::ActiveHigh,
+        }
     }
 }
 

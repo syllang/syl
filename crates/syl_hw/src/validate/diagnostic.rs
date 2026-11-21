@@ -17,6 +17,8 @@ pub enum HwBindingKind {
     Signal,
     #[strum(serialize = "storage")]
     Storage,
+    #[strum(serialize = "memory")]
+    Memory,
     #[strum(serialize = "instance")]
     Instance,
     #[strum(serialize = "generate label")]
