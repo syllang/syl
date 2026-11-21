@@ -18,6 +18,7 @@ pub(super) fn inplace_callees(item: &Item) -> BTreeSet<String> {
     match item {
         Item::Cell(item) => inplace_block(&item.body, &mut names),
         Item::Fn(item) => inplace_block(&item.body, &mut names),
+        Item::Map(item) => inplace_expr(&item.body, &mut names),
         _ => {}
     }
     names
@@ -40,7 +41,19 @@ fn inplace_stmt(stmt: &Stmt, names: &mut BTreeSet<String>) {
                 inplace_expr(value, names);
             }
         }
-        Stmt::Assign { value, .. } | Stmt::Drive { value, .. } | Stmt::Next { value, .. } => {
+        Stmt::Reg { reset, .. } => {
+            if let Some(reset) = reset {
+                if let Some(domain) = &reset.domain {
+                    inplace_expr(domain, names);
+                }
+                inplace_expr(&reset.value, names);
+            }
+        }
+        Stmt::Assign { target, value, .. } | Stmt::Drive { target, value, .. } => {
+            inplace_expr(target, names);
+            inplace_expr(value, names);
+        }
+        Stmt::Next { value, .. } => {
             inplace_expr(value, names);
         }
         Stmt::While { cond, body, .. } => {
@@ -65,6 +78,7 @@ fn inplace_stmt(stmt: &Stmt, names: &mut BTreeSet<String>) {
         }
         Stmt::Expr(expr) => inplace_expr(expr, names),
         Stmt::Return(Some(value), _) => inplace_expr(value, names),
+        Stmt::Return(None, _) | Stmt::Error { .. } => {}
         _ => {}
     }
 }
@@ -72,29 +86,65 @@ fn inplace_stmt(stmt: &Stmt, names: &mut BTreeSet<String>) {
 fn inplace_expr(expr: &Expr, names: &mut BTreeSet<String>) {
     match expr {
         Expr::Place {
-            callee, inplace, ..
-        } if *inplace => {
-            if let Some(name) = callee_root(callee) {
+            callee,
+            args,
+            inplace,
+            ..
+        } => {
+            if *inplace && let Some(name) = callee_root(callee) {
                 names.insert(name.to_string());
             }
-            inplace_expr(callee, names);
-        }
-        Expr::Unary { expr, .. } | Expr::Group(expr, _) => inplace_expr(expr, names),
-        Expr::Binary { left, right, .. } => {
-            inplace_expr(left, names);
-            inplace_expr(right, names);
-        }
-        Expr::Call { callee, args, .. } | Expr::Place { callee, args, .. } => {
             inplace_expr(callee, names);
             for arg in args {
                 inplace_expr(&arg.value, names);
             }
         }
+        Expr::Unary { expr, .. } | Expr::Group(expr, _) => inplace_expr(expr, names),
+        Expr::Binary { left, right, .. }
+        | Expr::Range {
+            start: left,
+            end: right,
+            ..
+        } => {
+            inplace_expr(left, names);
+            inplace_expr(right, names);
+        }
+        Expr::Call { callee, args, .. } => {
+            inplace_expr(callee, names);
+            for arg in args {
+                inplace_expr(&arg.value, names);
+            }
+        }
+        Expr::GenericApp { callee, .. } => inplace_expr(callee, names),
+        Expr::Aggregate { fields, .. } => {
+            for field in fields {
+                inplace_expr(&field.value, names);
+            }
+        }
+        Expr::Field { base, .. } => inplace_expr(base, names),
+        Expr::Index { base, index, .. } => {
+            inplace_expr(base, names);
+            inplace_expr(index, names);
+        }
         Expr::Block(block) => inplace_block(block, names),
+        Expr::Match { expr, arms, .. } => {
+            inplace_expr(expr, names);
+            for arm in arms {
+                inplace_expr(&arm.value, names);
+            }
+        }
+        Expr::Select { arms, .. } => {
+            for arm in arms {
+                inplace_expr(&arm.pattern, names);
+                inplace_expr(&arm.value, names);
+            }
+        }
         Expr::For { range, body, .. } => {
             inplace_expr(range, names);
             inplace_block(body, names);
         }
+        Expr::CompileError { message, .. } => inplace_expr(message, names),
+        Expr::Ident(_, _) | Expr::Int(_, _) | Expr::Str(_, _) | Expr::Bool(_, _) => {}
         _ => {}
     }
 }
@@ -102,7 +152,9 @@ fn inplace_expr(expr: &Expr, names: &mut BTreeSet<String>) {
 fn callee_root(expr: &Expr) -> Option<&str> {
     match expr {
         Expr::Ident(name, _) => Some(name),
-        Expr::Field { base, .. } | Expr::GenericApp { callee: base, .. } => callee_root(base),
+        Expr::Field { base, .. }
+        | Expr::GenericApp { callee: base, .. }
+        | Expr::Group(base, _) => callee_root(base),
         _ => None,
     }
 }
@@ -484,3 +536,7 @@ impl Refs<'_> {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "refs_tests.rs"]
+mod refs_tests;
