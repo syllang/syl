@@ -42,8 +42,8 @@ pub(crate) use store::{Generation, PublishStaging, QueryStore};
 pub(crate) use facade::input_text;
 pub(crate) use facade::{
     ide_hir_query, ide_tir_query, intern_symbol, make_unit, merged_opaque_query,
-    package_diagnostics_query, workspace_diagnostics_query, workspace_elaboration_query,
-    workspace_hir_query, workspace_tir_query,
+    package_diagnostics_query, unit_elaboration_query, workspace_diagnostics_query,
+    workspace_elaboration_query, workspace_hir_query, workspace_tir_query,
 };
 
 thread_local! {

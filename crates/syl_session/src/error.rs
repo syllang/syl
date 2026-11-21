@@ -6,6 +6,8 @@ use thiserror::Error;
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum ProjectError {
+    #[error("invalid text edit for {uri}: {message}")]
+    InvalidTextEdit { uri: String, message: String },
     #[error("failed to parse manifest {path}: {message}")]
     ManifestParse { path: PathBuf, message: String },
     #[error("invalid manifest {path}: {message}")]

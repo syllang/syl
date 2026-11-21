@@ -8,10 +8,18 @@ use syl_sema::{HirAnalysisOutput, OpaqueSummaryTable, StageOutput, SymbolKey, Ti
 
 use super::{
     RevisionInput, SymbolId, UnitId, ide_unit_hir, ide_unit_tir, merged_opaque,
-    package_diagnostics, workspace_diagnostics, workspace_elaboration, workspace_hir,
-    workspace_tir,
+    package_diagnostics, unit_elaboration, workspace_diagnostics, workspace_elaboration,
+    workspace_hir, workspace_tir,
 };
 use crate::query::SylDb;
+
+pub(crate) fn unit_elaboration_query<'db>(
+    db: &'db dyn SylDb,
+    revision: RevisionInput,
+    unit: UnitId<'db>,
+) -> &'db Option<Arc<ElaborationOutput>> {
+    unit_elaboration(db, revision, unit)
+}
 
 pub(crate) fn intern_symbol<'db>(db: &'db dyn SylDb, key: &SymbolKey) -> SymbolId<'db> {
     SymbolId::new(

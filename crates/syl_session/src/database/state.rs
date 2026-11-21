@@ -24,6 +24,21 @@ pub(crate) struct SessionState {
 }
 
 impl SessionState {
+    pub(crate) fn reconfigure(&mut self, config: ProjectConfig) {
+        self.resolver = ProjectResolver::with_config(config);
+        self.touch();
+    }
+
+    pub(crate) fn apply_edits(
+        &mut self,
+        uri: &DocumentUri,
+        edits: &[crate::TextDocumentEdit],
+        version: DocumentVersion,
+    ) -> Result<DocumentVersion, ProjectError> {
+        self.documents.apply_edits(uri, edits, version)?;
+        self.touch();
+        Ok(version)
+    }
     pub(crate) fn with_config(config: ProjectConfig) -> Self {
         Self::with_resolver(ProjectResolver::with_config(config))
     }
@@ -43,7 +58,11 @@ impl SessionState {
         for input in inputs {
             collector.collect(input)?;
         }
-        self.set_roots(roots);
+        roots.sort();
+        roots.dedup();
+        if self.roots() != roots {
+            self.set_roots(roots);
+        }
         Ok(())
     }
 

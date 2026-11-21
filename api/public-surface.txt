@@ -2305,6 +2305,9 @@ syl_session|method|syl_session::config::ProjectConfigBuilder::push_workspace_roo
 syl_session|method|syl_session::config::ProjectConfigBuilder::std_roots|fn(self: Self, value: Vec<PathBuf>) -> Self
 syl_session|method|syl_session::config::ProjectConfigBuilder::try_build|fn(self: Self) -> ::derive_builder::export::core::result::Result<ProjectConfig, ProjectConfigBuilderError>
 syl_session|method|syl_session::config::ProjectConfigBuilder::workspace_roots|fn(self: Self, value: Vec<PathBuf>) -> Self
+syl_session|method|syl_session::database::AnalysisDatabase::apply_document_changes_at_version|fn(self: &mut Self, uri: &DocumentUri, changes: &[TextDocumentEdit], version: DocumentVersion) -> Result<DocumentVersion, ProjectError>
+syl_session|method|syl_session::database::AnalysisDatabase::apply_manifest|fn(self: &mut Self, manifest: &ProjectManifest) -> Result<(), ProjectError>
+syl_session|method|syl_session::database::AnalysisDatabase::clear_opaque_summaries|fn(self: &mut Self)
 syl_session|method|syl_session::database::AnalysisDatabase::close_document|fn(self: &mut Self, uri: &DocumentUri) -> Option<SourceDocument>
 syl_session|method|syl_session::database::AnalysisDatabase::load_with_token|fn(self: &mut Self, inputs: &[PathBuf], token: &CancellationToken) -> Result<AnalysisSnapshot, ProjectError>
 syl_session|method|syl_session::database::AnalysisDatabase::load|fn(self: &mut Self, inputs: &[PathBuf]) -> Result<AnalysisSnapshot, ProjectError>
@@ -2312,6 +2315,8 @@ syl_session|method|syl_session::database::AnalysisDatabase::new|fn() -> Self
 syl_session|method|syl_session::database::AnalysisDatabase::opaque_summaries|fn(self: &Self) -> &OpaqueSummaryTable
 syl_session|method|syl_session::database::AnalysisDatabase::open_document|fn(self: &mut Self, uri: DocumentUri, text: String, version: DocumentVersion) -> DocumentVersion
 syl_session|method|syl_session::database::AnalysisDatabase::overlay|fn(self: &Self, uri: &DocumentUri) -> Option<&SourceDocument>
+syl_session|method|syl_session::database::AnalysisDatabase::reconfigure|fn(self: &mut Self, config: ProjectConfig)
+syl_session|method|syl_session::database::AnalysisDatabase::refresh_inputs|fn(self: &mut Self, inputs: &[PathBuf]) -> Result<(), ProjectError>
 syl_session|method|syl_session::database::AnalysisDatabase::register_opaque_summary|fn(self: &mut Self, summary: OpaqueItemSummary)
 syl_session|method|syl_session::database::AnalysisDatabase::revision|fn(self: &Self) -> DatabaseRevision
 syl_session|method|syl_session::database::AnalysisDatabase::roots|fn(self: &Self) -> &[PathBuf]
@@ -2336,6 +2341,9 @@ syl_session|method|syl_session::document::SourceDocument::path|fn(self: &Self) -
 syl_session|method|syl_session::document::SourceDocument::text|fn(self: &Self) -> &str
 syl_session|method|syl_session::document::SourceDocument::uri|fn(self: &Self) -> &DocumentUri
 syl_session|method|syl_session::document::SourceDocument::version|fn(self: &Self) -> DocumentVersion
+syl_session|method|syl_session::host::AnalysisHost::apply_document_changes_at_version|fn(self: &mut Self, uri: &DocumentUri, changes: &[TextDocumentEdit], version: DocumentVersion) -> Result<DocumentVersion, ProjectError>
+syl_session|method|syl_session::host::AnalysisHost::apply_manifest|fn(self: &mut Self, manifest: &ProjectManifest) -> Result<(), ProjectError>
+syl_session|method|syl_session::host::AnalysisHost::clear_opaque_summaries|fn(self: &mut Self)
 syl_session|method|syl_session::host::AnalysisHost::close_document|fn(self: &mut Self, uri: &DocumentUri) -> Option<SourceDocument>
 syl_session|method|syl_session::host::AnalysisHost::database_mut|fn(self: &mut Self) -> &mut AnalysisDatabase
 syl_session|method|syl_session::host::AnalysisHost::database|fn(self: &Self) -> &AnalysisDatabase
@@ -2347,6 +2355,8 @@ syl_session|method|syl_session::host::AnalysisHost::new|fn() -> Self
 syl_session|method|syl_session::host::AnalysisHost::opaque_summaries|fn(self: &Self) -> &OpaqueSummaryTable
 syl_session|method|syl_session::host::AnalysisHost::open_document|fn(self: &mut Self, uri: DocumentUri, text: String, version: DocumentVersion) -> DocumentVersion
 syl_session|method|syl_session::host::AnalysisHost::overlay|fn(self: &Self, uri: &DocumentUri) -> Option<&SourceDocument>
+syl_session|method|syl_session::host::AnalysisHost::reconfigure|fn(self: &mut Self, config: ProjectConfig)
+syl_session|method|syl_session::host::AnalysisHost::refresh_inputs|fn(self: &mut Self, inputs: &[PathBuf]) -> Result<(), ProjectError>
 syl_session|method|syl_session::host::AnalysisHost::register_opaque_summary|fn(self: &mut Self, summary: OpaqueItemSummary)
 syl_session|method|syl_session::host::AnalysisHost::roots|fn(self: &Self) -> &[PathBuf]
 syl_session|method|syl_session::host::AnalysisHost::set_opaque_summaries|fn(self: &mut Self, opaque_summaries: OpaqueSummaryTable)
@@ -2410,6 +2420,7 @@ syl_session|method|syl_session::snapshot::model::AnalysisSnapshot::hwir_with_tok
 syl_session|method|syl_session::snapshot::model::AnalysisSnapshot::hwir|fn(self: &Self) -> Option<&ParametricHwDesign>
 syl_session|method|syl_session::snapshot::model::AnalysisSnapshot::opaque_summaries_with_token|fn(self: &Self, token: &CancellationToken) -> Result<Option<&OpaqueSummaryTable>, ProjectError>
 syl_session|method|syl_session::snapshot::model::AnalysisSnapshot::opaque_summaries|fn(self: &Self) -> Option<&OpaqueSummaryTable>
+syl_session|method|syl_session::snapshot::model::AnalysisSnapshot::package_elaboration_diagnostics_with_token|fn(self: &Self, uri: &DocumentUri, token: &CancellationToken) -> Result<Option<Vec<Diagnostic>>, ProjectError>
 syl_session|method|syl_session::snapshot::model::AnalysisSnapshot::package_name_for_uri|fn(self: &Self, uri: &DocumentUri) -> Option<&str>
 syl_session|method|syl_session::snapshot::model::AnalysisSnapshot::package_stage_diagnostics_with_token|fn(self: &Self, uri: &DocumentUri, token: &CancellationToken) -> Result<Option<PackageStageDiagnostics>, ProjectError>
 syl_session|method|syl_session::snapshot::model::AnalysisSnapshot::semantic_diagnostics|fn(self: &Self) -> Vec<Diagnostic>
@@ -2453,6 +2464,10 @@ syl_session|method|syl_session::snapshot::workspace::WorkspacePackage::path|fn(s
 syl_session|method|syl_session::snapshot::workspace::WorkspaceSnapshot::package_graph|fn(self: &Self) -> &PackageGraph
 syl_session|method|syl_session::snapshot::workspace::WorkspaceSnapshot::roots|fn(self: &Self) -> &[PathBuf]
 syl_session|method|syl_session::snapshot::workspace::WorkspaceSnapshot::source_database|fn(self: &Self) -> &SourceDatabase
+syl_session|method|syl_session::text_edit::TextDocumentEdit::full|fn(text: impl Into<String>) -> Self
+syl_session|method|syl_session::text_edit::TextDocumentEdit::incremental|fn(range: SourceRange, text: impl Into<String>) -> Self
+syl_session|method|syl_session::text_edit::TextDocumentEdit::range|fn(self: &Self) -> Option<SourceRange>
+syl_session|method|syl_session::text_edit::TextDocumentEdit::text|fn(self: &Self) -> &str
 syl_session|method|syl_session::uri::DocumentUri::as_str|fn(self: &Self) -> &str
 syl_session|method|syl_session::uri::DocumentUri::from_file_path|fn(path: &Path) -> Self
 syl_session|method|syl_session::uri::DocumentUri::into_string|fn(self: Self) -> String
@@ -2480,6 +2495,7 @@ syl_session|struct|syl_session::snapshot::workspace::SourceDatabaseDocument|publ
 syl_session|struct|syl_session::snapshot::workspace::SourceDatabase|public
 syl_session|struct|syl_session::snapshot::workspace::WorkspacePackage|public
 syl_session|struct|syl_session::snapshot::workspace::WorkspaceSnapshot|public
+syl_session|struct|syl_session::text_edit::TextDocumentEdit|public
 syl_session|struct|syl_session::uri::DocumentUri|public
 syl_session|struct|syl_session::vfs::FsVfs|public
 syl_session|trait_method|syl_session::vfs::Vfs::canonicalize|fn(self: &Self, path: &Path) -> Result<PathBuf, ProjectError>
@@ -2521,6 +2537,7 @@ syl_session|use|SourceDatabaseDocument|named|source=workspace::SourceDatabaseDoc
 syl_session|use|SourceDatabase|named|source=snapshot::SourceDatabase
 syl_session|use|SourceDatabase|named|source=workspace::SourceDatabase
 syl_session|use|SourceDocument|named|source=document::SourceDocument
+syl_session|use|TextDocumentEdit|named|source=text_edit::TextDocumentEdit
 syl_session|use|Vfs|named|source=vfs::Vfs
 syl_session|use|WorkspacePackage|named|source=snapshot::WorkspacePackage
 syl_session|use|WorkspacePackage|named|source=workspace::WorkspacePackage
@@ -2533,6 +2550,7 @@ syl_session|variant|syl_session::document::DocumentOrigin::Overlay|unit
 syl_session|variant|syl_session::error::ProjectError::Cancelled|unit
 syl_session|variant|syl_session::error::ProjectError::Canonicalize|{ path: std::path::PathBuf, source: std::io::Error }
 syl_session|variant|syl_session::error::ProjectError::DocumentNotOpen|{ uri: String }
+syl_session|variant|syl_session::error::ProjectError::InvalidTextEdit|{ uri: String, message: String }
 syl_session|variant|syl_session::error::ProjectError::ManifestInvalid|{ path: std::path::PathBuf, message: String }
 syl_session|variant|syl_session::error::ProjectError::ManifestParse|{ path: std::path::PathBuf, message: String }
 syl_session|variant|syl_session::error::ProjectError::OpaqueSummaryInvalid|{ path: std::path::PathBuf, message: String }
