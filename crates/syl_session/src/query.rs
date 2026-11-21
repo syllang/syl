@@ -50,14 +50,33 @@ thread_local! {
     static REQUEST_CANCEL: RefCell<Option<CancellationToken>> = const { RefCell::new(None) };
 }
 
+struct CancelGuard {
+    previous: Option<CancellationToken>,
+}
+
+impl CancelGuard {
+    fn enter(token: &CancellationToken) -> Self {
+        let previous = REQUEST_CANCEL.with(|slot| slot.replace(Some(token.clone())));
+        Self { previous }
+    }
+}
+
+impl Drop for CancelGuard {
+    fn drop(&mut self) {
+        let previous = self.previous.take();
+        REQUEST_CANCEL.with(|slot| *slot.borrow_mut() = previous);
+    }
+}
+
 pub(crate) fn catch_query<T>(
     token: &CancellationToken,
     body: impl FnOnce() -> T,
 ) -> Result<T, ProjectError> {
-    let previous = REQUEST_CANCEL.with(|slot| slot.replace(Some(token.clone())));
-    let result = salsa::Cancelled::catch(AssertUnwindSafe(body));
-    REQUEST_CANCEL.with(|slot| *slot.borrow_mut() = previous);
-    match result {
+    if token.is_cancelled() {
+        return Err(ProjectError::Cancelled);
+    }
+    let _guard = CancelGuard::enter(token);
+    match salsa::Cancelled::catch(AssertUnwindSafe(body)) {
         Ok(value) => Ok(value),
         Err(_) => Err(ProjectError::Cancelled),
     }
@@ -72,13 +91,6 @@ fn request_cancelled() -> bool {
 }
 
 fn observe_cancel(db: &dyn SylDb) {
-    if request_cancelled() {
-        db.cancellation_token().cancel();
-        db.unwind_if_revision_cancelled();
-    }
-}
-
-fn unwind_if_request_cancelled(db: &dyn SylDb) {
     if request_cancelled() {
         db.cancellation_token().cancel();
         db.unwind_if_revision_cancelled();
@@ -505,7 +517,7 @@ fn workspace_elaboration(
         // The pause holds this query's claim. Cancellation is checked again
         // after the pause so a cancelled owner drops the claim without storing.
         pause::wait_if_armed();
-        unwind_if_request_cancelled(db);
+        observe_cancel(db);
     }
     let hir = workspace_hir(db, revision);
     if !hir.diagnostics().is_empty() {

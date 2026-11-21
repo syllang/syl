@@ -247,9 +247,17 @@ fn architecture_query_lsp_hover_and_completion_do_not_emit_and_respect_cancellat
         .expect_err("cancelled hover must stop before TIR/elaboration");
 
     assert_eq!(err, QueryError::Cancelled);
-    cancelled_snapshot
+    let cancelled_hir = cancelled_snapshot
         .hir_analysis_for_uri_with_token(&cancel_uri, &cancelled)
-        .expect("a cached HIR hit still answers after the request is cancelled");
+        .expect_err("a pre-cancelled token must consistently return Cancelled");
+    assert!(matches!(
+        cancelled_hir,
+        syl_session::ProjectError::Cancelled
+    ));
+    cancelled_snapshot
+        .hir_analysis_for_uri_with_token(&cancel_uri, &CancellationToken::new())
+        .expect("a cached HIR hit still answers with a fresh token")
+        .expect("package HIR remains cached");
 }
 
 #[test]

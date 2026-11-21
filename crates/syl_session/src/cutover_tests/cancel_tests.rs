@@ -94,6 +94,25 @@ fn cancelled_owner_does_not_store_while_same_key_waiter_finishes() {
     );
 }
 
+#[test]
+fn non_cancelled_panic_restores_request_cancel_tls() {
+    let token = CancellationToken::new();
+    let panic_token = token.clone();
+    let panicked = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let _ = crate::query::catch_query(&panic_token, || -> () {
+            panic_token.cancel();
+            panic!("simulated non-cancellation panic");
+        });
+    }));
+    assert!(panicked.is_err());
+
+    let snapshot = super::cell_snapshot();
+    assert!(
+        snapshot.hwir().is_some(),
+        "a later query on the same thread must not observe leaked cancellation state"
+    );
+}
+
 fn module_count(
     snapshot: &AnalysisSnapshot,
     token: &CancellationToken,

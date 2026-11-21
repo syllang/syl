@@ -24,14 +24,14 @@ pub(super) fn design_output(
     let mut stored = Vec::new();
     let mut diagnostics = Vec::new();
     for symbol in hardware {
-        super::unwind_if_request_cancelled(db);
+        super::observe_cancel(db);
         let module = owner_module_eir(db, revision, symbol);
         match module.as_ref().as_ref() {
             Ok(_) => stored.push(module),
             Err(diagnostic) => diagnostics.push(diagnostic.clone()),
         }
     }
-    super::unwind_if_request_cancelled(db);
+    super::observe_cancel(db);
     let compiler = HardwareCompiler::with_opaque_summaries(revision.opaque(db).clone());
     let output = if diagnostics.is_empty() {
         let modules = stored
@@ -42,7 +42,7 @@ pub(super) fn design_output(
     } else {
         compiler.diagnostics_output(diagnostics)
     };
-    super::unwind_if_request_cancelled(db);
+    super::observe_cancel(db);
     Some(Arc::new(output))
 }
 

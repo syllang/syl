@@ -387,10 +387,10 @@ impl AnalysisSnapshot {
         uri: &DocumentUri,
         token: &CancellationToken,
     ) -> Result<Option<PackageStageDiagnostics>, ProjectError> {
+        Self::check_cancellation(token)?;
         let Some(package) = self.package_semantics.entry_for_uri(uri) else {
             return Ok(None);
         };
-        Self::check_cancellation(token)?;
         let name = package.name().to_string();
         let local = Self::copied_uris(package.documents());
         let closure = Self::copied_uris(package.closure());
@@ -471,6 +471,7 @@ impl AnalysisSnapshot {
         &self,
         token: &CancellationToken,
     ) -> Result<&[Diagnostic], ProjectError> {
+        Self::check_cancellation(token)?;
         if !self.diagnostics.is_empty() {
             return Ok(&[]);
         }
@@ -573,6 +574,7 @@ impl AnalysisSnapshot {
         &self,
         token: &CancellationToken,
     ) -> Result<Option<&ParametricHwDesign>, ProjectError> {
+        Self::check_cancellation(token)?;
         if !self.diagnostics.is_empty() {
             return Ok(None);
         }
@@ -588,6 +590,7 @@ impl AnalysisSnapshot {
         token: &CancellationToken,
         query: impl for<'db> Fn(&'db SylDatabase, RevisionInput, crate::query::UnitId<'db>) -> Arc<T>,
     ) -> Result<Option<Arc<T>>, ProjectError> {
+        Self::check_cancellation(token)?;
         let Some(package) = self.package_semantics.entry_for_uri(uri) else {
             return Ok(None);
         };

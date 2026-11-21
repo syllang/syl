@@ -257,9 +257,14 @@ fn cancelled_hover_after_hir_cache_does_not_start_tir() {
         .expect_err("cancelled hover must not continue into TIR");
 
     assert_eq!(err, QueryError::Cancelled);
-    snapshot
+    let cancelled_hir = snapshot
         .hir_analysis_for_uri_with_token(&uri, &token)
-        .expect("a cached HIR hit still answers after the request is cancelled");
+        .expect_err("a pre-cancelled token must consistently return Cancelled");
+    assert!(matches!(cancelled_hir, syl_session::ProjectError::Cancelled));
+    snapshot
+        .hir_analysis_for_uri_with_token(&uri, &CancellationToken::new())
+        .expect("a cached HIR hit still answers with a fresh token")
+        .expect("package HIR remains cached");
 }
 
 #[test]

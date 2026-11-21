@@ -550,14 +550,27 @@ fn ide_queries_do_not_elaborate() {
 #[test]
 fn cancelled_elaboration_is_not_stored_and_retry_completes() {
     let snapshot = cell_snapshot();
+    let gate = crate::query::QueryGate::new();
     let token = CancellationToken::new();
-    token.cancel();
-    let err = snapshot
-        .elaboration_diagnostics_with_token(&token)
-        .expect_err("cancelled elaboration");
-    assert!(matches!(err, ProjectError::Cancelled));
+    let worker_snapshot = snapshot.clone();
+    let worker_gate = Arc::clone(&gate);
+    let worker_token = token.clone();
+    let worker = thread::spawn(move || {
+        worker_gate.arm();
+        worker_snapshot
+            .elaboration_diagnostics_with_token(&worker_token)
+            .map(|_| ())
+    });
+    gate.entered();
     let started = snapshot.execution_count("workspace_elaboration(");
     assert!(started >= 1);
+    token.cancel();
+    gate.release();
+    let err = worker
+        .join()
+        .expect("cancelled worker thread")
+        .expect_err("cancelled elaboration");
+    assert!(matches!(err, ProjectError::Cancelled));
     snapshot
         .elaboration_diagnostics_with_token(&CancellationToken::new())
         .expect("retry returns a complete elaboration");
@@ -590,11 +603,13 @@ fn cancelling_one_request_does_not_stop_another() {
     let cancelled = snapshot.hir_analysis_with_token(&token);
     let other_result = worker.join().expect("other request thread");
     assert!(other_result.is_ok(), "the other request must finish");
-    if cancelled.is_err() {
-        snapshot
-            .hir_analysis_with_token(&CancellationToken::new())
-            .expect("retry after cancel");
-    }
+    assert!(
+        matches!(cancelled, Err(ProjectError::Cancelled)),
+        "pre-cancelled request must consistently return Cancelled"
+    );
+    snapshot
+        .hir_analysis_with_token(&CancellationToken::new())
+        .expect("retry after cancel");
 }
 
 #[test]
