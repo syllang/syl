@@ -1,6 +1,6 @@
 //! HIR assembly and contract reads for the tracked queries in the parent module.
 
-use std::collections::{BTreeSet, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::sync::Arc;
 
 use syl_sema::{
@@ -14,7 +14,7 @@ use super::{
     file_contracts, hardware_contract, intern_symbol,
 };
 use crate::query::SylDb;
-use syl_span::SourceId;
+use syl_span::{Diagnostic, DiagnosticRelatedInfo, SourceId, Span};
 
 pub(super) fn diagnostics_from(
     hir: &HirAnalysisOutput,
@@ -39,8 +39,16 @@ pub(super) fn analysis_for_symbols<'db>(
     revision: RevisionInput,
     symbols: &[SymbolId<'db>],
 ) -> Arc<HirAnalysisOutput> {
+    let extra = duplicate_module_diagnostics(db, revision, symbols);
     if let [symbol] = symbols {
-        return Arc::clone(super::owner_hir(db, revision, *symbol));
+        let hir = Arc::clone(super::owner_hir(db, revision, *symbol));
+        if extra.is_empty() {
+            return hir;
+        }
+        return Arc::new(
+            syl_sema::aggregate_owner_hir(&[(key_from_symbol(db, *symbol), hir.as_ref())])
+                .with_extra_diagnostics(extra),
+        );
     }
     let owners = symbols
         .iter()
@@ -56,7 +64,7 @@ pub(super) fn analysis_for_symbols<'db>(
         .iter()
         .map(|(key, hir)| (key.clone(), hir.as_ref()))
         .collect::<Vec<_>>();
-    Arc::new(syl_sema::aggregate_owner_hir(&refs))
+    Arc::new(syl_sema::aggregate_owner_hir(&refs).with_extra_diagnostics(extra))
 }
 
 pub(super) fn tir_for_symbols<'db>(
@@ -584,11 +592,80 @@ pub(super) fn file_for_module(
     revision: RevisionInput,
     module: &str,
 ) -> Option<SourceFileInput> {
-    revision
+    files_for_module(db, revision, module).into_iter().next()
+}
+
+fn files_for_module(db: &dyn SylDb, revision: RevisionInput, module: &str) -> Vec<SourceFileInput> {
+    let mut files = revision
         .files(db)
         .iter()
         .copied()
-        .find(|file| file.module_path(db).join(".") == module)
+        .filter(|file| {
+            file.module_path(db)
+                .iter()
+                .map(String::as_str)
+                .eq(module.split('.'))
+        })
+        .collect::<Vec<_>>();
+    files.sort_by(|a, b| a.uri(db).cmp(b.uri(db)));
+    files
+}
+
+fn duplicate_module_diagnostics(
+    db: &dyn SylDb,
+    revision: RevisionInput,
+    symbols: &[SymbolId],
+) -> Vec<Diagnostic> {
+    let files = revision.files(db);
+    // The normal single-owner path preserves its Arc and allocates no diagnostic state.
+    if !files.iter().enumerate().any(|(i, file)| {
+        files[..i].iter().any(|other| {
+            file.module_path(db) == other.module_path(db) && file.uri(db) != other.uri(db)
+        })
+    }) {
+        return Vec::new();
+    }
+    let scoped = symbols
+        .iter()
+        .map(|symbol| symbol.module(db).as_str())
+        .collect::<BTreeSet<_>>();
+    let mut grouped: BTreeMap<&[String], Vec<SourceFileInput>> = BTreeMap::new();
+    for file in files {
+        grouped.entry(file.module_path(db)).or_default().push(*file);
+    }
+    let mut diagnostics = Vec::new();
+    for (path, mut files) in grouped {
+        let module = path.join(".");
+        if !scoped.is_empty() && !scoped.contains(module.as_str()) {
+            continue;
+        }
+        files.sort_by(|a, b| a.uri(db).cmp(b.uri(db)));
+        files.dedup_by(|a, b| a.uri(db) == b.uri(db));
+        let Some((first, rest)) = files.split_first() else {
+            continue;
+        };
+        let first_span = Span::new_in(SourceId::new(*first.source_id(db) as usize), 0, 0);
+        for dup in rest {
+            let dup_span = Span::new_in(SourceId::new(*dup.source_id(db) as usize), 0, 0);
+            diagnostics.push(
+                Diagnostic::new(
+                    dup_span,
+                    format!(
+                        "duplicate module path `{module}` mapped by multiple files: `{}` and `{}`",
+                        first.uri(db),
+                        dup.uri(db)
+                    ),
+                )
+                .with_code("E_DUPLICATE_MODULE_FILE")
+                .with_source("syl_session")
+                .with_related(DiagnosticRelatedInfo::new(
+                    first_span,
+                    format!("module `{module}` first mapped here: `{}`", first.uri(db)),
+                )),
+            );
+        }
+    }
+    diagnostics
 }
 
 pub(super) fn same_symbol(db: &dyn SylDb, symbol: SymbolId, key: &SymbolKey) -> bool {
