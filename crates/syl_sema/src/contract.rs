@@ -54,40 +54,6 @@ pub enum SymbolKind {
     ExternCell,
 }
 
-impl SymbolKind {
-    pub fn tag(self) -> u8 {
-        match self {
-            Self::Error => 0,
-            Self::Use => 1,
-            Self::Const => 2,
-            Self::Fn => 3,
-            Self::Enum => 4,
-            Self::Struct => 5,
-            Self::Bundle => 6,
-            Self::Interface => 7,
-            Self::Map => 8,
-            Self::Cell => 9,
-            Self::ExternCell => 10,
-        }
-    }
-
-    pub fn from_tag(tag: u8) -> Self {
-        match tag {
-            1 => Self::Use,
-            2 => Self::Const,
-            3 => Self::Fn,
-            4 => Self::Enum,
-            5 => Self::Struct,
-            6 => Self::Bundle,
-            7 => Self::Interface,
-            8 => Self::Map,
-            9 => Self::Cell,
-            10 => Self::ExternCell,
-            _ => Self::Error,
-        }
-    }
-}
-
 /// Narrow facts a downstream owner needs from a declaration.
 ///
 /// `signature_source` keeps const values and enum variant values. Function,

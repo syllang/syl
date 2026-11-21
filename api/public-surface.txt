@@ -1189,8 +1189,6 @@ syl_sema|method|syl_sema::binding::actual_formal::ActualFormalBinder::resolve|fn
 syl_sema|method|syl_sema::contract::DeclarationContract::new|fn(key: SymbolKey, doc: Option<String>, signature_source: impl Into<String>, use_path: Option<Vec<String>>) -> Self
 syl_sema|method|syl_sema::contract::HardwareContract::new|fn(key: SymbolKey, has_storage: bool) -> Self
 syl_sema|method|syl_sema::contract::SymbolKey::new|fn(module: Vec<String>, kind: SymbolKind, name: impl Into<String>, discriminator: u32) -> Self
-syl_sema|method|syl_sema::contract::SymbolKind::from_tag|fn(tag: u8) -> Self
-syl_sema|method|syl_sema::contract::SymbolKind::tag|fn(self: Self) -> u8
 syl_sema|method|syl_sema::diagnostic::error::CapabilityError::code|fn(self: &Self) -> &str
 syl_sema|method|syl_sema::diagnostic::error::CompileError::diagnostic|fn(self: &Self) -> &Diagnostic
 syl_sema|method|syl_sema::diagnostic::error::CompileError::driver_error_with_related|fn(kind: impl Into<LoweringError>, span: Span, related: impl IntoIterator) -> Self

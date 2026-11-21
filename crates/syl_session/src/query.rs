@@ -191,7 +191,7 @@ pub(crate) struct RevisionInput {
 pub(crate) struct SymbolId {
     #[returns(ref)]
     pub module: String,
-    pub kind_tag: u8,
+    pub kind: SymbolKind,
     #[returns(ref)]
     pub name: String,
     pub discriminator: u32,
@@ -297,7 +297,6 @@ fn file_item_index(db: &dyn SylDb, file: SourceFileInput) -> ItemIndex {
 fn file_contracts(db: &dyn SylDb, file: SourceFileInput) -> ContractList {
     observe_cancel(db);
     let ast = parsed_file(db, file);
-    let _ = file_item_index(db, file);
     ContractList {
         contracts: declaration_contracts(file.module_path(db), file.text(db), ast),
     }
@@ -358,7 +357,6 @@ fn declaration_contract<'db>(
     let Some(file) = lower::file_for_module(db, revision, module) else {
         return lower::empty_contract(symbol, db);
     };
-    let _ = file_contracts(db, file);
     file_contracts(db, file)
         .contracts
         .iter()

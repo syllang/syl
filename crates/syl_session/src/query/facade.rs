@@ -17,7 +17,7 @@ pub(crate) fn intern_symbol<'db>(db: &'db dyn SylDb, key: &SymbolKey) -> SymbolI
     SymbolId::new(
         db,
         key.module.join("."),
-        key.kind.tag(),
+        key.kind,
         key.name.clone(),
         key.discriminator,
     )

@@ -1,6 +1,6 @@
 //! HIR assembly and contract reads for the tracked queries in the parent module.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashSet};
 use std::sync::Arc;
 
 use syl_sema::{
@@ -153,7 +153,7 @@ struct DemandResolver<'db> {
     owner_module: String,
     walk: DemandWalk,
     inplace: BTreeSet<String>,
-    scanned: BTreeSet<(String, u8, String, u32)>,
+    scanned: HashSet<SymbolKey>,
 }
 
 impl<'db> DemandResolver<'db> {
@@ -168,7 +168,7 @@ impl<'db> DemandResolver<'db> {
                 modules: Vec::new(),
             },
             inplace: BTreeSet::new(),
-            scanned: BTreeSet::new(),
+            scanned: HashSet::new(),
         }
     }
 
@@ -322,13 +322,8 @@ impl<'db> DemandResolver<'db> {
                     if !reads_body {
                         continue;
                     }
-                    let mark = (
-                        hit.key.module.join("."),
-                        hit.key.kind.tag(),
-                        hit.key.name.clone(),
-                        hit.key.discriminator,
-                    );
-                    if !self.scanned.insert(mark) || same_symbol(self.db, owner, &hit.key) {
+                    if !self.scanned.insert(hit.key.clone()) || same_symbol(self.db, owner, &hit.key)
+                    {
                         continue;
                     }
                     scanned_new = true;
@@ -355,7 +350,7 @@ impl<'db> DemandResolver<'db> {
 
     fn companions<'a>(&'a self, owner: SymbolId) -> Vec<SymbolId<'db>> {
         let mut companions = Vec::new();
-        let mut seen_ids = BTreeSet::new();
+        let mut seen_ids = HashSet::new();
         for (module, name) in &self.walk.seen {
             let Some(file) = file_for_module(self.db, self.revision, module) else {
                 continue;
@@ -371,13 +366,7 @@ impl<'db> DemandResolver<'db> {
                 if !include || same_symbol(self.db, owner, &hit.key) {
                     continue;
                 }
-                let id = (
-                    hit.key.module.join("."),
-                    hit.key.kind.tag(),
-                    hit.key.name.clone(),
-                    hit.key.discriminator,
-                );
-                if seen_ids.insert(id) {
+                if seen_ids.insert(hit.key.clone()) {
                     companions.push(intern_symbol(self.db, &hit.key));
                 }
             }
@@ -603,7 +592,7 @@ pub(super) fn file_for_module(
 
 pub(super) fn same_symbol(db: &dyn SylDb, symbol: SymbolId, key: &SymbolKey) -> bool {
     symbol.module(db) == &key.module.join(".")
-        && *symbol.kind_tag(db) == key.kind.tag()
+        && *symbol.kind(db) == key.kind
         && symbol.name(db) == &key.name
         && *symbol.discriminator(db) == key.discriminator
 }
@@ -616,7 +605,7 @@ pub(super) fn key_from_symbol(db: &dyn SylDb, symbol: SymbolId) -> SymbolKey {
             .filter(|segment| !segment.is_empty())
             .map(str::to_string)
             .collect(),
-        SymbolKind::from_tag(*symbol.kind_tag(db)),
+        *symbol.kind(db),
         symbol.name(db).clone(),
         *symbol.discriminator(db),
     )

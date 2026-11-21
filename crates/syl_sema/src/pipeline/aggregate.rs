@@ -100,9 +100,9 @@ impl<'a> OwnerAggregation<'a> {
         let mut design = HirDesign::empty();
         for (new_index, item) in self.chosen.iter().enumerate() {
             let source = self.slices[item.owner].design;
-            let Some(def) = source.def(item.old_def) else {
-                continue;
-            };
+            let def = source
+                .def(item.old_def)
+                .expect("chosen owner def must exist in its source design");
             let new_id = DefId::new(new_index);
             ensure_package(&mut design, source, def);
             if let Some(doc) = source.doc_for_module(def.span.source) {
