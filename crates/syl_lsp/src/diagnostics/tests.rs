@@ -254,3 +254,102 @@ fn assert_publication_has_diagnostics(publications: &[LspDiagnosticPublication],
         "expected partial diagnostics for {uri}"
     );
 }
+
+fn layer(uri: &Url, version: Option<i32>, message: &str) -> LspDiagnosticPublication {
+    LspDiagnosticPublication::new(
+        uri.clone(),
+        version,
+        vec![LspDiagnostic {
+            message: message.into(),
+            ..Default::default()
+        }],
+    )
+}
+
+#[test]
+fn layered_publication_merges_and_strictly_rejects_stale_generations_and_versions() {
+    let uri = Url::parse("untitled:syl/layered").unwrap();
+    let mut state = LspDiagnosticState::new();
+    let fast = layer(&uri, Some(5), "parse");
+    let elab = layer(&uri, Some(5), "driver");
+    state.apply_fast_layer(10, vec![fast.clone()]);
+    assert!(
+        state
+            .apply_elaboration_layer(9, vec![elab.clone()])
+            .is_empty()
+    );
+    assert!(
+        state
+            .apply_elaboration_layer(11, vec![elab.clone()])
+            .is_empty()
+    );
+    assert!(
+        state
+            .apply_elaboration_layer(10, vec![layer(&uri, Some(4), "old")])
+            .is_empty()
+    );
+    assert!(
+        state
+            .apply_elaboration_layer(10, vec![layer(&uri, None, "disk")])
+            .is_empty()
+    );
+    let publications = state.apply_elaboration_layer(10, vec![elab.clone()]);
+    assert_eq!(publications.len(), 1);
+    let (_, diagnostics, version) = publications[0].clone().into_parts();
+    assert_eq!(version, Some(5));
+    assert_eq!(
+        diagnostics
+            .iter()
+            .map(|d| d.message.as_str())
+            .collect::<Vec<_>>(),
+        ["parse", "driver"]
+    );
+    assert!(state.apply_elaboration_layer(10, vec![elab]).is_empty());
+    assert!(state.apply_fast_layer(9, vec![]).is_empty());
+    let cleared = state.apply_elaboration_layer(10, vec![]);
+    assert_eq!(cleared, vec![fast]);
+    state.apply_elaboration_layer(10, vec![layer(&uri, Some(5), "driver")]);
+    let fast_new = layer(&uri, Some(6), "new");
+    assert_eq!(
+        state.apply_fast_layer(11, vec![fast_new.clone()]),
+        vec![fast_new]
+    );
+    assert!(
+        state
+            .apply_elaboration_layer(10, vec![layer(&uri, Some(5), "old")])
+            .is_empty()
+    );
+}
+
+#[test]
+fn layered_removals_and_project_errors_clear_old_diagnostics() {
+    let uri = Url::parse("untitled:syl/removed").unwrap();
+    let manifest = Url::parse("file:///project/syl.toml").unwrap();
+    let mut state = LspDiagnosticState::new();
+    state.apply_fast_layer(
+        1,
+        vec![LspDiagnosticPublication::new(uri.clone(), Some(1), vec![])],
+    );
+    state.apply_elaboration_layer(1, vec![layer(&uri, Some(1), "driver")]);
+    state.record_project_error(layer(&manifest, None, "manifest error"));
+    let cleared = state.apply_fast_layer(2, vec![]);
+    assert!(
+        cleared
+            .iter()
+            .any(|p| p.uri() == &uri && p.diagnostics.is_empty())
+    );
+    assert!(
+        cleared
+            .iter()
+            .any(|p| p.uri() == &manifest && p.diagnostics.is_empty())
+    );
+    state.apply_fast_layer(3, vec![layer(&uri, Some(3), "parse")]);
+    state.apply_elaboration_layer(3, vec![layer(&uri, Some(3), "driver")]);
+    state.record_project_error(layer(&uri, None, "project error"));
+    assert!(!state.elab_by_uri.contains_key(uri.as_str()));
+    assert!(
+        state
+            .apply_elaboration_layer(3, vec![layer(&uri, Some(3), "driver")])
+            .is_empty()
+    );
+}

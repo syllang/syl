@@ -1,37 +1,33 @@
 mod adapter;
 mod cancellation;
 mod diagnostics;
+mod drc;
 mod mapping;
+mod sync;
+mod workspace;
 
 use adapter::LspAdapter;
 use cancellation::{CancellationRegistry, CancellationSlot};
 use diagnostics::{LspDiagnosticPublication, LspDiagnosticState};
-use std::{
-    future::Future,
-    path::PathBuf,
-    sync::{
-        Arc,
-        atomic::{AtomicU64, Ordering},
-    },
-    time::Duration,
-};
-use syl_query::{AnalysisQueries, QueryError};
+use drc::BackgroundDrcScheduler;
+use std::{sync::Arc, time::Duration};
+use syl_query::AnalysisQueries;
 use syl_session::{
     AnalysisHost, AnalysisSnapshot, CancellationToken, DocumentUri, DocumentVersion, ProjectError,
 };
 use tokio::sync::Mutex;
-use tokio::time::sleep;
 use tower_lsp::{
     Client, LanguageServer, LspService, Server,
     jsonrpc::Result as LspResult,
     lsp_types::{
         CompletionOptions, CompletionParams, CompletionResponse, DidChangeTextDocumentParams,
-        DidCloseTextDocumentParams, DidOpenTextDocumentParams, DocumentSymbolParams,
-        DocumentSymbolResponse, GotoDefinitionParams, GotoDefinitionResponse, Hover, HoverParams,
-        InitializeParams, InitializeResult, OneOf, ServerCapabilities, TextDocumentSyncCapability,
-        TextDocumentSyncKind, Url,
+        DidChangeWatchedFilesParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams,
+        DocumentSymbolParams, DocumentSymbolResponse, GotoDefinitionParams, GotoDefinitionResponse,
+        Hover, HoverParams, InitializeParams, InitializeResult, OneOf, ServerCapabilities,
+        TextDocumentSyncCapability, TextDocumentSyncKind, Url,
     },
 };
+use workspace::WorkspaceState;
 
 #[derive(Debug)]
 #[non_exhaustive]
@@ -39,21 +35,11 @@ pub struct SylLanguageServer {
     client: Client,
     host: Arc<Mutex<AnalysisHost>>,
     diagnostics: Arc<Mutex<LspDiagnosticState>>,
-    workspace_diagnostic_uri: Arc<Mutex<Option<Url>>>,
+    workspace: Arc<Mutex<WorkspaceState>>,
     initialization_error: Arc<Mutex<Option<ProjectError>>>,
-    diagnostic_scheduler: Arc<DiagnosticsScheduler>,
+    drc_scheduler: Arc<BackgroundDrcScheduler>,
     cancellation_registry: Arc<CancellationRegistry>,
     adapter: LspAdapter,
-}
-
-struct DiagnosticPublishRequest {
-    client: Client,
-    host: Arc<Mutex<AnalysisHost>>,
-    diagnostics: Arc<Mutex<LspDiagnosticState>>,
-    generation: u64,
-    scheduler: Arc<DiagnosticsScheduler>,
-    fallback_uri: Option<Url>,
-    token: CancellationToken,
 }
 
 impl SylLanguageServer {
@@ -62,9 +48,9 @@ impl SylLanguageServer {
             client,
             host: Arc::new(Mutex::new(AnalysisHost::new())),
             diagnostics: Arc::new(Mutex::new(LspDiagnosticState::new())),
-            workspace_diagnostic_uri: Arc::new(Mutex::new(None)),
+            workspace: Arc::new(Mutex::new(WorkspaceState::default())),
             initialization_error: Arc::new(Mutex::new(None)),
-            diagnostic_scheduler: Arc::new(DiagnosticsScheduler::new()),
+            drc_scheduler: Arc::new(BackgroundDrcScheduler::new()),
             cancellation_registry: Arc::new(CancellationRegistry::new()),
             adapter: LspAdapter::new(),
         }
@@ -73,18 +59,28 @@ impl SylLanguageServer {
     async fn analysis_snapshot_with_token(
         &self,
         token: &CancellationToken,
-    ) -> Result<AnalysisSnapshot, ProjectError> {
-        let mut host = self.host.lock().await;
-        host.snapshot_with_token(token)
+    ) -> Result<Arc<AnalysisSnapshot>, ProjectError> {
+        self.drc_scheduler
+            .snapshot(
+                Arc::clone(&self.host),
+                self.drc_scheduler.generation(),
+                token.clone(),
+            )
+            .await
     }
 
-    async fn publish_project_error(&self, uri: Url, error: ProjectError) {
+    fn next_diagnostics_generation(&self) -> u64 {
+        self.drc_scheduler
+            .next_generation(&self.cancellation_registry)
+    }
+
+    async fn publish_project_error(&self, uri: Url, error: ProjectError, generation: u64) {
         let publication = LspDiagnosticPublication::project_error(uri, error);
-        let publications = self
-            .diagnostics
-            .lock()
-            .await
-            .record_project_error(publication);
+        let mut state = self.diagnostics.lock().await;
+        if !self.drc_scheduler.is_current(generation) {
+            return;
+        }
+        let publications = state.record_project_error(publication);
         for publication in publications {
             let (target_uri, diagnostics, version) = publication.into_parts();
             self.client
@@ -92,124 +88,19 @@ impl SylLanguageServer {
                 .await;
         }
     }
-
-    fn schedule_publish(&self, fallback_uri: Option<Url>, delay: Duration, generation: u64) {
-        let client = self.client.clone();
-        let host = Arc::clone(&self.host);
-        let diagnostics = Arc::clone(&self.diagnostics);
-        let scheduler = Arc::clone(&self.diagnostic_scheduler);
-        let token = self
-            .cancellation_registry
-            .replace(CancellationSlot::Diagnostics);
-        let request = DiagnosticPublishRequest {
-            client,
-            host,
-            diagnostics,
-            generation,
-            scheduler: Arc::clone(&scheduler),
-            fallback_uri,
-            token,
-        };
-        tokio::spawn(async move {
-            Self::run_debounced_publish(scheduler, generation, delay, move || async move {
-                Self::publish_if_current(request).await;
-            })
-            .await;
-        });
-    }
-
-    async fn run_debounced_publish<F, Fut>(
-        scheduler: Arc<DiagnosticsScheduler>,
-        generation: u64,
-        delay: Duration,
-        publish: F,
-    ) where
-        F: FnOnce() -> Fut + Send + 'static,
-        Fut: Future<Output = ()> + Send + 'static,
-    {
-        if !delay.is_zero() {
-            sleep(delay).await;
-        }
-        if !scheduler.is_current(generation) {
-            return;
-        }
-        publish().await;
-    }
-
-    async fn publish_if_current(request: DiagnosticPublishRequest) {
-        let DiagnosticPublishRequest {
-            client,
-            host,
-            diagnostics,
-            generation,
-            scheduler,
-            fallback_uri,
-            token,
-        } = request;
-        if token.is_cancelled() || !scheduler.is_current(generation) {
-            return;
-        }
-        let snapshot = {
-            let mut host = host.lock().await;
-            host.snapshot_with_token(&token)
-        };
-        if token.is_cancelled() || !scheduler.is_current(generation) {
-            return;
-        }
-        let publications = match snapshot {
-            Ok(snapshot) => match Self::diagnostic_publications(&snapshot, &token) {
-                Ok(publications) => publications,
-                Err(QueryError::Cancelled) => return,
-                Err(error) => {
-                    panic!("unexpected query error during diagnostic publication: {error}")
-                }
-            },
-            Err(ProjectError::Cancelled) => return,
-            Err(error) => fallback_uri
-                .map(|uri| LspDiagnosticPublication::project_error(uri, error))
-                .into_iter()
-                .collect(),
-        };
-        if token.is_cancelled() || !scheduler.is_current(generation) {
-            return;
-        }
-        let publications = diagnostics.lock().await.reconcile(publications);
-        if token.is_cancelled() || !scheduler.is_current(generation) {
-            return;
-        }
-        for publication in publications {
-            if token.is_cancelled() || !scheduler.is_current(generation) {
-                return;
-            }
-            let (target_uri, diagnostics, version) = publication.into_parts();
-            client
-                .publish_diagnostics(target_uri, diagnostics, version)
-                .await;
-        }
-    }
-
-    fn diagnostic_publications(
-        snapshot: &AnalysisSnapshot,
-        token: &CancellationToken,
-    ) -> Result<Vec<LspDiagnosticPublication>, QueryError> {
-        let grouped = snapshot.grouped_diagnostics_with_token(token)?;
-        Ok(LspAdapter::new().diagnostic_publications(&grouped))
-    }
 }
 
 #[tower_lsp::async_trait]
 impl LanguageServer for SylLanguageServer {
     async fn initialize(&self, params: InitializeParams) -> LspResult<InitializeResult> {
-        let workspace = WorkspaceInitialization::new(&params);
-        *self.workspace_diagnostic_uri.lock().await = workspace.fallback_uri();
-        let roots = workspace.into_roots();
-        if !roots.is_empty() {
-            *self.initialization_error.lock().await = self.host.lock().await.load(&roots).err();
-        }
+        let mut workspace = WorkspaceState::new(&params);
+        let error = workspace.configure_host(&mut *self.host.lock().await).err();
+        *self.workspace.lock().await = workspace;
+        *self.initialization_error.lock().await = error;
         Ok(InitializeResult {
             capabilities: ServerCapabilities {
                 text_document_sync: Some(TextDocumentSyncCapability::Kind(
-                    TextDocumentSyncKind::FULL,
+                    TextDocumentSyncKind::INCREMENTAL,
                 )),
                 hover_provider: Some(tower_lsp::lsp_types::HoverProviderCapability::Simple(true)),
                 definition_provider: Some(OneOf::Left(true)),
@@ -222,70 +113,78 @@ impl LanguageServer for SylLanguageServer {
     }
 
     async fn initialized(&self, _params: tower_lsp::lsp_types::InitializedParams) {
-        let fallback_uri = self.workspace_diagnostic_uri.lock().await.clone();
-        let generation = self.diagnostic_scheduler.next_generation();
+        self.register_file_watchers().await;
+        let fallback_uri = self.workspace.lock().await.error_uri();
+        let generation = self.next_diagnostics_generation();
         if let (Some(uri), Some(error)) = (
             fallback_uri.clone(),
             self.initialization_error.lock().await.take(),
         ) {
-            self.publish_project_error(uri, error).await;
+            self.publish_project_error(uri, error, generation).await;
             return;
         }
         self.schedule_publish(fallback_uri, Duration::ZERO, generation);
     }
 
     async fn shutdown(&self) -> LspResult<()> {
+        self.next_diagnostics_generation();
         Ok(())
     }
 
     async fn did_open(&self, params: DidOpenTextDocumentParams) {
         let uri = params.text_document.uri;
         let version = ClientDocumentVersion::new(params.text_document.version).into_project();
-        let generation = self.diagnostic_scheduler.next_generation();
-        self.host.lock().await.open_document(
+        let generation = self.next_diagnostics_generation();
+        let mut host = self.host.lock().await;
+        host.open_document(
             DocumentUri::new(uri.to_string()),
             params.text_document.text,
             version,
         );
+        self.drc_scheduler.inputs_changed();
+        drop(host);
         self.schedule_publish(Some(uri), Duration::ZERO, generation);
     }
 
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
         let uri = params.text_document.uri;
-        let generation = self.diagnostic_scheduler.next_generation();
-        if let Some(change) = params.content_changes.into_iter().last() {
-            let version = ClientDocumentVersion::new(params.text_document.version).into_project();
-            let result = {
-                self.host.lock().await.update_document_at_version(
-                    &DocumentUri::new(uri.to_string()),
-                    change.text,
-                    version,
-                )
-            };
-            match result {
-                Ok(_) => {}
-                Err(ProjectError::StaleDocumentVersion { .. }) => return,
-                Err(error) => {
-                    self.publish_project_error(uri, error).await;
-                    return;
-                }
+        let generation = self.next_diagnostics_generation();
+        let version = ClientDocumentVersion::new(params.text_document.version).into_project();
+        let edits =
+            sync::to_text_document_edits(&mapping::LspMapper::new(), params.content_changes);
+        let mut host = self.host.lock().await;
+        let result = host.apply_document_changes_at_version(
+            &DocumentUri::new(uri.as_str()),
+            &edits,
+            version,
+        );
+        if result.is_ok() {
+            self.drc_scheduler.inputs_changed();
+        }
+        drop(host);
+        match result {
+            Ok(_) => {}
+            Err(ProjectError::StaleDocumentVersion { .. }) => return,
+            Err(error) => {
+                self.publish_project_error(uri, error, generation).await;
+                return;
             }
         }
-        self.schedule_publish(
-            Some(uri),
-            self.diagnostic_scheduler.debounce_delay(),
-            generation,
-        );
+        self.schedule_publish(Some(uri), self.drc_scheduler.debounce_delay(), generation);
     }
 
     async fn did_close(&self, params: DidCloseTextDocumentParams) {
         let uri = params.text_document.uri;
-        let generation = self.diagnostic_scheduler.next_generation();
-        self.host
-            .lock()
-            .await
-            .close_document(&DocumentUri::new(uri.to_string()));
+        let generation = self.next_diagnostics_generation();
+        let mut host = self.host.lock().await;
+        host.close_document(&DocumentUri::new(uri.to_string()));
+        self.drc_scheduler.inputs_changed();
+        drop(host);
         self.schedule_publish(Some(uri), Duration::ZERO, generation);
+    }
+
+    async fn did_change_watched_files(&self, params: DidChangeWatchedFilesParams) {
+        self.handle_watched_files(params).await;
     }
 
     async fn hover(&self, params: HoverParams) -> LspResult<Option<Hover>> {
@@ -299,9 +198,12 @@ impl LanguageServer for SylLanguageServer {
             .analysis_snapshot_with_token(&token)
             .await
             .map_err(|error| self.adapter.project_error(error))?;
-        let Some(hover) = snapshot
-            .hover_at_with_token(&document_uri, position, &token)
-            .map_err(|error| self.adapter.query_error(error))?
+        let Some(hover) = tokio::task::spawn_blocking(move || {
+            snapshot.hover_at_with_token(&document_uri, position, &token)
+        })
+        .await
+        .expect("hover worker must finish without panicking")
+        .map_err(|error| self.adapter.query_error(error))?
         else {
             return Ok(None);
         };
@@ -324,9 +226,12 @@ impl LanguageServer for SylLanguageServer {
             .analysis_snapshot_with_token(&token)
             .await
             .map_err(|error| self.adapter.project_error(error))?;
-        let Some(definition) = snapshot
-            .definition_at_with_token(&document_uri, position, &token)
-            .map_err(|error| self.adapter.query_error(error))?
+        let Some(definition) = tokio::task::spawn_blocking(move || {
+            snapshot.definition_at_with_token(&document_uri, position, &token)
+        })
+        .await
+        .expect("definition worker must finish without panicking")
+        .map_err(|error| self.adapter.query_error(error))?
         else {
             return Ok(None);
         };
@@ -345,9 +250,12 @@ impl LanguageServer for SylLanguageServer {
             .analysis_snapshot_with_token(&token)
             .await
             .map_err(|error| self.adapter.project_error(error))?;
-        let completions = snapshot
-            .completions_at_with_token(&document_uri, position, &token)
-            .map_err(|error| self.adapter.query_error(error))?;
+        let completions = tokio::task::spawn_blocking(move || {
+            snapshot.completions_at_with_token(&document_uri, position, &token)
+        })
+        .await
+        .expect("completion worker must finish without panicking")
+        .map_err(|error| self.adapter.query_error(error))?;
         Ok(Some(self.adapter.completion(completions)))
     }
 
@@ -362,114 +270,10 @@ impl LanguageServer for SylLanguageServer {
             .analysis_snapshot_with_token(&token)
             .await
             .map_err(|error| self.adapter.project_error(error))?;
-        let symbols = snapshot.symbols(&document_uri);
+        let symbols = tokio::task::spawn_blocking(move || snapshot.symbols(&document_uri))
+            .await
+            .expect("symbol worker must finish without panicking");
         Ok(Some(self.adapter.document_symbols(symbols)))
-    }
-}
-
-#[derive(Debug)]
-struct DiagnosticsScheduler {
-    generation: AtomicU64,
-    debounce_delay: Duration,
-}
-
-impl DiagnosticsScheduler {
-    fn new() -> Self {
-        Self {
-            generation: AtomicU64::new(0),
-            debounce_delay: Duration::from_millis(150),
-        }
-    }
-
-    fn next_generation(&self) -> u64 {
-        self.generation.fetch_add(1, Ordering::AcqRel) + 1
-    }
-
-    fn is_current(&self, generation: u64) -> bool {
-        self.generation.load(Ordering::Acquire) == generation
-    }
-
-    fn debounce_delay(&self) -> Duration {
-        self.debounce_delay
-    }
-}
-
-#[non_exhaustive]
-struct WorkspaceInitialization {
-    roots: Vec<PathBuf>,
-    fallback_uri: Option<Url>,
-}
-
-impl WorkspaceInitialization {
-    fn new(params: &InitializeParams) -> Self {
-        let mut initialization = Self {
-            roots: Vec::new(),
-            fallback_uri: None,
-        };
-        initialization.add_workspace_folders(params);
-        initialization.add_root_uri(params);
-        initialization.add_root_path(params);
-        initialization
-    }
-
-    fn fallback_uri(&self) -> Option<Url> {
-        self.fallback_uri.clone()
-    }
-
-    fn into_roots(self) -> Vec<PathBuf> {
-        self.roots
-    }
-
-    fn add_workspace_folders(&mut self, params: &InitializeParams) {
-        if let Some(folders) = &params.workspace_folders {
-            for folder in folders {
-                self.add_uri(&folder.uri);
-            }
-        }
-    }
-
-    fn add_root_uri(&mut self, params: &InitializeParams) {
-        if !self.roots.is_empty() {
-            return;
-        }
-        if let Some(uri) = &params.root_uri {
-            self.add_uri(uri);
-        }
-    }
-
-    #[allow(deprecated)]
-    fn add_root_path(&mut self, params: &InitializeParams) {
-        if !self.roots.is_empty() {
-            return;
-        }
-        if let Some(path) = &params.root_path {
-            self.add_path_with_fallback(PathBuf::from(path));
-        }
-    }
-
-    fn add_uri(&mut self, uri: &Url) {
-        let Ok(path) = uri.to_file_path() else {
-            return;
-        };
-        if self.fallback_uri.is_none() {
-            self.fallback_uri = Some(uri.clone());
-        }
-        self.add_path(path);
-    }
-
-    fn add_path(&mut self, path: PathBuf) {
-        if !self.roots.contains(&path) {
-            self.roots.push(path);
-        }
-    }
-
-    fn add_path_with_fallback(&mut self, path: PathBuf) {
-        if self.fallback_uri.is_none()
-            && let Ok(uri) = Url::from_file_path(&path)
-        {
-            self.fallback_uri = Some(uri);
-        }
-        self.add_path(path);
     }
 }
 
@@ -536,3 +340,6 @@ impl ClientDocumentVersion {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod protocol_tests;

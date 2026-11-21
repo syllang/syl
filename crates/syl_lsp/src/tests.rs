@@ -1,55 +1,5 @@
 use super::*;
-use std::sync::{
-    Arc,
-    atomic::{AtomicBool, Ordering},
-};
-
-#[tokio::test(start_paused = true)]
-async fn stale_generation_does_not_run_debounced_publish() {
-    let scheduler = Arc::new(DiagnosticsScheduler::new());
-    let generation = scheduler.next_generation();
-    let published = Arc::new(AtomicBool::new(false));
-    let publication = Arc::clone(&published);
-    let delay = scheduler.debounce_delay();
-    let task = tokio::spawn(SylLanguageServer::run_debounced_publish(
-        Arc::clone(&scheduler),
-        generation,
-        delay,
-        move || async move {
-            publication.store(true, Ordering::Release);
-        },
-    ));
-
-    scheduler.next_generation();
-    tokio::time::advance(delay).await;
-    task.await
-        .expect("debounced publish task must finish cleanly");
-
-    assert!(!published.load(Ordering::Acquire));
-}
-
-#[tokio::test(start_paused = true)]
-async fn current_generation_runs_debounced_publish() {
-    let scheduler = Arc::new(DiagnosticsScheduler::new());
-    let generation = scheduler.next_generation();
-    let published = Arc::new(AtomicBool::new(false));
-    let publication = Arc::clone(&published);
-    let delay = scheduler.debounce_delay();
-    let task = tokio::spawn(SylLanguageServer::run_debounced_publish(
-        Arc::clone(&scheduler),
-        generation,
-        delay,
-        move || async move {
-            publication.store(true, Ordering::Release);
-        },
-    ));
-
-    tokio::time::advance(delay).await;
-    task.await
-        .expect("debounced publish task must finish cleanly");
-
-    assert!(published.load(Ordering::Acquire));
-}
+use syl_query::QueryError;
 
 #[test]
 fn new_diagnostics_generation_cancels_previous_token() {

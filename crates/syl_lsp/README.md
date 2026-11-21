@@ -24,6 +24,7 @@
 - `syl_span`
 - `tokio`
 - `tower-lsp`
+- `serde_json` (dynamic watcher registration options)
 
 ## Forbidden Dependencies
 
@@ -46,7 +47,7 @@
 ## Forbidden Responsibilities
 
 - owning compiler semantic algorithms
-- duplicating workspace/session state models outside `syl_session`
+- duplicating compiler workspace/session state outside `syl_session`
 - defining protocol-neutral query DTOs
 - generating hardware or backend text
 
@@ -56,3 +57,22 @@ Public items should exist only when an embedder or binary launcher must start or
 host the server. Request handlers, mapping helpers, and debounce internals stay
 private so the public surface remains a thin protocol adapter over
 `syl_session` and `syl_query`.
+
+Initialization discovers the nearest `syl.toml` above the primary workspace root,
+including search roots and trusted opaque summaries. Without a manifest, every
+workspace folder is a local import root. File notifications reload manifests and
+summary files, and refresh `.syl` roots after creates/deletes. Open editor overlays
+survive reloads and take precedence over disk changes. Dynamic watchers are
+registered when supported; clients may also send static file notifications.
+
+Text synchronization advertises `INCREMENTAL` and applies every change in order
+using the session's atomic UTF-16 edit API. Diagnostics use two cancellable lanes:
+parse/HIR/TIR runs immediately on open/close or after a 150ms edit debounce, then
+hardware DRC runs after another 350ms and a cooperative yield. Both execute on the
+blocking pool over the same immutable snapshot. Navigation reuses that snapshot
+without re-publishing session inputs or waiting on the host during background DRC.
+
+Each workspace change cancels both diagnostic tokens before new snapshot work.
+Generation and document-version checks reject stale results. The publisher merges
+fast and DRC layers, clears obsolete diagnostics after edits, removals, or recovery
+from manifest errors, and only republishes changed DRC documents.

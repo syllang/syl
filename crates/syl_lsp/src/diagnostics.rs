@@ -11,7 +11,7 @@ use tower_lsp::lsp_types::{
     Location, NumberOrString, Position, Range, Url,
 };
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub(crate) struct LspDiagnosticPublication {
     uri: Url,
@@ -89,25 +89,125 @@ impl ProjectErrorRange {
 #[derive(Debug, Default)]
 #[non_exhaustive]
 pub(crate) struct LspDiagnosticState {
+    latest_generation: u64,
+    fast_by_uri: BTreeMap<String, LspDiagnosticPublication>,
+    elab_by_uri: BTreeMap<String, LspDiagnosticPublication>,
     published: BTreeMap<String, Url>,
     project_errors: BTreeMap<String, Url>,
 }
 
 impl LspDiagnosticState {
     pub(crate) fn new() -> Self {
-        Self {
-            published: BTreeMap::new(),
-            project_errors: BTreeMap::new(),
-        }
+        Self::default()
     }
 
     pub(crate) fn record_project_error(
         &mut self,
         publication: LspDiagnosticPublication,
     ) -> Vec<LspDiagnosticPublication> {
+        self.elab_by_uri.remove(&publication.uri_key());
+        self.fast_by_uri.remove(&publication.uri_key());
         self.project_errors
             .insert(publication.uri_key(), publication.uri.clone());
         vec![publication]
+    }
+
+    pub(crate) fn apply_fast_layer(
+        &mut self,
+        generation: u64,
+        current: Vec<LspDiagnosticPublication>,
+    ) -> Vec<LspDiagnosticPublication> {
+        if generation < self.latest_generation {
+            return Vec::new();
+        }
+        if generation > self.latest_generation {
+            self.elab_by_uri.clear();
+        }
+        self.latest_generation = generation;
+        self.fast_by_uri = current.into_iter().map(|p| (p.uri_key(), p)).collect();
+        self.elab_by_uri
+            .retain(|key, _| self.fast_by_uri.contains_key(key));
+        let current = self
+            .fast_by_uri
+            .keys()
+            .filter_map(|key| self.merged(key))
+            .collect();
+        self.reconcile(current)
+    }
+
+    pub(crate) fn apply_elaboration_layer(
+        &mut self,
+        generation: u64,
+        current: Vec<LspDiagnosticPublication>,
+    ) -> Vec<LspDiagnosticPublication> {
+        if generation != self.latest_generation {
+            return Vec::new();
+        }
+        let mut next = BTreeMap::new();
+        for publication in current {
+            let key = publication.uri_key();
+            if let Some(fast) = self.fast_by_uri.get(&key)
+                && fast
+                    .version
+                    .is_some_and(|v| publication.version.is_none_or(|w| w < v))
+            {
+                if let Some(old) = self.elab_by_uri.get(&key) {
+                    next.insert(key, old.clone());
+                }
+                continue;
+            }
+            if !publication.diagnostics.is_empty() && !self.project_errors.contains_key(&key) {
+                next.insert(key, publication);
+            }
+        }
+        let keys = self
+            .elab_by_uri
+            .keys()
+            .chain(next.keys())
+            .cloned()
+            .collect::<BTreeSet<_>>();
+        let before = keys
+            .iter()
+            .map(|key| (key.clone(), self.merged(key)))
+            .collect::<BTreeMap<_, _>>();
+        self.elab_by_uri = next;
+        let mut changed = Vec::new();
+        for key in keys {
+            let after = self.merged(&key);
+            if before[&key] == after {
+                continue;
+            }
+            let publication = after.unwrap_or_else(|| {
+                LspDiagnosticPublication::new(
+                    before[&key]
+                        .as_ref()
+                        .expect("previous publication")
+                        .uri
+                        .clone(),
+                    None,
+                    Vec::new(),
+                )
+            });
+            self.published.insert(key, publication.uri.clone());
+            changed.push(publication);
+        }
+        changed
+    }
+
+    fn merged(&self, key: &str) -> Option<LspDiagnosticPublication> {
+        let mut publication = self
+            .fast_by_uri
+            .get(key)
+            .or_else(|| self.elab_by_uri.get(key))?
+            .clone();
+        if self.fast_by_uri.contains_key(key)
+            && let Some(elaboration) = self.elab_by_uri.get(key)
+        {
+            publication
+                .diagnostics
+                .extend(elaboration.diagnostics.clone());
+        }
+        Some(publication)
     }
 
     pub(crate) fn reconcile(

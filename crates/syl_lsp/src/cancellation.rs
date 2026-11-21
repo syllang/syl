@@ -5,6 +5,7 @@ use syl_session::CancellationToken;
 #[non_exhaustive]
 pub(crate) enum CancellationSlot {
     Diagnostics,
+    BackgroundElaboration,
     Hover,
     Definition,
     Completion,
@@ -19,6 +20,17 @@ pub(crate) struct CancellationRegistry {
 impl CancellationRegistry {
     pub(crate) fn new() -> Self {
         Self::default()
+    }
+
+    pub(crate) fn cancel(&self, slot: CancellationSlot) {
+        if let Some(token) = self
+            .active
+            .lock()
+            .expect("cancellation registry is usable")
+            .remove(&slot)
+        {
+            token.cancel();
+        }
     }
 
     pub(crate) fn replace(&self, slot: CancellationSlot) -> CancellationToken {

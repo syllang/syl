@@ -986,6 +986,7 @@ dependencies = [
 name = "syl_lsp"
 version = "0.1.0"
 dependencies = [
+ "serde_json",
  "syl_query",
  "syl_session",
  "syl_span",
