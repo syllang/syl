@@ -1,5 +1,20 @@
 use super::TypePhaseChecker;
-use crate::hir::{HirBlock, HirBodyExpr, HirExprNode, HirStmt};
+use crate::hir::{HirBlock, HirBodyExpr, HirExprNode, HirMatchArm, HirStmt};
+use crate::ir::mir::MirPattern;
+
+fn match_is_exhaustive(arms: &[HirMatchArm]) -> bool {
+    let mut has_true = false;
+    let mut has_false = false;
+    for arm in arms {
+        match arm.pattern {
+            MirPattern::Wildcard(_) | MirPattern::Ident(..) => return true,
+            MirPattern::Bool(true, _) => has_true = true,
+            MirPattern::Bool(false, _) => has_false = true,
+            _ => {}
+        }
+    }
+    has_true && has_false
+}
 
 impl TypePhaseChecker {
     pub(super) fn fn_expr_definitely_returns(expr: &HirBodyExpr) -> bool {
@@ -7,7 +22,7 @@ impl TypePhaseChecker {
             HirExprNode::Group(inner) => Self::fn_expr_definitely_returns(inner),
             HirExprNode::Block(block) => Self::fn_block_definitely_returns(block),
             HirExprNode::Match { arms, .. } => {
-                !arms.is_empty()
+                match_is_exhaustive(arms)
                     && arms
                         .iter()
                         .all(|arm| Self::fn_expr_definitely_returns(&arm.value))
@@ -47,9 +62,12 @@ impl TypePhaseChecker {
                         .as_deref()
                         .is_none_or(Self::fn_expr_has_void_tail_block)
             }
-            HirExprNode::Match { arms, .. } => arms
-                .iter()
-                .any(|arm| Self::fn_expr_has_void_tail_block(&arm.value)),
+            HirExprNode::Match { arms, .. } => {
+                !match_is_exhaustive(arms)
+                    || arms
+                        .iter()
+                        .any(|arm| Self::fn_expr_has_void_tail_block(&arm.value))
+            }
             _ => false,
         }
     }

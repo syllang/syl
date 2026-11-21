@@ -293,3 +293,28 @@ fn distinguishes_void_tail_blocks_from_blocks_that_return_on_every_path() {
         "E_MIDDLE_RETURN_TYPE_MISMATCH",
     );
 }
+
+#[test]
+fn match_returns_require_exhaustive_patterns_and_returning_arms() {
+    for source in [
+        "fn f(x: bool) -> nat { match x { true => { return 1 } } }",
+        "fn f(x: bool) -> nat { match x { false => { return 1 } } }",
+        "fn f(x: bool) -> nat { match x { true => { return 1 }, true => { return 2 } } }",
+        "fn f(x: nat) -> nat { match x { 0 => { return 1 }, 1 => { return 2 } } }",
+        "fn f(x: bool) -> nat { { match x { true => { return 1 } }; } }",
+        "fn f(x: bool) -> nat { match x { true => 1 } }",
+        "fn f(x: bool) -> nat { match x { true => { return 1 }, _ => {} } }",
+    ] {
+        assert_code(source, "E_MIDDLE_MISSING_RETURN");
+    }
+    for source in [
+        "fn f(x: bool) -> nat { match x { true => { return 1 }, _ => { return 2 } } }",
+        "fn f(x: nat) -> nat { match x { 0 => { return 1 }, other => { return 2 } } }",
+        "fn f(x: bool) -> nat { match x { true => { return 1 }, false => { return 2 } } }",
+        "fn f(x: bool) -> nat { ((match x { false => { return 1 }, true => { return 2 } })) }",
+        "fn f(x: bool) -> nat { match x { true => { return 1 } }; return 2 }",
+        "fn f(x: bool) -> nat { match x { true => 1, false => 2 } }",
+    ] {
+        assert_valid(source);
+    }
+}
