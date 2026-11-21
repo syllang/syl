@@ -205,3 +205,30 @@ fn cdc_attribute_accepts_flattened_view_clock_and_data_fields() {
         output.diagnostics()
     );
 }
+
+#[test]
+fn memory_element_lets_and_grouped_operands_keep_read_and_write_capabilities() {
+    for body in [
+        "mem_write((storage), clk, we, addr, data); mem_read_sync(((storage)), clk, we, addr, y);",
+        "mem_write(storage, clk, we, addr, data); let word = storage[addr]; y := word;",
+        "mem_write(storage, clk, we, addr, data); let word: UInt<8> = storage[addr]; let forwarded = word; y := forwarded;",
+    ] {
+        let source = format!(
+            "cell Ram(clk: in Clock, we: in Bit, addr: in UInt<4>, data: in UInt<8>) -> y: UInt<8> {{ mem storage: [16] UInt<8>; {body} }}"
+        );
+        let output = check(&source);
+        assert!(
+            output.diagnostics().is_empty(),
+            "{source}\n{:?}",
+            output.diagnostics()
+        );
+    }
+    for op in ["mem_write", "mem_read_sync"] {
+        rejects(
+            &format!(
+                "cell Bad(clk: in Clock, en: in Bit, addr: in UInt<4>, data: out UInt<8>) {{ signal storage: [16] UInt<8>; {op}(((storage)), clk, en, addr, data); }}"
+            ),
+            "E_MIDDLE_MEMORY_TARGET_NOT_MEM",
+        );
+    }
+}
