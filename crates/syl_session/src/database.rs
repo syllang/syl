@@ -155,9 +155,7 @@ impl AnalysisDatabase {
         &mut self,
         token: &CancellationToken,
     ) -> Result<AnalysisSnapshot, ProjectError> {
-        let resolved = self.state.resolve(token)?;
-        let specs = resolved.file_specs();
-        self.query.publish(&specs, self.state.opaque_summaries());
+        let resolved = self.state.resolve_into_query(&mut self.query, token)?;
         Ok(AnalysisSnapshot::from_query(
             self.query.generation(),
             self.query.inflight(),

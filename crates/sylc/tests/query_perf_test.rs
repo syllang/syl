@@ -139,3 +139,53 @@ fn workspace_root() -> PathBuf {
         .canonicalize()
         .expect("workspace root")
 }
+
+// Compile the same pure source generator used by the session measurements.
+#[path = "../../syl_session/src/cutover_tests/scale_fixture_tests.rs"]
+mod scale_fixture_tests;
+
+#[test]
+#[ignore = "prints SYL_PERF_SCALE_EMIT json; not part of the quality gate"]
+fn scale_emit_measurements() {
+    for file_count in [50, 100] {
+        let mut samples = Vec::with_capacity(SAMPLES);
+        let mut emitted_bytes = 0;
+        for _ in 0..SAMPLES {
+            let fixture = scale_fixture_tests::ScaleFixture::new(file_count);
+            let started = Instant::now();
+            let mut host = AnalysisHost::with_config(
+                ProjectConfig::new().with_workspace_root(fixture.root.clone()),
+            );
+            host.set_roots(fixture.roots.clone());
+            let snapshot = host.snapshot().expect("scale snapshot");
+            assert_eq!(snapshot.files().len(), file_count);
+            assert!(
+                snapshot.diagnostics().is_empty(),
+                "{:?}",
+                snapshot.diagnostics()
+            );
+            let diagnostics = snapshot.semantic_diagnostics();
+            assert!(diagnostics.is_empty(), "{diagnostics:?}");
+            let hwir = snapshot.hwir().expect("scale HWIR");
+            assert_eq!(hwir.modules().len(), file_count / 10 * 13);
+            let verilog = SystemVerilogBackend::new().emit(hwir).expect("scale emit");
+            samples.push(started.elapsed().as_micros());
+            assert_eq!(verilog.matches("\nmodule ").count(), hwir.modules().len());
+            if emitted_bytes != 0 {
+                assert_eq!(emitted_bytes, verilog.len());
+            }
+            emitted_bytes = verilog.len();
+        }
+        samples.sort_unstable();
+        let p50 = rank(&samples, 0.50);
+        let p95 = rank(&samples, 0.95);
+        let profile = if cfg!(debug_assertions) {
+            "debug"
+        } else {
+            "release"
+        };
+        println!(
+            "SYL_PERF_SCALE_EMIT {{\"profile\":\"{profile}\",\"file_count\":{file_count},\"cold_load_emit_us\":{{\"n\":{SAMPLES},\"p50\":{p50},\"p95\":{p95}}},\"emitted_bytes\":{emitted_bytes}}}"
+        );
+    }
+}

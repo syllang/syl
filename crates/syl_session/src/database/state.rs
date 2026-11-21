@@ -10,7 +10,7 @@ use super::documents::DocumentStore;
 use super::revision::DatabaseRevision;
 use crate::{
     CancellationToken, DocumentUri, DocumentVersion, ProjectConfig, ProjectError, ProjectResolver,
-    SourceDocument, collector::SylFileCollector, snapshot::ResolvedSnapshot,
+    SourceDocument, collector::SylFileCollector, query::QueryStore, snapshot::ResolvedSnapshot,
 };
 use std::path::PathBuf;
 use syl_sema::{OpaqueItemSummary, OpaqueSummaryTable};
@@ -121,13 +121,18 @@ impl SessionState {
         self.revision
     }
 
-    pub(crate) fn resolve(
+    pub(crate) fn resolve_into_query(
         &self,
+        query: &mut QueryStore,
         token: &CancellationToken,
     ) -> Result<ResolvedSnapshot, ProjectError> {
         let inputs = self.documents.snapshot_inputs();
-        let (roots, overlays) = inputs.into_resolver_inputs();
-        self.resolver.snapshot(roots, overlays, token)
+        self.resolver.snapshot_into_query(
+            inputs.into_resolver_inputs(),
+            query,
+            &self.opaque_summaries,
+            token,
+        )
     }
 
     fn touch(&mut self) {
