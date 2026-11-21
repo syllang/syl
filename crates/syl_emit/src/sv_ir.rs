@@ -1,6 +1,4 @@
-use strum_macros::IntoStaticStr;
-
-mod printer;
+pub(super) mod printer;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
@@ -23,8 +21,9 @@ impl SvDesign {
         format!("sv_ast modules={} [{}]", self.modules.len(), modules)
     }
 
+    #[cfg(test)]
     pub(super) fn emit_text(&self) -> String {
-        printer::text(self)
+        printer::text(&self.modules, true)
     }
 }
 
@@ -112,20 +111,27 @@ impl SvPort {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, IntoStaticStr)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub(super) enum SvDirection {
-    #[strum(serialize = "input")]
     Input,
-    #[strum(serialize = "inout")]
     InOut,
-    #[strum(serialize = "output")]
     Output,
+}
+impl From<SvDirection> for &'static str {
+    fn from(value: SvDirection) -> Self {
+        match value {
+            SvDirection::Input => "input",
+            SvDirection::InOut => "inout",
+            SvDirection::Output => "output",
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub(super) enum SvItem {
+    Source(String),
     LocalParam {
         name: String,
         value: SvExpr,
@@ -221,13 +227,19 @@ pub(super) enum SvExpr {
     },
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, IntoStaticStr)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub(super) enum SvSelectMode {
-    #[strum(serialize = "priority")]
     Priority,
-    #[strum(serialize = "unique")]
     Unique,
+}
+impl From<SvSelectMode> for &'static str {
+    fn from(value: SvSelectMode) -> Self {
+        match value {
+            SvSelectMode::Priority => "priority",
+            SvSelectMode::Unique => "unique",
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -243,52 +255,64 @@ impl SvSelectArm {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, IntoStaticStr)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub(super) enum SvUnaryOp {
-    #[strum(serialize = "-")]
     Neg,
-    #[strum(serialize = "!")]
     Not,
 }
+impl From<SvUnaryOp> for &'static str {
+    fn from(value: SvUnaryOp) -> Self {
+        match value {
+            SvUnaryOp::Neg => "-",
+            SvUnaryOp::Not => "!",
+        }
+    }
+}
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, IntoStaticStr)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub(super) enum SvBinaryOp {
-    #[strum(serialize = "||")]
     OrOr,
-    #[strum(serialize = "&&")]
     AndAnd,
-    #[strum(serialize = "==")]
     Eq,
-    #[strum(serialize = "!=")]
     NotEq,
-    #[strum(serialize = "<")]
     Lt,
-    #[strum(serialize = "<=")]
     LtEq,
-    #[strum(serialize = ">")]
     Gt,
-    #[strum(serialize = ">=")]
     GtEq,
-    #[strum(serialize = "+")]
     Add,
-    #[strum(serialize = "-")]
     Sub,
-    #[strum(serialize = "*")]
     Mul,
-    #[strum(serialize = "/")]
     Div,
-    #[strum(serialize = "%")]
     Rem,
-    #[strum(serialize = "<<")]
     Shl,
-    #[strum(serialize = "&")]
     BitAnd,
-    #[strum(serialize = "|")]
     BitOr,
-    #[strum(serialize = "^")]
     BitXor,
+}
+impl From<SvBinaryOp> for &'static str {
+    fn from(value: SvBinaryOp) -> Self {
+        match value {
+            SvBinaryOp::OrOr => "||",
+            SvBinaryOp::AndAnd => "&&",
+            SvBinaryOp::Eq => "==",
+            SvBinaryOp::NotEq => "!=",
+            SvBinaryOp::Lt => "<",
+            SvBinaryOp::LtEq => "<=",
+            SvBinaryOp::Gt => ">",
+            SvBinaryOp::GtEq => ">=",
+            SvBinaryOp::Add => "+",
+            SvBinaryOp::Sub => "-",
+            SvBinaryOp::Mul => "*",
+            SvBinaryOp::Div => "/",
+            SvBinaryOp::Rem => "%",
+            SvBinaryOp::Shl => "<<",
+            SvBinaryOp::BitAnd => "&",
+            SvBinaryOp::BitOr => "|",
+            SvBinaryOp::BitXor => "^",
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

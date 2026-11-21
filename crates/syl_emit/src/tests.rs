@@ -41,3 +41,34 @@ fn emits_bool_literals_legally_in_module_params() {
     assert!(sv.contains("parameter ENABLE = 1'b1"));
     assert!(sv.contains("parameter DISABLE = 1'b0"));
 }
+
+#[test]
+fn files_offer_canonical_paths_and_unresolved_source_ranges() {
+    let origin = syl_hw::HwOrigin::new(Default::default(), 3, 9, vec![]);
+    let index = origin.source_index();
+    let module = ParametricHwModule::new("Top", vec![], vec![], vec![])
+        .with_canonical_path(vec!["demo".into(), "Top".into()])
+        .with_origin(Some(origin));
+    let design = ParametricHwDesign::new(vec![module]);
+    let backend = SystemVerilogBackend::new();
+    let bundle = backend
+        .emit_files_with_options(
+            &design,
+            &EmitOptions::new()
+                .with_source_comments(true)
+                .with_header_comment(false),
+            None,
+        )
+        .unwrap();
+    assert_eq!(bundle.filelist_lines(), ["Top.sv"]);
+    let file = &bundle.files()[0];
+    assert_eq!(file.module_name(), "Top");
+    assert_eq!(file.canonical_path(), ["demo", "Top"]);
+    assert!(file.content().starts_with(&format!(
+        "// syl: demo.Top\n// source: source#{index}:3..9\nmodule Top"
+    )));
+    assert_eq!(
+        backend.emit_files(&design).unwrap().files()[0].content(),
+        backend.emit(&design).unwrap()
+    );
+}

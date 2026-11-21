@@ -8,11 +8,21 @@ use syl_hw::{
 #[non_exhaustive]
 pub(super) struct SvEmitter<'a> {
     hwir: &'a ParametricHwDesign,
+    source_comments: bool,
+    lookup: Option<&'a dyn crate::SourceLocationLookup>,
 }
 
 impl<'a> SvEmitter<'a> {
-    pub(super) fn new(hwir: &'a ParametricHwDesign) -> Self {
-        Self { hwir }
+    pub(super) fn new(
+        hwir: &'a ParametricHwDesign,
+        source_comments: bool,
+        lookup: Option<&'a dyn crate::SourceLocationLookup>,
+    ) -> Self {
+        Self {
+            hwir,
+            source_comments,
+            lookup,
+        }
     }
 
     pub(super) fn lower(&self) -> Result<SvDesign, CompileError> {
@@ -34,13 +44,20 @@ impl<'a> SvEmitter<'a> {
             .iter()
             .map(|port| self.lower_port(port))
             .collect::<Result<Vec<_>, _>>()?;
-        let items = module
-            .items()
-            .iter()
-            .map(|item| self.lower_item(item))
-            .collect::<Result<Vec<_>, _>>()?;
-        Ok(SvModule::new(module.name(), params, ports, items)
-            .with_doc(module.doc().map(ToOwned::to_owned)))
+        let items = self.lower_items(module.items())?;
+        let mut comments = Vec::new();
+        if self.source_comments {
+            let path = module.canonical_path().join(".");
+            if !path.is_empty() && path != module.name() {
+                comments.push(format!("syl: {}", path.replace(['\n', '\r'], " ")));
+            }
+            if let Some(origin) = module.origin() {
+                comments.push(self.source(origin));
+            }
+        }
+        comments.extend(module.doc().map(str::to_owned));
+        let doc = (!comments.is_empty()).then(|| comments.join("\n"));
+        Ok(SvModule::new(module.name(), params, ports, items).with_doc(doc))
     }
 
     fn lower_param(&self, param: &HwParam) -> SvParam {
@@ -151,7 +168,44 @@ impl<'a> SvEmitter<'a> {
     }
 
     fn lower_items(&self, items: &[ParametricHwItem]) -> Result<Vec<SvItem>, CompileError> {
-        items.iter().map(|item| self.lower_item(item)).collect()
+        let mut out = Vec::new();
+        let mut last = None;
+        for item in items {
+            let lowered = self.lower_item(item)?;
+            if self.source_comments
+                && !matches!(
+                    lowered,
+                    SvItem::Wire { .. } | SvItem::Reg { .. } | SvItem::LocalParam { .. }
+                )
+            {
+                let comment = self.source(item.origin());
+                if last.as_ref() != Some(&comment) {
+                    out.push(SvItem::Source(comment.clone()));
+                }
+                last = Some(comment);
+            }
+            out.push(lowered);
+        }
+        Ok(out)
+    }
+
+    fn source(&self, origin: &syl_hw::HwOrigin) -> String {
+        let location = self
+            .lookup
+            .and_then(|lookup| lookup.lookup(origin.source_index(), origin.span_start()));
+        let mut comment = match location {
+            Some(loc) => format!("source: {}:{}", loc.file(), loc.line()),
+            None => format!(
+                "source: source#{}:{}..{}",
+                origin.source_index(),
+                origin.span_start(),
+                origin.span_end()
+            ),
+        };
+        for frame in origin.expansion_stack() {
+            comment.push_str(&format!(" (via {}:{})", frame.callable(), frame.instance()));
+        }
+        comment.replace(['\n', '\r'], " ")
     }
 
     fn lower_reset(&self, reset: &HwReset) -> Result<SvReset, CompileError> {
