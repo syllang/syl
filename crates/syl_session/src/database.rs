@@ -8,8 +8,6 @@ use crate::{
 };
 use state::SessionState;
 use std::path::PathBuf;
-use std::sync::Arc;
-use std::sync::atomic::AtomicUsize;
 use syl_sema::{OpaqueItemSummary, OpaqueSummaryTable};
 
 pub use revision::DatabaseRevision;
@@ -46,7 +44,6 @@ pub use revision::DatabaseRevision;
 pub struct AnalysisDatabase {
     state: SessionState,
     query: QueryStore,
-    live: Arc<AtomicUsize>,
 }
 
 impl AnalysisDatabase {
@@ -66,7 +63,6 @@ impl AnalysisDatabase {
         Self {
             state,
             query: QueryStore::new(),
-            live: Arc::new(AtomicUsize::new(0)),
         }
     }
 
@@ -165,7 +161,6 @@ impl AnalysisDatabase {
         Ok(AnalysisSnapshot::from_query(
             self.query.generation(),
             self.query.inflight(),
-            crate::query::LiveGuard::enter(&self.live),
             resolved,
         ))
     }

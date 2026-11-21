@@ -78,7 +78,7 @@ pub(crate) fn package_diagnostics_query<'db>(
 pub(crate) fn merged_opaque_query(
     db: &dyn SylDb,
     revision: RevisionInput,
-) -> &Option<OpaqueSummaryTable> {
+) -> &Option<Arc<OpaqueSummaryTable>> {
     merged_opaque(db, revision)
 }
 

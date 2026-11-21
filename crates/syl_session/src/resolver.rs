@@ -6,8 +6,6 @@ use crate::{
 };
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
-use std::sync::atomic::AtomicUsize;
 use syl_sema::OpaqueSummaryTable;
 use syl_span::{Diagnostic, SourceId, SourceMap, Span};
 use syl_syntax::parser::SourceParser;
@@ -88,11 +86,9 @@ where
         let mut query = QueryStore::new();
         let opaque = OpaqueSummaryTable::new();
         query.publish(&resolved.file_specs(), &opaque);
-        let live = Arc::new(AtomicUsize::new(0));
         Ok(Project::new(AnalysisSnapshot::from_query(
             query.generation(),
             query.inflight(),
-            crate::query::LiveGuard::enter(&live),
             resolved,
         )))
     }

@@ -14,6 +14,7 @@ use super::{FileSpec, RevisionInput, SourceFileInput, SylDatabase};
 pub(crate) struct Generation {
     pub(crate) db: SylDatabase,
     pub(crate) revision: RevisionInput,
+    pub(crate) generation_id: u64,
     inputs: BTreeMap<String, SourceFileInput>,
 }
 
@@ -21,6 +22,7 @@ impl fmt::Debug for Generation {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
             .debug_struct("Generation")
+            .field("generation_id", &self.generation_id)
             .field("input_count", &self.inputs.len())
             .finish_non_exhaustive()
     }
@@ -33,6 +35,7 @@ impl Generation {
         Self {
             db,
             revision,
+            generation_id: 0,
             inputs: BTreeMap::new(),
         }
     }
@@ -41,21 +44,6 @@ impl Generation {
         let mut generation = Self::new();
         generation.install(specs, opaque);
         generation
-    }
-
-    pub(crate) fn file_specs(&self) -> Vec<FileSpec> {
-        self.revision
-            .files(&self.db)
-            .iter()
-            .copied()
-            .map(|file| FileSpec {
-                uri: file.uri(&self.db).clone(),
-                text: file.text(&self.db).clone(),
-                source_id: *file.source_id(&self.db),
-                module_path: file.module_path(&self.db).clone(),
-                version: *file.version(&self.db),
-            })
-            .collect()
     }
 
     pub(crate) fn inputs_changed(&self, specs: &[FileSpec], opaque: &OpaqueSummaryTable) -> bool {
@@ -132,6 +120,7 @@ impl Generation {
         if opaque_changed {
             self.revision.set_opaque(&mut self.db).to(opaque.clone());
         }
+        self.generation_id += 1;
     }
 }
 

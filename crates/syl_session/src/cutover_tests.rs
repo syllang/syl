@@ -20,9 +20,33 @@ use syl_sema::{
 };
 
 use crate::{
-    AnalysisHost, AnalysisSnapshot, CancellationToken, DocumentUri, DocumentVersion, ProjectConfig,
-    ProjectError,
+    AnalysisHost, AnalysisSnapshot, CancellationToken, DocumentUri, DocumentVersion, Project,
+    ProjectConfig, ProjectError,
 };
+
+const _: fn() = || {
+    fn assert_send_sync<T: Send + Sync>() {}
+    assert_send_sync::<AnalysisSnapshot>();
+    assert_send_sync::<Project>();
+};
+
+#[test]
+fn repeated_snapshot_queries_deduplicate_retained_arcs() {
+    let mut host = AnalysisHost::new();
+    host.open_document(
+        DocumentUri::new("untitled:syl/retain"),
+        "extern cell VendorBox(y: in Bit)\ncell Top(y: out Bit) { y := 1 }\n".to_string(),
+        DocumentVersion::new(1),
+    );
+    let snapshot = host.snapshot().expect("retain snapshot");
+    for _ in 0..8 {
+        let _ = snapshot.hir_analysis();
+        let _ = snapshot.tir_analysis();
+        let _ = snapshot.hwir();
+        let _ = snapshot.opaque_summaries();
+    }
+    assert_eq!(snapshot.retained_counts(), (1, 1, 1, 1));
+}
 
 #[test]
 fn body_only_edit_reuses_declaration_consumers() {

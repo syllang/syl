@@ -11,7 +11,6 @@ use std::panic::AssertUnwindSafe;
 use std::sync::Arc;
 #[cfg(test)]
 use std::sync::Mutex;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use syl_elab::ElaborationOutput;
 use syl_sema::{
     DeclarationContract, HardwareContract, HirAnalysisOutput, OpaqueSummaryTable, SemanticSession,
@@ -83,36 +82,6 @@ fn unwind_if_request_cancelled(db: &dyn SylDb) {
     if request_cancelled() {
         db.cancellation_token().cancel();
         db.unwind_if_revision_cancelled();
-    }
-}
-
-/// Counts live snapshots. The host's own database handle is not included.
-#[derive(Debug)]
-pub(crate) struct LiveGuard {
-    live: Arc<AtomicUsize>,
-}
-
-impl LiveGuard {
-    pub(crate) fn enter(live: &Arc<AtomicUsize>) -> Self {
-        live.fetch_add(1, Ordering::SeqCst);
-        Self {
-            live: Arc::clone(live),
-        }
-    }
-}
-
-impl Clone for LiveGuard {
-    fn clone(&self) -> Self {
-        self.live.fetch_add(1, Ordering::SeqCst);
-        Self {
-            live: Arc::clone(&self.live),
-        }
-    }
-}
-
-impl Drop for LiveGuard {
-    fn drop(&mut self) {
-        self.live.fetch_sub(1, Ordering::SeqCst);
     }
 }
 
@@ -550,17 +519,19 @@ fn workspace_elaboration(
 }
 
 #[salsa::tracked(returns(ref))]
-fn merged_opaque(db: &dyn SylDb, revision: RevisionInput) -> Option<OpaqueSummaryTable> {
+fn merged_opaque(db: &dyn SylDb, revision: RevisionInput) -> Option<Arc<OpaqueSummaryTable>> {
     observe_cancel(db);
     let tir = workspace_tir(db, revision);
     if let Some(analysis) = tir.partial_stage() {
-        return Some(analysis.opaque_summaries().merged(revision.opaque(db)));
+        return Some(Arc::new(
+            analysis.opaque_summaries().merged(revision.opaque(db)),
+        ));
     }
     let overlay = revision.opaque(db);
     if overlay.is_empty() {
         None
     } else {
-        Some(overlay.clone())
+        Some(Arc::new(overlay.clone()))
     }
 }
 

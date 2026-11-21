@@ -1,12 +1,10 @@
 use crate::query::{
-    FileSpec, Generation, LiveGuard, RevisionInput, SylDatabase, catch_query, ide_hir_query,
-    ide_tir_query, make_unit, merged_opaque_query, package_diagnostics_query,
-    workspace_diagnostics_query, workspace_elaboration_query, workspace_hir_query,
-    workspace_tir_query,
+    FileSpec, Generation, RevisionInput, SylDatabase, catch_query, ide_hir_query, ide_tir_query,
+    make_unit, merged_opaque_query, package_diagnostics_query, workspace_diagnostics_query,
+    workspace_elaboration_query, workspace_hir_query, workspace_tir_query,
 };
 use crate::{CancellationToken, DocumentOrigin, DocumentUri, DocumentVersion, ProjectError};
 use std::{
-    cell::RefCell,
     collections::BTreeSet,
     fmt,
     path::{Path, PathBuf},
@@ -35,7 +33,7 @@ use super::workspace::WorkspaceSnapshot;
 ///  ResolvedSnapshot   (source_map, files, parse diagnostics, workspace)
 ///         |
 ///         v
-///  AnalysisSnapshot::from_query(generation, inflight, live, resolved)
+///  AnalysisSnapshot::from_query(generation, inflight, resolved)
 /// ```
 #[derive(Debug)]
 #[non_exhaustive]
@@ -226,19 +224,20 @@ impl AnalysisFile {
 ///
 /// Token variants return [`ProjectError::Cancelled`] when cooperative
 /// cancellation is observed mid-stage.
-#[derive(Clone)]
 #[non_exhaustive]
 pub struct AnalysisSnapshot {
-    // Host memo database. Later publishes advance it in place. `frozen_specs`
-    // are this snapshot's inputs when that database has moved on.
+    // Host memo database. Later publishes advance it in place and bump its
+    // generation id. When that id moves on, this snapshot lazily constructs an
+    // owned generation from `publish_order`, `files`, `source_map`, and
+    // `frozen_opaque`.
     generation: Arc<Mutex<Generation>>,
+    generation_id: u64,
     /// Shared with the host. Queries hold a read guard so publish waits.
     inflight: Arc<RwLock<()>>,
-    frozen_specs: Vec<FileSpec>,
+    publish_order: Vec<usize>,
     frozen_opaque: OpaqueSummaryTable,
     owned: Arc<Mutex<Option<Arc<Mutex<Generation>>>>>,
-    answers: RefCell<Retained>,
-    live: LiveGuard,
+    answers: Mutex<Retained>,
     pub(crate) source_map: SourceMap,
     pub(crate) files: Vec<AnalysisFile>,
     pub(crate) diagnostics: Vec<Diagnostic>,
@@ -246,14 +245,33 @@ pub struct AnalysisSnapshot {
     pub(crate) workspace: WorkspaceSnapshot,
 }
 
+impl Clone for AnalysisSnapshot {
+    fn clone(&self) -> Self {
+        Self {
+            generation: Arc::clone(&self.generation),
+            generation_id: self.generation_id,
+            inflight: Arc::clone(&self.inflight),
+            publish_order: self.publish_order.clone(),
+            frozen_opaque: self.frozen_opaque.clone(),
+            owned: Arc::clone(&self.owned),
+            answers: Mutex::new(Retained::default()),
+            source_map: self.source_map.clone(),
+            files: self.files.clone(),
+            diagnostics: self.diagnostics.clone(),
+            package_semantics: self.package_semantics.clone(),
+            workspace: self.workspace.clone(),
+        }
+    }
+}
+
 impl fmt::Debug for AnalysisSnapshot {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
             .debug_struct("AnalysisSnapshot")
+            .field("generation_id", &self.generation_id)
             .field("files", &self.files)
             .field("diagnostics", &self.diagnostics)
             .field("workspace", &self.workspace)
-            .field("live", &self.live)
             .finish_non_exhaustive()
     }
 }
@@ -304,32 +322,38 @@ impl AnalysisSnapshot {
     pub(crate) fn from_query(
         generation: Arc<Mutex<Generation>>,
         inflight: Arc<RwLock<()>>,
-        live: LiveGuard,
         parts: ResolvedSnapshot,
     ) -> Self {
         let ResolvedSnapshot {
             source_map,
-            mut files,
+            files,
             diagnostics,
             workspace,
         } = parts;
-        files.sort_by(|lhs, rhs| lhs.uri().cmp(rhs.uri()));
+        let mut indexed: Vec<(usize, AnalysisFile)> = files.into_iter().enumerate().collect();
+        indexed.sort_by(|(_, lhs), (_, rhs)| lhs.uri().cmp(rhs.uri()));
+        let mut publish_order = vec![0; indexed.len()];
+        let mut files = Vec::with_capacity(indexed.len());
+        for (sorted_index, (original_index, file)) in indexed.into_iter().enumerate() {
+            publish_order[original_index] = sorted_index;
+            files.push(file);
+        }
         let package_semantics = PackageSemanticIndex::from_workspace(&workspace);
-        let (frozen_specs, frozen_opaque) = {
+        let (generation_id, frozen_opaque) = {
             let current = Self::lock_generation(&generation);
             (
-                current.file_specs(),
+                current.generation_id,
                 current.revision.opaque(&current.db).clone(),
             )
         };
         Self {
             generation,
+            generation_id,
             inflight,
-            frozen_specs,
+            publish_order,
             frozen_opaque,
             owned: Arc::new(Mutex::new(None)),
-            answers: RefCell::new(Retained::default()),
-            live,
+            answers: Mutex::new(Retained::default()),
             source_map,
             files,
             diagnostics,
@@ -584,7 +608,7 @@ impl AnalysisSnapshot {
             .unwrap_or_else(|poisoned| poisoned.into_inner());
         let host = {
             let generation = Self::lock_generation(&self.generation);
-            if generation.inputs_changed(&self.frozen_specs, &self.frozen_opaque) {
+            if generation.generation_id != self.generation_id {
                 None
             } else {
                 Some((generation.db.clone(), generation.revision))
@@ -610,12 +634,43 @@ impl AnalysisSnapshot {
         if let Some(existing) = slot.as_ref() {
             return Arc::clone(existing);
         }
+        let specs = self.frozen_file_specs();
         let created = Arc::new(Mutex::new(Generation::from_specs(
-            &self.frozen_specs,
+            &specs,
             &self.frozen_opaque,
         )));
         *slot = Some(Arc::clone(&created));
         created
+    }
+
+    fn frozen_file_specs(&self) -> Vec<FileSpec> {
+        self.publish_order
+            .iter()
+            .map(|&index| {
+                let file = &self.files[index];
+                let text = self
+                    .source_map
+                    .file(file.source_id())
+                    .expect("snapshot file has a source map entry")
+                    .text()
+                    .to_string();
+                FileSpec {
+                    uri: file.uri_str().to_string(),
+                    text,
+                    source_id: file.source_id().get() as u32,
+                    module_path: file.module_path().to_vec(),
+                    version: file.version().get(),
+                }
+            })
+            .collect()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn retained_counts(&self) -> (usize, usize, usize, usize) {
+        self.answers
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .counts()
     }
 
     #[cfg(test)]
