@@ -134,3 +134,61 @@ fn nested_literal_branches_keep_contextual_hardware_types_in_both_orders() {
         );
     }
 }
+
+#[test]
+fn nested_zero_and_high_z_branches_keep_contextual_hardware_types() {
+    for ty in ["Bit", "UInt<W>", "SInt<W>", "Bits<W>"] {
+        for builtin in ["zero", "z"] {
+            for literal in [
+                format!("match s {{ 0 => {builtin}(), _ => 0 }}"),
+                format!("match s {{ 0 => 0, _ => ({builtin}()) }}"),
+                format!("select {{ s => {builtin}(), default => 0 }}"),
+                format!("select {{ s => 0, default => ({builtin}()) }}"),
+                format!("select {{ s => match s {{ 0 => {builtin}(), _ => 0 }}, default => 0 }}"),
+            ] {
+                for body in [
+                    format!("match s {{ 0 => {literal}, _ => x }}"),
+                    format!("match s {{ 0 => x, _ => {literal} }}"),
+                    format!("select {{ s => {literal}, default => x }}"),
+                    format!("select {{ s => x, default => {literal} }}"),
+                ] {
+                    let source = format!("map f<W: nat>(s: Bit, x: {ty}) -> {ty} = {body}");
+                    let output = diagnostics(&source);
+                    assert!(output.is_empty(), "{source}\n{output:?}");
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn contextual_builtin_branches_preserve_shadowing_and_typed_mismatches() {
+    for builtin in ["zero", "z"] {
+        for (source, code) in [
+            (
+                format!(
+                    "map {builtin}() -> nat = 0\nmap f(s: Bit, x: UInt<8>) -> UInt<8> = match s {{ 0 => match s {{ 0 => {builtin}(), _ => 0 }}, _ => x }}"
+                ),
+                "E_MIDDLE_TYPE_MISMATCH",
+            ),
+            (
+                format!(
+                    "map f(s: Bit, x: UInt<8>, y: UInt<16>) -> UInt<8> = select {{ s => match s {{ 0 => {builtin}(), _ => x }}, default => y }}"
+                ),
+                "E_MIDDLE_TYPE_MISMATCH",
+            ),
+            (
+                format!(
+                    "map f(s: Bit, x: UInt<8>) -> UInt<8> = match s {{ 0 => select {{ s => {builtin}(), default => true }}, _ => x }}"
+                ),
+                "E_MIDDLE_BOOL_IN_HARDWARE_VALUE",
+            ),
+        ] {
+            let output = diagnostics(&source);
+            assert!(
+                output.iter().any(|d| d.code.as_deref() == Some(code)),
+                "{source}\n{output:?}"
+            );
+        }
+    }
+}
