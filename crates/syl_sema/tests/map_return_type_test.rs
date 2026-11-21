@@ -98,3 +98,39 @@ fn signature_stubs_skip_body_checks_while_real_empty_functions_fail() {
             .any(|d| d.code.as_deref() == Some("E_MIDDLE_MISSING_RETURN"))
     );
 }
+
+#[test]
+fn nested_literal_branches_keep_contextual_hardware_types_in_both_orders() {
+    for ty in ["Bit", "UInt<8>", "SInt<8>", "Bits<8>"] {
+        for literal in [
+            "match s { 0 => 0, _ => 1 }",
+            "select { s => 0, default => 1 }",
+            "match s { 0 => select { s => 0, default => 1 }, _ => (0) }",
+            "select { s => match s { 0 => 0, _ => 1 }, default => (0) }",
+        ] {
+            for body in [
+                format!("match s {{ 0 => {literal}, _ => x }}"),
+                format!("match s {{ 0 => x, _ => {literal} }}"),
+                format!("select {{ s => {literal}, default => x }}"),
+                format!("select {{ s => x, default => {literal} }}"),
+            ] {
+                let source = format!("map f(s: Bit, x: {ty}) -> {ty} = {body}");
+                let output = diagnostics(&source);
+                assert!(output.is_empty(), "{source}\n{output:?}");
+            }
+        }
+    }
+    for body in [
+        "match s { 0 => match s { 0 => x, _ => 0 }, _ => y }",
+        "select { s => select { s => x, default => 0 }, default => y }",
+    ] {
+        let source = format!("map f(s: Bit, x: UInt<8>, y: UInt<16>) -> UInt<8> = {body}");
+        let output = diagnostics(&source);
+        assert!(
+            output
+                .iter()
+                .any(|d| d.code.as_deref() == Some("E_MIDDLE_TYPE_MISMATCH")),
+            "{source}\n{output:?}"
+        );
+    }
+}

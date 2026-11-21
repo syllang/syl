@@ -10,6 +10,12 @@ pub(in crate::tir) fn is_int_literal(expr: &HirBodyExpr) -> bool {
     match &expr.node {
         crate::hir::HirExprNode::Int(_) => true,
         crate::hir::HirExprNode::Group(inner) => is_int_literal(inner),
+        crate::hir::HirExprNode::Match { arms, .. } => {
+            !arms.is_empty() && arms.iter().all(|arm| is_int_literal(&arm.value))
+        }
+        crate::hir::HirExprNode::Select { arms, .. } => {
+            !arms.is_empty() && arms.iter().all(|arm| is_int_literal(&arm.value))
+        }
         _ => false,
     }
 }
