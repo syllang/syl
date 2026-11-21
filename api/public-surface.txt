@@ -158,6 +158,7 @@ syl_elab|use|MapIrStage|named|source=output::MapIrStage
 syl_elab|use|MapIrStage|named|source=pipeline::MapIrStage
 syl_elab|variant|syl_elab::metadata::model::HardwareCellSummaryBuilderError::UninitializedField|(&str)
 syl_elab|variant|syl_elab::metadata::model::HardwareCellSummaryBuilderError::ValidationError|(::derive_builder::export::core::string::String)
+syl_elab|variant|syl_elab::metadata::model::HardwareCreateKind::Memory|unit
 syl_elab|variant|syl_elab::metadata::model::HardwareCreateKind::Signal|unit
 syl_elab|variant|syl_elab::metadata::model::HardwareCreateKind::Storage|unit
 syl_emit|enum|syl_emit::CompileError|public
@@ -222,6 +223,8 @@ syl_hir|enum|syl_hir::model::item::HirEnumLayout|public
 syl_hir|enum|syl_hir::model::item::HirParamRole|public
 syl_hir|enum|syl_hir::model::item::HirPortDirection|public
 syl_hir|enum|syl_hir::model::item::HirViewDirection|public
+syl_hir|enum|syl_hir::model::reset::HirResetMode|public
+syl_hir|enum|syl_hir::model::reset::HirResetPolarity|public
 syl_hir|enum|syl_hir::model::type_ref::MirBinaryOp|public
 syl_hir|enum|syl_hir::model::type_ref::MirPattern|public
 syl_hir|enum|syl_hir::model::type_ref::MirSelectMode|public
@@ -276,6 +279,8 @@ syl_hir|field|syl_hir::model::body::HirMatchArm::value|HirExpr
 syl_hir|field|syl_hir::model::body::HirNamedExpr::name|String
 syl_hir|field|syl_hir::model::body::HirNamedExpr::value|HirExpr
 syl_hir|field|syl_hir::model::body::HirRegReset::domain|Option<HirExpr>
+syl_hir|field|syl_hir::model::body::HirRegReset::mode|Option<super::HirResetMode>
+syl_hir|field|syl_hir::model::body::HirRegReset::polarity|Option<super::HirResetPolarity>
 syl_hir|field|syl_hir::model::body::HirRegReset::span|syl_span::Span
 syl_hir|field|syl_hir::model::body::HirRegReset::value|HirExpr
 syl_hir|field|syl_hir::model::body::HirSelectArm::doc|Option<String>
@@ -297,6 +302,7 @@ syl_hir|field|syl_hir::model::item::HirBundleItem::fields|Vec<HirFieldDecl>
 syl_hir|field|syl_hir::model::item::HirBundleItem::generics|Vec<HirSignatureGenericParam>
 syl_hir|field|syl_hir::model::item::HirBundleItem::name|String
 syl_hir|field|syl_hir::model::item::HirBundleItem::span|syl_span::Span
+syl_hir|field|syl_hir::model::item::HirCallableItem::attrs|Vec<HirAttribute>
 syl_hir|field|syl_hir::model::item::HirCallableItem::body|super::HirBlock
 syl_hir|field|syl_hir::model::item::HirCallableItem::doc|Option<String>
 syl_hir|field|syl_hir::model::item::HirCallableItem::generics|Vec<HirSignatureGenericParam>
@@ -320,6 +326,7 @@ syl_hir|field|syl_hir::model::item::HirEnumVariantDecl::doc|Option<String>
 syl_hir|field|syl_hir::model::item::HirEnumVariantDecl::name|String
 syl_hir|field|syl_hir::model::item::HirEnumVariantDecl::span|syl_span::Span
 syl_hir|field|syl_hir::model::item::HirEnumVariantDecl::value|Option<super::HirBodyExpr>
+syl_hir|field|syl_hir::model::item::HirExternCellItem::attrs|Vec<HirAttribute>
 syl_hir|field|syl_hir::model::item::HirExternCellItem::doc|Option<String>
 syl_hir|field|syl_hir::model::item::HirExternCellItem::generics|Vec<HirSignatureGenericParam>
 syl_hir|field|syl_hir::model::item::HirExternCellItem::name|String
@@ -636,6 +643,10 @@ syl_hir|use|HirPortDirection|named|source=item::HirPortDirection
 syl_hir|use|HirPortDirection|named|source=model::HirPortDirection
 syl_hir|use|HirRegReset|named|source=body::HirRegReset
 syl_hir|use|HirRegReset|named|source=model::HirRegReset
+syl_hir|use|HirResetMode|named|source=model::HirResetMode
+syl_hir|use|HirResetMode|named|source=reset::HirResetMode
+syl_hir|use|HirResetPolarity|named|source=model::HirResetPolarity
+syl_hir|use|HirResetPolarity|named|source=reset::HirResetPolarity
 syl_hir|use|HirResolution|named|source=resolution::HirResolution
 syl_hir|use|HirSelectArm|named|source=body::HirSelectArm
 syl_hir|use|HirSelectArm|named|source=model::HirSelectArm
@@ -684,6 +695,7 @@ syl_hir|variant|syl_hir::model::HirLocalKind::Generic|unit
 syl_hir|variant|syl_hir::model::HirLocalKind::Instance|unit
 syl_hir|variant|syl_hir::model::HirLocalKind::Let|unit
 syl_hir|variant|syl_hir::model::HirLocalKind::Loop|unit
+syl_hir|variant|syl_hir::model::HirLocalKind::Mem|unit
 syl_hir|variant|syl_hir::model::HirLocalKind::Param|unit
 syl_hir|variant|syl_hir::model::HirLocalKind::Reg|unit
 syl_hir|variant|syl_hir::model::HirLocalKind::Result|unit
@@ -720,6 +732,7 @@ syl_hir|variant|syl_hir::model::body::HirStmt::ElabIf|{ cond: HirExpr, then_bloc
 syl_hir|variant|syl_hir::model::body::HirStmt::Error|{ span: syl_span::Span }
 syl_hir|variant|syl_hir::model::body::HirStmt::Expr|(HirExpr)
 syl_hir|variant|syl_hir::model::body::HirStmt::Let|{ id: Option<crate::LocalId>, name: String, ty: Option<super::MirTypeRef>, value: Option<HirExpr>, span: syl_span::Span }
+syl_hir|variant|syl_hir::model::body::HirStmt::Mem|{ id: Option<crate::LocalId>, name: String, ty: super::MirTypeRef, span: syl_span::Span }
 syl_hir|variant|syl_hir::model::body::HirStmt::Next|{ name: String, value: HirExpr, span: syl_span::Span }
 syl_hir|variant|syl_hir::model::body::HirStmt::Reg|{ id: Option<crate::LocalId>, name: String, ty: Option<super::MirTypeRef>, reset: Option<HirRegReset>, span: syl_span::Span }
 syl_hir|variant|syl_hir::model::body::HirStmt::Return|(Option<HirExpr>, syl_span::Span)
@@ -742,6 +755,10 @@ syl_hir|variant|syl_hir::model::item::HirPortDirection::Out|unit
 syl_hir|variant|syl_hir::model::item::HirViewDirection::InOut|unit
 syl_hir|variant|syl_hir::model::item::HirViewDirection::In|unit
 syl_hir|variant|syl_hir::model::item::HirViewDirection::Out|unit
+syl_hir|variant|syl_hir::model::reset::HirResetMode::Async|unit
+syl_hir|variant|syl_hir::model::reset::HirResetMode::Sync|unit
+syl_hir|variant|syl_hir::model::reset::HirResetPolarity::ActiveHigh|unit
+syl_hir|variant|syl_hir::model::reset::HirResetPolarity::ActiveLow|unit
 syl_hir|variant|syl_hir::model::type_ref::MirBinaryOp::Add|unit
 syl_hir|variant|syl_hir::model::type_ref::MirBinaryOp::AndAnd|unit
 syl_hir|variant|syl_hir::model::type_ref::MirBinaryOp::Assign|unit
@@ -785,6 +802,8 @@ syl_hw|enum|syl_hw::expr::HwUnaryOp|public
 syl_hw|enum|syl_hw::parametric::ParametricHwItem|public
 syl_hw|enum|syl_hw::place::HwPlaceExpr|public
 syl_hw|enum|syl_hw::place::HwPlace|public
+syl_hw|enum|syl_hw::reset::HwResetMode|public
+syl_hw|enum|syl_hw::reset::HwResetPolarity|public
 syl_hw|enum|syl_hw::validate::diagnostic::HwBindingKind|public
 syl_hw|enum|syl_hw::validate::diagnostic::HwValidationDiagnostic|public
 syl_hw|field|syl_hw::ids::ObjectId::0|usize
@@ -840,8 +859,12 @@ syl_hw|method|syl_hw::design::HwPort::new|fn(direction: HwDirection, width: impl
 syl_hw|method|syl_hw::design::HwPort::width|fn(self: &Self) -> &str
 syl_hw|method|syl_hw::design::HwPort::with_doc|fn(self: Self, doc: Option<String>) -> Self
 syl_hw|method|syl_hw::design::HwReset::condition|fn(self: &Self) -> &HwExpr
+syl_hw|method|syl_hw::design::HwReset::mode|fn(self: &Self) -> crate::HwResetMode
 syl_hw|method|syl_hw::design::HwReset::new|fn(condition: HwExpr, value: HwExpr) -> Self
+syl_hw|method|syl_hw::design::HwReset::polarity|fn(self: &Self) -> crate::HwResetPolarity
 syl_hw|method|syl_hw::design::HwReset::value|fn(self: &Self) -> &HwExpr
+syl_hw|method|syl_hw::design::HwReset::with_mode|fn(self: Self, mode: crate::HwResetMode) -> Self
+syl_hw|method|syl_hw::design::HwReset::with_polarity|fn(self: Self, polarity: crate::HwResetPolarity) -> Self
 syl_hw|method|syl_hw::expr::HwSelectArm::guard|fn(self: &Self) -> &HwExpr
 syl_hw|method|syl_hw::expr::HwSelectArm::new|fn(guard: HwExpr, value: HwExpr) -> Self
 syl_hw|method|syl_hw::expr::HwSelectArm::value|fn(self: &Self) -> &HwExpr
@@ -915,6 +938,8 @@ syl_hw|use|HwParam|named|source=design::HwParam
 syl_hw|use|HwPlaceExpr|named|source=place::HwPlaceExpr
 syl_hw|use|HwPlace|named|source=place::HwPlace
 syl_hw|use|HwPort|named|source=design::HwPort
+syl_hw|use|HwResetMode|named|source=reset::HwResetMode
+syl_hw|use|HwResetPolarity|named|source=reset::HwResetPolarity
 syl_hw|use|HwReset|named|source=design::HwReset
 syl_hw|use|HwSelectArm|named|source=expr::HwSelectArm
 syl_hw|use|HwSelectMode|named|source=expr::HwSelectMode
@@ -940,6 +965,9 @@ syl_hw|variant|syl_hw::design::HwItem::ClockedStorage|{ clock: crate::HwExpr, ta
 syl_hw|variant|syl_hw::design::HwItem::ContinuousDrive|{ lhs: crate::HwExpr, rhs: crate::HwExpr }
 syl_hw|variant|syl_hw::design::HwItem::InitialError|{ message: crate::HwExpr }
 syl_hw|variant|syl_hw::design::HwItem::Instance|(HwInstance)
+syl_hw|variant|syl_hw::design::HwItem::MemoryDecl|{ name: String, elem_width: String, depth: String }
+syl_hw|variant|syl_hw::design::HwItem::MemorySyncRead|{ clock: crate::HwExpr, memory: String, enable: crate::HwExpr, addr: crate::HwExpr, target: crate::HwExpr }
+syl_hw|variant|syl_hw::design::HwItem::MemoryWrite|{ clock: crate::HwExpr, memory: String, enable: crate::HwExpr, addr: crate::HwExpr, data: crate::HwExpr }
 syl_hw|variant|syl_hw::design::HwItem::SignalDecl|{ width: String, name: String }
 syl_hw|variant|syl_hw::design::HwItem::StaticFor|{ index: String, start: crate::HwExpr, end: crate::HwExpr, label: String, items: Vec<HwItem> }
 syl_hw|variant|syl_hw::design::HwItem::StaticIf|{ cond: crate::HwExpr, label: String, then_items: Vec<HwItem>, else_items: Vec<HwItem> }
@@ -996,10 +1024,15 @@ syl_hw|variant|syl_hw::place::HwPlaceExpr::Int|(u64)
 syl_hw|variant|syl_hw::place::HwPlaceExpr::Op|{ name: String, args: Vec<HwPlaceExpr> }
 syl_hw|variant|syl_hw::place::HwPlaceExpr::Str|(String)
 syl_hw|variant|syl_hw::place::HwPlaceExpr::Zero|unit
+syl_hw|variant|syl_hw::reset::HwResetMode::Async|unit
+syl_hw|variant|syl_hw::reset::HwResetMode::Sync|unit
+syl_hw|variant|syl_hw::reset::HwResetPolarity::ActiveHigh|unit
+syl_hw|variant|syl_hw::reset::HwResetPolarity::ActiveLow|unit
 syl_hw|variant|syl_hw::validate::diagnostic::HwBindingKind::GenerateIndex|unit
 syl_hw|variant|syl_hw::validate::diagnostic::HwBindingKind::GenerateLabel|unit
 syl_hw|variant|syl_hw::validate::diagnostic::HwBindingKind::Instance|unit
 syl_hw|variant|syl_hw::validate::diagnostic::HwBindingKind::LocalParam|unit
+syl_hw|variant|syl_hw::validate::diagnostic::HwBindingKind::Memory|unit
 syl_hw|variant|syl_hw::validate::diagnostic::HwBindingKind::Module|unit
 syl_hw|variant|syl_hw::validate::diagnostic::HwBindingKind::Parameter|unit
 syl_hw|variant|syl_hw::validate::diagnostic::HwBindingKind::Port|unit
@@ -1278,6 +1311,7 @@ syl_sema|enum|syl_sema::summary::cell::CellBoundarySummary|public
 syl_sema|enum|syl_sema::summary::cell::CellInstanceMatch|public
 syl_sema|enum|syl_sema::summary::cell::CellSummaryStatus|public
 syl_sema|enum|syl_sema::summary::cell::HwPlace|public
+syl_sema|enum|syl_sema::summary::opaque::cdc::SummaryCdcKind|public
 syl_sema|enum|syl_sema::summary::opaque::model::BackendConstraint|public
 syl_sema|enum|syl_sema::summary::opaque::model::OpaqueItemKind|public
 syl_sema|enum|syl_sema::summary::opaque::model::OpaqueItemSummaryBuilderError|public
@@ -1300,6 +1334,8 @@ syl_sema|enum|syl_sema::tir::type_system::TirGenericArg|public
 syl_sema|enum|syl_sema::tir::type_system::TirType|public
 syl_sema|enum|syl_sema::tir::type_system::const_term::TirConstResolution|public
 syl_sema|enum|syl_sema::tir::type_system::const_term::TirConstTerm|public
+syl_sema|enum|syl_sema::tir::type_system::reset::TirResetMode|public
+syl_sema|enum|syl_sema::tir::type_system::reset::TirResetPolarity|public
 syl_sema|field|syl_sema::contract::DeclarationContract::doc|Option<String>
 syl_sema|field|syl_sema::contract::DeclarationContract::key|SymbolKey
 syl_sema|field|syl_sema::contract::DeclarationContract::signature_source|String
@@ -1630,9 +1666,16 @@ syl_sema|method|syl_sema::summary::cell::OpaqueCellSummary::callable|fn(self: &S
 syl_sema|method|syl_sema::summary::cell::OpaqueCellSummary::instance|fn(self: &Self) -> &str
 syl_sema|method|syl_sema::summary::cell::OpaqueCellSummary::new|fn(callable: impl Into<String>, instance: impl Into<String>, origin: HwOrigin) -> Self
 syl_sema|method|syl_sema::summary::cell::OpaqueCellSummary::origin|fn(self: &Self) -> &HwOrigin
+syl_sema|method|syl_sema::summary::opaque::cdc::SummaryCdcCrossing::dst_clock|fn(self: &Self) -> &str
+syl_sema|method|syl_sema::summary::opaque::cdc::SummaryCdcCrossing::input_port|fn(self: &Self) -> &str
+syl_sema|method|syl_sema::summary::opaque::cdc::SummaryCdcCrossing::kind|fn(self: &Self) -> SummaryCdcKind
+syl_sema|method|syl_sema::summary::opaque::cdc::SummaryCdcCrossing::new|fn(input_port: impl Into<String>, output_port: impl Into<String>, dst_clock: impl Into<String>) -> Self
+syl_sema|method|syl_sema::summary::opaque::cdc::SummaryCdcCrossing::output_port|fn(self: &Self) -> &str
+syl_sema|method|syl_sema::summary::opaque::cdc::SummaryCdcCrossing::with_kind|fn(self: Self, kind: SummaryCdcKind) -> Self
 syl_sema|method|syl_sema::summary::opaque::model::OpaqueItemSummary::backend_constraints|fn(self: &Self) -> &[BackendConstraint]
 syl_sema|method|syl_sema::summary::opaque::model::OpaqueItemSummary::builder|fn(kind: OpaqueItemKind, callable: impl Into<String>) -> OpaqueItemSummaryBuilder
 syl_sema|method|syl_sema::summary::opaque::model::OpaqueItemSummary::callable|fn(self: &Self) -> &str
+syl_sema|method|syl_sema::summary::opaque::model::OpaqueItemSummary::cdc_crossings|fn(self: &Self) -> &[super::SummaryCdcCrossing]
 syl_sema|method|syl_sema::summary::opaque::model::OpaqueItemSummary::consumed_fields|fn(self: &Self) -> &[SummaryPath]
 syl_sema|method|syl_sema::summary::opaque::model::OpaqueItemSummary::domain_behavior|fn(self: &Self) -> &SummaryDomainBehavior
 syl_sema|method|syl_sema::summary::opaque::model::OpaqueItemSummary::driven_fields|fn(self: &Self) -> &[SummaryPath]
@@ -1645,6 +1688,8 @@ syl_sema|method|syl_sema::summary::opaque::model::OpaqueItemSummaryBuilder::back
 syl_sema|method|syl_sema::summary::opaque::model::OpaqueItemSummaryBuilder::backend_constraint|fn(self: Self, constraint: BackendConstraint) -> Self
 syl_sema|method|syl_sema::summary::opaque::model::OpaqueItemSummaryBuilder::build|fn(self: Self) -> OpaqueItemSummary
 syl_sema|method|syl_sema::summary::opaque::model::OpaqueItemSummaryBuilder::callable|fn(self: Self, value: VALUE) -> Self
+syl_sema|method|syl_sema::summary::opaque::model::OpaqueItemSummaryBuilder::cdc_crossings|fn(self: Self, value: Vec<super::SummaryCdcCrossing>) -> Self
+syl_sema|method|syl_sema::summary::opaque::model::OpaqueItemSummaryBuilder::cdc_crossing|fn(self: Self, crossing: super::SummaryCdcCrossing) -> Self
 syl_sema|method|syl_sema::summary::opaque::model::OpaqueItemSummaryBuilder::consumed_fields|fn(self: Self, value: Vec<SummaryPath>) -> Self
 syl_sema|method|syl_sema::summary::opaque::model::OpaqueItemSummaryBuilder::consumed_field|fn(self: Self, path: SummaryPath) -> Self
 syl_sema|method|syl_sema::summary::opaque::model::OpaqueItemSummaryBuilder::domain_behavior|fn(self: Self, value: SummaryDomainBehavior) -> Self
@@ -1781,6 +1826,7 @@ syl_sema|struct|syl_sema::summary::cell::CellSummaryRegistry|public
 syl_sema|struct|syl_sema::summary::cell::CellSummary|public
 syl_sema|struct|syl_sema::summary::cell::HwOrigin|public
 syl_sema|struct|syl_sema::summary::cell::OpaqueCellSummary|public
+syl_sema|struct|syl_sema::summary::opaque::cdc::SummaryCdcCrossing|public
 syl_sema|struct|syl_sema::summary::opaque::model::OpaqueItemSummaryBuilder|public
 syl_sema|struct|syl_sema::summary::opaque::model::OpaqueItemSummary|public
 syl_sema|struct|syl_sema::summary::opaque::model::SummaryEndpoint|public
@@ -1947,6 +1993,10 @@ syl_sema|use|StageOutput|named|source=pipeline::StageOutput
 syl_sema|use|SummaryCapability|named|source=model::SummaryCapability
 syl_sema|use|SummaryCapability|named|source=opaque::SummaryCapability
 syl_sema|use|SummaryCapability|named|source=summary::opaque::SummaryCapability
+syl_sema|use|SummaryCdcCrossing|named|source=cdc::SummaryCdcCrossing
+syl_sema|use|SummaryCdcCrossing|named|source=summary::opaque::SummaryCdcCrossing
+syl_sema|use|SummaryCdcKind|named|source=cdc::SummaryCdcKind
+syl_sema|use|SummaryCdcKind|named|source=summary::opaque::SummaryCdcKind
 syl_sema|use|SummaryDirection|named|source=model::SummaryDirection
 syl_sema|use|SummaryDirection|named|source=opaque::SummaryDirection
 syl_sema|use|SummaryDirection|named|source=summary::opaque::SummaryDirection
@@ -1999,6 +2049,12 @@ syl_sema|use|TirDesign|named|source=design::TirDesign
 syl_sema|use|TirError|named|source=diagnostic::TirError
 syl_sema|use|TirError|named|source=error::TirError
 syl_sema|use|TirGenericArg|named|source=type_system::TirGenericArg
+syl_sema|use|TirResetMode|named|source=reset::TirResetMode
+syl_sema|use|TirResetMode|named|source=tir::TirResetMode
+syl_sema|use|TirResetMode|named|source=type_system::TirResetMode
+syl_sema|use|TirResetPolarity|named|source=reset::TirResetPolarity
+syl_sema|use|TirResetPolarity|named|source=tir::TirResetPolarity
+syl_sema|use|TirResetPolarity|named|source=type_system::TirResetPolarity
 syl_sema|use|TirTypeTable|named|source=table::TirTypeTable
 syl_sema|use|TirTypeTable|named|source=type_system::TirTypeTable
 syl_sema|use|TirType|named|source=type_system::TirType
@@ -2056,9 +2112,11 @@ syl_sema|variant|syl_sema::diagnostic::error::ConstEvalError::InvalidElaboration
 syl_sema|variant|syl_sema::diagnostic::error::ConstEvalError::NotElaborationTimeExpression|{ context: String, source: Box<LoweringError> }
 syl_sema|variant|syl_sema::diagnostic::error::ConstEvalError::StepLimitExceeded|{ limit: usize }
 syl_sema|variant|syl_sema::diagnostic::error::ConstEvalError::UnknownElaborationIdentifier|{ name: String }
+syl_sema|variant|syl_sema::diagnostic::error::DriverError::CdcViolation|{ source_domain: String, target_domain: String, signal: String, target: String }
 syl_sema|variant|syl_sema::diagnostic::error::DriverError::ContinuousDriveTargetIsReg|{ name: String }
 syl_sema|variant|syl_sema::diagnostic::error::DriverError::DriverPlaceOutOfBounds|{ place: String, root: String }
 syl_sema|variant|syl_sema::diagnostic::error::DriverError::DuplicateHardwareDriver|{ name: String }
+syl_sema|variant|syl_sema::diagnostic::error::DriverError::DuplicateMemoryWritePort|{ name: String }
 syl_sema|variant|syl_sema::diagnostic::error::DriverError::DuplicateNextDriver|{ name: String }
 syl_sema|variant|syl_sema::diagnostic::error::DriverError::MissingCellSummary|{ callable: String, instance: String, status: String }
 syl_sema|variant|syl_sema::diagnostic::error::DriverError::NextTargetIsNotReg|{ name: String }
@@ -2075,20 +2133,27 @@ syl_sema|variant|syl_sema::diagnostic::error::EirError::AssertionStatementOnly|u
 syl_sema|variant|syl_sema::diagnostic::error::EirError::AssignmentInMap|unit
 syl_sema|variant|syl_sema::diagnostic::error::EirError::ConstCycle|{ name: String }
 syl_sema|variant|syl_sema::diagnostic::error::EirError::ContinuousDriveTargetIsReg|{ name: String }
+syl_sema|variant|syl_sema::diagnostic::error::EirError::DirectDriveTargetIsMem|{ name: String }
 syl_sema|variant|syl_sema::diagnostic::error::EirError::DuplicateArgument|{ name: String }
 syl_sema|variant|syl_sema::diagnostic::error::EirError::DuplicateConnection|{ name: String }
 syl_sema|variant|syl_sema::diagnostic::error::EirError::HardwareGeneratorCallInExpression|{ name: String }
 syl_sema|variant|syl_sema::diagnostic::error::EirError::HardwareGeneratorCallInMap|{ name: String }
 syl_sema|variant|syl_sema::diagnostic::error::EirError::IllegalHardwareStatement|unit
+syl_sema|variant|syl_sema::diagnostic::error::EirError::InplaceOnCdcSyncCell|{ name: String }
 syl_sema|variant|syl_sema::diagnostic::error::EirError::InplaceOnExternCell|{ name: String }
 syl_sema|variant|syl_sema::diagnostic::error::EirError::InstanceCalleeMustBeName|unit
 syl_sema|variant|syl_sema::diagnostic::error::EirError::InvalidElaborationExpression|unit
 syl_sema|variant|syl_sema::diagnostic::error::EirError::InvalidInterfaceType|unit
 syl_sema|variant|syl_sema::diagnostic::error::EirError::LocalBindingLoweringUnsupported|unit
+syl_sema|variant|syl_sema::diagnostic::error::EirError::MemoryOpStatementOnly|unit
+syl_sema|variant|syl_sema::diagnostic::error::EirError::MemoryRequiresArrayType|unit
+syl_sema|variant|syl_sema::diagnostic::error::EirError::MemoryTargetMustBeMem|{ name: String }
 syl_sema|variant|syl_sema::diagnostic::error::EirError::MissingAggregateField|{ ty: String, field: String }
 syl_sema|variant|syl_sema::diagnostic::error::EirError::RegisterRequiresClock|unit
 syl_sema|variant|syl_sema::diagnostic::error::EirError::RegisterRequiresReset|unit
 syl_sema|variant|syl_sema::diagnostic::error::EirError::RegisterRequiresType|unit
+syl_sema|variant|syl_sema::diagnostic::error::EirError::ResetClockDomainMismatch|{ reset: String, reset_domain: String, clock: String, clock_domain: String }
+syl_sema|variant|syl_sema::diagnostic::error::EirError::ResetConfigConflict|{ name: String, detail: String }
 syl_sema|variant|syl_sema::diagnostic::error::EirError::RuntimeErrorRequiresSingleMessage|unit
 syl_sema|variant|syl_sema::diagnostic::error::EirError::RuntimeErrorStatementOnly|unit
 syl_sema|variant|syl_sema::diagnostic::error::EirError::SignalRequiresType|unit
@@ -2133,7 +2198,9 @@ syl_sema|variant|syl_sema::diagnostic::error::TirError::EnumDiscriminantNotOneHo
 syl_sema|variant|syl_sema::diagnostic::error::TirError::EnumDiscriminantOutOfRange|{ enum_name: String, variant: String, value: u64, width: u64 }
 syl_sema|variant|syl_sema::diagnostic::error::TirError::HardwareStatementInFn|unit
 syl_sema|variant|syl_sema::diagnostic::error::TirError::ImmutableAssignment|{ name: String }
+syl_sema|variant|syl_sema::diagnostic::error::TirError::InvalidCdcSyncAttribute|{ reason: String }
 syl_sema|variant|syl_sema::diagnostic::error::TirError::InvalidElaborationExpression|unit
+syl_sema|variant|syl_sema::diagnostic::error::TirError::InvalidResetQualifier|{ detail: String }
 syl_sema|variant|syl_sema::diagnostic::error::TirError::MatchRequiresArm|unit
 syl_sema|variant|syl_sema::diagnostic::error::TirError::MissingAggregateField|{ ty: String, field: String }
 syl_sema|variant|syl_sema::diagnostic::error::TirError::MissingReturnValue|{ name: String, expected: String }
@@ -2290,6 +2357,10 @@ syl_sema|variant|syl_sema::summary::cell::CellSummaryStatus::Available|unit
 syl_sema|variant|syl_sema::summary::cell::CellSummaryStatus::Missing|unit
 syl_sema|variant|syl_sema::summary::cell::CellSummaryStatus::UnsafeAssumed|unit
 syl_sema|variant|syl_sema::summary::cell::HwPlace::Ident|(String)
+syl_sema|variant|syl_sema::summary::opaque::cdc::SummaryCdcKind::AsyncFifo|unit
+syl_sema|variant|syl_sema::summary::opaque::cdc::SummaryCdcKind::Custom|unit
+syl_sema|variant|syl_sema::summary::opaque::cdc::SummaryCdcKind::Handshake|unit
+syl_sema|variant|syl_sema::summary::opaque::cdc::SummaryCdcKind::TwoFlopSync|unit
 syl_sema|variant|syl_sema::summary::opaque::model::BackendConstraint::ForbidsRetiming|unit
 syl_sema|variant|syl_sema::summary::opaque::model::BackendConstraint::RequiresBackend|{ backend: String }
 syl_sema|variant|syl_sema::summary::opaque::model::BackendConstraint::RequiresBlackBoxArtifact|{ artifact: String }
@@ -2355,6 +2426,8 @@ syl_sema|variant|syl_sema::tir::binding::BindingRef::Local|(syl_hir::LocalId)
 syl_sema|variant|syl_sema::tir::builtin::BuiltinIntrinsic::Assert|unit
 syl_sema|variant|syl_sema::tir::builtin::BuiltinIntrinsic::Error|unit
 syl_sema|variant|syl_sema::tir::builtin::BuiltinIntrinsic::HighZ|unit
+syl_sema|variant|syl_sema::tir::builtin::BuiltinIntrinsic::MemReadSync|unit
+syl_sema|variant|syl_sema::tir::builtin::BuiltinIntrinsic::MemWrite|unit
 syl_sema|variant|syl_sema::tir::builtin::BuiltinIntrinsic::Zero|unit
 syl_sema|variant|syl_sema::tir::phase::Phase::Comb|unit
 syl_sema|variant|syl_sema::tir::phase::Phase::Const|unit
@@ -2369,7 +2442,7 @@ syl_sema|variant|syl_sema::tir::type_system::TirType::Clock|{ domain: Option<Box
 syl_sema|variant|syl_sema::tir::type_system::TirType::Domain|unit
 syl_sema|variant|syl_sema::tir::type_system::TirType::Named|{ name: String, def: Option<syl_hir::DefId>, generic: Option<syl_hir::LocalId>, kind: Option<syl_hir::HirDefKind>, args: Vec<TirGenericArg> }
 syl_sema|variant|syl_sema::tir::type_system::TirType::Nat|unit
-syl_sema|variant|syl_sema::tir::type_system::TirType::Reset|{ domain: Option<Box<TirType>> }
+syl_sema|variant|syl_sema::tir::type_system::TirType::Reset|{ domain: Option<Box<TirType>>, mode: TirResetMode, polarity: TirResetPolarity }
 syl_sema|variant|syl_sema::tir::type_system::TirType::SInt|{ width: TirConstTerm }
 syl_sema|variant|syl_sema::tir::type_system::TirType::Str|unit
 syl_sema|variant|syl_sema::tir::type_system::TirType::UInt|{ width: TirConstTerm }
@@ -2382,6 +2455,10 @@ syl_sema|variant|syl_sema::tir::type_system::const_term::TirConstTerm::Expr|{ la
 syl_sema|variant|syl_sema::tir::type_system::const_term::TirConstTerm::Named|{ name: String, resolution: Option<TirConstResolution> }
 syl_sema|variant|syl_sema::tir::type_system::const_term::TirConstTerm::NatLiteral|(u64)
 syl_sema|variant|syl_sema::tir::type_system::const_term::TirConstTerm::Unknown|unit
+syl_sema|variant|syl_sema::tir::type_system::reset::TirResetMode::Async|unit
+syl_sema|variant|syl_sema::tir::type_system::reset::TirResetMode::Sync|unit
+syl_sema|variant|syl_sema::tir::type_system::reset::TirResetPolarity::ActiveHigh|unit
+syl_sema|variant|syl_sema::tir::type_system::reset::TirResetPolarity::ActiveLow|unit
 syl_session|assoc_const|syl_session::manifest::ProjectManifest::FILE_NAME|public
 syl_session|constant|syl_session::manifest::MANIFEST_FILE_NAME|&str
 syl_session|enum|syl_session::config::ProjectConfigBuilderError|public
@@ -2735,6 +2812,8 @@ syl_syntax|enum|syl_syntax::ast::StructItemBuilderError|public
 syl_syntax|enum|syl_syntax::ast::TypeExpr|public
 syl_syntax|enum|syl_syntax::ast::UnaryOp|public
 syl_syntax|enum|syl_syntax::ast::ViewDirection|public
+syl_syntax|enum|syl_syntax::ast::reset::ResetMode|public
+syl_syntax|enum|syl_syntax::ast::reset::ResetPolarity|public
 syl_syntax|enum|syl_syntax::lexer::lossless::LexemeKind|public
 syl_syntax|enum|syl_syntax::lossless::LosslessItemKind|public
 syl_syntax|enum|syl_syntax::lossless::LosslessNodeKind|public
@@ -2761,6 +2840,7 @@ syl_syntax|field|syl_syntax::ast::BundleItem::span|syl_span::Span
 syl_syntax|field|syl_syntax::ast::CallArg::name|Option<String>
 syl_syntax|field|syl_syntax::ast::CallArg::span|syl_span::Span
 syl_syntax|field|syl_syntax::ast::CallArg::value|Expr
+syl_syntax|field|syl_syntax::ast::CallableItem::attrs|Vec<Attribute>
 syl_syntax|field|syl_syntax::ast::CallableItem::body|Block
 syl_syntax|field|syl_syntax::ast::CallableItem::doc|Option<String>
 syl_syntax|field|syl_syntax::ast::CallableItem::generics|Vec<GenericParam>
@@ -2785,6 +2865,7 @@ syl_syntax|field|syl_syntax::ast::EnumVariant::name|String
 syl_syntax|field|syl_syntax::ast::EnumVariant::span|syl_span::Span
 syl_syntax|field|syl_syntax::ast::EnumVariant::value|Option<Expr>
 syl_syntax|field|syl_syntax::ast::ErrorItem::span|syl_span::Span
+syl_syntax|field|syl_syntax::ast::ExternCellItem::attrs|Vec<Attribute>
 syl_syntax|field|syl_syntax::ast::ExternCellItem::doc|Option<String>
 syl_syntax|field|syl_syntax::ast::ExternCellItem::generics|Vec<GenericParam>
 syl_syntax|field|syl_syntax::ast::ExternCellItem::name|String
@@ -2840,6 +2921,8 @@ syl_syntax|field|syl_syntax::ast::PortDecl::name|String
 syl_syntax|field|syl_syntax::ast::PortDecl::span|syl_span::Span
 syl_syntax|field|syl_syntax::ast::PortDecl::ty|TypeExpr
 syl_syntax|field|syl_syntax::ast::RegReset::domain|Option<Expr>
+syl_syntax|field|syl_syntax::ast::RegReset::mode|Option<ResetMode>
+syl_syntax|field|syl_syntax::ast::RegReset::polarity|Option<ResetPolarity>
 syl_syntax|field|syl_syntax::ast::RegReset::span|syl_span::Span
 syl_syntax|field|syl_syntax::ast::RegReset::value|Expr
 syl_syntax|field|syl_syntax::ast::ResultBinding::doc|Option<String>
@@ -2917,6 +3000,8 @@ syl_syntax|method|syl_syntax::ast::PortDecl::is_in|fn(self: &Self) -> bool
 syl_syntax|method|syl_syntax::ast::PortDecl::is_out|fn(self: &Self) -> bool
 syl_syntax|method|syl_syntax::ast::PortDecl::new|fn(name: String, dir: ParamDirection, ty: TypeExpr, drive: crate::DriveCapability, span: Span) -> Self
 syl_syntax|method|syl_syntax::ast::RegReset::new|fn(domain: Option<Expr>, value: Expr, span: Span) -> Self
+syl_syntax|method|syl_syntax::ast::RegReset::with_mode|fn(self: Self, mode: crate::ResetMode) -> Self
+syl_syntax|method|syl_syntax::ast::RegReset::with_polarity|fn(self: Self, polarity: crate::ResetPolarity) -> Self
 syl_syntax|method|syl_syntax::ast::ResultBinding::is_drivable|fn(self: &Self) -> bool
 syl_syntax|method|syl_syntax::ast::ResultBinding::new|fn(name: String, ty: TypeExpr, drive: crate::DriveCapability, span: Span) -> Self
 syl_syntax|method|syl_syntax::ast::SelectArm::new|fn(pattern: Expr, value: Expr, span: Span) -> Self
@@ -3077,6 +3162,10 @@ syl_syntax|use|ParseOutput|named|source=parser::ParseOutput
 syl_syntax|use|Pattern|named|source=ast::Pattern
 syl_syntax|use|PortDecl|named|source=ast::PortDecl
 syl_syntax|use|RegReset|named|source=ast::RegReset
+syl_syntax|use|ResetMode|named|source=ast::ResetMode
+syl_syntax|use|ResetMode|named|source=reset::ResetMode
+syl_syntax|use|ResetPolarity|named|source=ast::ResetPolarity
+syl_syntax|use|ResetPolarity|named|source=reset::ResetPolarity
 syl_syntax|use|ResultBinding|named|source=ast::ResultBinding
 syl_syntax|use|SelectArm|named|source=ast::SelectArm
 syl_syntax|use|SelectMode|named|source=ast::SelectMode
@@ -3177,6 +3266,7 @@ syl_syntax|variant|syl_syntax::ast::Stmt::ElabIf|{ cond: Expr, then_block: Block
 syl_syntax|variant|syl_syntax::ast::Stmt::Error|{ span: syl_span::Span }
 syl_syntax|variant|syl_syntax::ast::Stmt::Expr|(Expr)
 syl_syntax|variant|syl_syntax::ast::Stmt::Let|{ name: String, ty: Option<TypeExpr>, value: Option<Expr>, span: syl_span::Span }
+syl_syntax|variant|syl_syntax::ast::Stmt::Mem|{ name: String, ty: TypeExpr, span: syl_span::Span }
 syl_syntax|variant|syl_syntax::ast::Stmt::Next|{ name: String, value: Expr, span: syl_span::Span }
 syl_syntax|variant|syl_syntax::ast::Stmt::Reg|{ name: String, ty: Option<TypeExpr>, reset: Option<RegReset>, span: syl_span::Span }
 syl_syntax|variant|syl_syntax::ast::Stmt::Return|(Option<Expr>, syl_span::Span)
@@ -3195,6 +3285,10 @@ syl_syntax|variant|syl_syntax::ast::UnaryOp::Not|unit
 syl_syntax|variant|syl_syntax::ast::ViewDirection::InOut|unit
 syl_syntax|variant|syl_syntax::ast::ViewDirection::In|unit
 syl_syntax|variant|syl_syntax::ast::ViewDirection::Out|unit
+syl_syntax|variant|syl_syntax::ast::reset::ResetMode::Async|unit
+syl_syntax|variant|syl_syntax::ast::reset::ResetMode::Sync|unit
+syl_syntax|variant|syl_syntax::ast::reset::ResetPolarity::ActiveHigh|unit
+syl_syntax|variant|syl_syntax::ast::reset::ResetPolarity::ActiveLow|unit
 syl_syntax|variant|syl_syntax::lexer::lossless::LexemeKind::DocComment|unit
 syl_syntax|variant|syl_syntax::lexer::lossless::LexemeKind::InnerDocComment|unit
 syl_syntax|variant|syl_syntax::lexer::lossless::LexemeKind::LineComment|unit
@@ -3272,6 +3366,7 @@ syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::LetStmt|unit
 syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::MapItem|unit
 syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::MatchArm|unit
 syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::MatchExpr|unit
+syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::MemStmt|unit
 syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::NamedExpr|unit
 syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::NextStmt|unit
 syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::Param|unit
