@@ -20,6 +20,9 @@ use super::package_semantics::{PackageSemanticIndex, PackageSemanticShard};
 use super::retain::{self, Retained};
 use super::workspace::WorkspaceSnapshot;
 
+#[path = "elab_diagnostics.rs"]
+mod elab_diagnostics;
+
 /// Parse/workspace resolution result assembled while query inputs are staged.
 ///
 /// Built by the project resolver; [`AnalysisDatabase`](crate::AnalysisDatabase)

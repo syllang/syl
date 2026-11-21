@@ -1,6 +1,7 @@
 use crate::{
     AnalysisDatabase, AnalysisSnapshot, CancellationToken, DocumentUri, DocumentVersion,
     ProjectConfig, ProjectError, ProjectManifest, ProjectResolver, SourceDocument,
+    TextDocumentEdit,
 };
 use std::path::PathBuf;
 use syl_sema::{OpaqueItemSummary, OpaqueSummaryTable};
@@ -47,6 +48,37 @@ pub struct AnalysisHost {
 }
 
 impl AnalysisHost {
+    /// Atomically apply manifest configuration and summaries, preserving overlays.
+    pub fn apply_manifest(&mut self, manifest: &ProjectManifest) -> Result<(), ProjectError> {
+        self.database.apply_manifest(manifest)
+    }
+
+    /// Replace resolver configuration while preserving overlays and summaries.
+    pub fn reconfigure(&mut self, config: ProjectConfig) {
+        self.database.reconfigure(config);
+    }
+
+    /// Clear all registered opaque summaries; an empty table is a no-op.
+    pub fn clear_opaque_summaries(&mut self) {
+        self.database.clear_opaque_summaries();
+    }
+
+    /// Re-collect disk file roots without eagerly constructing a snapshot.
+    pub fn refresh_inputs(&mut self, inputs: &[PathBuf]) -> Result<(), ProjectError> {
+        self.database.refresh_inputs(inputs)
+    }
+
+    /// Apply edits in order, committing only if the entire batch is valid.
+    pub fn apply_document_changes_at_version(
+        &mut self,
+        uri: &DocumentUri,
+        changes: &[TextDocumentEdit],
+        version: DocumentVersion,
+    ) -> Result<DocumentVersion, ProjectError> {
+        self.database
+            .apply_document_changes_at_version(uri, changes, version)
+    }
+
     /// Construct a host from a manifest, including its trusted opaque summaries.
     pub fn from_manifest(manifest: &ProjectManifest) -> Result<Self, ProjectError> {
         let mut host = Self::with_config(manifest.to_project_config());

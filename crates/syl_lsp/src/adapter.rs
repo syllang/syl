@@ -90,6 +90,13 @@ impl LspAdapter {
         )
     }
 
+    pub(crate) fn background_elaboration_publications(
+        &self,
+        grouped: &GroupedDiagnostics,
+    ) -> Vec<LspDiagnosticPublication> {
+        LspDiagnostics::new(grouped).publications()
+    }
+
     pub(crate) fn diagnostic_publications(
         &self,
         grouped: &GroupedDiagnostics,

@@ -12,6 +12,7 @@ mod manifest;
 mod query;
 mod resolver;
 mod snapshot;
+mod text_edit;
 mod uri;
 mod vfs;
 
@@ -28,5 +29,6 @@ pub use snapshot::{
     AnalysisFile, AnalysisSnapshot, PackageGraph, PackageImport, PackageStageDiagnostics, Project,
     ResolvedSnapshot, SourceDatabase, SourceDatabaseDocument, WorkspacePackage, WorkspaceSnapshot,
 };
+pub use text_edit::TextDocumentEdit;
 pub use uri::DocumentUri;
 pub use vfs::{FsVfs, Vfs};

@@ -132,6 +132,16 @@ pub trait AnalysisQueries {
         token: &CancellationToken,
     ) -> Result<GroupedDiagnostics, QueryError>;
 
+    /// Explicit hardware DRC channel containing only elaboration diagnostics.
+    /// Ordinary diagnostics and navigation never invoke this path.
+    fn background_elaboration_diagnostics(&self) -> GroupedDiagnostics;
+
+    /// Run background hardware diagnostics with cooperative cancellation.
+    fn background_elaboration_diagnostics_with_token(
+        &self,
+        token: &CancellationToken,
+    ) -> Result<GroupedDiagnostics, QueryError>;
+
     fn document_diagnostics(&self, uri: &DocumentUri) -> Option<crate::DocumentDiagnostics>;
 
     fn document_diagnostics_with_token(
@@ -291,6 +301,18 @@ impl AnalysisQueries for AnalysisSnapshot {
 
     fn document_diagnostics(&self, uri: &DocumentUri) -> Option<crate::DocumentDiagnostics> {
         DiagnosticQueryEngine::new(self).document_diagnostics(uri)
+    }
+
+    fn background_elaboration_diagnostics(&self) -> GroupedDiagnostics {
+        self.background_elaboration_diagnostics_with_token(&CancellationToken::new())
+            .unwrap_or_else(|_| GroupedDiagnostics::new(Vec::new()))
+    }
+
+    fn background_elaboration_diagnostics_with_token(
+        &self,
+        token: &CancellationToken,
+    ) -> Result<GroupedDiagnostics, QueryError> {
+        DiagnosticQueryEngine::new(self).background_elaboration_diagnostics_with_token(token)
     }
 
     fn document_diagnostics_with_token(

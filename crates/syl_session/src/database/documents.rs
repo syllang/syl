@@ -34,6 +34,15 @@ impl DocumentStore {
         text: String,
         version: DocumentVersion,
     ) -> Result<(), ProjectError> {
+        self.apply_edits(uri, &[crate::TextDocumentEdit::full(text)], version)
+    }
+
+    pub(crate) fn apply_edits(
+        &mut self,
+        uri: &DocumentUri,
+        edits: &[crate::TextDocumentEdit],
+        version: DocumentVersion,
+    ) -> Result<(), ProjectError> {
         let document = self
             .overlays
             .get_mut(uri)
@@ -47,6 +56,7 @@ impl DocumentStore {
                 current: document.version().get(),
             });
         }
+        let text = crate::text_edit::apply(uri, document.text(), edits)?;
         document.replace_text(text, version);
         Ok(())
     }

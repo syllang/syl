@@ -63,3 +63,9 @@ consume. Query engines, collectors, and heuristics stay private so callers see a
 stable question-and-answer surface instead of internal traversal machinery.
 Opaque summary access is intentionally a borrowed snapshot view
 (`AnalysisQueries::opaque_summaries()`) rather than a new query-owned DTO.
+
+`grouped_diagnostics[_with_token]()` contains only parse, HIR, and TIR stages.
+`background_elaboration_diagnostics[_with_token]()` is an explicit, separate
+hardware DRC channel. It delegates execution to the snapshot per package,
+preserves related locations and overlay versions, and observes cancellation
+between packages. Neither ordinary diagnostics nor navigation trigger it.

@@ -39,6 +39,13 @@ impl LspMapper {
         }
     }
 
+    pub(crate) fn source_range(&self, range: Range) -> SourceRange {
+        SourceRange::new(
+            self.source_position(range.start),
+            self.source_position(range.end),
+        )
+    }
+
     pub(crate) fn source_position(&self, position: Position) -> SourcePosition {
         SourcePosition::new(
             usize::try_from(position.line).unwrap_or(usize::MAX),

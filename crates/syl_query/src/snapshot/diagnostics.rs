@@ -98,6 +98,64 @@ impl<'a> DiagnosticQueryEngine<'a> {
         Ok(GroupedDiagnostics::new(packages))
     }
 
+    pub(super) fn background_elaboration_diagnostics_with_token(
+        &self,
+        token: &CancellationToken,
+    ) -> Result<GroupedDiagnostics, QueryError> {
+        self.background_elaboration_observing_packages(token, |_, _| {})
+    }
+
+    pub(super) fn background_elaboration_observing_packages(
+        &self,
+        token: &CancellationToken,
+        mut after_package: impl FnMut(&str, &CancellationToken),
+    ) -> Result<GroupedDiagnostics, QueryError> {
+        Self::check_cancellation(token)?;
+        let mut package_files = BTreeMap::<String, Vec<&AnalysisFile>>::new();
+        for file in self.snapshot.files() {
+            Self::check_cancellation(token)?;
+            package_files
+                .entry(self.package_for_file(file).name().to_string())
+                .or_default()
+                .push(file);
+        }
+        let mut packages = Vec::new();
+        for (name, files) in package_files {
+            Self::check_cancellation(token)?;
+            let diagnostics = self
+                .snapshot
+                .package_elaboration_diagnostics_with_token(files[0].uri(), token)
+                .map_err(Self::map_error)?
+                .unwrap_or_default();
+            Self::check_cancellation(token)?;
+            let package = DiagnosticPackage::new(name);
+            let mut documents = Vec::new();
+            for file in files {
+                Self::check_cancellation(token)?;
+                let results = diagnostics
+                    .iter()
+                    .filter(|d| d.span.source == file.source_id())
+                    .filter_map(|d| self.diagnostic_result(d))
+                    .collect::<Vec<_>>();
+                let stages = if results.is_empty() {
+                    Vec::new()
+                } else {
+                    vec![StageDiagnostics::new(DiagnosticStage::Elaboration, results)]
+                };
+                documents.push(DocumentDiagnostics::new(
+                    package.clone(),
+                    file.uri().clone(),
+                    Self::diagnostic_version(file),
+                    stages,
+                ));
+            }
+            after_package(package.name(), token);
+            Self::check_cancellation(token)?;
+            packages.push(PackageDiagnostics::new(package, documents));
+        }
+        Ok(GroupedDiagnostics::new(packages))
+    }
+
     fn document_diagnostics_for_file(
         &self,
         file: &AnalysisFile,
@@ -108,7 +166,6 @@ impl<'a> DiagnosticQueryEngine<'a> {
             (DiagnosticStage::Parse, stage_sets.parse()),
             (DiagnosticStage::Hir, stage_sets.hir()),
             (DiagnosticStage::Tir, stage_sets.tir()),
-            (DiagnosticStage::Elaboration, stage_sets.elaboration()),
         ]
         .into_iter()
         .map(|(stage, diagnostics)| {

@@ -68,7 +68,7 @@ The session model follows explicit object ownership:
 
 - defining semantic facts or elaboration rules
 - owning editor query DTOs or query ranking policy
-- UTF-16 protocol mapping, diagnostic publish scheduling, or debounce
+- LSP protocol mapping, diagnostic publish scheduling, or debounce
 - backend text emission
 
 ## Public Surface Policy
@@ -100,3 +100,15 @@ and merges `.json`/`.toml` files in declaration order through the sema-owned
 summary builders. It preserves existing host overlays and publishes a revision
 only when the merged table changes. Serialization dependencies stay in this
 crate; downstream CLI and LSP callers can load manifests without importing sema.
+
+`apply_manifest()` replaces configuration and summaries atomically after metadata
+loads; `reconfigure()` preserves summaries. Both preserve unsaved document overlays.
+`clear_opaque_summaries()` resets manifest metadata and `refresh_inputs()` updates
+disk roots without building a snapshot. `TextDocumentEdit` and
+`apply_document_changes_at_version()` support atomic sequential UTF-16 edits,
+including full replacements, CRLF lines, and surrogate pairs.
+
+`AnalysisSnapshot::package_elaboration_diagnostics_with_token()` runs cancellable
+hardware diagnostics for one package and its import closure, independently of
+errors in unrelated packages. Ordinary package stage diagnostics remain free of
+elaboration work.

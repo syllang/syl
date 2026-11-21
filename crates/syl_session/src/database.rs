@@ -1,10 +1,12 @@
 mod documents;
+#[cfg(test)]
+mod reconfigure_tests;
 mod revision;
 mod state;
 
 use crate::{
     AnalysisSnapshot, CancellationToken, DocumentUri, DocumentVersion, ProjectConfig, ProjectError,
-    ProjectResolver, SourceDocument, query::QueryStore,
+    ProjectManifest, ProjectResolver, SourceDocument, TextDocumentEdit, query::QueryStore,
 };
 use state::SessionState;
 use std::path::PathBuf;
@@ -47,6 +49,40 @@ pub struct AnalysisDatabase {
 }
 
 impl AnalysisDatabase {
+    /// Replace configuration and summaries only after all manifest metadata loads.
+    /// Open document overlays are preserved, including their versions.
+    pub fn apply_manifest(&mut self, manifest: &ProjectManifest) -> Result<(), ProjectError> {
+        let summaries = manifest.load_opaque_summaries()?;
+        self.reconfigure(manifest.to_project_config());
+        self.set_opaque_summaries(summaries);
+        Ok(())
+    }
+
+    /// Replace resolver configuration while preserving overlays and summaries.
+    pub fn reconfigure(&mut self, config: ProjectConfig) {
+        self.state.reconfigure(config);
+    }
+
+    /// Remove registered opaque summaries without importing their representation.
+    pub fn clear_opaque_summaries(&mut self) {
+        self.set_opaque_summaries(OpaqueSummaryTable::new());
+    }
+
+    /// Refresh disk roots without building a snapshot; unchanged roots are a no-op.
+    pub fn refresh_inputs(&mut self, inputs: &[PathBuf]) -> Result<(), ProjectError> {
+        self.state.load_inputs(inputs)
+    }
+
+    /// Apply a sequential UTF-16 edit batch atomically to an open document.
+    pub fn apply_document_changes_at_version(
+        &mut self,
+        uri: &DocumentUri,
+        changes: &[TextDocumentEdit],
+        version: DocumentVersion,
+    ) -> Result<DocumentVersion, ProjectError> {
+        self.state.apply_edits(uri, changes, version)
+    }
+
     pub fn new() -> Self {
         Self::with_config(ProjectConfig::new())
     }
