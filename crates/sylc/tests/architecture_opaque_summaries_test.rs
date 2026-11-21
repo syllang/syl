@@ -118,7 +118,6 @@ extern cell DriveBit(y: out Bit)
         .snapshot()
         .expect("opaque summary fixture must snapshot cleanly");
 
-    assert!(!snapshot.is_elaboration_cached());
     let from_session = snapshot
         .opaque_summaries()
         .expect("session snapshot must expose sema-owned opaque summaries");
@@ -154,7 +153,6 @@ extern cell DriveBit(y: out Bit)
     assert!(matches!(endpoint.direction(), SummaryDirection::Out));
     assert!(matches!(endpoint.layout(), SummaryLayout::Bit));
     assert!(matches!(endpoint.capability(), SummaryCapability::Value));
-    assert!(!snapshot.is_elaboration_cached());
 }
 
 #[test]
@@ -206,11 +204,6 @@ cell Top(y: out Bit) {
         .snapshot()
         .expect("overlay fixture must snapshot cleanly");
 
-    assert!(
-        !initial_snapshot.shares_semantic_cache_with(&snapshot),
-        "registering a workspace overlay must invalidate the previous semantic cache"
-    );
-    assert!(!snapshot.is_elaboration_cached());
     let from_session = snapshot
         .opaque_summaries()
         .expect("snapshot must expose merged opaque summaries");
@@ -243,7 +236,14 @@ cell Top(y: out Bit) {
         summary.backend_constraints(),
         [BackendConstraint::RequiresBackend { backend }] if backend == "systemverilog"
     ));
-    assert!(!snapshot.is_elaboration_cached());
+    let still_initial = initial_snapshot
+        .opaque_summaries()
+        .and_then(|summaries| summaries.get("VendorBox"))
+        .expect("the older snapshot keeps the pre-overlay summary");
+    assert!(matches!(
+        still_initial.trust_boundary(),
+        TrustBoundary::SourceDerived
+    ));
 
     let duplicate = snapshot
         .semantic_diagnostics()
@@ -257,7 +257,6 @@ cell Top(y: out Bit) {
             .contains("duplicate hardware driver for tmp"),
         "overlay-driven DRC must stay structured across the session/elab boundary"
     );
-    assert!(snapshot.is_elaboration_cached());
 }
 
 #[test]

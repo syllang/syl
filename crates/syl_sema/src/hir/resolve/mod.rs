@@ -19,6 +19,7 @@ pub(crate) struct HirNameResolver<'a> {
     scopes: ScopeStack,
     errors: Vec<CompileError>,
     error_mode: HirNameErrorMode,
+    import_signatures: BTreeMap<Vec<String>, String>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -42,7 +43,16 @@ impl<'a> HirNameResolver<'a> {
             scopes: ScopeStack::new(),
             errors: Vec::new(),
             error_mode,
+            import_signatures: BTreeMap::new(),
         }
+    }
+
+    pub(crate) fn with_import_signatures(
+        mut self,
+        signatures: BTreeMap<Vec<String>, String>,
+    ) -> Self {
+        self.import_signatures = signatures;
+        self
     }
 
     pub(crate) fn resolve(mut self) -> Result<(), CompileError> {
@@ -490,6 +500,12 @@ impl<'a> HirNameResolver<'a> {
             .iter()
             .filter(|import| import.package_path == package)
             .filter(|import| import.path.last().is_some_and(|leaf| leaf == name))
+            .filter(|import| {
+                signature_names_leaf(
+                    self.import_signatures.get(&import.path).map(String::as_str),
+                    &import.path,
+                )
+            })
             .filter_map(|import| {
                 self.design
                     .canonical_def_names()
@@ -534,6 +550,23 @@ impl<'a> HirNameResolver<'a> {
             span,
         ));
     }
+}
+
+/// A recorded contract signature must name the imported leaf. Missing signatures
+/// stay permissive so paths lowered without a contract provider still resolve.
+fn signature_names_leaf(signature: Option<&str>, path: &[String]) -> bool {
+    let Some(signature) = signature else {
+        return true;
+    };
+    if signature.is_empty() {
+        return true;
+    }
+    let Some(leaf) = path.last() else {
+        return false;
+    };
+    signature
+        .split(|ch: char| !ch.is_ascii_alphanumeric() && ch != '_')
+        .any(|token| token == leaf)
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

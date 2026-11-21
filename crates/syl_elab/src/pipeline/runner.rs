@@ -494,6 +494,19 @@ impl EirBuildPass {
     ) -> Result<EirBuildStage, CompileError> {
         ElabStage::from_tir(tir.design()).build_raw_eir(const_mir, map_ir)
     }
+
+    fn run_module(
+        tir: &TirAnalysis,
+        const_mir: &ConstMirStage,
+        map_ir: &MapIrStage,
+        canonical_path: &[String],
+    ) -> Result<EirBuildStage, CompileError> {
+        ElabStage::from_tir(tir.design()).build_raw_eir_for_module(
+            const_mir,
+            map_ir,
+            canonical_path,
+        )
+    }
 }
 
 #[non_exhaustive]
@@ -580,3 +593,10 @@ impl HwLoweringPass {
 fn first_error(mut errors: Vec<CompileError>) -> CompileError {
     errors.remove(0)
 }
+
+#[path = "module_stage.rs"]
+mod module_stage;
+
+pub(crate) use module_stage::{
+    const_mir_stage, diagnostics_output, map_ir_stage, module_eir_stage, output_from_modules,
+};

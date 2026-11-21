@@ -76,7 +76,7 @@ Examples:
 
 ## Toolchain Policy
 
-- MSRV: Rust 1.85, pinned by `rust-toolchain.toml` and `workspace.package.rust-version`
+- MSRV: Rust 1.88, declared by `workspace.package.rust-version`. `rust-toolchain.toml` and CI track stable, which stays at or above that floor.
 - Edition: Rust 2024 for all workspace crates
 - Feature policy: default builds must include the full parser, semantic, elaboration, backend,
   session, query, LSP, CLI, and quality-gate harnesses. New optional features must document

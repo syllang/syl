@@ -19,7 +19,7 @@ resolver = "2"
 [workspace.package]
 version = "0.1.0"
 edition = "2024"
-rust-version = "1.85"
+rust-version = "1.88"
 license = "Apache-2.0"
 repository = "https://github.com/syllang/syl"
 homepage = "https://github.com/syllang/syl"
@@ -43,6 +43,9 @@ url = "2"
 strum = { version = "0.26", features = ["derive"] }
 strum_macros = "0.26"
 getset = "0.1"
+# salsa-macros 0.28.2 is source-incompatible with salsa-macro-rules 0.28.3+.
+salsa = "=0.28.2"
+salsa-macro-rules = "=0.28.2"
 
 [workspace.metadata.release-plz]
 release = true

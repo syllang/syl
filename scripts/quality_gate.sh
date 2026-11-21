@@ -34,7 +34,7 @@ fi
 debt_regex="$(printf '%s%s|%s%s|%s%s|%s%s|%s%s|%s%s' MUST _FIX SHOULD _FIX FIX ME TO DO HA CK X XX)"
 debt_out="$(mktemp)"
 if rg -n "$debt_regex" . --glob '!target/**' --glob '!.git/**' --glob '!.tmp/**' \
-    | grep -v 'crates/sylc/tests/architecture_markers.rs' > "$debt_out"; then
+    | grep -v 'crates/sylc/tests/architecture_markers_test.rs' > "$debt_out"; then
     cat "$debt_out"
     rm -f "$debt_out"
     exit 1

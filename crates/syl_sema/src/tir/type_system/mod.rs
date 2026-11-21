@@ -133,6 +133,17 @@ pub enum TirGenericArg {
 }
 
 impl TirGenericArg {
+    pub(crate) fn remap_ids(
+        &self,
+        def_of: &impl Fn(DefId) -> Option<DefId>,
+        local_of: &impl Fn(LocalId) -> Option<LocalId>,
+    ) -> Self {
+        match self {
+            Self::Type(ty) => Self::Type(Box::new(ty.remap_ids(def_of, local_of))),
+            Self::Const(term) => Self::Const(term.remap_ids(def_of, local_of)),
+        }
+    }
+
     fn label(&self) -> String {
         match self {
             Self::Type(ty) => ty.label(),
@@ -142,6 +153,64 @@ impl TirGenericArg {
 }
 
 impl TirType {
+    pub(crate) fn remap_ids(
+        &self,
+        def_of: &impl Fn(DefId) -> Option<DefId>,
+        local_of: &impl Fn(LocalId) -> Option<LocalId>,
+    ) -> Self {
+        match self {
+            Self::Clock { domain } => Self::Clock {
+                domain: domain
+                    .as_ref()
+                    .map(|domain| Box::new(domain.remap_ids(def_of, local_of))),
+            },
+            Self::Reset { domain } => Self::Reset {
+                domain: domain
+                    .as_ref()
+                    .map(|domain| Box::new(domain.remap_ids(def_of, local_of))),
+            },
+            Self::UInt { width } => Self::UInt {
+                width: width.remap_ids(def_of, local_of),
+            },
+            Self::Bits { width } => Self::Bits {
+                width: width.remap_ids(def_of, local_of),
+            },
+            Self::SInt { width } => Self::SInt {
+                width: width.remap_ids(def_of, local_of),
+            },
+            Self::Array { len, elem } => Self::Array {
+                len: len.remap_ids(def_of, local_of),
+                elem: Box::new(elem.remap_ids(def_of, local_of)),
+            },
+            Self::View { base, view } => Self::View {
+                base: Box::new(base.remap_ids(def_of, local_of)),
+                view: view.clone(),
+            },
+            Self::Named {
+                name,
+                def,
+                generic,
+                kind,
+                args,
+            } => Self::Named {
+                name: name.clone(),
+                def: def.and_then(def_of),
+                generic: generic.and_then(local_of),
+                kind: *kind,
+                args: args
+                    .iter()
+                    .map(|arg| arg.remap_ids(def_of, local_of))
+                    .collect(),
+            },
+            Self::Unknown => Self::Unknown,
+            Self::Nat => Self::Nat,
+            Self::Bool => Self::Bool,
+            Self::Bit => Self::Bit,
+            Self::Domain => Self::Domain,
+            Self::Str => Self::Str,
+        }
+    }
+
     pub fn label(&self) -> String {
         match self {
             Self::Unknown => "<unknown>".to_string(),

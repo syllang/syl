@@ -16,6 +16,14 @@ impl EirRawDesign {
     pub(crate) fn modules(&self) -> &[EirModule] {
         &self.modules
     }
+
+    pub(crate) fn concat(parts: impl IntoIterator<Item = Self>) -> Self {
+        let mut modules = Vec::new();
+        for part in parts {
+            modules.extend(part.modules);
+        }
+        Self { modules }
+    }
 }
 
 #[non_exhaustive]

@@ -172,25 +172,16 @@ impl DriverBitRange {
         {
             return false;
         }
-        if self.low.is_strictly_greater_than(&other.high)
-            || other.low.is_strictly_greater_than(&self.high)
-        {
-            return false;
-        }
-        true
+        !(self.low.is_strictly_greater_than(&other.high)
+            || other.low.is_strictly_greater_than(&self.high))
     }
 
     pub(crate) fn may_contain_index(&self, index: u64) -> bool {
         if let Some(range) = self.static_range() {
             return range.contains(index);
         }
-        if self.low.value().is_some_and(|low| index < low) {
-            return false;
-        }
-        if self.high.value().is_some_and(|high| index > high) {
-            return false;
-        }
-        true
+        self.low.value().is_none_or(|low| index >= low)
+            && self.high.value().is_none_or(|high| index <= high)
     }
 
     pub(crate) fn static_range(&self) -> Option<DriverStaticRange> {
@@ -639,42 +630,4 @@ impl<'a> TopLevelProduct<'a> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::DriverBound;
-    use crate::eir::{EirBinaryOp, EirExpr};
-
-    #[test]
-    fn symbolic_extent_ignores_neutral_one_and_parentheses() {
-        let bound = DriverBound::new("((N) * (1))");
-
-        assert!(bound.is_symbolic_extent("N"));
-    }
-
-    #[test]
-    fn symbolic_extent_times_accepts_commuted_product() {
-        let total = DriverBound::new("(W + 1) * N");
-        let width = DriverBound::new("W + 1");
-
-        assert!(total.is_symbolic_extent_times("N", &width));
-    }
-
-    #[test]
-    fn symbolic_extent_times_normalizes_numeric_width() {
-        let total = DriverBound::new("(N)*(8)");
-        let width = DriverBound::new("8");
-
-        assert!(total.is_symbolic_extent_times("N", &width));
-    }
-
-    #[test]
-    fn eir_expr_constructs_bound_formula_without_source_parsing() {
-        let width = EirExpr::binary(EirBinaryOp::Add, EirExpr::ident("W"), EirExpr::Int(1));
-        let total = DriverBound::from_eir_expr(&EirExpr::binary(
-            EirBinaryOp::Mul,
-            EirExpr::ident("N"),
-            width.clone(),
-        ));
-
-        assert!(total.is_symbolic_extent_times("N", &DriverBound::from_eir_expr(&width)));
-    }
-}
+mod tests;

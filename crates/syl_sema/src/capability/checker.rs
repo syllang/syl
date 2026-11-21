@@ -1,4 +1,5 @@
 use super::{
+    callable::CallableResolver,
     context::CapabilityContext,
     field_schema::{
         LocalTypeFacts, ViewFieldSchemaRecord, record_let_view_field_schema,
@@ -10,11 +11,9 @@ use super::{
 use crate::{
     CapabilityError, CompileError, ConstEvalError, HirError,
     binding::ActualFormalBinder,
-    hir::resolve::HirResolution,
     hir::{
-        HirBlock, HirBodyExpr, HirCallArg, HirCallable, HirCallableItem, HirDefKind, HirDesign,
-        HirDriveCapability, HirExprNode, HirPortDirection, HirSignatureParam,
-        HirSignatureResultBinding, HirStmt,
+        HirBlock, HirBodyExpr, HirCallArg, HirCallableItem, HirDesign, HirDriveCapability,
+        HirExprNode, HirPortDirection, HirSignatureParam, HirSignatureResultBinding, HirStmt,
     },
     ir::mir::MirTypeRef,
 };
@@ -436,21 +435,21 @@ impl<'a> CapabilityChecker<'a> {
         args: &[HirCallArg],
         context: ReadCheckContext<'_>,
     ) -> Result<(), CompileError> {
-        let Some((callee_def, callee_name, callable)) = self.callable_for_callee(owner, callee)
-        else {
+        let resolver = CallableResolver::new(self.ctx);
+        let Some(resolved) = resolver.resolve_callee(owner, callee) else {
             for arg in args {
                 self.check_read_expr(owner, &arg.value, context)?;
             }
             return Ok(());
         };
-        let params = callable.params();
+        let params = resolved.callable.params();
         let mut binder = ActualFormalBinder::new(params);
         for arg in args {
-            let param = binder.resolve(&callee_name, arg.name.as_deref(), arg.span())?;
+            let param = binder.resolve(&resolved.name, arg.name.as_deref(), arg.span())?;
             self.check_arg_against_formal(
                 owner,
                 FormalArgCheck {
-                    formal_owner: callee_def,
+                    formal_owner: resolved.def,
                     param,
                     actual: &arg.value,
                 },
@@ -627,59 +626,16 @@ impl<'a> CapabilityChecker<'a> {
     }
 
     fn let_caps(&self, owner: DefId, value: &HirBodyExpr) -> Result<FieldCaps, CompileError> {
-        let Some((callee_def, _, callable)) = self.callable_from_value(owner, value) else {
+        let resolver = CallableResolver::new(self.ctx);
+        let Some(resolved) = resolver.resolve_value(owner, value) else {
             return Ok(FieldCaps::read_only());
         };
-        let Some(result_ty) = callable.result().map(|result| &result.ty) else {
+        let Some(result_ty) = resolved.callable.result().map(|result| &result.ty) else {
             return Ok(FieldCaps::read_only());
         };
         Ok(self
-            .view_caps(callee_def, result_ty, EndpointSide::Returned)?
+            .view_caps(resolved.def, result_ty, EndpointSide::Returned)?
             .unwrap_or_else(FieldCaps::read_only))
-    }
-
-    fn callable_from_value(
-        &self,
-        owner: DefId,
-        expr: &HirBodyExpr,
-    ) -> Option<(DefId, String, &HirCallable)> {
-        match &expr.node {
-            HirExprNode::Call { callee, .. } | HirExprNode::Place { callee, .. } => {
-                self.callable_for_callee(owner, callee)
-            }
-            _ => None,
-        }
-    }
-
-    fn callable_for_callee(
-        &self,
-        owner: DefId,
-        callee: &HirBodyExpr,
-    ) -> Option<(DefId, String, &HirCallable)> {
-        let root = self.callee_root(callee)?;
-        let Some(HirResolution::Def(def)) = self.ctx.expr_resolution(owner, root).ok()? else {
-            return None;
-        };
-        let kind = self.ctx.def_kind(def)?;
-        if !matches!(kind, HirDefKind::Cell | HirDefKind::ExternCell) {
-            return None;
-        }
-        let name = self.ctx.def_name(def)?.to_string();
-        let callable = self.ctx.callable_by_def(def)?;
-        Some((def, name, callable))
-    }
-
-    fn callee_root<'b>(&self, callee: &'b HirBodyExpr) -> Option<&'b HirBodyExpr> {
-        let mut current = callee;
-        loop {
-            match &current.node {
-                HirExprNode::Ident(_) => return Some(current),
-                HirExprNode::GenericApp { callee, .. } | HirExprNode::Group(callee) => {
-                    current = callee;
-                }
-                _ => return None,
-            }
-        }
     }
 
     fn record_type_caps(

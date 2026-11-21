@@ -3,7 +3,7 @@ use syl_hw::ParametricHwDesign;
 use syl_sema::{OpaqueItemSummary, OpaqueSummaryTable, TirAnalysis};
 use syl_span::Diagnostic;
 
-use super::{ElaborationOutput, runner::TirStageRunner};
+use super::{ConstMirStage, EirBuildStage, ElaborationOutput, MapIrStage, runner::TirStageRunner};
 
 /// Top-level entry for hardware elaboration from typed IR.
 ///
@@ -123,5 +123,48 @@ impl HardwareCompiler {
         cancellation: &F,
     ) -> Vec<Diagnostic> {
         TirStageRunner::new(tir, &self.opaque_summaries, cancellation).diagnostics()
+    }
+
+    /// Const MIR for one owner's typechecked arena.
+    pub fn const_mir_stage(&self, tir: &TirAnalysis) -> Result<ConstMirStage, CompileError> {
+        let _ = self;
+        super::runner::const_mir_stage(tir)
+    }
+
+    /// Map IR for one owner's typechecked arena.
+    pub fn map_ir_stage(&self, tir: &TirAnalysis) -> Result<MapIrStage, CompileError> {
+        let _ = self;
+        super::runner::map_ir_stage(tir)
+    }
+
+    /// One hardware module identified by its canonical path. Companion and stub
+    /// cells stay available for expansion without being lowered as top-level modules.
+    pub fn module_eir_stage(
+        &self,
+        tir: &TirAnalysis,
+        const_mir: &ConstMirStage,
+        map_ir: &MapIrStage,
+        canonical_path: &[String],
+    ) -> Result<EirBuildStage, CompileError> {
+        let _ = self;
+        super::runner::module_eir_stage(tir, const_mir, map_ir, canonical_path)
+    }
+
+    /// Design-level driver facts, DRC, and HWIR from per-module EIR.
+    ///
+    /// Const MIR and Map IR stay on the per-module queries. This output carries
+    /// the composed hardware stages.
+    pub fn output_from_modules<F: Fn() -> bool + ?Sized>(
+        &self,
+        modules: &[&EirBuildStage],
+        cancellation: &F,
+    ) -> ElaborationOutput {
+        super::runner::output_from_modules(&self.opaque_summaries, modules, cancellation)
+    }
+
+    /// Elaboration that stopped before HWIR because a module stage failed.
+    pub fn diagnostics_output(&self, diagnostics: Vec<Diagnostic>) -> ElaborationOutput {
+        let _ = self;
+        super::runner::diagnostics_output(diagnostics)
     }
 }

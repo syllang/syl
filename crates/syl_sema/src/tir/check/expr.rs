@@ -190,10 +190,9 @@ impl TypePhaseChecker {
                 self.checked_extension_method_call(self.current_owner()?, callee),
             )
             .flatten()
+                && self.hir.def_kind(call.method) == Some(HirDefKind::Map)
             {
-                if self.hir.def_kind(call.method) == Some(HirDefKind::Map) {
-                    return Ok(());
-                }
+                return Ok(());
             }
             let Some(name) = self.expr_name(callee) else {
                 errors.push(CompileError::lowering_at(
@@ -279,13 +278,12 @@ impl TypePhaseChecker {
                 self.checked_extension_method_call(self.current_owner()?, callee),
             )
             .flatten()
+                && self.hir.def_kind(call.method) == Some(HirDefKind::Map)
             {
-                if self.hir.def_kind(call.method) == Some(HirDefKind::Map) {
-                    for arg in args {
-                        self.check_map_expr(&arg.value, errors)?;
-                    }
-                    return Ok(());
+                for arg in args {
+                    self.check_map_expr(&arg.value, errors)?;
                 }
+                return Ok(());
             }
             if !matches!(
                 builtin,

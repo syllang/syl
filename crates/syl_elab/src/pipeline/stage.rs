@@ -22,4 +22,15 @@ impl ElabStage {
             .build_raw_design()
             .map(EirBuildStage::new)
     }
+
+    pub(super) fn build_raw_eir_for_module(
+        &self,
+        const_mir: &ConstMirStage,
+        map_ir: &MapIrStage,
+        canonical_path: &[String],
+    ) -> Result<EirBuildStage, CompileError> {
+        Elaborator::new(&self.program, &const_mir.program, &map_ir.program)
+            .build_raw_module(canonical_path)
+            .map(EirBuildStage::new)
+    }
 }

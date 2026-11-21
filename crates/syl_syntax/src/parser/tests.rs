@@ -1,7 +1,7 @@
 use super::*;
 use syl_span::{SourceFile, SourceId, SourcePosition, SourceRange};
 
-mod node_index;
+mod node_index_test;
 
 fn t(kind: TokenKind, start: usize, end: usize) -> Token {
     Token::new(kind, Span::new(start, end))

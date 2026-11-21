@@ -263,10 +263,10 @@ impl<'a> EnumValueResolver<'a> {
         let Some((enum_def, variant)) = self.checker.hir.enum_variant_expr(expr) else {
             return Err(self.nat_error(expr.span(), variant_name));
         };
-        if enum_def == self.owner {
-            if let Some(value) = self.values_by_name.get(variant).copied() {
-                return Ok(value);
-            }
+        if enum_def == self.owner
+            && let Some(value) = self.values_by_name.get(variant).copied()
+        {
+            return Ok(value);
         }
         let key = HirEnumVariantKey::new(enum_def, variant);
         if let Some(value) = self.checker.enum_variant_values.get(&key).copied() {
