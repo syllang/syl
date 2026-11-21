@@ -264,3 +264,32 @@ fn rejects_void_calls_used_as_values_and_accepts_void_statements() {
         "E_MIDDLE_TYPE_MISMATCH",
     );
 }
+
+#[test]
+fn distinguishes_void_tail_blocks_from_blocks_that_return_on_every_path() {
+    for source in [
+        "fn f() -> nat { {} }",
+        "fn f(x: bool) -> nat { { if x { return 1 } } }",
+        "fn f(x: bool) -> nat { (({ if x { return 1 } })) }",
+        "fn f() -> nat { { { } } }",
+    ] {
+        assert_code(source, "E_MIDDLE_MISSING_RETURN");
+    }
+    for source in [
+        "fn f() -> nat { { return 1 } }",
+        "fn f(x: bool) -> nat { { if x { return 1 } else { return 2 } } }",
+        "fn f() -> nat { (({ return 1 })) }",
+        "fn f() -> nat { { { return 1 } } }",
+        "fn f() -> nat { { 1 } }",
+        "fn f() { {} }",
+    ] {
+        assert_valid(source);
+    }
+    for source in ["fn f() { let x = {} }", "fn f() { let x: nat = {} }"] {
+        assert_code(source, "E_MIDDLE_TYPE_MISMATCH");
+    }
+    assert_code(
+        "fn f() -> nat { { true } }",
+        "E_MIDDLE_RETURN_TYPE_MISMATCH",
+    );
+}

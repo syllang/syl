@@ -108,8 +108,15 @@ impl TypePhaseChecker {
     }
 
     pub(super) fn fn_expr_is_void(&self, expr: &HirBodyExpr) -> bool {
-        if let HirExprNode::Group(inner) = &expr.node {
-            return self.fn_expr_is_void(inner);
+        match &expr.node {
+            HirExprNode::Group(inner) => return self.fn_expr_is_void(inner),
+            HirExprNode::Block(block) if !Self::fn_expr_definitely_returns(expr) => {
+                return block
+                    .tail
+                    .as_ref()
+                    .is_none_or(|tail| self.fn_expr_is_void(tail));
+            }
+            _ => {}
         }
         let HirExprNode::Call { callee, .. } = &expr.node else {
             return false;

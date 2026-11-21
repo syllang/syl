@@ -1,6 +1,7 @@
 use crate::hir::view::HirDesignViewExt;
 mod calls;
 mod expr;
+mod flow;
 
 use super::super::{BindingKind, BindingRef, Phase, TirType, TypePhaseChecker};
 use crate::hir::resolve::HirResolution;
@@ -66,7 +67,10 @@ impl TypePhaseChecker {
         }
         let returns = self.check_fn_block(&item.body, &mut env, errors)?;
         if let Some(expected) = &env.return_type {
-            if let Some(tail) = &item.body.tail {
+            let value_tail = item.body.tail.as_ref().filter(|tail| {
+                !Self::fn_expr_definitely_returns(tail) && !Self::fn_expr_has_void_tail_block(tail)
+            });
+            if let Some(tail) = value_tail {
                 let actual = self.fn_expr_type(tail);
                 self.check_fn_return(Some(expected), Some((tail, actual)), tail.span(), errors);
             } else if !returns {
@@ -101,6 +105,7 @@ impl TypePhaseChecker {
         }
         if let Some(tail) = &block.tail {
             self.check_fn_expr(tail, env, errors)?;
+            returns |= Self::fn_expr_definitely_returns(tail);
         }
         Ok(returns)
     }
@@ -241,12 +246,8 @@ impl TypePhaseChecker {
                 return Ok(true);
             }
             HirStmt::Expr(expr) => {
-                if let HirExprNode::Block(block) = &expr.node {
-                    let returns = self.check_fn_block(block, &mut env.clone(), errors)?;
-                    self.record_phase(expr, Phase::Const)?;
-                    return Ok(returns);
-                }
                 self.check_fn_expr(expr, env, errors)?;
+                return Ok(Self::fn_expr_definitely_returns(expr));
             }
             HirStmt::Signal { span, .. }
             | HirStmt::Reg { span, .. }
