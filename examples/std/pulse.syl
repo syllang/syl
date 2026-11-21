@@ -1,0 +1,38 @@
+cell RisingEdgeDetector<D: Domain>(clk: in Clock<D>, rst: in Reset<D>, level: in Bit,
+    rising: out Bit,
+) {
+    reg previous: Bit reset(rst, 0)
+    next previous := level
+    rising := level and not previous
+}
+
+cell FallingEdgeDetector<D: Domain>(clk: in Clock<D>, rst: in Reset<D>, level: in Bit,
+    falling: out Bit,
+) {
+    reg previous: Bit reset(rst, 0)
+    next previous := level
+    falling := previous and not level
+}
+
+cell EdgeDetector<D: Domain>(clk: in Clock<D>, rst: in Reset<D>, level: in Bit,
+    rising: out Bit, falling: out Bit, any_edge: out Bit,
+) {
+    reg previous: Bit reset(rst, 0)
+    next previous := level
+    rising := level and not previous
+    falling := previous and not level
+    any_edge := level xor previous
+}
+
+// CYCLES must be positive and representable in CNT_W bits.
+cell PulseStretcher<CYCLES: nat = 4, CNT_W: nat = 3, D: Domain>(
+    clk: in Clock<D>, rst: in Reset<D>, trigger: in Bit,
+) -> pulse: Bit {
+    reg remaining: UInt<CNT_W> reset(rst, 0)
+    next remaining := select priority {
+        trigger => CYCLES,
+        remaining eq 0 => 0,
+        default => remaining - 1,
+    }
+    pulse := not (remaining eq 0)
+}

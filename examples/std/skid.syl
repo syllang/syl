@@ -1,0 +1,37 @@
+use std.stream.Stream
+
+cell SkidBuffer<T, D: Domain>(
+    clk: in Clock<D>, rst: in Reset<D>, up: in Stream<T>.sink,
+) -> down: Stream<T>.source {
+    reg head: T reset(rst, zero<T>())
+    reg tail: T reset(rst, zero<T>())
+    reg valid: Bit reset(rst, 0)
+    reg full: Bit reset(rst, 0)
+
+    up.ready := not full
+    down.valid := valid
+    down.payload := head
+    signal push: Bit := up.valid and not full
+    signal pop: Bit := valid and down.ready
+
+    next head := select priority {
+        pop and full => tail,
+        push and (not valid or pop) => up.payload,
+        default => head,
+    }
+    next tail := select priority {
+        push and valid and not pop => up.payload,
+        default => tail,
+    }
+    next full := (full or (valid and push)) and not pop
+    next valid := push or full or (valid and not pop)
+}
+
+cell WordSkidBuffer<W: nat = 8, D: Domain>(
+    clk: in Clock<D>, rst: in Reset<D>, up: in Stream<UInt<W>>.sink,
+) -> down: Stream<UInt<W>>.source {
+    let buffered = place SkidBuffer<UInt<W>, D>(clk: clk, rst: rst, up: up)
+    down.valid := buffered.valid
+    down.payload := buffered.payload
+    buffered.ready := down.ready
+}
