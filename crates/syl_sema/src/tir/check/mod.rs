@@ -122,8 +122,7 @@ impl TypePhaseChecker {
         self.check_cdc_attrs(
             owner,
             &item.attrs,
-            &item.ports,
-            item.result.as_ref(),
+            (&item.ports, item.result.as_ref()),
             errors,
         );
         if let Some(result) = &item.result {
@@ -145,8 +144,7 @@ impl TypePhaseChecker {
         self.check_cdc_attrs(
             owner,
             &item.attrs,
-            &item.ports,
-            item.result.as_ref(),
+            (&item.ports, item.result.as_ref()),
             errors,
         );
         if let Some(result) = &item.result {

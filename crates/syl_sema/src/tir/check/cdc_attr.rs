@@ -11,10 +11,10 @@ impl TypePhaseChecker {
         &self,
         owner: DefId,
         attrs: &[HirAttribute],
-        ports: &[HirPortDecl],
-        result: Option<&HirSignatureResultBinding>,
+        signature: (&[HirPortDecl], Option<&HirSignatureResultBinding>),
         errors: &mut Vec<CompileError>,
     ) {
+        let (ports, result) = signature;
         let mut directions = BTreeMap::new();
         for port in ports {
             let clock = port.ty.type_name() == Some("Clock");
@@ -31,7 +31,10 @@ impl TypePhaseChecker {
                             (
                                 matches!(field.direction, HirViewDirection::In),
                                 matches!(field.direction, HirViewDirection::Out),
-                                false,
+                                matches!(field.direction, HirViewDirection::In)
+                                    && interface.fields.iter().any(|f| {
+                                        f.name == field.name && f.ty.type_name() == Some("Clock")
+                                    }),
                             ),
                         );
                     }

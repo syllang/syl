@@ -193,3 +193,15 @@ fn memory_intrinsics_check_types_targets_and_statement_context() {
         "E_MIDDLE_HARDWARE_STMT_IN_FN",
     );
 }
+
+#[test]
+fn cdc_attribute_accepts_flattened_view_clock_and_data_fields() {
+    let output = check(
+        "interface Pins<T> { clk: Clock a: T b: T view bridge { in clk in a out b } } @cdc_sync(p_a, p_b, p_clk) extern cell Bridge(p: in Pins<Bit>.bridge)",
+    );
+    assert!(
+        output.diagnostics().is_empty(),
+        "{:?}",
+        output.diagnostics()
+    );
+}
