@@ -1,7 +1,11 @@
+#[path = "disambiguate.rs"]
+mod disambiguate;
 use super::{EirBound, EirExpr, EirOrigin, EirPlace, EirReset, EirSignalActivity};
 #[derive(Clone, Debug)]
 #[non_exhaustive]
 pub(crate) struct EirModule {
+    canonical_path: Vec<String>,
+    origin: Option<EirOrigin>,
     doc: Option<String>,
     name: String,
     kind: EirModuleKind,
@@ -18,6 +22,8 @@ impl EirModule {
         items: Vec<EirItem>,
     ) -> Self {
         Self {
+            canonical_path: Vec::new(),
+            origin: None,
             doc: None,
             name: name.into(),
             kind: EirModuleKind::Defined,
@@ -38,6 +44,8 @@ impl EirModule {
         ports: Vec<EirPort>,
     ) -> Self {
         Self {
+            canonical_path: Vec::new(),
+            origin: None,
             doc: None,
             name: name.into(),
             kind: EirModuleKind::Extern,
@@ -69,6 +77,20 @@ impl EirModule {
 
     pub(crate) fn items(&self) -> &[EirItem] {
         &self.items
+    }
+    pub(crate) fn with_canonical_path(mut self, path: Vec<String>) -> Self {
+        self.canonical_path = path;
+        self
+    }
+    pub(crate) fn canonical_path(&self) -> &[String] {
+        &self.canonical_path
+    }
+    pub(crate) fn with_origin(mut self, origin: Option<EirOrigin>) -> Self {
+        self.origin = origin;
+        self
+    }
+    pub(crate) fn origin(&self) -> Option<&EirOrigin> {
+        self.origin.as_ref()
     }
 }
 
@@ -277,6 +299,7 @@ impl EirCellExpansion {
 #[derive(Clone, Debug)]
 #[non_exhaustive]
 pub(crate) struct EirInstance {
+    target_canonical_path: Vec<String>,
     module: String,
     params: Vec<EirParamBind>,
     name: String,
@@ -296,6 +319,7 @@ impl EirInstance {
         origin: EirOrigin,
     ) -> Self {
         Self {
+            target_canonical_path: Vec::new(),
             module: module.into(),
             params,
             name: name.into(),
@@ -327,6 +351,13 @@ impl EirInstance {
 
     pub(crate) fn origin(&self) -> &EirOrigin {
         &self.origin
+    }
+    pub(crate) fn with_target_canonical_path(mut self, path: Vec<String>) -> Self {
+        self.target_canonical_path = path;
+        self
+    }
+    pub(crate) fn target_canonical_path(&self) -> &[String] {
+        &self.target_canonical_path
     }
 }
 

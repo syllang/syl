@@ -234,6 +234,7 @@ impl From<&HirCallable> for ElabCallable {
 #[derive(Clone)]
 #[non_exhaustive]
 pub(crate) struct ElabCallableItem {
+    pub(crate) span: syl_span::Span,
     pub(crate) doc: Option<String>,
     pub(crate) name: String,
     pub(crate) generics: Vec<ElabSignatureGenericParam>,
@@ -245,6 +246,7 @@ pub(crate) struct ElabCallableItem {
 impl From<&HirCallableItem> for ElabCallableItem {
     fn from(value: &HirCallableItem) -> Self {
         Self {
+            span: value.span,
             doc: value.doc.clone(),
             name: value.name.clone(),
             generics: value
@@ -262,6 +264,7 @@ impl From<&HirCallableItem> for ElabCallableItem {
 #[derive(Clone)]
 #[non_exhaustive]
 pub(crate) struct ElabExternCellItem {
+    pub(crate) span: syl_span::Span,
     pub(crate) doc: Option<String>,
     pub(crate) name: String,
     pub(crate) generics: Vec<ElabSignatureGenericParam>,
@@ -272,6 +275,7 @@ pub(crate) struct ElabExternCellItem {
 impl From<&HirExternCellItem> for ElabExternCellItem {
     fn from(value: &HirExternCellItem) -> Self {
         Self {
+            span: value.span,
             doc: value.doc.clone(),
             name: value.name.clone(),
             generics: value

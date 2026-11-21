@@ -91,6 +91,7 @@ where
         for (owner, callable) in self.program.callables() {
             modules.push(self.build_callable_entry(*owner, callable)?);
         }
+        let modules = EirModule::disambiguate(modules);
         Ok(EirRawDesign::new(modules))
     }
 
@@ -160,7 +161,10 @@ where
         }
         let params = self.generic_params(&env, &item.generics);
         let items = self.emit_body(&item.body, &mut env)?;
-        Ok(EirModule::new(&item.name, params, ports, items).with_doc(item.doc.clone()))
+        Ok(EirModule::new(&item.name, params, ports, items)
+            .with_doc(item.doc.clone())
+            .with_canonical_path(self.canonical_path(owner, &item.name))
+            .with_origin(Some(env.origin(item.span))))
     }
 
     fn build_extern(
@@ -202,7 +206,16 @@ where
             )?;
         }
         let params = self.generic_params(&env, &item.generics);
-        Ok(EirModule::new_extern(&item.name, params, ports).with_doc(item.doc.clone()))
+        Ok(EirModule::new_extern(&item.name, params, ports)
+            .with_doc(item.doc.clone())
+            .with_canonical_path(self.canonical_path(owner, &item.name))
+            .with_origin(Some(env.origin(item.span))))
+    }
+
+    pub(super) fn canonical_path(&self, owner: DefId, name: &str) -> Vec<String> {
+        self.program
+            .canonical_path(owner)
+            .map_or_else(|| vec![name.to_owned()], |path| path.segments().to_vec())
     }
 
     fn generic_params(&self, env: &Env, params: &[ElabSignatureGenericParam]) -> Vec<EirParam> {
