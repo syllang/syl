@@ -62,7 +62,8 @@ impl HirAnalysis {
         }
     }
 
-    pub(crate) fn design(&self) -> &HirDesign {
+    /// The resolved HIR, available even when subsequent type checking fails.
+    pub fn design(&self) -> &HirDesign {
         &self.design
     }
 

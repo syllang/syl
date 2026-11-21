@@ -1020,10 +1020,42 @@ syl_lsp|method|syl_lsp::SylLspServerRunner::serve|fn(self: &Self)
 syl_lsp|method|syl_lsp::SylLspServerRunner::stdio|fn() -> Self
 syl_lsp|struct|syl_lsp::SylLanguageServer|public
 syl_lsp|struct|syl_lsp::SylLspServerRunner|public
+syl_query|enum|syl_query::editor::InlayHintKind|public
+syl_query|enum|syl_query::editor::SemanticTokenKind|public
+syl_query|enum|syl_query::editor::SemanticTokenModifier|public
 syl_query|enum|syl_query::error::QueryError|public
 syl_query|enum|syl_query::navigation::CompletionItemKind|public
 syl_query|enum|syl_query::navigation::DiagnosticStage|public
 syl_query|enum|syl_query::navigation::DocumentSymbolKind|public
+syl_query|field|syl_query::editor::InlayHintResult::kind|InlayHintKind
+syl_query|field|syl_query::editor::InlayHintResult::label|String
+syl_query|field|syl_query::editor::InlayHintResult::padding_left|bool
+syl_query|field|syl_query::editor::InlayHintResult::padding_right|bool
+syl_query|field|syl_query::editor::InlayHintResult::position|syl_span::SourcePosition
+syl_query|field|syl_query::editor::InlayHintResult::tooltip|Option<String>
+syl_query|field|syl_query::editor::LocationResult::range|syl_span::SourceRange
+syl_query|field|syl_query::editor::LocationResult::uri|syl_session::DocumentUri
+syl_query|field|syl_query::editor::ParameterInfoResult::documentation|Option<String>
+syl_query|field|syl_query::editor::ParameterInfoResult::label|String
+syl_query|field|syl_query::editor::PrepareRenameResult::placeholder|String
+syl_query|field|syl_query::editor::PrepareRenameResult::range|syl_span::SourceRange
+syl_query|field|syl_query::editor::SemanticTokenResult::kind|SemanticTokenKind
+syl_query|field|syl_query::editor::SemanticTokenResult::modifiers|Vec<SemanticTokenModifier>
+syl_query|field|syl_query::editor::SemanticTokenResult::range|syl_span::SourceRange
+syl_query|field|syl_query::editor::SignatureHelpResult::active_parameter|Option<usize>
+syl_query|field|syl_query::editor::SignatureHelpResult::active_signature|usize
+syl_query|field|syl_query::editor::SignatureHelpResult::signatures|Vec<SignatureInfoResult>
+syl_query|field|syl_query::editor::SignatureInfoResult::active_parameter|Option<usize>
+syl_query|field|syl_query::editor::SignatureInfoResult::documentation|Option<String>
+syl_query|field|syl_query::editor::SignatureInfoResult::label|String
+syl_query|field|syl_query::editor::SignatureInfoResult::parameters|Vec<ParameterInfoResult>
+syl_query|field|syl_query::editor::TextEditResult::new_text|String
+syl_query|field|syl_query::editor::TextEditResult::range|syl_span::SourceRange
+syl_query|field|syl_query::editor::WorkspaceEditResult::changes|std::collections::BTreeMap<syl_session::DocumentUri, Vec<TextEditResult>>
+syl_query|field|syl_query::editor::WorkspaceSymbolResult::container_name|Option<String>
+syl_query|field|syl_query::editor::WorkspaceSymbolResult::kind|crate::DocumentSymbolKind
+syl_query|field|syl_query::editor::WorkspaceSymbolResult::location|LocationResult
+syl_query|field|syl_query::editor::WorkspaceSymbolResult::name|String
 syl_query|field|syl_query::navigation::CompletionItem::kind|CompletionItemKind
 syl_query|field|syl_query::navigation::CompletionItem::label|String
 syl_query|field|syl_query::navigation::CompletionResult::items|Vec<CompletionItem>
@@ -1057,6 +1089,16 @@ syl_query|method|syl_query::navigation::PackageDiagnostics::documents|fn(self: &
 syl_query|method|syl_query::navigation::PackageDiagnostics::package|fn(self: &Self) -> &DiagnosticPackage
 syl_query|method|syl_query::navigation::StageDiagnostics::diagnostics|fn(self: &Self) -> &[DiagnosticResult]
 syl_query|method|syl_query::navigation::StageDiagnostics::stage|fn(self: &Self) -> DiagnosticStage
+syl_query|struct|syl_query::editor::InlayHintResult|public
+syl_query|struct|syl_query::editor::LocationResult|public
+syl_query|struct|syl_query::editor::ParameterInfoResult|public
+syl_query|struct|syl_query::editor::PrepareRenameResult|public
+syl_query|struct|syl_query::editor::SemanticTokenResult|public
+syl_query|struct|syl_query::editor::SignatureHelpResult|public
+syl_query|struct|syl_query::editor::SignatureInfoResult|public
+syl_query|struct|syl_query::editor::TextEditResult|public
+syl_query|struct|syl_query::editor::WorkspaceEditResult|public
+syl_query|struct|syl_query::editor::WorkspaceSymbolResult|public
 syl_query|struct|syl_query::navigation::CompletionItem|public
 syl_query|struct|syl_query::navigation::CompletionResult|public
 syl_query|struct|syl_query::navigation::DefinitionResult|public
@@ -1101,8 +1143,23 @@ syl_query|trait_method|syl_query::snapshot::api::ProjectQueries::all_document_di
 syl_query|trait_method|syl_query::snapshot::api::ProjectQueries::diagnostics_for|fn(self: &Self, uri: &DocumentUri) -> Vec<crate::DiagnosticResult>
 syl_query|trait_method|syl_query::snapshot::api::ProjectQueries::document_diagnostics|fn(self: &Self, uri: &DocumentUri) -> Option<crate::DocumentDiagnostics>
 syl_query|trait_method|syl_query::snapshot::api::ProjectQueries::grouped_diagnostics|fn(self: &Self) -> GroupedDiagnostics
+syl_query|trait_method|syl_query::snapshot::editor_api::EditorQueries::inlay_hints_with_token|fn(self: &Self, uri: &DocumentUri, range: SourceRange, token: &CancellationToken) -> Result<Vec<InlayHintResult>, QueryError>
+syl_query|trait_method|syl_query::snapshot::editor_api::EditorQueries::inlay_hints|fn(self: &Self, uri: &DocumentUri, range: SourceRange) -> Vec<InlayHintResult>
+syl_query|trait_method|syl_query::snapshot::editor_api::EditorQueries::prepare_rename_at_with_token|fn(self: &Self, uri: &DocumentUri, utf16_position: SourcePosition, token: &CancellationToken) -> Result<Option<PrepareRenameResult>, QueryError>
+syl_query|trait_method|syl_query::snapshot::editor_api::EditorQueries::prepare_rename_at|fn(self: &Self, uri: &DocumentUri, utf16_position: SourcePosition) -> Option<PrepareRenameResult>
+syl_query|trait_method|syl_query::snapshot::editor_api::EditorQueries::references_at_with_token|fn(self: &Self, uri: &DocumentUri, utf16_position: SourcePosition, include_declaration: bool, token: &CancellationToken) -> Result<Vec<LocationResult>, QueryError>
+syl_query|trait_method|syl_query::snapshot::editor_api::EditorQueries::references_at|fn(self: &Self, uri: &DocumentUri, utf16_position: SourcePosition, include_declaration: bool) -> Vec<LocationResult>
+syl_query|trait_method|syl_query::snapshot::editor_api::EditorQueries::rename_at_with_token|fn(self: &Self, uri: &DocumentUri, utf16_position: SourcePosition, new_name: &str, token: &CancellationToken) -> Result<Option<WorkspaceEditResult>, QueryError>
+syl_query|trait_method|syl_query::snapshot::editor_api::EditorQueries::rename_at|fn(self: &Self, uri: &DocumentUri, utf16_position: SourcePosition, new_name: &str) -> Result<Option<WorkspaceEditResult>, QueryError>
+syl_query|trait_method|syl_query::snapshot::editor_api::EditorQueries::semantic_tokens_with_token|fn(self: &Self, uri: &DocumentUri, token: &CancellationToken) -> Result<Vec<SemanticTokenResult>, QueryError>
+syl_query|trait_method|syl_query::snapshot::editor_api::EditorQueries::semantic_tokens|fn(self: &Self, uri: &DocumentUri) -> Vec<SemanticTokenResult>
+syl_query|trait_method|syl_query::snapshot::editor_api::EditorQueries::signature_help_at_with_token|fn(self: &Self, uri: &DocumentUri, utf16_position: SourcePosition, token: &CancellationToken) -> Result<Option<SignatureHelpResult>, QueryError>
+syl_query|trait_method|syl_query::snapshot::editor_api::EditorQueries::signature_help_at|fn(self: &Self, uri: &DocumentUri, utf16_position: SourcePosition) -> Option<SignatureHelpResult>
+syl_query|trait_method|syl_query::snapshot::editor_api::EditorQueries::workspace_symbols_with_token|fn(self: &Self, query: &str, token: &CancellationToken) -> Result<Vec<WorkspaceSymbolResult>, QueryError>
+syl_query|trait_method|syl_query::snapshot::editor_api::EditorQueries::workspace_symbols|fn(self: &Self, query: &str) -> Vec<WorkspaceSymbolResult>
 syl_query|trait|syl_query::snapshot::api::AnalysisQueries|public
 syl_query|trait|syl_query::snapshot::api::ProjectQueries|public
+syl_query|trait|syl_query::snapshot::editor_api::EditorQueries|public
 syl_query|use|AnalysisQueries|named|source=api::AnalysisQueries
 syl_query|use|AnalysisQueries|named|source=snapshot::AnalysisQueries
 syl_query|use|CompletionItemKind|named|source=navigation::CompletionItemKind
@@ -1116,14 +1173,54 @@ syl_query|use|DiagnosticStage|named|source=navigation::DiagnosticStage
 syl_query|use|DocumentDiagnostics|named|source=navigation::DocumentDiagnostics
 syl_query|use|DocumentSymbolKind|named|source=navigation::DocumentSymbolKind
 syl_query|use|DocumentSymbolResult|named|source=navigation::DocumentSymbolResult
+syl_query|use|EditorQueries|named|source=editor_api::EditorQueries
+syl_query|use|EditorQueries|named|source=snapshot::EditorQueries
 syl_query|use|GroupedDiagnostics|named|source=navigation::GroupedDiagnostics
 syl_query|use|HoverResult|named|source=navigation::HoverResult
+syl_query|use|InlayHintKind|named|source=editor::InlayHintKind
+syl_query|use|InlayHintResult|named|source=editor::InlayHintResult
+syl_query|use|LocationResult|named|source=editor::LocationResult
 syl_query|use|PackageDiagnostics|named|source=navigation::PackageDiagnostics
+syl_query|use|ParameterInfoResult|named|source=editor::ParameterInfoResult
+syl_query|use|PrepareRenameResult|named|source=editor::PrepareRenameResult
 syl_query|use|ProjectQueries|named|source=api::ProjectQueries
 syl_query|use|ProjectQueries|named|source=snapshot::ProjectQueries
 syl_query|use|QueryError|named|source=error::QueryError
+syl_query|use|SemanticTokenKind|named|source=editor::SemanticTokenKind
+syl_query|use|SemanticTokenModifier|named|source=editor::SemanticTokenModifier
+syl_query|use|SemanticTokenResult|named|source=editor::SemanticTokenResult
+syl_query|use|SignatureHelpResult|named|source=editor::SignatureHelpResult
+syl_query|use|SignatureInfoResult|named|source=editor::SignatureInfoResult
 syl_query|use|StageDiagnostics|named|source=navigation::StageDiagnostics
+syl_query|use|TextEditResult|named|source=editor::TextEditResult
+syl_query|use|WorkspaceEditResult|named|source=editor::WorkspaceEditResult
+syl_query|use|WorkspaceSymbolResult|named|source=editor::WorkspaceSymbolResult
+syl_query|variant|syl_query::editor::InlayHintKind::Parameter|unit
+syl_query|variant|syl_query::editor::InlayHintKind::Type|unit
+syl_query|variant|syl_query::editor::SemanticTokenKind::Comment|unit
+syl_query|variant|syl_query::editor::SemanticTokenKind::Decorator|unit
+syl_query|variant|syl_query::editor::SemanticTokenKind::EnumMember|unit
+syl_query|variant|syl_query::editor::SemanticTokenKind::Enum|unit
+syl_query|variant|syl_query::editor::SemanticTokenKind::Function|unit
+syl_query|variant|syl_query::editor::SemanticTokenKind::Keyword|unit
+syl_query|variant|syl_query::editor::SemanticTokenKind::Namespace|unit
+syl_query|variant|syl_query::editor::SemanticTokenKind::Number|unit
+syl_query|variant|syl_query::editor::SemanticTokenKind::Operator|unit
+syl_query|variant|syl_query::editor::SemanticTokenKind::Parameter|unit
+syl_query|variant|syl_query::editor::SemanticTokenKind::Property|unit
+syl_query|variant|syl_query::editor::SemanticTokenKind::String|unit
+syl_query|variant|syl_query::editor::SemanticTokenKind::Struct|unit
+syl_query|variant|syl_query::editor::SemanticTokenKind::TypeParameter|unit
+syl_query|variant|syl_query::editor::SemanticTokenKind::Type|unit
+syl_query|variant|syl_query::editor::SemanticTokenKind::Variable|unit
+syl_query|variant|syl_query::editor::SemanticTokenModifier::Declaration|unit
+syl_query|variant|syl_query::editor::SemanticTokenModifier::DefaultLibrary|unit
+syl_query|variant|syl_query::editor::SemanticTokenModifier::Definition|unit
+syl_query|variant|syl_query::editor::SemanticTokenModifier::Documentation|unit
+syl_query|variant|syl_query::editor::SemanticTokenModifier::Modification|unit
+syl_query|variant|syl_query::editor::SemanticTokenModifier::Readonly|unit
 syl_query|variant|syl_query::error::QueryError::Cancelled|unit
+syl_query|variant|syl_query::error::QueryError::InvalidRename|{ message: String }
 syl_query|variant|syl_query::navigation::CompletionItemKind::Constant|unit
 syl_query|variant|syl_query::navigation::CompletionItemKind::Field|unit
 syl_query|variant|syl_query::navigation::CompletionItemKind::Function|unit
@@ -1298,6 +1395,7 @@ syl_sema|method|syl_sema::facts::resolution::ResolutionGraph::package_imports|fn
 syl_sema|method|syl_sema::facts::resolution::ResolutionGraph::package_modules|fn(self: &Self, package: PackageNodeId) -> &[DefId]
 syl_sema|method|syl_sema::facts::resolution::ResolutionGraph::packages|fn(self: &Self) -> &[PackageSummary]
 syl_sema|method|syl_sema::facts::resolution::ResolutionGraph::package|fn(self: &Self, id: PackageNodeId) -> Option<&PackageSummary>
+syl_sema|method|syl_sema::facts::resolution::ResolutionTable::entries|fn(self: &Self) -> impl Iterator + {"outlives": "'_"}
 syl_sema|method|syl_sema::facts::resolution::ResolutionTable::get|fn(self: &Self, id: HirFactId) -> Option<SemanticResolution>
 syl_sema|method|syl_sema::facts::resolution::ResolutionTable::graph|fn(self: &Self) -> &ResolutionGraph
 syl_sema|method|syl_sema::facts::semantic_facts::SemanticFacts::capabilities|fn(self: &Self) -> &CapabilityTable
@@ -1434,6 +1532,7 @@ syl_sema|method|syl_sema::pipeline::analysis::HirAnalysis::completion_items|fn(s
 syl_sema|method|syl_sema::pipeline::analysis::HirAnalysis::debug_dump|fn(self: &Self) -> String
 syl_sema|method|syl_sema::pipeline::analysis::HirAnalysis::def_count|fn(self: &Self) -> usize
 syl_sema|method|syl_sema::pipeline::analysis::HirAnalysis::definition_at|fn(self: &Self, span: Span) -> Option<DefinitionInfo>
+syl_sema|method|syl_sema::pipeline::analysis::HirAnalysis::design|fn(self: &Self) -> &HirDesign
 syl_sema|method|syl_sema::pipeline::analysis::HirAnalysis::doc_for_field|fn(self: &Self, def_id: DefId, field: &str) -> Option<&str>
 syl_sema|method|syl_sema::pipeline::analysis::HirAnalysis::doc_for_item|fn(self: &Self, def_id: DefId) -> Option<&str>
 syl_sema|method|syl_sema::pipeline::analysis::HirAnalysis::doc_for_module|fn(self: &Self, source_id: SourceId) -> Option<&str>

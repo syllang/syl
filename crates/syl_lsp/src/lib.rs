@@ -2,9 +2,13 @@ mod adapter;
 mod cancellation;
 mod diagnostics;
 mod drc;
+mod editor_adapter;
+mod editor_handlers;
 mod mapping;
 mod sync;
 mod workspace;
+
+use tower_lsp::lsp_types as editor_types;
 
 use adapter::LspAdapter;
 use cancellation::{CancellationRegistry, CancellationSlot};
@@ -106,6 +110,28 @@ impl LanguageServer for SylLanguageServer {
                 definition_provider: Some(OneOf::Left(true)),
                 document_symbol_provider: Some(OneOf::Left(true)),
                 completion_provider: Some(CompletionOptions::default()),
+                references_provider: Some(OneOf::Left(true)),
+                rename_provider: Some(OneOf::Right(editor_types::RenameOptions {
+                    prepare_provider: Some(true),
+                    work_done_progress_options: Default::default(),
+                })),
+                workspace_symbol_provider: Some(OneOf::Left(true)),
+                inlay_hint_provider: Some(OneOf::Left(true)),
+                semantic_tokens_provider: Some(
+                    editor_types::SemanticTokensServerCapabilities::SemanticTokensOptions(
+                        editor_types::SemanticTokensOptions {
+                            legend: editor_adapter::semantic_tokens_legend(),
+                            full: Some(editor_types::SemanticTokensFullOptions::Bool(true)),
+                            range: None,
+                            ..Default::default()
+                        },
+                    ),
+                ),
+                signature_help_provider: Some(editor_types::SignatureHelpOptions {
+                    trigger_characters: Some(vec!["(".into(), ",".into(), ":".into()]),
+                    retrigger_characters: Some(vec![",".into(), " ".into()]),
+                    ..Default::default()
+                }),
                 ..ServerCapabilities::default()
             },
             server_info: None,
@@ -277,6 +303,54 @@ impl LanguageServer for SylLanguageServer {
             .await
             .expect("symbol worker must finish without panicking");
         Ok(Some(self.adapter.document_symbols(symbols)))
+    }
+    async fn references(
+        &self,
+        params: editor_types::ReferenceParams,
+    ) -> LspResult<Option<Vec<editor_types::Location>>> {
+        self.handle_references(params).await
+    }
+
+    async fn prepare_rename(
+        &self,
+        params: editor_types::TextDocumentPositionParams,
+    ) -> LspResult<Option<editor_types::PrepareRenameResponse>> {
+        self.handle_prepare_rename(params).await
+    }
+
+    async fn rename(
+        &self,
+        params: editor_types::RenameParams,
+    ) -> LspResult<Option<editor_types::WorkspaceEdit>> {
+        self.handle_rename(params).await
+    }
+
+    async fn symbol(
+        &self,
+        params: editor_types::WorkspaceSymbolParams,
+    ) -> LspResult<Option<Vec<editor_types::SymbolInformation>>> {
+        self.handle_symbol(params).await
+    }
+
+    async fn inlay_hint(
+        &self,
+        params: editor_types::InlayHintParams,
+    ) -> LspResult<Option<Vec<editor_types::InlayHint>>> {
+        self.handle_inlay_hint(params).await
+    }
+
+    async fn semantic_tokens_full(
+        &self,
+        params: editor_types::SemanticTokensParams,
+    ) -> LspResult<Option<editor_types::SemanticTokensResult>> {
+        self.handle_semantic_tokens_full(params).await
+    }
+
+    async fn signature_help(
+        &self,
+        params: editor_types::SignatureHelpParams,
+    ) -> LspResult<Option<editor_types::SignatureHelp>> {
+        self.handle_signature_help(params).await
     }
 }
 

@@ -69,3 +69,23 @@ Opaque summary access is intentionally a borrowed snapshot view
 hardware DRC channel. It delegates execution to the snapshot per package,
 preserves related locations and overlay versions, and observes cancellation
 between packages. Neither ordinary diagnostics nor navigation trigger it.
+
+## Core Editor Queries
+
+`EditorQueries` adds references, prepare/rename, workspace symbols, inlay hints,
+semantic tokens, and signature help on `AnalysisSnapshot`. Every operation has a
+cancellable variant; positions, locations, hints, and edits use UTF-16 coordinates.
+The query result types carry no transport dependencies.
+
+References and rename use semantic identity and exact lexical identifier spans.
+Body-local symbols stay within their package; definitions and callable parameters
+include importing packages and named arguments. Rename rejects reserved identifiers
+and binding collisions and returns sorted edits without applying them.
+
+Workspace symbols scan recovered syntax and rank exact, prefix, substring, and
+subsequence matches. Inlay hints expose known inferred types, aggregate/enum/array
+widths, constant word widths, and clock/reset domains. When a local type is absent
+from the type table, only known initializer facts or literal types are displayed.
+Semantic tokens combine syntax and HIR classifications into single-line ranges.
+Signature help handles named arguments, extension receivers, and incomplete calls.
+These queries do not request elaboration.

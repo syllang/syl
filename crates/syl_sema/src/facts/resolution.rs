@@ -397,6 +397,13 @@ impl ResolutionTable {
     pub fn get(&self, id: HirFactId) -> Option<SemanticResolution> {
         self.values.get(&id).copied()
     }
+
+    /// Iterate over resolved HIR facts in deterministic fact-ID order.
+    pub fn entries(&self) -> impl Iterator<Item = (HirFactId, SemanticResolution)> + '_ {
+        self.values
+            .iter()
+            .map(|(id, resolution)| (*id, *resolution))
+    }
 }
 
 struct PackageFacts {

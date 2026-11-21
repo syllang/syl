@@ -1,3 +1,4 @@
+mod editor;
 mod error;
 mod navigation;
 mod snapshot;
@@ -13,3 +14,10 @@ pub use navigation::{
     StageDiagnostics,
 };
 pub use snapshot::{AnalysisQueries, ProjectQueries};
+
+pub use editor::{
+    InlayHintKind, InlayHintResult, LocationResult, ParameterInfoResult, PrepareRenameResult,
+    SemanticTokenKind, SemanticTokenModifier, SemanticTokenResult, SignatureHelpResult,
+    SignatureInfoResult, TextEditResult, WorkspaceEditResult, WorkspaceSymbolResult,
+};
+pub use snapshot::EditorQueries;
