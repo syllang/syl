@@ -31,6 +31,44 @@ impl<'a> EirValidator<'a> {
 
     fn check_item(&self, item: &EirItem) -> Result<(), CompileError> {
         match item {
+            EirItem::MemoryDecl {
+                elem_width,
+                depth,
+                origin,
+                ..
+            } => {
+                self.check_expr(elem_width.expr(), origin)?;
+                self.check_expr(depth.expr(), origin)
+            }
+            EirItem::MemoryWrite {
+                clock,
+                enable,
+                addr,
+                data,
+                reads,
+                origin,
+                ..
+            } => {
+                for expr in [clock, enable, addr, data] {
+                    self.check_expr(expr, origin)?;
+                }
+                self.check_exprs(reads, origin)
+            }
+            EirItem::MemorySyncRead {
+                clock,
+                enable,
+                addr,
+                target,
+                reads,
+                origin,
+                ..
+            } => {
+                for expr in [clock, enable, addr] {
+                    self.check_expr(expr, origin)?;
+                }
+                self.check_place(target, origin)?;
+                self.check_exprs(reads, origin)
+            }
             EirItem::StaticParam { value, origin, .. } => self.check_expr(value, origin),
             EirItem::Signal { width, origin, .. } | EirItem::Storage { width, origin, .. } => {
                 self.check_expr(width.expr(), origin)

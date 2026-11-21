@@ -86,6 +86,55 @@ impl<'a> HwLowerer<'a> {
 
     fn lower_item(&self, item: &EirItem) -> Result<Vec<ParametricHwItem>, CompileError> {
         match item {
+            EirItem::MemoryDecl {
+                name,
+                elem_width,
+                depth,
+                origin,
+            } => Ok(vec![ParametricHwItem::core(
+                HwItem::MemoryDecl {
+                    name: name.clone(),
+                    elem_width: elem_width.source().into(),
+                    depth: depth.source().into(),
+                },
+                self.lower_origin(origin),
+            )]),
+            EirItem::MemoryWrite {
+                clock,
+                memory,
+                enable,
+                addr,
+                data,
+                origin,
+                ..
+            } => Ok(vec![ParametricHwItem::core(
+                HwItem::MemoryWrite {
+                    clock: self.lower_expr(clock, origin.span())?,
+                    memory: memory.clone(),
+                    enable: self.lower_expr(enable, origin.span())?,
+                    addr: self.lower_expr(addr, origin.span())?,
+                    data: self.lower_expr(data, origin.span())?,
+                },
+                self.lower_origin(origin),
+            )]),
+            EirItem::MemorySyncRead {
+                clock,
+                memory,
+                enable,
+                addr,
+                target,
+                origin,
+                ..
+            } => Ok(vec![ParametricHwItem::core(
+                HwItem::MemorySyncRead {
+                    clock: self.lower_expr(clock, origin.span())?,
+                    memory: memory.clone(),
+                    enable: self.lower_expr(enable, origin.span())?,
+                    addr: self.lower_expr(addr, origin.span())?,
+                    target: self.lower_place_expr(target, origin.span())?,
+                },
+                self.lower_origin(origin),
+            )]),
             EirItem::StaticParam {
                 name,
                 value,
@@ -245,7 +294,15 @@ impl<'a> HwLowerer<'a> {
         Ok(HwReset::new(
             self.lower_expr(reset.condition(), span)?,
             self.lower_expr(reset.value(), span)?,
-        ))
+        )
+        .with_mode(match reset.mode() {
+            crate::eir::EirResetMode::Sync => syl_hw::HwResetMode::Sync,
+            crate::eir::EirResetMode::Async => syl_hw::HwResetMode::Async,
+        })
+        .with_polarity(match reset.polarity() {
+            crate::eir::EirResetPolarity::ActiveHigh => syl_hw::HwResetPolarity::ActiveHigh,
+            crate::eir::EirResetPolarity::ActiveLow => syl_hw::HwResetPolarity::ActiveLow,
+        }))
     }
 
     fn lower_place_expr(&self, place: &EirPlace, span: Span) -> Result<HwExpr, CompileError> {

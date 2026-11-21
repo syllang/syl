@@ -234,6 +234,7 @@ impl From<&HirCallable> for ElabCallable {
 #[derive(Clone)]
 #[non_exhaustive]
 pub(crate) struct ElabCallableItem {
+    pub(crate) cdc_crossings: Vec<syl_sema::SummaryCdcCrossing>,
     pub(crate) span: syl_span::Span,
     pub(crate) doc: Option<String>,
     pub(crate) name: String,
@@ -246,6 +247,7 @@ pub(crate) struct ElabCallableItem {
 impl From<&HirCallableItem> for ElabCallableItem {
     fn from(value: &HirCallableItem) -> Self {
         Self {
+            cdc_crossings: source_crossings(&value.attrs),
             span: value.span,
             doc: value.doc.clone(),
             name: value.name.clone(),
@@ -264,6 +266,7 @@ impl From<&HirCallableItem> for ElabCallableItem {
 #[derive(Clone)]
 #[non_exhaustive]
 pub(crate) struct ElabExternCellItem {
+    pub(crate) cdc_crossings: Vec<syl_sema::SummaryCdcCrossing>,
     pub(crate) span: syl_span::Span,
     pub(crate) doc: Option<String>,
     pub(crate) name: String,
@@ -275,6 +278,7 @@ pub(crate) struct ElabExternCellItem {
 impl From<&HirExternCellItem> for ElabExternCellItem {
     fn from(value: &HirExternCellItem) -> Self {
         Self {
+            cdc_crossings: source_crossings(&value.attrs),
             span: value.span,
             doc: value.doc.clone(),
             name: value.name.clone(),
@@ -287,4 +291,28 @@ impl From<&HirExternCellItem> for ElabExternCellItem {
             result: value.result.as_ref().map(ElabSignatureResultBinding::from),
         }
     }
+}
+
+fn source_crossings(attrs: &[syl_hir::HirAttribute]) -> Vec<syl_sema::SummaryCdcCrossing> {
+    attrs
+        .iter()
+        .filter(|a| a.name == "cdc_sync")
+        .filter_map(|a| {
+            let names = a
+                .args
+                .iter()
+                .map(|e| {
+                    if let syl_hir::HirExprNode::Ident(n) = &e.node {
+                        Some(n.as_str())
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Option<Vec<_>>>()?;
+            let [input, output, clock] = names.as_slice() else {
+                return None;
+            };
+            Some(syl_sema::SummaryCdcCrossing::new(*input, *output, *clock))
+        })
+        .collect()
 }

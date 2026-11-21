@@ -261,7 +261,10 @@ impl EirBuildStage {
                         stack.push(else_items);
                     }
                     EirItem::SymbolicStaticFor { items, .. } => stack.push(items),
-                    EirItem::StaticParam { .. }
+                    EirItem::MemoryDecl { .. }
+                    | EirItem::MemoryWrite { .. }
+                    | EirItem::MemorySyncRead { .. }
+                    | EirItem::StaticParam { .. }
                     | EirItem::Signal { .. }
                     | EirItem::Storage { .. }
                     | EirItem::Drive { .. }

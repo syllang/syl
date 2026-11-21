@@ -25,7 +25,18 @@ where
         match &expr.node {
             ElabExprNode::Ident(_) | ElabExprNode::Field { .. } | ElabExprNode::Index { .. } => {
                 if self.is_hardware_read_place(expr, env) {
-                    let read = self.elab_expr(expr, env);
+                    let root = self.read_place_root(expr).and_then(|r| {
+                        if let ElabExprNode::Ident(n) = &r.node {
+                            env.var(n)
+                        } else {
+                            None
+                        }
+                    });
+                    let read = if let Some(var) = root.filter(|v| v.is_memory) {
+                        var.code.clone()
+                    } else {
+                        self.elab_expr(expr, env)
+                    };
                     reads.entry(read.fact_key()).or_insert(read);
                 }
                 self.collect_elab_read_children(expr, env, reads);
@@ -56,6 +67,7 @@ where
                 | ElabLocalKind::Result
                 | ElabLocalKind::Let
                 | ElabLocalKind::Signal
+                | ElabLocalKind::Mem
                 | ElabLocalKind::Reg
                 | ElabLocalKind::Instance
         )

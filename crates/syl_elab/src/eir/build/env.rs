@@ -24,6 +24,7 @@ impl NumberingValue {
 #[derive(Clone)]
 #[non_exhaustive]
 pub(crate) struct VarInfo {
+    pub(crate) is_memory: bool,
     pub(crate) code: EirExpr,
     pub(crate) ty: MirTypeRef,
     pub(crate) software_local: bool,
@@ -62,6 +63,7 @@ impl Env {
         self.insert_var(
             name,
             VarInfo {
+                is_memory: false,
                 code,
                 ty,
                 software_local: false,
@@ -80,6 +82,7 @@ impl Env {
         self.insert_var(
             name,
             VarInfo {
+                is_memory: false,
                 code,
                 ty,
                 software_local: false,
@@ -98,6 +101,7 @@ impl Env {
         self.insert_var(
             name,
             VarInfo {
+                is_memory: false,
                 code,
                 ty,
                 software_local: true,
@@ -116,6 +120,7 @@ impl Env {
         self.insert_var(
             name,
             VarInfo {
+                is_memory: false,
                 code,
                 ty,
                 software_local: true,
@@ -216,6 +221,10 @@ impl Env {
     where
         C: crate::const_eval::ConstValueElaborator + ?Sized,
     {
+        let mut expr = expr;
+        while let ElabExprNode::Group(inner) = &expr.node {
+            expr = inner;
+        }
         let ElabExprNode::Ident(name) = &expr.node else {
             return None;
         };
@@ -223,15 +232,16 @@ impl Env {
         if emitter.static_type_name(&reset.ty) != Some("Reset") {
             return None;
         }
-        let reset_domain = emitter.first_type_arg(&reset.ty)?;
+        let reset_domain = emitter.reset_domain(&reset.ty)?;
         let mut matches = self
             .vars_by_static_type
             .get("Clock")?
             .iter()
             .filter_map(|name| {
                 self.vars.get(name).and_then(|var| {
-                    (emitter.first_type_arg(&var.ty) == Some(reset_domain))
-                        .then_some(var.code.clone())
+                    (emitter.first_type_arg(&var.ty).and_then(MirTypeRef::path)
+                        == reset_domain.path())
+                    .then_some(var.code.clone())
                 })
             });
         let first = matches.next()?;
@@ -254,14 +264,15 @@ impl Env {
             return None;
         }
         let clock = self.vars.get(&clocks[0])?;
-        let clock_domain = emitter.first_type_arg(&clock.ty);
+        let clock_domain = emitter.first_type_arg(&clock.ty).and_then(MirTypeRef::path);
         let mut matches = self
             .vars_by_static_type
             .get("Reset")?
             .iter()
             .filter_map(|name| {
                 self.vars.get(name).and_then(|var| {
-                    (emitter.first_type_arg(&var.ty) == clock_domain).then_some(var.code.clone())
+                    (emitter.reset_domain(&var.ty).and_then(MirTypeRef::path) == clock_domain)
+                        .then_some(var.code.clone())
                 })
             });
         let first = matches.next()?;

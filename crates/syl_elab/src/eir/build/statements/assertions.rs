@@ -64,10 +64,15 @@ where
     ) -> EirExpr {
         let failed = EirExpr::unary(EirUnaryOp::Not, self.elab_expr(condition, env));
         if let Some(reset) = env.reset_for_unique_clock(self) {
+            let (_, polarity) = self.reset_config_for_code(&reset, env);
             reads.push(reset.clone());
             return EirExpr::binary(
                 EirBinaryOp::BitAnd,
-                EirExpr::unary(EirUnaryOp::Not, reset),
+                if polarity == crate::eir::EirResetPolarity::ActiveLow {
+                    reset
+                } else {
+                    EirExpr::unary(EirUnaryOp::Not, reset)
+                },
                 failed,
             );
         }

@@ -60,6 +60,7 @@ impl EirObject {
 #[derive(Clone, Copy)]
 #[non_exhaustive]
 pub(crate) enum EirObjectKind {
+    Memory,
     Signal,
     Storage,
 }
@@ -178,13 +179,46 @@ impl EirRead {
 #[derive(Clone, Debug)]
 #[non_exhaustive]
 pub(crate) struct EirReset {
+    mode: EirResetMode,
+    polarity: EirResetPolarity,
     condition: EirExpr,
     value: EirExpr,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[non_exhaustive]
+pub(crate) enum EirResetMode {
+    Sync,
+    Async,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[non_exhaustive]
+pub(crate) enum EirResetPolarity {
+    ActiveHigh,
+    ActiveLow,
+}
 impl EirReset {
+    pub(crate) fn with_mode(mut self, mode: EirResetMode) -> Self {
+        self.mode = mode;
+        self
+    }
+    pub(crate) fn with_polarity(mut self, polarity: EirResetPolarity) -> Self {
+        self.polarity = polarity;
+        self
+    }
+    pub(crate) fn mode(&self) -> EirResetMode {
+        self.mode
+    }
+    pub(crate) fn polarity(&self) -> EirResetPolarity {
+        self.polarity
+    }
     pub(crate) fn new(condition: EirExpr, value: EirExpr) -> Self {
-        Self { condition, value }
+        Self {
+            condition,
+            value,
+            mode: EirResetMode::Sync,
+            polarity: EirResetPolarity::ActiveHigh,
+        }
     }
 
     pub(crate) fn condition(&self) -> &EirExpr {

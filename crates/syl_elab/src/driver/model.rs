@@ -211,6 +211,7 @@ impl ReadFact {
 #[derive(Clone, Copy)]
 #[non_exhaustive]
 pub(crate) enum CreateKind {
+    Memory,
     Signal,
     Storage,
 }

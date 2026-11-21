@@ -72,7 +72,7 @@ impl<'tir_stage, C: Fn() -> bool + ?Sized> TirStageRunner<'tir_stage, C> {
         if (self.cancellation)() {
             return Ok(None);
         }
-        let _drc = DrcPass::run(&eir, &driver_facts).map_err(first_error)?;
+        let _drc = DrcPass::run(&eir, &driver_facts, &opaque_summaries).map_err(first_error)?;
         if (self.cancellation)() {
             return Ok(None);
         }
@@ -378,6 +378,7 @@ impl<'tir_stage, C: Fn() -> bool + ?Sized> TirStageRunner<'tir_stage, C> {
             driver_facts
                 .as_ref()
                 .expect("driver facts stage must exist"),
+            &opaque_summaries,
         ) {
             Ok(stage) => Some(stage),
             Err(errors) => {
@@ -562,8 +563,12 @@ impl DriverFactsPass {
 struct DrcPass;
 
 impl DrcPass {
-    fn run(eir: &EirStage, driver_facts: &DriverFactsStage) -> Result<DrcStage, Vec<CompileError>> {
-        DriverDrcChecker::new(&eir.design, &driver_facts.facts)
+    fn run(
+        eir: &EirStage,
+        driver_facts: &DriverFactsStage,
+        opaque_summaries: &OpaqueSummaryTable,
+    ) -> Result<DrcStage, Vec<CompileError>> {
+        DriverDrcChecker::new(&eir.design, &driver_facts.facts, opaque_summaries)
             .check_collect()
             .map(DrcStage::new)
     }

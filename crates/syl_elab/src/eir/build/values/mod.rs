@@ -521,6 +521,11 @@ where
     pub(super) fn elab_index_expr(&self, base: &ElabExpr, index: &ElabExpr, env: &Env) -> EirExpr {
         let base_code = self.elab_expr(base, env);
         if let ElabExprNode::Ident(name) = &base.node
+            && env.var(name).is_some_and(|v| v.is_memory)
+        {
+            return EirExpr::index(base_code, self.elab_expr(index, env));
+        }
+        if let ElabExprNode::Ident(name) = &base.node
             && let Some(var) = env.vars.get(name)
             && let Some((_, elem)) = var.ty.array()
         {
