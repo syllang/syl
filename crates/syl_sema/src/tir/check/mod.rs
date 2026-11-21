@@ -1,5 +1,7 @@
 mod body;
+mod cycles;
 mod expr;
+mod fn_body;
 
 use super::consts::TirConstEnv;
 use super::enum_layout;
@@ -22,6 +24,7 @@ impl TypePhaseChecker {
         errors: &mut Vec<CompileError>,
     ) -> Result<(), CompileError> {
         self.record_def_binding(owner, BindingKind::Const);
+        self.check_const_cycle(owner, item, errors);
         if let Some(ty) = &item.ty
             && let Some(ty) =
                 Self::record_recoverable(errors, self.type_from_mir_type_ref(owner, ty))
@@ -46,7 +49,7 @@ impl TypePhaseChecker {
         {
             self.record_binding_type(BindingRef::Def(owner), ty);
         }
-        Ok(())
+        self.check_fn_body(owner, item, errors)
     }
 
     pub(super) fn check_bundle(
@@ -59,6 +62,14 @@ impl TypePhaseChecker {
         for field in &item.fields {
             Self::record_recoverable(errors, self.type_from_mir_type_ref(owner, &field.ty));
         }
+        self.check_value_type_recursion(
+            owner,
+            &item.fields,
+            crate::TirError::RecursiveBundle {
+                name: item.name.clone(),
+            },
+            errors,
+        );
         Ok(())
     }
 
@@ -223,7 +234,25 @@ impl TypePhaseChecker {
         {
             self.record_binding_type(BindingRef::Def(owner), ty);
         }
-        self.check_map_expr(&map.body, errors)
+        self.check_map_expr(&map.body, errors)?;
+        if map.body.span().start != map.body.span().end
+            && let Some(expected) = self
+                .binding_types
+                .get(&BindingRef::Def(owner))
+                .and_then(|id| self.type_table.get(*id))
+        {
+            let actual = self.infer_expr_type(owner, &map.body);
+            if !self.expr_compatible_for_return(expected, &map.body) {
+                errors.push(CompileError::lowering_at(
+                    crate::TirError::ReturnTypeMismatch {
+                        expected: expected.label(),
+                        actual: actual.label(),
+                    },
+                    map.body.span(),
+                ));
+            }
+        }
+        Ok(())
     }
 }
 

@@ -279,6 +279,13 @@ impl TypePhaseChecker {
                 errors.push(error);
             }
         }
+        for (owner, item) in hir.structs() {
+            self.current_owner = Some(*owner);
+            self.current_owner_span = hir.defs().get(owner.get()).map(|def| def.span);
+            if let Err(error) = self.check_struct(*owner, item, &mut errors) {
+                errors.push(error);
+            }
+        }
         for (owner, item) in hir.bundles() {
             self.current_owner = Some(*owner);
             self.current_owner_span = hir.defs().get(owner.get()).map(|def| def.span);

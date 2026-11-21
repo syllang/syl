@@ -11,6 +11,7 @@ use crate::{
 use syl_hir::{DefId, LocalId};
 use syl_syntax::BinaryOp;
 
+pub(in crate::tir) mod compat;
 mod const_term;
 mod id;
 mod table;
@@ -353,6 +354,15 @@ impl TypePhaseChecker {
             }
             HirExprNode::Binary { left, .. } => self.infer_expr_type(owner, left),
             HirExprNode::Call { callee, .. } => self.infer_call_type(owner, callee),
+            HirExprNode::Aggregate { ty, .. } => self
+                .type_from_mir_type_ref(owner, ty)
+                .unwrap_or(TirType::Unknown),
+            HirExprNode::Match { arms, .. } => {
+                self.infer_branch_type(owner, arms.iter().map(|arm| &arm.value))
+            }
+            HirExprNode::Select { arms, .. } => {
+                self.infer_branch_type(owner, arms.iter().map(|arm| &arm.value))
+            }
             _ => TirType::Unknown,
         }
     }
@@ -551,16 +561,7 @@ impl TypePhaseChecker {
 
     fn infer_field_type(&self, owner: DefId, base: &HirBodyExpr, field: &str) -> TirType {
         let base_ty = self.infer_expr_type(owner, base);
-        let Some(type_def) = base_ty.definition() else {
-            return TirType::Unknown;
-        };
-        let Some(field_ty) = self
-            .hir
-            .member_field_type(type_def, base_ty.selected_view(), field)
-        else {
-            return TirType::Unknown;
-        };
-        self.type_from_mir_type_ref(type_def, &field_ty)
+        self.field_type_for(&base_ty, field)
             .unwrap_or(TirType::Unknown)
     }
 
@@ -585,8 +586,18 @@ impl TypePhaseChecker {
     }
 
     fn infer_call_type(&self, owner: DefId, callee: &HirBodyExpr) -> TirType {
+        let extension = self.extension_method_call(owner, callee);
+        if let Some(call) = &extension
+            && let Some(item) = self.hir.fns().get(&call.method)
+        {
+            return item
+                .ret_ty
+                .as_ref()
+                .and_then(|ret| self.type_from_mir_type_ref(call.method, &ret.ty).ok())
+                .unwrap_or(TirType::Unknown);
+        }
         let Some(map_def) = self.map_callee_def(owner, callee).or_else(|| {
-            self.extension_method_call(owner, callee)
+            extension
                 .filter(|call| self.hir.def_kind(call.method) == Some(HirDefKind::Map))
                 .map(|call| call.method)
         }) else {
@@ -624,12 +635,17 @@ impl TypePhaseChecker {
     }
 
     fn type_for_resolution(&self, resolution: HirResolution) -> Option<TirType> {
-        let id = match resolution {
-            HirResolution::Def(id) => self.binding_types.get(&BindingRef::Def(id)),
-            HirResolution::Local(id) => self.binding_types.get(&BindingRef::Local(id)),
+        match resolution {
+            HirResolution::Local(id) => self
+                .binding_types
+                .get(&BindingRef::Local(id))
+                .and_then(|id| self.type_table.get(*id))
+                .cloned(),
+            HirResolution::Def(id) => {
+                self.declared_def_type(id, &mut std::collections::BTreeSet::new())
+            }
             _ => None,
-        }?;
-        self.type_table.get(*id).cloned()
+        }
     }
 
     fn mir_type_label(&self, owner: DefId, ty: &MirTypeRef) -> String {
@@ -652,9 +668,6 @@ impl TypePhaseChecker {
     }
 
     fn binary_returns_bit(&self, op: BinaryOp) -> bool {
-        matches!(
-            op,
-            BinaryOp::AndWord | BinaryOp::OrWord | BinaryOp::XorWord | BinaryOp::EqWord
-        )
+        matches!(op, BinaryOp::EqWord)
     }
 }

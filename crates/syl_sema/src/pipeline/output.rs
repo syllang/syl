@@ -160,6 +160,16 @@ impl HirAnalysisOutput {
             .expect("HIR analysis output is always constructed with a resolved stage")
     }
 
+    /// Append diagnostics from the assembling layer, preserving first-seen order.
+    pub fn with_extra_diagnostics(mut self, extra: impl IntoIterator<Item = Diagnostic>) -> Self {
+        for diagnostic in extra {
+            if !self.output.diagnostics.contains(&diagnostic) {
+                self.output.diagnostics.push(diagnostic);
+            }
+        }
+        self
+    }
+
     pub fn diagnostics(&self) -> &[Diagnostic] {
         self.output.diagnostics()
     }

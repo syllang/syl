@@ -18,22 +18,26 @@ Syl has no visibility modifier. A name is visible when it is declared in the mod
 | --- | --- | --- | --- |
 | mutual `use` of names that exist | yes | no diagnostic; no hardware module when the files contain no cell | `syl_sema` import resolution, reported by `syl_session` |
 | `use` of a name the other module does not declare, then a use of that name | no | HIR `E_MIDDLE_UNKNOWN_IMPORT` on the `use` span, then HIR and TIR `E_MIDDLE_UNRESOLVED_NAME` on the use. Semantic reports that HIR pair once (deduplicated across package shards in first-seen order). No HWIR module | `syl_sema` name resolution |
-| const names that import each other and a port width reads one of them | the import is allowed; the value cycle is not a number | no diagnostic code. The port width is `unsupported(const cycle)`. One HWIR module | EIR const inlining in `syl_elab` |
+| const names that import each other and a port width reads one of them | the import is allowed; the value cycle is rejected | TIR and semantic `E_MIDDLE_CONST_CYCLE` on each cyclic const initializer. No HWIR module | `syl_sema` declaration checking |
 
 The unknown-import fixture is `use b.missing` at `0:0..13` and `y := missing` at `0:42..49`. The mutual import of existing functions is the `import cycle` case and stays empty.
 
 ## Type and generic recursion
 
-A struct or generic struct may name itself in a field. That declaration is not a diagnostic, and a cell that does not read the struct still elaborates. Syl does not require a finite layout until a consumer asks for a nat width or a hardware value. The locked cases are `struct Node { child: Node }` and `struct Rec { child: Box<Rec> }`: no diagnostics, one HWIR module, port width `1`.
+Struct and bundle fields must have a finite value layout. Declaration checking traverses fields (including arrays) after substituting generic arguments. Direct recursion, mutual recursion, and instantiated recursion such as `struct Rec { child: Box<Rec> }` produce `E_MIDDLE_RECURSIVE_STRUCT` on the recursive field. Bundle recursion produces `E_MIDDLE_RECURSIVE_BUNDLE`. These errors appear in TIR and semantic diagnostics and prevent HWIR generation, even when the type is unused.
+
+The expansion path records definition IDs and instantiated arguments, with a maximum depth of 64 to bound polymorphic expansion. Finite nested types such as `Box<Box<nat>>` remain valid; an unused generic argument does not itself imply a layout cycle.
 
 ## Const and enum recursion
 
 | case | demanded value | result | owner |
 | --- | --- | --- | --- |
-| `const A = B` and `const B = A` used as `UInt<A>` | a port width | no diagnostic code. Width text is `unsupported(const cycle)`. The module is kept | `EirBuilder::elab_ident` |
-| the same const cycle split across two modules | a port width | the same unsupported width. The import cycle is not a second error | same guard, through imported names |
+| `const A = B` and `const B = A` used as `UInt<A>` | declaration or port width | TIR and semantic `E_MIDDLE_CONST_CYCLE` on the cyclic initializers. No HWIR module | `syl_sema` declaration DFS; EIR width validation provides a second guard |
+| the same const cycle split across two modules | declaration or port width | the same structured diagnostics, with source spans in both files. The import cycle is not a second error | same DFS, through resolved definition IDs |
 | `enum` discriminants that name each other | a nat discriminant | TIR and semantic `E_MIDDLE_REQUIRES_NAT` on the discriminant expression (`State.Idle` at `0:24..28`). No HWIR module | `syl_sema` enum checking |
 | const evaluator step limit | a const MIR value | `E_MIDDLE_CONST_STEP_LIMIT` at 10_000 steps, and the const has no value | `syl_sema` `crates/syl_sema/src/ir/const_mir/eval.rs`, locked by `const_evaluator_reports_structured_step_limit_for_long_running_const_fn` |
+
+TIR const evaluation carries a visited definition set and follows each referenced const in its declaring owner. Cycles used in conditions, loop bounds, or struct fields therefore recover without overflowing the evaluator stack. EIR validates port, signal, and storage width expressions recursively; a cycle constructor yields `E_MIDDLE_CONST_CYCLE` at the width's origin before hardware lowering.
 
 The session fixture `const WIDTH = burn(20000)` used as `UInt<WIDTH>` does not run that evaluator. Width lowering leaves the call symbolic (`call(burn,20000)`), with no diagnostic and one HWIR module. The step limit applies when const evaluation is demanded. It is not a width-printing rule.
 
@@ -44,6 +48,12 @@ A map call inlines the map body. A map that reaches its own def while that body 
 A map that returns its argument is not a cycle. `y := ping(x)` elaborates one module and does not diagnose.
 
 A function call used as a width is not inlined by that width path. `const STEPS = depth(1)` where `depth` calls `depth(0)` stays `call(depth,1)`, with no diagnostic and one HWIR module. Bounded function recursion is a symbolic call there, not a query cycle and not a step-limit diagnostic.
+
+Function bodies are checked at const phase, including local types, mutability, calls, conditions, and return paths. Map return values and match/select arms must agree with their declared types, while integer literals and `zero()`/`z()` retain contextual hardware typing. Zero-width signature stubs skip body validation so incremental cross-module signature reads do not create missing-return diagnostics.
+
+## Duplicate module files
+
+Different file URIs must not map to the same module path. Session HIR assembly reports `E_DUPLICATE_MODULE_FILE` for each later URI in lexical order, with related information pointing to the first URI. Recovery selects that first URI deterministically. Both CLI semantic diagnostics and IDE HIR stage groups expose the collision, including modules with no declarations, and HWIR generation stops. Tests reverse root order to verify the same URI selection and message.
 
 ## Query implementation cycle
 

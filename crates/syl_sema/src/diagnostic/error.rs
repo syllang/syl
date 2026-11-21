@@ -73,6 +73,22 @@ impl HirError {
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum TirError {
+    #[error("type mismatch: expected {expected}, got {actual}")]
+    TypeMismatch { expected: String, actual: String },
+    #[error("return type mismatch: expected {expected}, got {actual}")]
+    ReturnTypeMismatch { expected: String, actual: String },
+    #[error("function {name} may finish without returning {expected}")]
+    MissingReturnValue { name: String, expected: String },
+    #[error("cannot assign to immutable binding {name}")]
+    ImmutableAssignment { name: String },
+    #[error("hardware statement is not legal in a function")]
+    HardwareStatementInFn,
+    #[error("cyclic const definition involving {name}")]
+    ConstCycle { name: String },
+    #[error("recursive struct definition involving {name}")]
+    RecursiveStruct { name: String },
+    #[error("recursive bundle definition involving {name}")]
+    RecursiveBundle { name: String },
     #[error("elaboration if requires bool condition")]
     ElaborationIfRequiresBool,
     #[error("{context} requires nat expression")]
@@ -121,6 +137,14 @@ pub enum TirError {
 impl TirError {
     pub fn code(&self) -> &'static str {
         match self {
+            Self::TypeMismatch { .. } => "E_MIDDLE_TYPE_MISMATCH",
+            Self::ReturnTypeMismatch { .. } => "E_MIDDLE_RETURN_TYPE_MISMATCH",
+            Self::MissingReturnValue { .. } => "E_MIDDLE_MISSING_RETURN",
+            Self::ImmutableAssignment { .. } => "E_MIDDLE_IMMUTABLE_ASSIGNMENT",
+            Self::HardwareStatementInFn => "E_MIDDLE_HARDWARE_STMT_IN_FN",
+            Self::ConstCycle { .. } => "E_MIDDLE_CONST_CYCLE",
+            Self::RecursiveStruct { .. } => "E_MIDDLE_RECURSIVE_STRUCT",
+            Self::RecursiveBundle { .. } => "E_MIDDLE_RECURSIVE_BUNDLE",
             Self::ElaborationIfRequiresBool => "E_MIDDLE_ELAB_IF_REQUIRES_BOOL",
             Self::RequiresNatExpression { .. } => "E_MIDDLE_REQUIRES_NAT",
             Self::DuplicateEnumDiscriminant { .. } => "E_MIDDLE_DUPLICATE_ENUM_DISCRIMINANT",
@@ -224,6 +248,8 @@ impl CapabilityError {
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum EirError {
+    #[error("cyclic const evaluation involving {name}")]
+    ConstCycle { name: String },
     #[error("while/return are not legal in hardware bodies")]
     IllegalHardwareStatement,
     #[error("local const/let/var lowering is not implemented")]
@@ -291,6 +317,7 @@ pub enum EirError {
 impl EirError {
     pub fn code(&self) -> &'static str {
         match self {
+            Self::ConstCycle { .. } => "E_MIDDLE_CONST_CYCLE",
             Self::IllegalHardwareStatement => "E_MIDDLE_ILLEGAL_HARDWARE_STATEMENT",
             Self::LocalBindingLoweringUnsupported => "E_MIDDLE_LOCAL_BINDING_UNSUPPORTED",
             Self::SignalRequiresType => "E_MIDDLE_SIGNAL_REQUIRES_TYPE",

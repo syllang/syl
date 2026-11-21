@@ -190,6 +190,29 @@ impl EirExpr {
         }
     }
 
+    // Keep the existing expression variants so downstream passes need no new
+    // recovery branches. The private tag is a transport encoding, never a
+    // diagnostic message; only this constructor and accessor know the encoding.
+    const CONST_CYCLE_TAG: &str = "\0E_MIDDLE_CONST_CYCLE\0";
+
+    pub(crate) fn const_cycle(name: impl AsRef<str>) -> Self {
+        Self::Unsupported {
+            message: format!("{}{}", Self::CONST_CYCLE_TAG, name.as_ref()),
+        }
+    }
+
+    pub(crate) fn lowering_error(&self) -> Option<crate::EirError> {
+        let Self::Unsupported { message } = self else {
+            return None;
+        };
+        Some(match message.strip_prefix(Self::CONST_CYCLE_TAG) {
+            Some(name) => crate::EirError::ConstCycle {
+                name: name.to_string(),
+            },
+            None => crate::EirError::UnsupportedHardwareValueExpression,
+        })
+    }
+
     pub(crate) fn fact_key(&self) -> String {
         match self {
             Self::Ident(name) => name.clone(),
