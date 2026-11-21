@@ -1298,6 +1298,7 @@ syl_sema|method|syl_sema::facts::resolution::ResolutionGraph::package_imports|fn
 syl_sema|method|syl_sema::facts::resolution::ResolutionGraph::package_modules|fn(self: &Self, package: PackageNodeId) -> &[DefId]
 syl_sema|method|syl_sema::facts::resolution::ResolutionGraph::packages|fn(self: &Self) -> &[PackageSummary]
 syl_sema|method|syl_sema::facts::resolution::ResolutionGraph::package|fn(self: &Self, id: PackageNodeId) -> Option<&PackageSummary>
+syl_sema|method|syl_sema::facts::resolution::ResolutionTable::entries|fn(self: &Self) -> impl Iterator + {"outlives": "'_"}
 syl_sema|method|syl_sema::facts::resolution::ResolutionTable::get|fn(self: &Self, id: HirFactId) -> Option<SemanticResolution>
 syl_sema|method|syl_sema::facts::resolution::ResolutionTable::graph|fn(self: &Self) -> &ResolutionGraph
 syl_sema|method|syl_sema::facts::semantic_facts::SemanticFacts::capabilities|fn(self: &Self) -> &CapabilityTable
@@ -1434,6 +1435,7 @@ syl_sema|method|syl_sema::pipeline::analysis::HirAnalysis::completion_items|fn(s
 syl_sema|method|syl_sema::pipeline::analysis::HirAnalysis::debug_dump|fn(self: &Self) -> String
 syl_sema|method|syl_sema::pipeline::analysis::HirAnalysis::def_count|fn(self: &Self) -> usize
 syl_sema|method|syl_sema::pipeline::analysis::HirAnalysis::definition_at|fn(self: &Self, span: Span) -> Option<DefinitionInfo>
+syl_sema|method|syl_sema::pipeline::analysis::HirAnalysis::design|fn(self: &Self) -> &HirDesign
 syl_sema|method|syl_sema::pipeline::analysis::HirAnalysis::doc_for_field|fn(self: &Self, def_id: DefId, field: &str) -> Option<&str>
 syl_sema|method|syl_sema::pipeline::analysis::HirAnalysis::doc_for_item|fn(self: &Self, def_id: DefId) -> Option<&str>
 syl_sema|method|syl_sema::pipeline::analysis::HirAnalysis::doc_for_module|fn(self: &Self, source_id: SourceId) -> Option<&str>
