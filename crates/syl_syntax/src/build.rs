@@ -280,8 +280,18 @@ impl Block {
 }
 
 impl RegReset {
+    pub fn with_mode(mut self, mode: crate::ResetMode) -> Self {
+        self.mode = Some(mode);
+        self
+    }
+    pub fn with_polarity(mut self, polarity: crate::ResetPolarity) -> Self {
+        self.polarity = Some(polarity);
+        self
+    }
     pub fn new(domain: Option<Expr>, value: Expr, span: Span) -> Self {
         Self {
+            mode: None,
+            polarity: None,
             domain,
             value,
             span,

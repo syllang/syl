@@ -36,6 +36,7 @@ impl Stmt {
             | Self::Var { span, .. }
             | Self::Signal { span, .. }
             | Self::Reg { span, .. }
+            | Self::Mem { span, .. }
             | Self::Assign { span, .. }
             | Self::Drive { span, .. }
             | Self::Next { span, .. }

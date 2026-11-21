@@ -90,6 +90,12 @@ pub enum HirStmt {
         value: Option<HirExpr>,
         span: Span,
     },
+    Mem {
+        id: Option<LocalId>,
+        name: String,
+        ty: MirTypeRef,
+        span: Span,
+    },
     Reg {
         id: Option<LocalId>,
         name: String,
@@ -144,6 +150,7 @@ impl HirStmt {
             | HirStmt::Var { span, .. }
             | HirStmt::Signal { span, .. }
             | HirStmt::Reg { span, .. }
+            | HirStmt::Mem { span, .. }
             | HirStmt::Assign { span, .. }
             | HirStmt::Drive { span, .. }
             | HirStmt::Next { span, .. }
@@ -210,6 +217,12 @@ impl HirStmt {
                 value: value
                     .as_ref()
                     .map(|expr| HirExpr::from_syntax_with_context(expr, context)),
+                span: *span,
+            },
+            Stmt::Mem { name, ty, span } => Self::Mem {
+                id: None,
+                name: name.clone(),
+                ty: MirTypeRef::from(ty),
                 span: *span,
             },
             Stmt::Reg {
@@ -293,6 +306,8 @@ impl HirStmt {
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct HirRegReset {
+    pub mode: Option<super::HirResetMode>,
+    pub polarity: Option<super::HirResetPolarity>,
     pub domain: Option<HirExpr>,
     pub value: HirExpr,
     pub span: Span,
@@ -301,6 +316,8 @@ pub struct HirRegReset {
 impl HirRegReset {
     fn from_syntax(reset: &RegReset) -> Self {
         Self {
+            mode: reset.mode.map(Into::into),
+            polarity: reset.polarity.map(Into::into),
             domain: reset
                 .domain
                 .as_ref()

@@ -7,6 +7,8 @@ use strum_macros::IntoStaticStr;
 use syl_span::{SourceId, Span};
 
 mod body;
+mod reset;
+pub use reset::{HirResetMode, HirResetPolarity};
 mod callable;
 mod enum_variant;
 mod item;
@@ -542,6 +544,7 @@ pub enum HirLocalKind {
     Var,
     Signal,
     Reg,
+    Mem,
     Instance,
     Loop,
 }

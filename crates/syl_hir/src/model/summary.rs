@@ -176,6 +176,7 @@ impl HirLocalKind {
             Self::Reg => 8,
             Self::Instance => 9,
             Self::Loop => 10,
+            Self::Mem => 11,
         }
     }
 }

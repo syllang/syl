@@ -12,6 +12,7 @@ fn empty_block() -> HirBlock {
 
 fn empty_callable_item() -> HirCallableItem {
     HirCallableItem {
+        attrs: Vec::new(),
         doc: None,
         name: String::new(),
         generics: vec![],
@@ -25,6 +26,7 @@ fn empty_callable_item() -> HirCallableItem {
 
 fn empty_extern_cell_item() -> HirExternCellItem {
     HirExternCellItem {
+        attrs: Vec::new(),
         doc: None,
         name: String::new(),
         generics: vec![],

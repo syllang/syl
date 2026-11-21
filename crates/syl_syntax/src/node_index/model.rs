@@ -56,6 +56,7 @@ pub enum AstNodeKind {
     VarStmt,
     SignalStmt,
     RegStmt,
+    MemStmt,
     AssignStmt,
     DriveStmt,
     NextStmt,

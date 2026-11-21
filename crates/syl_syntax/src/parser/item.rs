@@ -23,11 +23,13 @@ impl Parser {
             Some(TokenKind::KwBundle) => Item::Bundle(self.parse_bundle_item(attrs)?),
             Some(TokenKind::KwInterface) => Item::Interface(self.parse_interface_item()?),
             Some(TokenKind::KwMap) => Item::Map(self.parse_map_item()?),
-            Some(TokenKind::KwCell) => Item::Cell(self.parse_callable_item(TokenKind::KwCell)?),
+            Some(TokenKind::KwCell) => {
+                Item::Cell(self.parse_callable_item(TokenKind::KwCell, attrs)?)
+            }
             Some(TokenKind::KwExtern) => {
                 self.expect(TokenKind::KwExtern)?;
                 self.expect(TokenKind::KwCell)?;
-                Item::ExternCell(self.parse_extern_cell_item()?)
+                Item::ExternCell(self.parse_extern_cell_item(attrs)?)
             }
             Some(_) => {
                 let span = self.peek().map(|t| t.span).unwrap_or_default();
@@ -217,8 +219,13 @@ impl Parser {
             .build())
     }
 
-    fn parse_callable_item(&mut self, kw: TokenKind) -> Result<CallableItem, Vec<Diagnostic>> {
-        let start = self.expect(kw)?.span;
+    fn parse_callable_item(
+        &mut self,
+        kw: TokenKind,
+        attrs: Vec<Attribute>,
+    ) -> Result<CallableItem, Vec<Diagnostic>> {
+        let kw_span = self.expect(kw)?.span;
+        let start = attrs.first().map(|a| a.span).unwrap_or(kw_span);
         let name = self.expect_ident()?;
         let generics = self.parse_generic_params()?;
         let params = self.parse_param_list()?;
@@ -231,6 +238,7 @@ impl Parser {
         let body = self.parse_block(BlockContext::Hardware)?;
         let span = start.join(body.span);
         Ok(CallableItem::builder(name, body)
+            .attrs(attrs)
             .generics(generics)
             .params(params)
             .ports(ports)
@@ -239,8 +247,11 @@ impl Parser {
             .build())
     }
 
-    fn parse_extern_cell_item(&mut self) -> Result<ExternCellItem, Vec<Diagnostic>> {
-        let start = self.prev_span();
+    fn parse_extern_cell_item(
+        &mut self,
+        attrs: Vec<Attribute>,
+    ) -> Result<ExternCellItem, Vec<Diagnostic>> {
+        let start = attrs.first().map(|a| a.span).unwrap_or(self.prev_span());
         let name = self.expect_ident()?;
         let generics = self.parse_generic_params()?;
         let params = self.parse_param_list()?;
@@ -255,6 +266,7 @@ impl Parser {
             .map(|result| result.span)
             .unwrap_or_else(|| self.prev_span());
         Ok(ExternCellItem::builder(name)
+            .attrs(attrs)
             .generics(generics)
             .params(params)
             .ports(ports)
