@@ -21,7 +21,7 @@ Each command prints one `SYL_PERF_SESSION` or `SYL_PERF_EMIT` JSON line. `n=7` m
 
 ## Regression budget
 
-WP0 did not leave a checked-in baseline. There is no artifact from before the cutover that shows these caps being chosen against the old cache. The numbers below are a regression budget for the shipping tree, written down on 2026-10-07 after that tree existed. `impl_plan.md` records that missing pre-cutover file as an evidence limit. A later run can reproduce the shipping tree. It cannot turn these caps into a pre-cutover Go/No-Go.
+WP0 did not leave a checked-in baseline. There is no artifact from before the cutover that shows these caps being chosen against the old cache, which remains an explicit evidence limit for these measurements. The numbers below are a regression budget for the shipping tree, written down on 2026-10-07 after that tree existed. A later run can reproduce the shipping tree. It cannot turn these caps into a pre-cutover Go/No-Go.
 
 The caps are:
 
@@ -59,7 +59,7 @@ On that tree a body edit and a signature edit each ran `owner_module_eir` once a
 
 Query deltas on a body edit: monolithic `owner_module_eir` 0 and `workspace_elaboration` 1; split `owner_module_eir` 1 and `workspace_elaboration` 1. The signature edit has the same deltas. The untouched module's stage queries are the part the split can reuse. On this two-cell fixture and on `examples/mvp`, that reuse is not a user-visible speedup. Emit p50 is a few hundred microseconds slower after the split, and four snapshots use about 2.5 MB more. Both still sit inside the caps above.
 
-The split stays in the tree because the work package was requested after the measurement gate. This file does not claim a latency win for it. `impl_plan.md` now treats that split as part of this branch, not as a package that is still waiting on a later speedup.
+The split stays in the tree as part of this branch because the work package was requested after the measurement gate, rather than remaining deferred on a future speedup. This file does not claim a latency win for it.
 
 ## Workload added 2026-10-11
 

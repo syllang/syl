@@ -7,8 +7,8 @@ Retrospective record for the query cutover already on `epic/query-driven`. It do
 Workspace pin in `Cargo.toml` and the locked crates in `Cargo.lock`:
 
 - `salsa` `=0.28.2`
-- `salsa-macro-rules` `=0.28.2`
-- `salsa-macros` `0.28.2` (dependency of `salsa` 0.28.2; kept on 0.28.2 because 0.28.3+ is source-incompatible with `salsa-macro-rules` 0.28.2)
+- `salsa-macro-rules` `=0.28.2` (pinned because `salsa-macros` 0.28.2 is source-incompatible with `salsa-macro-rules` 0.28.3+)
+- `salsa-macros` `0.28.2` (locked dependency of `salsa` 0.28.2)
 
 Declared floor: `workspace.package.rust-version` is `1.88`. `CONTRIBUTING.md` documents that floor. `rust-toolchain.toml` stays on stable, which is newer than 1.88.
 
@@ -39,4 +39,4 @@ These `syl_session` tests are the evidence for the decisions the preflight was m
 - Snapshot drop: `dropping_the_old_snapshot_does_not_cancel_the_new_revision` and `dropping_the_new_snapshot_does_not_cancel_the_old_revision` in the same file. One snapshot is dropped while the other revision is inside `workspace_elaboration`. The running revision still returns its own hardware result.
 - Language recursion versus a query cycle: `language_recursion_returns_deterministic_diagnostics` and `salsa_query_cycle_is_not_a_language_diagnostic` in `crates/syl_session/src/cutover_tests/cycle_tests.rs`. The probe query calls itself and panics with `dependency graph cycle`.
 
-`AnalysisSnapshot` is `Send`. The Salsa database's thread-local state is `Send` and not `Sync`, so the generation stays behind a `Mutex`. Two queries share one database by cloning it out of that mutex and holding an in-flight read guard. Publish takes the write guard first.
+`AnalysisSnapshot` is `Send + Sync`. The Salsa database's thread-local state is `Send` and not `Sync`, so the generation stays behind a `Mutex`. Two queries share one database by cloning it out of that mutex and holding an in-flight read guard. Publish takes the write guard first.
