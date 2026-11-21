@@ -5,4 +5,6 @@ use thiserror::Error;
 pub enum QueryError {
     #[error("analysis query was cancelled")]
     Cancelled,
+    #[error("invalid rename: {message}")]
+    InvalidRename { message: String },
 }
