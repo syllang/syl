@@ -8,6 +8,7 @@ mod document;
 mod error;
 mod host;
 mod import_resolver;
+mod manifest;
 mod query;
 mod resolver;
 mod snapshot;
@@ -21,6 +22,7 @@ pub use document::{DocumentOrigin, DocumentVersion, SourceDocument};
 pub use error::ProjectError;
 pub use host::AnalysisHost;
 pub use import_resolver::ImportResolver;
+pub use manifest::{MANIFEST_FILE_NAME, ProjectManifest};
 pub use resolver::ProjectResolver;
 pub use snapshot::{
     AnalysisFile, AnalysisSnapshot, PackageGraph, PackageImport, PackageStageDiagnostics, Project,

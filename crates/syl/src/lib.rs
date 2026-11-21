@@ -12,8 +12,8 @@ pub use syl_emit::SystemVerilogBackend;
 pub use syl_query::{AnalysisQueries, ProjectQueries};
 pub use syl_session::{
     AnalysisFile, AnalysisHost, AnalysisSnapshot, DocumentOrigin, DocumentUri, DocumentVersion,
-    FsVfs, Project, ProjectConfig, ProjectConfigBuilder, ProjectError, ProjectResolver,
-    SourceDocument, Vfs,
+    FsVfs, MANIFEST_FILE_NAME, Project, ProjectConfig, ProjectConfigBuilder, ProjectError,
+    ProjectManifest, ProjectResolver, SourceDocument, Vfs,
 };
 pub use syl_span::{
     Diagnostic, DiagnosticRelatedInfo, DiagnosticSeverity, SourceFile, SourceId, SourceMap,

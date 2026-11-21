@@ -25,6 +25,7 @@ The session model follows explicit object ownership:
 ## Inputs
 
 - workspace roots, project configuration, and VFS access
+- `syl.toml` manifests and versioned JSON/TOML opaque summary files
 - opened or updated source documents and document versions
 - parser, semantic, and elaboration stage crates invoked as orchestration steps
 
@@ -45,6 +46,7 @@ The session model follows explicit object ownership:
 - `salsa`
 - `thiserror`
 - `url`
+- `serde`, `serde_json`, `toml`
 
 ## Forbidden Dependencies
 
@@ -81,3 +83,20 @@ workspace-level trusted overlays are registered through
 `AnalysisHost::set_opaque_summaries()` or `AnalysisHost::register_opaque_summary()`.
 That keeps the merged summary surface shared between session/query/LSP readers
 and elaboration consumers instead of turning session into a metadata owner.
+
+`ProjectManifest::discover_and_load()` searches upward from a file or directory
+for `syl.toml`. `load_with_vfs()` and discovery variants support an explicit VFS.
+The optional `[project]` table holds `name`, `version`, and `edition`; `[paths]`
+holds `workspace_roots`, `std_roots`, `package_roots`, and `opaque_summaries`.
+Omitted workspace roots default to the manifest directory; an explicit empty
+array stays empty. Paths resolve relative to that directory, canonicalize when
+present, and otherwise normalize lexically. Root order is preserved and
+duplicates are removed. Unknown fields and blank names/paths are rejected.
+
+`AnalysisHost::from_manifest()` configures roots and loads trusted summaries.
+`AnalysisHost::load_manifest_opaque_summaries()` also supports callers that merge
+their own root overrides first. The private codec requires `schema_version = 1`
+and merges `.json`/`.toml` files in declaration order through the sema-owned
+summary builders. It preserves existing host overlays and publishes a revision
+only when the merged table changes. Serialization dependencies stay in this
+crate; downstream CLI and LSP callers can load manifests without importing sema.
