@@ -19,7 +19,7 @@ use syl_hir::{ExprId, HirEnumVariantKey};
 /// Prefer [`TypePhaseChecker`](super::TypePhaseChecker) for construction —
 /// there are no public mutators because a finished TIR design is read-only.
 ///
-/// Built by `TypePhaseChecker::finish` via [`TirDesignBuilder`], then consumed
+/// Built by `TypePhaseChecker::finish` via `TirDesignBuilder`, then consumed
 /// by facts, elab, query, and IDE layers.
 #[derive(Getters, Builder)]
 #[getset(get = "pub")]
