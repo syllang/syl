@@ -1418,6 +1418,7 @@ syl_sema|method|syl_sema::pipeline::input::SemanticSourceFile::module_path|fn(se
 syl_sema|method|syl_sema::pipeline::input::SemanticSourceFile::new|fn(module_path: Vec<String>, ast: &AstFile) -> Self
 syl_sema|method|syl_sema::pipeline::output::HirAnalysisOutput::diagnostics|fn(self: &Self) -> &[Diagnostic]
 syl_sema|method|syl_sema::pipeline::output::HirAnalysisOutput::stage|fn(self: &Self) -> &HirAnalysis
+syl_sema|method|syl_sema::pipeline::output::HirAnalysisOutput::with_extra_diagnostics|fn(self: Self, extra: impl IntoIterator) -> Self
 syl_sema|method|syl_sema::pipeline::output::SemanticOutput::diagnostics|fn(self: &Self) -> &[Diagnostic]
 syl_sema|method|syl_sema::pipeline::output::SemanticOutput::facts|fn(self: &Self) -> Option<&SemanticFacts>
 syl_sema|method|syl_sema::pipeline::output::SemanticOutput::opaque_summaries|fn(self: &Self) -> Option<&OpaqueSummaryTable>
@@ -1935,6 +1936,7 @@ syl_sema|variant|syl_sema::diagnostic::error::EirError::AssertionRequiresClock|u
 syl_sema|variant|syl_sema::diagnostic::error::EirError::AssertionRequiresSingleCondition|unit
 syl_sema|variant|syl_sema::diagnostic::error::EirError::AssertionStatementOnly|unit
 syl_sema|variant|syl_sema::diagnostic::error::EirError::AssignmentInMap|unit
+syl_sema|variant|syl_sema::diagnostic::error::EirError::ConstCycle|{ name: String }
 syl_sema|variant|syl_sema::diagnostic::error::EirError::ContinuousDriveTargetIsReg|{ name: String }
 syl_sema|variant|syl_sema::diagnostic::error::EirError::DuplicateArgument|{ name: String }
 syl_sema|variant|syl_sema::diagnostic::error::EirError::DuplicateConnection|{ name: String }
@@ -1987,16 +1989,24 @@ syl_sema|variant|syl_sema::diagnostic::error::LoweringError::Hwir|(HwirError)
 syl_sema|variant|syl_sema::diagnostic::error::LoweringError::Tir|(TirError)
 syl_sema|variant|syl_sema::diagnostic::error::TirError::AmbiguousMethod|{ receiver: String, method: String, candidates: String }
 syl_sema|variant|syl_sema::diagnostic::error::TirError::BoolInHardwareValue|unit
+syl_sema|variant|syl_sema::diagnostic::error::TirError::ConstCycle|{ name: String }
 syl_sema|variant|syl_sema::diagnostic::error::TirError::DuplicateEnumDiscriminant|{ enum_name: String, value: u64 }
 syl_sema|variant|syl_sema::diagnostic::error::TirError::ElaborationIfRequiresBool|unit
 syl_sema|variant|syl_sema::diagnostic::error::TirError::EnumDiscriminantNotOneHot|{ enum_name: String, variant: String, value: u64 }
 syl_sema|variant|syl_sema::diagnostic::error::TirError::EnumDiscriminantOutOfRange|{ enum_name: String, variant: String, value: u64, width: u64 }
+syl_sema|variant|syl_sema::diagnostic::error::TirError::HardwareStatementInFn|unit
+syl_sema|variant|syl_sema::diagnostic::error::TirError::ImmutableAssignment|{ name: String }
 syl_sema|variant|syl_sema::diagnostic::error::TirError::InvalidElaborationExpression|unit
 syl_sema|variant|syl_sema::diagnostic::error::TirError::MatchRequiresArm|unit
 syl_sema|variant|syl_sema::diagnostic::error::TirError::MissingAggregateField|{ ty: String, field: String }
+syl_sema|variant|syl_sema::diagnostic::error::TirError::MissingReturnValue|{ name: String, expected: String }
+syl_sema|variant|syl_sema::diagnostic::error::TirError::RecursiveBundle|{ name: String }
+syl_sema|variant|syl_sema::diagnostic::error::TirError::RecursiveStruct|{ name: String }
 syl_sema|variant|syl_sema::diagnostic::error::TirError::RequiresNatExpression|{ context: String }
+syl_sema|variant|syl_sema::diagnostic::error::TirError::ReturnTypeMismatch|{ expected: String, actual: String }
 syl_sema|variant|syl_sema::diagnostic::error::TirError::SelectRequiresDefault|unit
 syl_sema|variant|syl_sema::diagnostic::error::TirError::SoftwareOperatorInHardware|{ op: String }
+syl_sema|variant|syl_sema::diagnostic::error::TirError::TypeMismatch|{ expected: String, actual: String }
 syl_sema|variant|syl_sema::diagnostic::error::TirError::UnknownAggregateField|{ ty: String, field: String }
 syl_sema|variant|syl_sema::diagnostic::error::TirError::UnknownMethod|{ receiver: String, method: String }
 syl_sema|variant|syl_sema::diagnostic::error::TirError::UnknownType|{ name: String }
