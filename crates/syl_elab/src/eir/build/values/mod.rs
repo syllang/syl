@@ -180,7 +180,7 @@ where
         };
         // Same recovery as const MIR: a const that reaches itself is not a value.
         if !self.const_cycle.borrow_mut().insert(def) {
-            return EirExpr::unsupported("const cycle");
+            return EirExpr::const_cycle(name);
         }
         let value = self.elab_expr(&item.value, env);
         self.const_cycle.borrow_mut().remove(&def);

@@ -1,6 +1,6 @@
 use super::{EirExpr, EirOrigin, EirPlace, EirSelectArm};
 use super::{EirItem, EirModule, EirReset};
-use crate::{CompileError, EirError};
+use crate::CompileError;
 
 #[non_exhaustive]
 pub(crate) struct EirValidator<'a> {
@@ -14,6 +14,9 @@ impl<'a> EirValidator<'a> {
 
     pub(crate) fn validate(&self) -> Result<(), CompileError> {
         for module in self.modules {
+            for port in module.ports() {
+                self.check_expr(port.width_bound().expr(), port.origin())?;
+            }
             self.check_items(module.items())?;
         }
         Ok(())
@@ -29,7 +32,9 @@ impl<'a> EirValidator<'a> {
     fn check_item(&self, item: &EirItem) -> Result<(), CompileError> {
         match item {
             EirItem::StaticParam { value, origin, .. } => self.check_expr(value, origin),
-            EirItem::Signal { .. } | EirItem::Storage { .. } => Ok(()),
+            EirItem::Signal { width, origin, .. } | EirItem::Storage { width, origin, .. } => {
+                self.check_expr(width.expr(), origin)
+            }
             EirItem::Drive {
                 lhs,
                 rhs,
@@ -139,11 +144,13 @@ impl<'a> EirValidator<'a> {
     }
 
     fn check_expr(&self, expr: &EirExpr, origin: &EirOrigin) -> Result<(), CompileError> {
+        if let Some(error) = expr.lowering_error() {
+            return Err(CompileError::lowering_at(error, origin.span()));
+        }
         match expr {
-            EirExpr::Unsupported { .. } => Err(CompileError::lowering_at(
-                EirError::UnsupportedHardwareValueExpression,
-                origin.span(),
-            )),
+            EirExpr::Unsupported { .. } => {
+                unreachable!("unsupported expressions return their structured error above")
+            }
             EirExpr::Unary { expr, .. } => self.check_expr(expr, origin),
             EirExpr::Binary { left, right, .. } => {
                 self.check_expr(left, origin)?;

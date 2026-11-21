@@ -110,3 +110,78 @@ fn accepts_supported_exprs_and_collects_facts() {
     assert_eq!(design.drives()[0].guard(), &EirGuard::root());
     assert_eq!(design.reads().len(), 1);
 }
+
+#[test]
+fn rejects_const_cycles_in_port_signal_and_storage_widths() {
+    use crate::eir::{EirBound, EirDirection, EirPort, EirSignalActivity};
+    let span = Span::new_in(SourceId::new(3), 70, 80);
+    let origin = EirOrigin::new(span, Vec::new());
+    let width = || {
+        EirBound::from_expr(EirExpr::binary(
+            crate::eir::EirBinaryOp::Add,
+            EirExpr::Int(1),
+            EirExpr::const_cycle("WIDTH"),
+        ))
+    };
+    let modules = [
+        EirModule::new(
+            "Port",
+            Vec::new(),
+            vec![EirPort::new(
+                EirDirection::Out,
+                width(),
+                "y",
+                origin.clone(),
+            )],
+            Vec::new(),
+        ),
+        EirModule::new(
+            "Signal",
+            Vec::new(),
+            Vec::new(),
+            vec![EirItem::Signal {
+                width: width(),
+                name: "s".into(),
+                activity: EirSignalActivity::Required,
+                origin: origin.clone(),
+            }],
+        ),
+        EirModule::new(
+            "Storage",
+            Vec::new(),
+            Vec::new(),
+            vec![EirItem::Storage {
+                width: width(),
+                name: "r".into(),
+                origin,
+            }],
+        ),
+    ];
+    for module in modules {
+        let error = EirValidator::new(&[module])
+            .validate()
+            .expect_err("cyclic widths must stop before HWIR");
+        let diagnostic = error.diagnostic();
+        assert_eq!(diagnostic.code.as_deref(), Some("E_MIDDLE_CONST_CYCLE"));
+        assert_eq!(
+            diagnostic.message,
+            "cyclic const evaluation involving WIDTH"
+        );
+        assert_eq!(diagnostic.span, span);
+    }
+}
+
+#[test]
+fn cycle_constructor_round_trips_without_matching_diagnostic_text() {
+    assert_eq!(
+        EirExpr::const_cycle("WIDTH").lowering_error(),
+        Some(crate::EirError::ConstCycle {
+            name: "WIDTH".into()
+        })
+    );
+    assert_eq!(
+        EirExpr::unsupported("const cycle").lowering_error(),
+        Some(crate::EirError::UnsupportedHardwareValueExpression)
+    );
+    assert_eq!(EirExpr::Int(1).lowering_error(), None);
+}
