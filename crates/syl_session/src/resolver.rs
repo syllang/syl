@@ -1,14 +1,19 @@
 use crate::{
     AnalysisSnapshot, CancellationToken, DocumentUri, Project, ProjectConfig, ProjectError,
-    SourceDocument, collector::SylFileCollector, import_resolver::ImportResolver,
-    query::QueryStore, snapshot::AnalysisFile, snapshot::AnalysisFileInput,
-    snapshot::ResolvedSnapshot, snapshot::WorkspaceSnapshot, vfs::FsVfs,
+    SourceDocument,
+    collector::SylFileCollector,
+    import_resolver::ImportResolver,
+    query::{FileSpec, PublishStaging, QueryStore, catch_query},
+    snapshot::AnalysisFile,
+    snapshot::AnalysisFileInput,
+    snapshot::ResolvedSnapshot,
+    snapshot::WorkspaceSnapshot,
+    vfs::FsVfs,
 };
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::path::{Path, PathBuf};
 use syl_sema::OpaqueSummaryTable;
 use syl_span::{Diagnostic, SourceId, SourceMap, Span};
-use syl_syntax::parser::SourceParser;
 use syl_syntax::{AstFile, Item};
 
 #[cfg(test)]
@@ -82,10 +87,10 @@ where
         paths: Vec<PathBuf>,
         token: &CancellationToken,
     ) -> Result<Project, ProjectError> {
-        let resolved = self.snapshot(paths, &BTreeMap::new(), token)?;
         let mut query = QueryStore::new();
         let opaque = OpaqueSummaryTable::new();
-        query.publish(&resolved.file_specs(), &opaque);
+        let resolved =
+            self.snapshot_into_query((paths, &BTreeMap::new()), &mut query, &opaque, token)?;
         Ok(Project::new(AnalysisSnapshot::from_query(
             query.generation(),
             query.inflight(),
@@ -93,13 +98,19 @@ where
         )))
     }
 
-    pub(crate) fn snapshot(
+    pub(crate) fn snapshot_into_query(
         &self,
-        paths: Vec<PathBuf>,
-        overlays: &BTreeMap<DocumentUri, SourceDocument>,
+        inputs: (Vec<PathBuf>, &BTreeMap<DocumentUri, SourceDocument>),
+        query: &mut QueryStore,
+        opaque: &OpaqueSummaryTable,
         token: &CancellationToken,
     ) -> Result<ResolvedSnapshot, ProjectError> {
-        SnapshotAssembler::new(self, paths, overlays).build(token)
+        let (paths, overlays) = inputs;
+        query.resolve_and_publish(opaque, |staging| {
+            catch_query(token, || {
+                SnapshotAssembler::new(self, paths, overlays).build_with_staging(staging, token)
+            })?
+        })
     }
 }
 
@@ -149,16 +160,21 @@ where
         }
     }
 
-    fn build(mut self, token: &CancellationToken) -> Result<ResolvedSnapshot, ProjectError> {
+    fn build_with_staging(
+        mut self,
+        staging: &mut PublishStaging<'_>,
+        token: &CancellationToken,
+    ) -> Result<ResolvedSnapshot, ProjectError> {
         Self::ensure_active(token)?;
         while !self.queued_paths.is_empty() || !self.queued_overlays.is_empty() {
             Self::ensure_active(token)?;
             if let Some(path) = self.queued_paths.pop_front() {
-                self.visit_path(path)?;
+                self.visit_path(path, staging)?;
             } else if let Some(uri) = self.queued_overlays.pop_front() {
-                self.visit_overlay(uri)?;
+                self.visit_overlay(uri, staging);
             }
         }
+        Self::ensure_active(token)?;
         let workspace = WorkspaceSnapshot::collect(self.roots, &self.files);
         Ok(ResolvedSnapshot::new(
             self.source_map,
@@ -168,48 +184,55 @@ where
         ))
     }
 
-    fn visit_path(&mut self, path: PathBuf) -> Result<(), ProjectError> {
+    fn visit_path(
+        &mut self,
+        path: PathBuf,
+        staging: &mut PublishStaging<'_>,
+    ) -> Result<(), ProjectError> {
         let path = self.normalize_path(path)?;
         let uri = DocumentUri::from_file_path(&path);
         if !self.seen.insert(uri.clone()) {
             return Ok(());
         }
         let document = self.load_document(path, uri)?;
-        self.add_document(document);
+        self.add_document(document, staging);
         Ok(())
     }
 
-    fn visit_overlay(&mut self, uri: DocumentUri) -> Result<(), ProjectError> {
+    fn visit_overlay(&mut self, uri: DocumentUri, staging: &mut PublishStaging<'_>) {
         if !self.seen.insert(uri.clone()) {
-            return Ok(());
+            return;
         }
         if let Some(document) = self.overlays.get(&uri) {
-            self.add_document(document.clone());
+            self.add_document(document.clone(), staging);
         }
-        Ok(())
     }
 
-    fn add_document(&mut self, document: SourceDocument) {
+    fn add_document(&mut self, document: SourceDocument, staging: &mut PublishStaging<'_>) {
         let source_id = self
             .source_map
             .add_file(document.uri().as_str(), document.text());
-        let parsed = SourceParser::new_in(document.text(), source_id).parse_file_partial();
-        let ast_node_index = parsed.node_index().clone();
-        let ast = parsed.file;
-        self.diagnostics.extend(parsed.diagnostics);
         let (module_path, mut module_diagnostics) =
             ModulePath::for_document(self.resolver, &document, source_id);
+        let module_path = module_path.into_parts();
+        let (_, parsed) = staging.stage_and_parse(&FileSpec {
+            uri: document.uri().as_str().to_string(),
+            text: document.text().to_string(),
+            source_id: source_id.get() as u32,
+            module_path: module_path.clone(),
+            version: document.version().get(),
+        });
+        self.diagnostics.extend(parsed.diagnostics.iter().cloned());
         self.diagnostics.append(&mut module_diagnostics);
-        self.queue_imports(document.uri(), &ast);
+        self.queue_imports(document.uri(), &parsed.file);
         self.files.push(AnalysisFile::new(AnalysisFileInput {
             source_id,
             path: document.path().map(Path::to_path_buf),
             uri: document.uri().clone(),
             version: document.version(),
             origin: document.origin().clone(),
-            module_path: module_path.into_parts(),
-            ast_node_index,
-            ast,
+            module_path,
+            parsed,
         }));
     }
 

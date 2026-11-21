@@ -17,9 +17,9 @@ use syl_sema::{
     StageOutput, SymbolKey, SymbolKind, TirAnalysis, declaration_contracts, file_symbol_keys,
     item_has_storage,
 };
-use syl_span::SourceId;
+use syl_span::{Diagnostic, SourceId};
 use syl_syntax::parser::SourceParser;
-use syl_syntax::{AstFile, ErrorItem, Item};
+use syl_syntax::{AstFile, AstNodeIndex, ErrorItem, Item};
 
 #[cfg(test)]
 mod cycle_probe;
@@ -36,7 +36,7 @@ pub(crate) use cycle_probe::run as probe_query_cycle;
 #[cfg(test)]
 pub(crate) use pause::QueryGate;
 
-pub(crate) use store::{Generation, QueryStore};
+pub(crate) use store::{Generation, PublishStaging, QueryStore};
 
 #[cfg(test)]
 pub(crate) use facade::input_text;
@@ -275,19 +275,30 @@ impl SignatureItem {
     }
 }
 
+#[derive(Debug)]
+pub(crate) struct ParsedFileOutput {
+    pub(crate) file: AstFile,
+    pub(crate) node_index: AstNodeIndex,
+    pub(crate) diagnostics: Vec<Diagnostic>,
+}
+
 #[salsa::tracked(returns(ref), no_eq)]
-fn parsed_file(db: &dyn SylDb, file: SourceFileInput) -> AstFile {
+fn parsed_file(db: &dyn SylDb, file: SourceFileInput) -> Arc<ParsedFileOutput> {
     observe_cancel(db);
     let source_id = SourceId::new(*file.source_id(db) as usize);
-    SourceParser::new_in(file.text(db), source_id)
-        .parse_file_partial()
-        .file
+    let output = SourceParser::new_in(file.text(db), source_id).parse_file_partial();
+    let node_index = output.node_index().clone();
+    Arc::new(ParsedFileOutput {
+        file: output.file,
+        node_index,
+        diagnostics: output.diagnostics,
+    })
 }
 
 #[salsa::tracked(returns(ref))]
 fn file_item_index(db: &dyn SylDb, file: SourceFileInput) -> ItemIndex {
     observe_cancel(db);
-    let ast = parsed_file(db, file);
+    let ast = &parsed_file(db, file).file;
     ItemIndex {
         keys: file_symbol_keys(file.module_path(db), ast),
     }
@@ -296,7 +307,7 @@ fn file_item_index(db: &dyn SylDb, file: SourceFileInput) -> ItemIndex {
 #[salsa::tracked(returns(ref))]
 fn file_contracts(db: &dyn SylDb, file: SourceFileInput) -> ContractList {
     observe_cancel(db);
-    let ast = parsed_file(db, file);
+    let ast = &parsed_file(db, file).file;
     ContractList {
         contracts: declaration_contracts(file.module_path(db), file.text(db), ast),
     }
@@ -343,7 +354,7 @@ fn owner_item_text<'db>(
 #[salsa::tracked(returns(ref))]
 fn file_module_doc(db: &dyn SylDb, file: SourceFileInput) -> Option<String> {
     observe_cancel(db);
-    parsed_file(db, file).doc.clone()
+    parsed_file(db, file).file.doc.clone()
 }
 
 #[salsa::tracked(returns(ref))]
@@ -368,7 +379,7 @@ fn declaration_contract<'db>(
 #[salsa::tracked(returns(ref))]
 fn owner_item<'db>(db: &'db dyn SylDb, file: SourceFileInput, symbol: SymbolId<'db>) -> EqItem {
     observe_cancel(db);
-    let ast = parsed_file(db, file);
+    let ast = &parsed_file(db, file).file;
     let keys = file_item_index(db, file).keys.clone();
     ast.items
         .iter()

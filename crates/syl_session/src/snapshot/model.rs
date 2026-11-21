@@ -1,7 +1,8 @@
 use crate::query::{
-    FileSpec, Generation, RevisionInput, SylDatabase, catch_query, ide_hir_query, ide_tir_query,
-    make_unit, merged_opaque_query, package_diagnostics_query, workspace_diagnostics_query,
-    workspace_elaboration_query, workspace_hir_query, workspace_tir_query,
+    FileSpec, Generation, ParsedFileOutput, RevisionInput, SylDatabase, catch_query, ide_hir_query,
+    ide_tir_query, make_unit, merged_opaque_query, package_diagnostics_query,
+    workspace_diagnostics_query, workspace_elaboration_query, workspace_hir_query,
+    workspace_tir_query,
 };
 use crate::{CancellationToken, DocumentOrigin, DocumentUri, DocumentVersion, ProjectError};
 use std::{
@@ -19,15 +20,15 @@ use super::package_semantics::{PackageSemanticIndex, PackageSemanticShard};
 use super::retain::{self, Retained};
 use super::workspace::WorkspaceSnapshot;
 
-/// Parse/workspace resolution result before query inputs are published.
+/// Parse/workspace resolution result assembled while query inputs are staged.
 ///
 /// Built by the project resolver; [`AnalysisDatabase`](crate::AnalysisDatabase)
-/// publishes it into the Salsa database and wraps an [`AnalysisSnapshot`].
+/// finishes publication and wraps an [`AnalysisSnapshot`].
 ///
 /// # Main usage flow
 ///
 /// ```text
-///  ProjectResolver::snapshot
+///  ProjectResolver::snapshot_into_query
 ///         |
 ///         v
 ///  ResolvedSnapshot   (source_map, files, parse diagnostics, workspace)
@@ -78,27 +79,6 @@ impl ResolvedSnapshot {
     pub fn workspace(&self) -> &WorkspaceSnapshot {
         &self.workspace
     }
-
-    pub(crate) fn file_specs(&self) -> Vec<FileSpec> {
-        self.files
-            .iter()
-            .map(|file| {
-                let text = self
-                    .source_map
-                    .file(file.source_id())
-                    .expect("resolved file has a source map entry")
-                    .text()
-                    .to_string();
-                FileSpec {
-                    uri: file.uri_str().to_string(),
-                    text,
-                    source_id: file.source_id().get() as u32,
-                    module_path: file.module_path().to_vec(),
-                    version: file.version().get(),
-                }
-            })
-            .collect()
-    }
 }
 
 /// A parsed source file in the analysis snapshot with its AST and node index.
@@ -111,8 +91,7 @@ pub struct AnalysisFile {
     version: DocumentVersion,
     origin: DocumentOrigin,
     module_path: Vec<String>,
-    ast: AstFile,
-    ast_node_index: AstNodeIndex,
+    parsed: Arc<ParsedFileOutput>,
 }
 
 #[derive(Debug)]
@@ -124,8 +103,7 @@ pub(crate) struct AnalysisFileInput {
     pub(crate) version: DocumentVersion,
     pub(crate) origin: DocumentOrigin,
     pub(crate) module_path: Vec<String>,
-    pub(crate) ast: AstFile,
-    pub(crate) ast_node_index: AstNodeIndex,
+    pub(crate) parsed: Arc<ParsedFileOutput>,
 }
 
 impl AnalysisFile {
@@ -137,8 +115,7 @@ impl AnalysisFile {
             version,
             origin,
             module_path,
-            ast,
-            ast_node_index,
+            parsed,
         } = input;
         Self {
             source_id,
@@ -147,8 +124,7 @@ impl AnalysisFile {
             version,
             origin,
             module_path,
-            ast,
-            ast_node_index,
+            parsed,
         }
     }
 
@@ -181,11 +157,11 @@ impl AnalysisFile {
     }
 
     pub fn ast(&self) -> &AstFile {
-        &self.ast
+        &self.parsed.file
     }
 
     pub fn ast_node_index(&self) -> &AstNodeIndex {
-        &self.ast_node_index
+        &self.parsed.node_index
     }
 }
 
