@@ -9,6 +9,12 @@ pub(crate) enum CancellationSlot {
     Hover,
     Definition,
     Completion,
+    References,
+    Rename,
+    WorkspaceSymbols,
+    InlayHints,
+    SemanticTokens,
+    SignatureHelp,
 }
 
 #[derive(Debug, Default)]

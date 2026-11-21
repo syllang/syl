@@ -76,3 +76,15 @@ Each workspace change cancels both diagnostic tokens before new snapshot work.
 Generation and document-version checks reject stale results. The publisher merges
 fast and DRC layers, clears obsolete diagnostics after edits, removals, or recovery
 from manifest errors, and only republishes changed DRC documents.
+
+## Core Editor Capabilities
+
+The server advertises references, prepare/rename, workspace symbols, inlay hints,
+full semantic tokens, and signature help. The private editor adapter converts
+query DTOs, groups rename edits by URI, and encodes UTF-16 semantic token deltas
+against a fixed legend. Invalid renames return `InvalidParams`.
+
+Editor handlers release the host lock after taking a snapshot and execute queries
+on the blocking pool. A newer request in the same capability cancels its predecessor;
+dropping a request also cancels its query token. Cancelled results are not returned
+as successful responses. Signature help triggers on `(`, `,`, and `:`.
