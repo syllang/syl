@@ -369,3 +369,72 @@ fn missing_inputs_empty_roots_and_output_errors_are_clear() {
     assert_eq!(report(&output)["diagnostics"][0]["code"], "E_IO");
     assert!(!Path::new(&project.0.join("out.sv")).exists());
 }
+
+#[test]
+fn multi_file_emission_rewrites_expanded_instances_and_preserves_sources() {
+    let project = TestProject::new();
+    project.write(
+        "a.syl",
+        "cell Fifo(x: out Bit) { x := 1 }\ncell Left(x: out Bit) { let f = place Fifo(x: x) }\n",
+    );
+    project.write(
+        "b.syl",
+        "cell Fifo(z: out Bit) { z := 0 }\ncell Right(z: out Bit) { let f = place Fifo(z: z) }\n",
+    );
+    project.write("top.syl", "use a.Left\nuse b.Right\ncell Top(x: out Bit, z: out Bit) {\nlet one = inplace Left(x: x)\nlet two = inplace Right(z: z)\n}\n");
+    success(&project.run(
+        ".",
+        &["emit", "top.syl", "--out-dir", "sv", "--source-comments"],
+    ));
+    let read = |name: &str| fs::read_to_string(project.0.join(name)).unwrap();
+    let top = read("sv/Top.sv");
+    assert!(top.contains("a__Fifo one_f_inst (.x(x));"));
+    assert!(top.contains("b__Fifo two_f_inst (.z(z));"));
+    assert!(top.contains("top.syl:3\nmodule Top"));
+    assert!(top.contains("a.syl:2 (via Left:one)"));
+    assert!(read("sv/a__Fifo.sv").contains("// syl: a.Fifo"));
+    let list = read("sv/filelist.f");
+    for child in ["a__Fifo.sv", "b__Fifo.sv"] {
+        assert!(list.find(child).unwrap() < list.find("Top.sv").unwrap());
+    }
+    success(&project.run(
+        ".",
+        &[
+            "--out-dir",
+            "sv",
+            "--filelist",
+            "sv/custom.f",
+            "b.syl",
+            "a.syl",
+            "top.syl",
+        ],
+    ));
+    assert!(!read("sv/Top.sv").contains("// source:"));
+    assert!(read("sv/Top.sv").contains("a__Fifo one_f_inst"));
+    assert!(read("sv/custom.f").lines().any(|line| line == "Top.sv"));
+}
+
+#[test]
+fn verilator_lints_dependency_ordered_filelist() {
+    let project = TestProject::new();
+    project.write(
+        "top.syl",
+        "cell Top(x: out Bit) { let f = place Child(x: x) }\ncell Child(x: out Bit) { x := 0 }\n",
+    );
+    success(&project.run(".", &["--out-dir", "sv", "--source-comments", "top.syl"]));
+    assert_eq!(
+        fs::read_to_string(project.0.join("sv/filelist.f")).unwrap(),
+        "Child.sv\nTop.sv\n"
+    );
+    match Command::new("verilator")
+        .current_dir(project.0.join("sv"))
+        .args(["--lint-only", "--sv", "-f", "filelist.f"])
+        .output()
+    {
+        Ok(output) => success(&output),
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
+            eprintln!("verilator unavailable")
+        }
+        Err(err) => panic!("{err}"),
+    }
+}
