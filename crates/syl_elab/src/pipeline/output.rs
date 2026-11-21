@@ -12,7 +12,7 @@ use syl_span::Diagnostic;
 
 use super::debug;
 
-/// Multi-stage elaboration result from [`HardwareCompiler::output_for_tir`].
+/// Multi-stage elaboration result from [`HardwareCompiler::output_for_tir`](crate::HardwareCompiler::output_for_tir).
 ///
 /// Each stage field is `Some` only if that stage completed. Later stages may
 /// be missing when an earlier stage failed or cancellation stopped the run;

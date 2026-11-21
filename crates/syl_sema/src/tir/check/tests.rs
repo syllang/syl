@@ -1,9 +1,9 @@
 use crate::HirResolver;
 use crate::{
-    MiddleCompiler,
+    CompileError, SemanticSession, TirError,
     tir::{BindingRef, TypePhaseChecker},
 };
-use syl_span::Span;
+use syl_span::{Diagnostic, Span};
 use syl_syntax::{AstFile, Block, CallableItem, Expr, Item, MapItem, Stmt, TypeExpr};
 
 #[test]
@@ -12,15 +12,14 @@ fn check_tir_partial_keeps_valid_item_hover_after_other_item_error() {
     let error_span = Span::new(210, 211);
     let files = vec![AstFile::new(vec![
         valid_map("Good", valid_expr_span),
-        bad_module("Bad", error_span),
+        bad_cell("Bad", error_span),
     ])];
-    let hir = MiddleCompiler::new()
-        .session(&files)
+    let hir = SemanticSession::new(&files)
         .resolve_hir()
         .expect("HIR should resolve before TIR recovery");
     let output = hir.check_tir_partial();
 
-    assert!(!output.diagnostics().is_empty());
+    assert_elaboration_if_error(output.diagnostics(), error_span);
     let stage = output
         .partial_stage()
         .expect("recoverable TIR errors should keep collected typed facts");
@@ -36,15 +35,14 @@ fn check_tir_partial_returns_stage_with_diagnostics_for_recoverable_error() {
     let error_span = Span::new(30, 31);
     let files = vec![AstFile::new(vec![
         valid_typed_map("Good", Span::new(70, 71)),
-        bad_module("Bad", error_span),
+        bad_cell("Bad", error_span),
     ])];
-    let hir = MiddleCompiler::new()
-        .session(&files)
+    let hir = SemanticSession::new(&files)
         .resolve_hir()
         .expect("HIR should resolve before TIR recovery");
     let output = hir.check_tir_partial();
 
-    assert!(!output.diagnostics().is_empty());
+    assert_elaboration_if_error(output.diagnostics(), error_span);
     assert!(
         output.stage().is_some(),
         "recoverable TIR diagnostics must not imply a missing stage"
@@ -55,7 +53,7 @@ fn check_tir_partial_returns_stage_with_diagnostics_for_recoverable_error() {
 fn check_tir_partial_keeps_valid_fact_after_same_item_error() {
     let error_span = Span::new(30, 31);
     let valid_span = Span::new(60, 61);
-    let files = vec![AstFile::new(vec![Item::Module(
+    let files = vec![AstFile::new(vec![Item::Cell(
         CallableItem::builder(
             "Mixed".to_string(),
             Block::new(
@@ -80,13 +78,12 @@ fn check_tir_partial_keeps_valid_fact_after_same_item_error() {
         .span(Span::new(0, 80))
         .build(),
     )])];
-    let hir = MiddleCompiler::new()
-        .session(&files)
+    let hir = SemanticSession::new(&files)
         .resolve_hir()
         .expect("HIR should resolve before TIR recovery");
     let output = hir.check_tir_partial();
 
-    assert!(!output.diagnostics().is_empty());
+    assert_elaboration_if_error(output.diagnostics(), error_span);
     let stage = output
         .partial_stage()
         .expect("same-item recovery should keep partial TIR facts");
@@ -102,7 +99,7 @@ fn check_output_keeps_recorded_binding_types_with_diagnostics() {
     let error_span = Span::new(80, 81);
     let files = vec![AstFile::new(vec![
         valid_typed_map("Good", Span::new(40, 41)),
-        bad_module("Bad", error_span),
+        bad_cell("Bad", error_span),
     ])];
     let hir = HirResolver::new(&files)
         .resolve()
@@ -120,7 +117,7 @@ fn check_output_keeps_recorded_binding_types_with_diagnostics() {
     let param_id = param.id;
     let output = TypePhaseChecker::new(std::sync::Arc::new(hir)).check_output();
 
-    assert!(!output.diagnostics().is_empty());
+    assert_elaboration_if_error(output.diagnostics(), error_span);
     let tir = output
         .stage()
         .expect("TIR output should keep partial facts after recoverable errors");
@@ -128,6 +125,13 @@ fn check_output_keeps_recorded_binding_types_with_diagnostics() {
         tir.binding_type_label(BindingRef::Local(param_id))
             .as_deref(),
         Some("nat")
+    );
+}
+
+fn assert_elaboration_if_error(diagnostics: &[Diagnostic], span: Span) {
+    assert_eq!(
+        diagnostics,
+        &[CompileError::lowering_at(TirError::ElaborationIfRequiresBool, span).to_diagnostic()]
     );
 }
 
@@ -153,8 +157,8 @@ fn valid_typed_map(name: &str, expr_span: Span) -> Item {
     )
 }
 
-fn bad_module(name: &str, cond_span: Span) -> Item {
-    Item::Module(
+fn bad_cell(name: &str, cond_span: Span) -> Item {
+    Item::Cell(
         CallableItem::builder(
             name.to_string(),
             Block::new(

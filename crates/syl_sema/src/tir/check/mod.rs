@@ -227,5 +227,5 @@ impl TypePhaseChecker {
     }
 }
 
-#[cfg(any())]
+#[cfg(test)]
 mod tests;

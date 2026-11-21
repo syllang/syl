@@ -66,7 +66,7 @@ impl<T> StageOutput<T> {
 ///
 /// Produced by [`SemanticSession::check`](super::SemanticSession::check). Prefer
 /// this when callers want HIR+TIR in one call and do not need an intermediate
-/// [`HirAnalysis`](super::HirAnalysis) handle.
+/// [`HirAnalysis`] handle.
 ///
 /// # Main usage flow
 ///
