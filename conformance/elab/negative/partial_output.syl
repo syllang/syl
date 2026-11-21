@@ -1,0 +1,3 @@
+cell Bad(y: out UInt<2>) {
+    y[0] := 1
+}

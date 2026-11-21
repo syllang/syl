@@ -1,0 +1,8 @@
+cell Identity<T>(x: in T) -> y: T {
+    y := x
+}
+cell Top<W: nat = 8,>(x: in UInt<W>, y: out UInt<W>) {
+    let first = place Identity<UInt<W>>(x: x)
+    let second = inplace Identity<UInt<W>>(x: first)
+    y := second
+}

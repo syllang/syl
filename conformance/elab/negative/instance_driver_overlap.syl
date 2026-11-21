@@ -1,0 +1,7 @@
+cell Driver(y: out Bit) {
+    y := 1
+}
+cell Bad(y: out Bit) {
+    let first = place Driver(y: y)
+    let second = place Driver(y: y)
+}

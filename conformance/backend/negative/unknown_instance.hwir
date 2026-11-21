@@ -1,0 +1,3 @@
+module Top
+instance Missing child
+end

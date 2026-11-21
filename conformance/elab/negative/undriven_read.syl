@@ -1,0 +1,4 @@
+cell Bad(y: out Bit) {
+    signal tmp: Bit
+    y := tmp
+}

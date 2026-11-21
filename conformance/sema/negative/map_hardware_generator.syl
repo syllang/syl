@@ -1,0 +1,4 @@
+cell Source() -> y: Bit {
+    y := 1
+}
+map broken() -> Bit = Source()

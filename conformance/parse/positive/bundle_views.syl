@@ -1,0 +1,18 @@
+// Packed data and bidirectional interface views with generic payloads.
+@layout(packed)
+bundle Word<W: nat> {
+    data: UInt<W>,
+    last: Bit,
+}
+interface Link<T> {
+    payload: T
+    ready: Bit
+    view source {
+        out payload
+        in ready
+    }
+    view sink {
+        in payload
+        out ready
+    }
+}

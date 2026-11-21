@@ -1,0 +1,4 @@
+module Top
+output 8 y
+drive y missing
+end

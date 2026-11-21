@@ -1,0 +1,16 @@
+interface Link<T> {
+    data: T
+    ready: Bit
+    view sink {
+        in data
+        out ready
+    }
+    view source {
+        out data
+        in ready
+    }
+}
+cell Forward(up: in Link<UInt<8>>.sink, down: out Link<UInt<8>>.source) {
+    down.data := up.data
+    up.ready := down.ready
+}

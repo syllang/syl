@@ -1,0 +1,12 @@
+@layout(packed)
+bundle Word {
+    data: UInt<8>,
+    last: Bit,
+}
+map mark(word: Word) -> Word = Word {
+    data: word.data,
+    last: word.data eq 0,
+}
+cell Mark(x: in Word, y: out Word) {
+    y := mark(x)
+}

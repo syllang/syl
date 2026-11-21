@@ -1,0 +1,8 @@
+cell Counter<D: Domain>(clk: in Clock<D>, rst: in Reset<D>, en: in Bit) -> y: UInt<4> {
+    reg count: UInt<4> reset(rst, 0)
+    next count := select priority {
+        en => count + 1,
+        default => count,
+    }
+    y := count
+}

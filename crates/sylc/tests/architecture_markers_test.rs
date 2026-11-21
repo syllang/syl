@@ -327,6 +327,7 @@ fn internal_test_inventory() -> Vec<String> {
         "crates/sylc/tests/conformance_test.rs",
         "crates/sylc/tests/driver_overlap_test.rs",
         "crates/sylc/tests/interface_regression_test.rs",
+        "crates/sylc/tests/support/conformance_backend_test.rs",
         "crates/sylc/tests/support/mod.rs",
     ]
     .into_iter()

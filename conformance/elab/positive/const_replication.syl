@@ -1,0 +1,12 @@
+fn lanes() -> nat {
+    return 2 + 2
+}
+cell Copy(x: in [4] Bit, y: out [4] Bit) {
+    const LANES: nat = lanes()
+    if LANES != 4 {
+        compile_error("lane count must evaluate to four")
+    }
+    for lane in 0..4 {
+        y[lane] := x[lane]
+    }
+}

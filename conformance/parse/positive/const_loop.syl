@@ -1,0 +1,10 @@
+fn ceil_log2(value: nat) -> nat {
+    var width: nat = 0
+    var limit: nat = 1
+    while limit < value {
+        limit = limit << 1
+        width = width + 1
+    }
+    return width
+}
+const INDEX_W: nat = ceil_log2(17)

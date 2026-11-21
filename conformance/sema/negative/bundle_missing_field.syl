@@ -1,0 +1,5 @@
+bundle Pair {
+    data: UInt<8>,
+    valid: Bit,
+}
+map broken(x: UInt<8>) -> Pair = Pair { data: x }

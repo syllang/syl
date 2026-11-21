@@ -1,0 +1,5 @@
+module Top
+input 1 x
+output 1 x
+drive x missing
+end

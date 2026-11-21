@@ -1,0 +1,4 @@
+module Top
+output 1 y
+call y unknown_function
+end

@@ -1,0 +1,11 @@
+bundle Pair<W: nat> {
+    left: UInt<W>,
+    right: UInt<W>,
+}
+map swap<W: nat>(pair: Pair<W>) -> Pair<W> = Pair<W> {
+    left: pair.right,
+    right: pair.left,
+}
+cell Swap(x: in Pair<8>, y: out Pair<8>) {
+    y := swap<8>(x)
+}
