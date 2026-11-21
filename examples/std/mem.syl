@@ -1,0 +1,33 @@
+// RAM contents and synchronous read outputs are uninitialized. Read only
+// addresses previously written; DEPTH must fit the ADDR_W address space.
+// Single port: en=0 holds rdata and storage; writes also hold rdata.
+cell SinglePortRam<W: nat = 8, DEPTH: nat = 16, ADDR_W: nat = 4, D: Domain>(
+    clk: in Clock<D>, en: in Bit, we: in Bit,
+    addr: in UInt<ADDR_W>, wdata: in UInt<W>,
+) -> rdata: UInt<W> {
+    mem storage: [DEPTH] UInt<W>
+    mem_write(storage, clk, en and we, addr, wdata)
+    mem_read_sync(storage, clk, en and not we, addr, rdata)
+}
+
+// Independent synchronous read and write ports on one clock. A same-address
+// read/write returns the old word in simulation (read before write); physical
+// RAM collision guarantees depend on the synthesis target.
+cell SimpleDualPortRam<W: nat = 8, DEPTH: nat = 16, ADDR_W: nat = 4, D: Domain>(
+    clk: in Clock<D>, we: in Bit, waddr: in UInt<ADDR_W>, wdata: in UInt<W>,
+    re: in Bit, raddr: in UInt<ADDR_W>,
+) -> rdata: UInt<W> {
+    mem storage: [DEPTH] UInt<W>
+    mem_write(storage, clk, we, waddr, wdata)
+    mem_read_sync(storage, clk, re, raddr, rdata)
+}
+
+// Synchronous write, combinational read for distributed RAM and FWFT users.
+cell DistributedRam<W: nat = 8, DEPTH: nat = 16, ADDR_W: nat = 4, D: Domain>(
+    clk: in Clock<D>, we: in Bit, waddr: in UInt<ADDR_W>, wdata: in UInt<W>,
+    raddr: in UInt<ADDR_W>,
+) -> rdata: UInt<W> {
+    mem storage: [DEPTH] UInt<W>
+    mem_write(storage, clk, we, waddr, wdata)
+    rdata := storage[raddr]
+}

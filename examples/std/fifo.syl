@@ -1,0 +1,55 @@
+use std.stream.Stream
+
+// FWFT FIFO: DEPTH = 2^ADDR_W, ADDR_W >= 1, and CNT_W must represent DEPTH.
+// Acceptance uses the pre-edge count: full rejects push even with pop; empty
+// rejects pop even with push. At intermediate occupancy both can succeed.
+// Reset clears pointers/count, suppresses writes, and discards queued data.
+cell SyncFifo<W: nat = 8, DEPTH: nat = 8, ADDR_W: nat = 3, CNT_W: nat = 4, D: Domain>(
+    clk: in Clock<D>, rst: in Reset<D>, push: in Bit, pop: in Bit,
+    wdata: in UInt<W>, rdata: out UInt<W>,
+    full: out Bit, empty: out Bit, count: out UInt<CNT_W>,
+) {
+    mem storage: [DEPTH] UInt<W>
+    reg wptr: UInt<ADDR_W> reset(rst, 0)
+    reg rptr: UInt<ADDR_W> reset(rst, 0)
+    reg used: UInt<CNT_W> reset(rst, 0)
+    signal is_full: Bit := used eq DEPTH
+    signal is_empty: Bit := used eq 0
+    signal write_en: Bit := push and not is_full and not rst
+    signal read_en: Bit := pop and not is_empty and not rst
+    mem_write(storage, clk, write_en, wptr, wdata)
+    next wptr := select priority {
+        write_en => wptr + 1,
+        default => wptr,
+    }
+    next rptr := select priority {
+        read_en => rptr + 1,
+        default => rptr,
+    }
+    next used := select unique {
+        write_en and not read_en => used + 1,
+        read_en and not write_en => used - 1,
+        default => used,
+    }
+    full := is_full
+    empty := is_empty
+    count := used
+    rdata := select priority {
+        is_empty => 0,
+        default => storage[rptr],
+    }
+}
+
+cell StreamSyncFifo<W: nat = 8, DEPTH: nat = 8, ADDR_W: nat = 3, CNT_W: nat = 4, D: Domain>(
+    clk: in Clock<D>, rst: in Reset<D>, up: in Stream<UInt<W>>.sink,
+) -> down: Stream<UInt<W>>.source {
+    signal full: Bit
+    signal empty: Bit
+    signal count: UInt<CNT_W>
+    place SyncFifo<W, DEPTH, ADDR_W, CNT_W, D>(
+        clk: clk, rst: rst, push: up.valid, pop: down.ready, wdata: up.payload,
+        rdata: down.payload, full: full, empty: empty, count: count,
+    )
+    up.ready := not full and not rst
+    down.valid := not empty and not rst
+}

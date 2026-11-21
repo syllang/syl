@@ -1,0 +1,41 @@
+// Single-bit level synchronizers. Inputs must remain stable long enough for two
+// destination edges; simulation checks digital latency, not metastability.
+@cdc_sync(async_in, sync_out, dst_clk)
+cell Sync2FF<D_DST: Domain>(
+    dst_clk: in Clock<D_DST>, dst_rst: in Reset<D_DST>, async_in: in Bit,
+) -> sync_out: Bit {
+    reg stage1: Bit reset(dst_rst, 0)
+    reg stage2: Bit reset(dst_rst, 0)
+    next stage1 := async_in
+    next stage2 := stage1
+    sync_out := stage2
+}
+
+@cdc_sync(async_in, sync_out, dst_clk)
+cell Sync2FFAsyncLow<D_DST: Domain>(
+    dst_clk: in Clock<D_DST>,
+    dst_rst_n: in Reset<D_DST, Async, ActiveLow>, async_in: in Bit,
+) -> sync_out: Bit {
+    reg stage1: Bit reset(dst_rst_n, 0)
+    reg stage2: Bit reset(dst_rst_n, 0)
+    next stage1 := async_in
+    next stage2 := stage1
+    sync_out := stage2
+}
+
+// Toggle encoding preserves isolated source pulses in either clock ratio.
+// Space events by at least three destination edges. Reset both domains together
+// to discard pending events; independent reset can be interpreted as an event.
+cell PulseSynchronizer<D_SRC: Domain, D_DST: Domain>(
+    src_clk: in Clock<D_SRC>, src_rst: in Reset<D_SRC>, src_pulse: in Bit,
+    dst_clk: in Clock<D_DST>, dst_rst: in Reset<D_DST>,
+) -> dst_pulse: Bit {
+    reg toggle: Bit reset(src_rst, 0)
+    next toggle := toggle xor src_pulse
+    let synced = place Sync2FF<D_DST>(
+        dst_clk: dst_clk, dst_rst: dst_rst, async_in: toggle,
+    )
+    reg previous: Bit reset(dst_rst, 0)
+    next previous := synced
+    dst_pulse := synced xor previous
+}
