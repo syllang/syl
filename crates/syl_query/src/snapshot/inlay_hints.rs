@@ -312,10 +312,9 @@ fn type_width(tir: &TirAnalysis, owner: DefId, ty: &MirTypeRef, depth: usize) ->
         (&item.generics, &item.fields)
     } else if let Some(item) = hir.structs().get(&def) {
         (&item.generics, &item.fields)
-    } else if let Some(item) = hir.interfaces().get(&def) {
-        (&item.generics, &item.fields)
     } else {
-        return None;
+        let item = hir.interfaces().get(&def)?;
+        (&item.generics, &item.fields)
     };
     let substitutions: HashMap<_, _> = generics
         .iter()
