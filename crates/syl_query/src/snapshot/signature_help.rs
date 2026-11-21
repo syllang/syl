@@ -93,6 +93,14 @@ fn active_call(tokens: &[Token]) -> Option<(usize, usize)> {
             callee = callee.checked_sub(1)?;
         }
         if matches!(tokens[callee].kind, TokenKind::Ident(_)) {
+            if callee > 0
+                && matches!(
+                    tokens[callee - 1].kind,
+                    TokenKind::KwFn | TokenKind::KwCell | TokenKind::KwMap | TokenKind::KwExtern
+                )
+            {
+                return None;
+            }
             return Some((open, callee));
         }
     }
@@ -282,12 +290,16 @@ fn active_parameter(tokens: &[Token], names: &[&str]) -> Option<usize> {
     let mut depth = 0usize;
     let mut count = 0;
     let mut fragment = 0;
-    for (i, token) in tokens.iter().enumerate() {
-        match token.kind {
-            TokenKind::LParen | TokenKind::LBracket | TokenKind::LBrace | TokenKind::Lt => {
-                depth += 1
+    let mut i = 0;
+    while i < tokens.len() {
+        match tokens[i].kind {
+            TokenKind::Lt => {
+                if let Some(close) = generic_arguments_end(tokens, i) {
+                    i = close;
+                }
             }
-            TokenKind::RParen | TokenKind::RBracket | TokenKind::RBrace | TokenKind::Gt => {
+            TokenKind::LParen | TokenKind::LBracket | TokenKind::LBrace => depth += 1,
+            TokenKind::RParen | TokenKind::RBracket | TokenKind::RBrace => {
                 depth = depth.saturating_sub(1)
             }
             TokenKind::Comma if depth == 0 => {
@@ -296,6 +308,7 @@ fn active_parameter(tokens: &[Token], names: &[&str]) -> Option<usize> {
             }
             _ => {}
         }
+        i += 1;
     }
     if let [
         Token {
@@ -313,4 +326,27 @@ fn active_parameter(tokens: &[Token], names: &[&str]) -> Option<usize> {
         return Some(index);
     }
     Some(count.min(names.len() - 1))
+}
+
+fn generic_arguments_end(tokens: &[Token], open: usize) -> Option<usize> {
+    let mut depth = 0usize;
+    for (i, token) in tokens.iter().enumerate().skip(open) {
+        match token.kind {
+            TokenKind::Lt => depth += 1,
+            TokenKind::Gt => {
+                depth -= 1;
+                if depth == 0 {
+                    // Match the parser's generic-application lookahead: the
+                    // closing angle must introduce a call or aggregate body.
+                    return matches!(
+                        tokens.get(i + 1).map(|t| &t.kind),
+                        Some(TokenKind::LParen | TokenKind::LBrace)
+                    )
+                    .then_some(i);
+                }
+            }
+            _ => {}
+        }
+    }
+    None
 }

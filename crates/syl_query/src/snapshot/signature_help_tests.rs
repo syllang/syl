@@ -73,3 +73,58 @@ fn signature_docs_empty_parameters_and_cell_results() {
     assert_eq!(help.active_parameter, None);
     assert!(help.signatures[0].parameters.is_empty());
 }
+
+#[test]
+fn comparisons_do_not_hide_argument_separators() {
+    for (text, expected) in [
+        (
+            "fn f(a: bool, b: nat) -> nat { b } const X = f(1 < 2, |3);",
+            1,
+        ),
+        ("fn f(a: bool, b: nat) -> nat { b } const X = f(1 < 2, |", 1),
+        (
+            "fn f(a: bool, b: bool, c: nat) -> nat { c } const X = f(1 < 2, 3 > 2, |4);",
+            2,
+        ),
+        (
+            "map g<A, B>(x: nat) -> bool = true fn f(a: bool, b: nat) -> nat { b } const X = f(g<UInt<8>, Bit>(1), |3);",
+            1,
+        ),
+        (
+            "fn g(a: bool, b: nat) -> nat { b } fn f(a: nat, b: nat, c: nat) -> nat { b } const X = f(g(3 > 2, 1), |3, 4);",
+            1,
+        ),
+    ] {
+        let result = help(text);
+        assert_eq!(result.active_parameter, Some(expected), "{text}");
+        assert_eq!(
+            result.signatures[0].active_parameter,
+            Some(expected),
+            "{text}"
+        );
+    }
+}
+
+#[test]
+fn declaration_parameters_are_not_call_sites() {
+    for text in [
+        "fn f(|a: bool, b: nat) -> nat { b } const X = f(1 < 2, 3);",
+        "fn f(a: bool, |b: nat) -> nat { b }",
+        "cell C(|x: in Bit) {}",
+        "cell C<W: nat>(|x: in UInt<W>) {}",
+        "map m(|x: Bit) -> Bit = x",
+        "map m<W: nat>(|x: UInt<W>) -> UInt<W> = x",
+        "extern cell C(|x: in Bit)",
+        "extern cell C<W: nat>(|x: in UInt<W>)",
+    ] {
+        let offset = text.find('|').unwrap();
+        let cleaned = text.replacen('|', "", 1);
+        let (s, uri) = snapshot(&cleaned);
+        assert!(s.diagnostics().is_empty(), "{text}: {:?}", s.diagnostics());
+        assert!(
+            s.signature_help_at(&uri, SourcePosition::new(0, offset))
+                .is_none(),
+            "declaration offered signature help: {text}"
+        );
+    }
+}
