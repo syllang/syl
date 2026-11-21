@@ -27,6 +27,26 @@ impl<'a> SvBackendValidator<'a> {
 
     fn check_item(&self, module: &SvModule, item: &SvItem) -> Result<(), CompileError> {
         match item {
+            SvItem::MemoryDecl { .. } => Ok(()),
+            SvItem::MemoryWrite {
+                clock,
+                enable,
+                addr,
+                data,
+                ..
+            }
+            | SvItem::MemorySyncRead {
+                clock,
+                enable,
+                addr,
+                target: data,
+                ..
+            } => {
+                for expr in [clock, enable, addr, data] {
+                    Self::check_expr(&module.name, expr)?;
+                }
+                Ok(())
+            }
             SvItem::LocalParam { value, .. } => Self::check_expr(&module.name, value),
             SvItem::Source(_) | SvItem::Wire { .. } | SvItem::Reg { .. } => Ok(()),
             SvItem::Assign { lhs, rhs } => {

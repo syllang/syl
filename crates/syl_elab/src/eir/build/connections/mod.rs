@@ -64,6 +64,7 @@ where
         let width = self.width_bound(env.owner, spec.ty);
         ports.push(
             EirPort::new(direction, width, spec.name, env.origin(spec.span))
+                .with_domain(self.port_domain(spec.ty))
                 .with_doc(spec.doc.map(ToOwned::to_owned)),
         );
         env.insert(spec.name, EirExpr::ident(spec.name), spec.ty.clone());
@@ -143,9 +144,10 @@ where
                     EirExpr::ident(&port_name),
                     env_ty.clone(),
                 );
-                env.insert(&port_name, EirExpr::ident(&port_name), env_ty);
+                env.insert(&port_name, EirExpr::ident(&port_name), env_ty.clone());
                 ports.push(
                     EirPort::new(direction, width, port_name, env.origin(spec.span))
+                        .with_domain(self.port_domain(&env_ty))
                         .with_doc(spec.doc.map(ToOwned::to_owned)),
                 );
             }
@@ -257,6 +259,14 @@ where
                     ));
                 }
             };
+            if !item.cdc_crossings.is_empty() {
+                return Err(CompileError::lowering_at(
+                    EirError::InplaceOnCdcSyncCell {
+                        name: callable_name.to_string(),
+                    },
+                    request.span,
+                ));
+            }
             return self.emit_cell_inline(CellInlineRequest {
                 callable_def,
                 inst_name: request.inst_name,

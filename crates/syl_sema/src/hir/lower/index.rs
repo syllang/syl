@@ -151,6 +151,7 @@ impl<'files> HirResolver<'files> {
             HirStmt::Next { value, .. } => {
                 self.index_expr(owner, value);
             }
+            HirStmt::Mem { ty, .. } => self.index_mir_type(owner, ty),
             HirStmt::Reg { ty, reset, .. } => {
                 self.index_optional_type(owner, ty);
                 if let Some(reset) = reset {

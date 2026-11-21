@@ -19,4 +19,6 @@ pub use checker::TypePhaseChecker;
 pub(crate) use design::RemappedTirTables;
 pub use design::TirDesign;
 pub use phase::Phase;
-pub use type_system::{TirConstTerm, TirGenericArg, TirType, TirTypeTable, TypeId};
+pub use type_system::{
+    TirConstTerm, TirGenericArg, TirResetMode, TirResetPolarity, TirType, TirTypeTable, TypeId,
+};

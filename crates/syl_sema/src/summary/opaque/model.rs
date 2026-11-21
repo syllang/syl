@@ -412,6 +412,8 @@ impl TrustBoundary {
 #[builder(pattern = "owned", build_fn(name = "try_build"))]
 #[non_exhaustive]
 pub struct OpaqueItemSummary {
+    #[builder(default)]
+    cdc_crossings: Vec<super::SummaryCdcCrossing>,
     #[builder(setter(into))]
     kind: OpaqueItemKind,
     #[builder(setter(into))]
@@ -435,6 +437,9 @@ pub struct OpaqueItemSummary {
 }
 
 impl OpaqueItemSummary {
+    pub fn cdc_crossings(&self) -> &[super::SummaryCdcCrossing] {
+        &self.cdc_crossings
+    }
     pub fn builder(kind: OpaqueItemKind, callable: impl Into<String>) -> OpaqueItemSummaryBuilder {
         OpaqueItemSummaryBuilder::default()
             .kind(kind)
@@ -485,6 +490,11 @@ impl OpaqueItemSummary {
         let mut backend_constraints = self.backend_constraints.clone();
         backend_constraints.extend(overlay.backend_constraints.clone());
         Self {
+            cdc_crossings: if overlay.cdc_crossings.is_empty() {
+                self.cdc_crossings.clone()
+            } else {
+                overlay.cdc_crossings.clone()
+            },
             kind: overlay.kind,
             callable: self.callable.clone(),
             endpoints: if overlay.endpoints.is_empty() {
@@ -549,6 +559,12 @@ impl OpaqueItemSummary {
 }
 
 impl OpaqueItemSummaryBuilder {
+    pub fn cdc_crossing(mut self, crossing: super::SummaryCdcCrossing) -> Self {
+        self.cdc_crossings
+            .get_or_insert_with(Vec::new)
+            .push(crossing);
+        self
+    }
     pub fn endpoint(mut self, endpoint: SummaryEndpoint) -> Self {
         self.endpoints.get_or_insert_with(Vec::new).push(endpoint);
         self

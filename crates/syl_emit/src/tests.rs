@@ -72,3 +72,107 @@ fn files_offer_canonical_paths_and_unresolved_source_ranges() {
         backend.emit(&design).unwrap()
     );
 }
+
+fn core(item: syl_hw::HwItem) -> syl_hw::ParametricHwItem {
+    syl_hw::ParametricHwItem::core(
+        item,
+        syl_hw::HwOrigin::new(Default::default(), 0, 0, vec![]),
+    )
+}
+
+#[test]
+fn emits_all_reset_mode_and_polarity_combinations_exactly() {
+    use syl_hw::{HwExpr as E, HwItem, HwReset, HwResetMode as M, HwResetPolarity as P};
+    for (mode, polarity, edge, condition) in [
+        (M::Sync, P::ActiveHigh, "clk", "rst"),
+        (M::Sync, P::ActiveLow, "clk", "!rst"),
+        (M::Async, P::ActiveHigh, "clk or posedge rst", "rst"),
+        (M::Async, P::ActiveLow, "clk or negedge rst", "!rst"),
+    ] {
+        let reset = HwReset::new(E::Ident("rst".into()), E::Int(0))
+            .with_mode(mode)
+            .with_polarity(polarity);
+        let design = ParametricHwDesign::new(vec![ParametricHwModule::new(
+            "Top",
+            vec![],
+            vec![
+                HwPort::new(HwDirection::In, "1", "clk"),
+                HwPort::new(HwDirection::In, "1", "rst"),
+            ],
+            vec![
+                core(HwItem::StorageDecl {
+                    width: "1".into(),
+                    name: "q".into(),
+                }),
+                core(HwItem::ClockedStorage {
+                    clock: E::Ident("clk".into()),
+                    target: E::Ident("q".into()),
+                    reset: Some(reset),
+                    next: E::Int(1),
+                }),
+            ],
+        )]);
+        let sv = SystemVerilogBackend::new().emit(&design).unwrap();
+        assert!(sv.contains(&format!("  always @(posedge {edge}) begin\n    if ({condition}) q <= 0;\n    else q <= 1;\n  end\n")), "{sv}");
+    }
+}
+
+#[test]
+fn emits_synthesizable_unpacked_memories_and_enabled_ports() {
+    use syl_hw::{HwExpr as E, HwItem};
+    let id = |s: &str| E::Ident(s.into());
+    let design = ParametricHwDesign::new(vec![ParametricHwModule::new(
+        "Ram",
+        vec![HwParam::new("DEPTH", "16")],
+        vec![
+            HwPort::new(HwDirection::In, "1", "clk"),
+            HwPort::new(HwDirection::In, "1", "en"),
+            HwPort::new(HwDirection::In, "4", "addr"),
+            HwPort::new(HwDirection::In, "8", "data"),
+        ],
+        vec![
+            core(HwItem::MemoryDecl {
+                name: "storage".into(),
+                elem_width: "8".into(),
+                depth: "16".into(),
+            }),
+            core(HwItem::MemoryDecl {
+                name: "param_storage".into(),
+                elem_width: "8".into(),
+                depth: "DEPTH".into(),
+            }),
+            core(HwItem::StorageDecl {
+                name: "rd".into(),
+                width: "8".into(),
+            }),
+            core(HwItem::MemoryWrite {
+                clock: id("clk"),
+                memory: "storage".into(),
+                enable: id("en"),
+                addr: id("addr"),
+                data: id("data"),
+            }),
+            core(HwItem::MemorySyncRead {
+                clock: id("clk"),
+                memory: "storage".into(),
+                enable: id("en"),
+                addr: id("addr"),
+                target: id("rd"),
+            }),
+        ],
+    )]);
+    let sv = SystemVerilogBackend::new().emit(&design).unwrap();
+    assert!(sv.contains("reg [7:0] storage [0:15];"), "{sv}");
+    assert!(
+        sv.contains("reg [7:0] param_storage [0:(DEPTH)-1];"),
+        "{sv}"
+    );
+    assert!(
+        sv.contains("always @(posedge clk) begin\n    if (en) storage[addr] <= data;\n  end"),
+        "{sv}"
+    );
+    assert!(
+        sv.contains("always @(posedge clk) begin\n    if (en) rd <= storage[addr];\n  end"),
+        "{sv}"
+    );
+}

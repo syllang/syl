@@ -424,6 +424,9 @@ impl<'files> HirResolver<'files> {
                 HirStmt::Signal { id, name, span, .. } => {
                     *id = Some(self.register_local(owner, name, HirLocalKind::Signal, *span));
                 }
+                HirStmt::Mem { id, name, span, .. } => {
+                    *id = Some(self.register_local(owner, name, HirLocalKind::Mem, *span));
+                }
                 HirStmt::Reg { id, name, span, .. } => {
                     *id = Some(self.register_local(owner, name, HirLocalKind::Reg, *span));
                 }

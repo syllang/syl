@@ -26,6 +26,7 @@ pub(super) fn collect_source_cell_summary(
     };
 
     OpaqueItemSummary::builder(OpaqueItemKind::SourceCell, &item.name)
+        .cdc_crossings(super::cdc::source_crossings(&item.attrs))
         .endpoints(endpoints.clone())
         .driven_fields(driven_fields)
         .consumed_fields(consumed_fields)
@@ -54,6 +55,7 @@ pub(super) fn collect_extern_summary(
     };
 
     OpaqueItemSummary::builder(OpaqueItemKind::ExternCell, &item.name)
+        .cdc_crossings(super::cdc::source_crossings(&item.attrs))
         .endpoints(endpoints)
         .driven_fields(driven_fields)
         .consumed_fields(consumed_fields)
@@ -158,7 +160,7 @@ fn protocol_preservation(endpoints: &[SummaryEndpoint]) -> SummaryProtocolPreser
 
 fn block_contains_storage(block: &HirBlock) -> bool {
     block.stmts.iter().any(|stmt| match stmt {
-        HirStmt::Reg { .. } => true,
+        HirStmt::Reg { .. } | HirStmt::Mem { .. } => true,
         HirStmt::While { body, .. } | HirStmt::ElabFor { body, .. } => block_contains_storage(body),
         HirStmt::ElabIf {
             then_block,

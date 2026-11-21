@@ -231,7 +231,7 @@ fn domain(tir: &TirAnalysis, fact: HirFactId) -> Option<(String, &'static str)> 
     // The domain fact's type ID can describe the generic's kind (Domain).
     // The clock/reset type retains its actual domain argument's identity.
     let argument = match tir.facts().types().ty(fact) {
-        Some(TirType::Clock { domain } | TirType::Reset { domain }) => domain.as_deref(),
+        Some(TirType::Clock { domain } | TirType::Reset { domain, .. }) => domain.as_deref(),
         _ => None,
     };
     let label = if let Some(TirType::Named { name, .. }) = argument {

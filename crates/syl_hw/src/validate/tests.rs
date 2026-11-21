@@ -210,3 +210,70 @@ fn canonical_paths_and_module_origin_round_trip() {
     assert_eq!(module.canonical_path(), path);
     assert_eq!(module.origin(), Some(&origin()));
 }
+
+#[test]
+fn validates_memory_declarations_ports_and_unknown_operands() {
+    let id = |s: &str| HwExpr::Ident(s.into());
+    let design = ParametricHwDesign::new(vec![module(
+        "Ram",
+        vec![HwPort::new(HwDirection::In, "1", "clk")],
+        vec![
+            item(HwItem::MemoryDecl {
+                name: "storage".into(),
+                elem_width: "8".into(),
+                depth: "16".into(),
+            }),
+            item(HwItem::StorageDecl {
+                width: "8".into(),
+                name: "rd".into(),
+            }),
+            item(HwItem::MemoryWrite {
+                clock: id("clk"),
+                memory: "storage".into(),
+                enable: HwExpr::Int(1),
+                addr: HwExpr::Int(0),
+                data: HwExpr::Int(5),
+            }),
+            item(HwItem::MemorySyncRead {
+                clock: id("clk"),
+                memory: "storage".into(),
+                enable: HwExpr::Int(1),
+                addr: HwExpr::Int(0),
+                target: id("rd"),
+            }),
+        ],
+    )]);
+    HwValidator::new().validate(&design).unwrap();
+    let bad = ParametricHwDesign::new(vec![module(
+        "Bad",
+        vec![],
+        vec![
+            item(HwItem::MemoryDecl {
+                name: "storage".into(),
+                elem_width: "".into(),
+                depth: "".into(),
+            }),
+            item(HwItem::MemoryWrite {
+                clock: id("clk"),
+                memory: "missing".into(),
+                enable: id("en"),
+                addr: id("addr"),
+                data: id("data"),
+            }),
+        ],
+    )]);
+    let report = HwValidator::new().validate(&bad).unwrap_err();
+    assert!(report.diagnostics().iter().any(|d| matches!(
+        d,
+        HwValidationDiagnostic::InvalidWidth {
+            kind: HwBindingKind::Memory,
+            ..
+        }
+    )));
+    for expected in ["missing", "clk", "en", "addr", "data"] {
+        assert!(report.diagnostics().iter().any(|d| matches!(d, HwValidationDiagnostic::UnknownReference { name, .. } if name == expected)));
+    }
+    let reset = crate::HwReset::new(HwExpr::Int(0), HwExpr::Int(0));
+    assert_eq!(reset.mode(), crate::HwResetMode::Sync);
+    assert_eq!(reset.polarity(), crate::HwResetPolarity::ActiveHigh);
+}

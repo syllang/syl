@@ -796,3 +796,5 @@ cell Top(x: in Bit, y: out Bit) {
         1
     );
 }
+
+mod wave3_test;

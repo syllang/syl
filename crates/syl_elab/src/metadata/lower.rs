@@ -107,6 +107,7 @@ impl<'a> HardwareMetadataLowerer<'a> {
 
     fn lower_create_kind(&self, kind: CreateKind) -> HardwareCreateKind {
         match kind {
+            CreateKind::Memory => HardwareCreateKind::Memory,
             CreateKind::Signal => HardwareCreateKind::Signal,
             CreateKind::Storage => HardwareCreateKind::Storage,
         }

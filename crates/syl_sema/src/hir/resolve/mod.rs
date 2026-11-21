@@ -268,7 +268,18 @@ impl<'a> HirNameResolver<'a> {
                 value: None,
                 ..
             }
-            | HirStmt::Reg { id, name, .. } => {
+            | HirStmt::Mem { id, name, .. } => {
+                self.push_local_id(name, *id);
+            }
+            HirStmt::Reg {
+                id, name, reset, ..
+            } => {
+                if let Some(reset) = reset {
+                    if let Some(domain) = &reset.domain {
+                        self.resolve_expr(owner, domain);
+                    }
+                    self.resolve_expr(owner, &reset.value);
+                }
                 self.push_local_id(name, *id);
             }
             HirStmt::Assign { target, value, .. } | HirStmt::Drive { target, value, .. } => {
@@ -576,6 +587,7 @@ enum HirBuiltinIntrinsic {
     Zero,
     Assert,
     Error,
+    Memory,
 }
 
 #[non_exhaustive]
@@ -598,6 +610,7 @@ impl<'a> BuiltinCallCallee<'a> {
             "z" => Some(HirBuiltinIntrinsic::Zero),
             "zero" => Some(HirBuiltinIntrinsic::Zero),
             "assert" => Some(HirBuiltinIntrinsic::Assert),
+            "mem_write" | "mem_read_sync" => Some(HirBuiltinIntrinsic::Memory),
             "error" => Some(HirBuiltinIntrinsic::Error),
             _ => None,
         }

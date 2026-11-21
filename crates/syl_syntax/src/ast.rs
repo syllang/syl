@@ -5,7 +5,9 @@ use syl_span::{SourceId, Span};
 
 // `span` only holds span accessors for AST node types. Keep it separate from
 // the type definitions below to avoid mixing data layout with derived helpers.
+mod reset;
 mod span;
+pub use reset::{ResetMode, ResetPolarity};
 
 /// Top-level parsed source file.
 ///
@@ -267,6 +269,8 @@ pub struct MapItem {
 #[non_exhaustive]
 pub struct CallableItem {
     #[builder(default)]
+    pub attrs: Vec<Attribute>,
+    #[builder(default)]
     pub doc: Option<String>,
     pub name: String,
     #[builder(default)]
@@ -291,6 +295,8 @@ pub struct CallableItem {
 #[builder(pattern = "owned", build_fn(name = "try_build"))]
 #[non_exhaustive]
 pub struct ExternCellItem {
+    #[builder(default)]
+    pub attrs: Vec<Attribute>,
     #[builder(default)]
     pub doc: Option<String>,
     pub name: String,
@@ -521,6 +527,11 @@ pub enum Stmt {
         value: Option<Expr>,
         span: Span,
     },
+    Mem {
+        name: String,
+        ty: TypeExpr,
+        span: Span,
+    },
     Reg {
         name: String,
         ty: Option<TypeExpr>,
@@ -570,6 +581,8 @@ pub enum Stmt {
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct RegReset {
+    pub mode: Option<ResetMode>,
+    pub polarity: Option<ResetPolarity>,
     pub domain: Option<Expr>,
     pub value: Expr,
     pub span: Span,

@@ -52,14 +52,20 @@ impl DriverDrcReport {
 pub(crate) struct DriverDrcChecker<'a> {
     eir: &'a EirDesign,
     facts: &'a DriverFacts,
+    opaque_summaries: &'a syl_sema::OpaqueSummaryTable,
     errors: Vec<CompileError>,
 }
 
 impl<'a> DriverDrcChecker<'a> {
-    pub(crate) fn new(eir: &'a EirDesign, facts: &'a DriverFacts) -> Self {
+    pub(crate) fn new(
+        eir: &'a EirDesign,
+        facts: &'a DriverFacts,
+        opaque_summaries: &'a syl_sema::OpaqueSummaryTable,
+    ) -> Self {
         Self {
             eir,
             facts,
+            opaque_summaries,
             errors: Vec::new(),
         }
     }
@@ -70,6 +76,12 @@ impl<'a> DriverDrcChecker<'a> {
         self.collect_out_completeness();
         self.collect_read_completeness();
         self.collect_signal_activity();
+        self.errors
+            .extend(super::memory::MemoryPortDrcChecker::new(self.eir).collect_errors());
+        self.errors.extend(
+            super::cdc::CdcChecker::new(self.eir, self.facts, self.opaque_summaries)
+                .collect_errors(),
+        );
         if !self.errors.is_empty() {
             return Err(self.errors);
         }

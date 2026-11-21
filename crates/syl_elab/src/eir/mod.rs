@@ -23,11 +23,11 @@ pub(crate) use core::{
 pub(crate) use design::{EirDesign, EirDesignFacts, EirRawDesign};
 pub(crate) use module::{
     EirCellExpansion, EirConnection, EirDirection, EirInstance, EirItem, EirModule, EirParam,
-    EirParamBind, EirPort,
+    EirParamBind, EirPort, EirPortDomain,
 };
 pub(crate) use signal::{
     EirDrive, EirDriveInput, EirDriveKind, EirObject, EirObjectInput, EirObjectKind, EirRead,
-    EirReset, EirSignalActivity,
+    EirReset, EirResetMode, EirResetPolarity, EirSignalActivity,
 };
 
 pub(crate) use assemble::EirDesignComposer;

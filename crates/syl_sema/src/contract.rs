@@ -269,7 +269,7 @@ fn block_has_storage(block: &Block) -> bool {
 
 fn stmt_has_storage(stmt: &Stmt) -> bool {
     match stmt {
-        Stmt::Reg { .. } => true,
+        Stmt::Reg { .. } | Stmt::Mem { .. } => true,
         Stmt::While { body, .. } | Stmt::ElabFor { body, .. } => block_has_storage(body),
         Stmt::ElabIf {
             then_block,

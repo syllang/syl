@@ -13,9 +13,10 @@ pub use model::{
     HirExtensionMethodIndex, HirExternCellItem, HirFieldAccess, HirFieldDecl, HirFnItem, HirImport,
     HirInterfaceItem, HirLocal, HirLocalKind, HirMapItem, HirMatchArm, HirMemberDecl,
     HirMemberKind, HirNamedExpr, HirPackage, HirParamRole, HirPortDecl, HirPortDirection,
-    HirRegReset, HirSelectArm, HirSignatureGenericParam, HirSignatureParam,
-    HirSignatureResultBinding, HirStmt, HirStructItem, HirTypeRef, HirViewDecl, HirViewDirection,
-    HirViewField, MirBinaryOp, MirConstExpr, MirPattern, MirSelectMode, MirTypeRef, MirUnaryOp,
+    HirRegReset, HirResetMode, HirResetPolarity, HirSelectArm, HirSignatureGenericParam,
+    HirSignatureParam, HirSignatureResultBinding, HirStmt, HirStructItem, HirTypeRef, HirViewDecl,
+    HirViewDirection, HirViewField, MirBinaryOp, MirConstExpr, MirPattern, MirSelectMode,
+    MirTypeRef, MirUnaryOp,
 };
 pub use name::HirPath;
 pub use resolution::HirResolution;

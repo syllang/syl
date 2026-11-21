@@ -136,6 +136,7 @@ pub(crate) fn output_from_modules<C: Fn() -> bool + ?Sized>(
     let drc = match DrcPass::run(
         eir.as_ref().expect("eir"),
         driver_facts.as_ref().expect("driver facts"),
+        opaque_summaries,
     ) {
         Ok(stage) => Some(stage),
         Err(errors) => {

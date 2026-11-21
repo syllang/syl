@@ -1,3 +1,6 @@
+#[path = "memory.rs"]
+mod memory;
+
 use super::{
     callable::CallableResolver,
     context::CapabilityContext,
@@ -163,7 +166,7 @@ impl<'a> CapabilityChecker<'a> {
                         )?;
                     }
                 }
-                HirStmt::Reg { id, name, span, .. } => {
+                HirStmt::Mem { id, name, span, .. } | HirStmt::Reg { id, name, span, .. } => {
                     scope.insert(self.local_id(name, *id, *span)?, FieldCaps::read_only());
                 }
                 HirStmt::Let {
@@ -435,6 +438,9 @@ impl<'a> CapabilityChecker<'a> {
         args: &[HirCallArg],
         context: ReadCheckContext<'_>,
     ) -> Result<(), CompileError> {
+        if self.check_memory_args(owner, callee, args, context)? {
+            return Ok(());
+        }
         let resolver = CallableResolver::new(self.ctx);
         let Some(resolved) = resolver.resolve_callee(owner, callee) else {
             for arg in args {

@@ -71,7 +71,7 @@ fn tristate_drivers_with_opposite_enables_do_not_conflict() {
         .collect()
         .expect("facts pass should succeed");
 
-    DriverDrcChecker::new(&design, &facts)
+    DriverDrcChecker::new(&design, &facts, &OpaqueSummaryTable::new())
         .check_collect()
         .expect("opposite tri-state enables must not conflict");
 }
@@ -100,10 +100,11 @@ fn tristate_drivers_with_overlapping_enables_conflict() {
     let facts = crate::driver::DriverFactsCollector::new(&design)
         .collect()
         .expect("facts pass should succeed");
-    let errors = match DriverDrcChecker::new(&design, &facts).check_collect() {
-        Ok(_) => panic!("overlapping tri-state enables must conflict"),
-        Err(errors) => errors,
-    };
+    let errors =
+        match DriverDrcChecker::new(&design, &facts, &OpaqueSummaryTable::new()).check_collect() {
+            Ok(_) => panic!("overlapping tri-state enables must conflict"),
+            Err(errors) => errors,
+        };
 
     assert!(errors.iter().any(|error| matches!(
         error,
@@ -162,10 +163,11 @@ fn duplicate_driver_keeps_expansion_call_stack_in_related_spans() {
         Err(errors) => panic!("facts pass should succeed: {errors:?}"),
     };
 
-    let errors = match DriverDrcChecker::new(&design, &facts).check_collect() {
-        Ok(_) => panic!("duplicate driver must fail DRC"),
-        Err(errors) => errors,
-    };
+    let errors =
+        match DriverDrcChecker::new(&design, &facts, &OpaqueSummaryTable::new()).check_collect() {
+            Ok(_) => panic!("duplicate driver must fail DRC"),
+            Err(errors) => errors,
+        };
     let diagnostic = errors
         .iter()
         .find_map(|error| match error {
@@ -216,10 +218,11 @@ fn continuous_drive_to_storage_is_rejected_defensively() {
     let facts = crate::driver::DriverFactsCollector::new(&design)
         .collect()
         .expect("facts pass should succeed");
-    let errors = match DriverDrcChecker::new(&design, &facts).check_collect() {
-        Ok(_) => panic!("continuous drive to storage must fail DRC"),
-        Err(errors) => errors,
-    };
+    let errors =
+        match DriverDrcChecker::new(&design, &facts, &OpaqueSummaryTable::new()).check_collect() {
+            Ok(_) => panic!("continuous drive to storage must fail DRC"),
+            Err(errors) => errors,
+        };
 
     assert!(errors.iter().any(|error| matches!(
         error,

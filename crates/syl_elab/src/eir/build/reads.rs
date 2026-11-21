@@ -25,8 +25,7 @@ where
         match &expr.node {
             ElabExprNode::Ident(_) | ElabExprNode::Field { .. } | ElabExprNode::Index { .. } => {
                 if self.is_hardware_read_place(expr, env) {
-                    let read = self.elab_expr(expr, env);
-                    reads.entry(read.fact_key()).or_insert(read);
+                    self.collect_eir_value_read_places(&self.elab_expr(expr, env), env, reads);
                 }
                 self.collect_elab_read_children(expr, env, reads);
             }
@@ -56,6 +55,7 @@ where
                 | ElabLocalKind::Result
                 | ElabLocalKind::Let
                 | ElabLocalKind::Signal
+                | ElabLocalKind::Mem
                 | ElabLocalKind::Reg
                 | ElabLocalKind::Instance
         )
@@ -103,11 +103,11 @@ where
             ElabExprNode::Call { callee, args } => {
                 if self.map_callee_from_elab(callee, env).is_some() {
                     let value = self.map_call_expr_from_elab(callee, args, env);
-                    self.collect_eir_value_read_places(&value, reads);
+                    self.collect_eir_value_read_places(&value, env, reads);
                     return;
                 }
                 if let Some(value) = self.extension_map_call_expr(callee, args, env) {
-                    self.collect_eir_value_read_places(&value, reads);
+                    self.collect_eir_value_read_places(&value, env, reads);
                     return;
                 }
                 self.collect_elab_read_places(callee, env, reads);
@@ -168,52 +168,78 @@ where
         }
     }
 
-    #[allow(clippy::only_used_in_recursion)]
-    fn collect_eir_value_read_places(&self, expr: &EirExpr, reads: &mut BTreeMap<String, EirExpr>) {
+    fn collect_eir_value_read_places(
+        &self,
+        expr: &EirExpr,
+        env: &Env,
+        reads: &mut BTreeMap<String, EirExpr>,
+    ) {
         if EirPlace::try_from(expr).is_ok() {
-            reads.entry(expr.fact_key()).or_insert_with(|| expr.clone());
+            let mut root = expr;
+            while let EirExpr::Index { value, .. }
+            | EirExpr::Slice { value, .. }
+            | EirExpr::IndexedPartSelect { value, .. } = root
+            {
+                root = value;
+            }
+            if env.vars.values().any(|v| {
+                &v.code == root
+                    && (v.software_local || self.const_elaborator.kind_for_type(&v.ty).is_some())
+            }) {
+                return;
+            }
+            // Let bindings inline their value. Recognize the expanded memory
+            // root so unpacked reads never use packed-vector bounds checks.
+            let read = if env.vars.values().any(|v| v.is_memory && &v.code == root) {
+                root
+            } else {
+                expr
+            };
+            reads.entry(read.fact_key()).or_insert_with(|| read.clone());
+            self.collect_eir_projection_indices(expr, env, reads);
+            return;
         }
         match expr {
-            EirExpr::Unary { expr, .. } => self.collect_eir_value_read_places(expr, reads),
+            EirExpr::Unary { expr, .. } => self.collect_eir_value_read_places(expr, env, reads),
             EirExpr::Binary { left, right, .. } => {
-                self.collect_eir_value_read_places(left, reads);
-                self.collect_eir_value_read_places(right, reads);
+                self.collect_eir_value_read_places(left, env, reads);
+                self.collect_eir_value_read_places(right, env, reads);
             }
             EirExpr::Mux {
                 cond,
                 then_value,
                 else_value,
             } => {
-                self.collect_eir_value_read_places(cond, reads);
-                self.collect_eir_value_read_places(then_value, reads);
-                self.collect_eir_value_read_places(else_value, reads);
+                self.collect_eir_value_read_places(cond, env, reads);
+                self.collect_eir_value_read_places(then_value, env, reads);
+                self.collect_eir_value_read_places(else_value, env, reads);
             }
             EirExpr::Select { arms, default, .. } => {
                 for arm in arms {
-                    self.collect_eir_value_read_places(arm.guard(), reads);
-                    self.collect_eir_value_read_places(arm.value(), reads);
+                    self.collect_eir_value_read_places(arm.guard(), env, reads);
+                    self.collect_eir_value_read_places(arm.value(), env, reads);
                 }
-                self.collect_eir_value_read_places(default, reads);
+                self.collect_eir_value_read_places(default, env, reads);
             }
             EirExpr::Concat(parts) => {
                 for part in parts {
-                    self.collect_eir_value_read_places(part, reads);
+                    self.collect_eir_value_read_places(part, env, reads);
                 }
             }
             EirExpr::Slice { value, .. } => {
-                self.collect_eir_value_read_places(value, reads);
+                self.collect_eir_value_read_places(value, env, reads);
             }
             EirExpr::IndexedPartSelect { value, index, .. } => {
-                self.collect_eir_value_read_places(value, reads);
-                self.collect_eir_value_read_places(index, reads);
+                self.collect_eir_value_read_places(value, env, reads);
+                self.collect_eir_value_read_places(index, env, reads);
             }
             EirExpr::Index { value, index } => {
-                self.collect_eir_value_read_places(value, reads);
-                self.collect_eir_value_read_places(index, reads);
+                self.collect_eir_value_read_places(value, env, reads);
+                self.collect_eir_value_read_places(index, env, reads);
             }
             EirExpr::Call { args, .. } => {
                 for arg in args {
-                    self.collect_eir_value_read_places(arg, reads);
+                    self.collect_eir_value_read_places(arg, env, reads);
                 }
             }
             EirExpr::Ident(_)
@@ -223,6 +249,22 @@ where
             | EirExpr::HighZ
             | EirExpr::Zero
             | EirExpr::Unsupported { .. } => {}
+        }
+    }
+
+    fn collect_eir_projection_indices(
+        &self,
+        expr: &EirExpr,
+        env: &Env,
+        reads: &mut BTreeMap<String, EirExpr>,
+    ) {
+        match expr {
+            EirExpr::Index { value, index } | EirExpr::IndexedPartSelect { value, index, .. } => {
+                self.collect_eir_projection_indices(value, env, reads);
+                self.collect_eir_value_read_places(index, env, reads);
+            }
+            EirExpr::Slice { value, .. } => self.collect_eir_projection_indices(value, env, reads),
+            _ => {}
         }
     }
 }

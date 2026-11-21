@@ -407,19 +407,62 @@ pub enum HwItem {
     },
     /// An error marker — elaborating this item produces a compile error.
     InitialError { message: HwExpr },
+    /// An unpacked memory array with a packed element width.
+    MemoryDecl {
+        name: String,
+        elem_width: String,
+        depth: String,
+    },
+    /// An enabled synchronous memory write port.
+    MemoryWrite {
+        clock: HwExpr,
+        memory: String,
+        enable: HwExpr,
+        addr: HwExpr,
+        data: HwExpr,
+    },
+    /// An enabled synchronous memory read port targeting declared storage.
+    MemorySyncRead {
+        clock: HwExpr,
+        memory: String,
+        enable: HwExpr,
+        addr: HwExpr,
+        target: HwExpr,
+    },
 }
 
 /// Reset specification for a clocked storage element.
 #[derive(Debug)]
 #[non_exhaustive]
 pub struct HwReset {
+    mode: crate::HwResetMode,
+    polarity: crate::HwResetPolarity,
     condition: HwExpr,
     value: HwExpr,
 }
 
 impl HwReset {
+    pub fn with_mode(mut self, mode: crate::HwResetMode) -> Self {
+        self.mode = mode;
+        self
+    }
+    pub fn with_polarity(mut self, polarity: crate::HwResetPolarity) -> Self {
+        self.polarity = polarity;
+        self
+    }
+    pub fn mode(&self) -> crate::HwResetMode {
+        self.mode
+    }
+    pub fn polarity(&self) -> crate::HwResetPolarity {
+        self.polarity
+    }
     pub fn new(condition: HwExpr, value: HwExpr) -> Self {
-        Self { condition, value }
+        Self {
+            condition,
+            value,
+            mode: Default::default(),
+            polarity: Default::default(),
+        }
     }
 
     pub fn condition(&self) -> &HwExpr {

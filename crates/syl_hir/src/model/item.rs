@@ -566,6 +566,7 @@ impl From<&MapItem> for HirMapItem {
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct HirCallableItem {
+    pub attrs: Vec<HirAttribute>,
     pub doc: Option<String>,
     pub name: String,
     pub generics: Vec<HirSignatureGenericParam>,
@@ -579,6 +580,7 @@ pub struct HirCallableItem {
 impl From<&syl_syntax::CallableItem> for HirCallableItem {
     fn from(item: &syl_syntax::CallableItem) -> Self {
         Self {
+            attrs: item.attrs.iter().map(HirAttribute::from).collect(),
             doc: item.doc.clone(),
             name: item.name.clone(),
             generics: item
@@ -599,6 +601,7 @@ impl From<&syl_syntax::CallableItem> for HirCallableItem {
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct HirExternCellItem {
+    pub attrs: Vec<HirAttribute>,
     pub doc: Option<String>,
     pub name: String,
     pub generics: Vec<HirSignatureGenericParam>,
@@ -611,6 +614,7 @@ pub struct HirExternCellItem {
 impl From<&ExternCellItem> for HirExternCellItem {
     fn from(item: &ExternCellItem) -> Self {
         Self {
+            attrs: item.attrs.iter().map(HirAttribute::from).collect(),
             doc: item.doc.clone(),
             name: item.name.clone(),
             generics: item

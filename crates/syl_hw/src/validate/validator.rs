@@ -129,6 +129,16 @@ impl<'a> Validator<'a> {
                 self.check_width(module.name(), HwBindingKind::Storage, name, width);
                 scope.declare_visible(module.name(), HwBindingKind::Storage, name, self);
             }
+            HwItem::MemoryDecl {
+                name,
+                elem_width,
+                depth,
+            } => {
+                self.check_identifier(Some(module.name()), HwBindingKind::Memory, name);
+                self.check_width(module.name(), HwBindingKind::Memory, name, elem_width);
+                self.check_width(module.name(), HwBindingKind::Memory, name, depth);
+                scope.declare_visible(module.name(), HwBindingKind::Memory, name, self);
+            }
             HwItem::Instance(instance) => {
                 self.check_identifier(
                     Some(module.name()),
@@ -149,7 +159,9 @@ impl<'a> Validator<'a> {
             HwItem::ContinuousDrive { .. }
             | HwItem::ClockedStorage { .. }
             | HwItem::ClockedAssert { .. }
-            | HwItem::InitialError { .. } => {}
+            | HwItem::InitialError { .. }
+            | HwItem::MemoryWrite { .. }
+            | HwItem::MemorySyncRead { .. } => {}
         }
     }
 
@@ -203,7 +215,31 @@ impl<'a> Validator<'a> {
     ) {
         match item {
             HwItem::StaticParam { value, .. } => self.validate_expr(module, value, scope),
-            HwItem::SignalDecl { .. } | HwItem::StorageDecl { .. } => {}
+            HwItem::SignalDecl { .. } | HwItem::StorageDecl { .. } | HwItem::MemoryDecl { .. } => {}
+            HwItem::MemoryWrite {
+                clock,
+                memory,
+                enable,
+                addr,
+                data,
+            }
+            | HwItem::MemorySyncRead {
+                clock,
+                memory,
+                enable,
+                addr,
+                target: data,
+            } => {
+                if !scope.is_visible(memory) {
+                    self.push(HwValidationDiagnostic::UnknownReference {
+                        module: module.name().into(),
+                        name: memory.clone(),
+                    });
+                }
+                for expr in [clock, enable, addr, data] {
+                    self.validate_expr(module, expr, scope);
+                }
+            }
             HwItem::ContinuousDrive { lhs, rhs } => {
                 self.validate_expr(module, lhs, scope);
                 self.validate_expr(module, rhs, scope);

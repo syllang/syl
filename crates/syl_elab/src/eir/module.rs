@@ -4,6 +4,7 @@ use super::{EirBound, EirExpr, EirOrigin, EirPlace, EirReset, EirSignalActivity}
 #[derive(Clone, Debug)]
 #[non_exhaustive]
 pub(crate) struct EirModule {
+    cdc_crossings: Vec<syl_sema::SummaryCdcCrossing>,
     canonical_path: Vec<String>,
     origin: Option<EirOrigin>,
     doc: Option<String>,
@@ -15,6 +16,16 @@ pub(crate) struct EirModule {
 }
 
 impl EirModule {
+    pub(crate) fn with_cdc_crossings(
+        mut self,
+        crossings: Vec<syl_sema::SummaryCdcCrossing>,
+    ) -> Self {
+        self.cdc_crossings = crossings;
+        self
+    }
+    pub(crate) fn cdc_crossings(&self) -> &[syl_sema::SummaryCdcCrossing] {
+        &self.cdc_crossings
+    }
     pub(crate) fn new(
         name: impl Into<String>,
         params: Vec<EirParam>,
@@ -22,6 +33,7 @@ impl EirModule {
         items: Vec<EirItem>,
     ) -> Self {
         Self {
+            cdc_crossings: Vec::new(),
             canonical_path: Vec::new(),
             origin: None,
             doc: None,
@@ -44,6 +56,7 @@ impl EirModule {
         ports: Vec<EirPort>,
     ) -> Self {
         Self {
+            cdc_crossings: Vec::new(),
             canonical_path: Vec::new(),
             origin: None,
             doc: None,
@@ -138,6 +151,7 @@ impl EirParam {
 #[derive(Clone, Debug)]
 #[non_exhaustive]
 pub(crate) struct EirPort {
+    domain: EirPortDomain,
     doc: Option<String>,
     direction: EirDirection,
     width: EirBound,
@@ -145,7 +159,21 @@ pub(crate) struct EirPort {
     origin: EirOrigin,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[non_exhaustive]
+pub(crate) enum EirPortDomain {
+    Data,
+    Clock { domain: Option<String> },
+    Reset { domain: Option<String> },
+}
 impl EirPort {
+    pub(crate) fn with_domain(mut self, domain: EirPortDomain) -> Self {
+        self.domain = domain;
+        self
+    }
+    pub(crate) fn domain(&self) -> &EirPortDomain {
+        &self.domain
+    }
     pub(crate) fn new(
         direction: EirDirection,
         width: impl Into<EirBound>,
@@ -153,6 +181,7 @@ impl EirPort {
         origin: EirOrigin,
     ) -> Self {
         Self {
+            domain: EirPortDomain::Data,
             doc: None,
             direction,
             width: width.into(),
@@ -258,6 +287,30 @@ pub(crate) enum EirItem {
     },
     InitialError {
         message: EirExpr,
+        origin: EirOrigin,
+    },
+    MemoryDecl {
+        name: String,
+        elem_width: EirBound,
+        depth: EirBound,
+        origin: EirOrigin,
+    },
+    MemoryWrite {
+        clock: EirExpr,
+        memory: String,
+        enable: EirExpr,
+        addr: EirExpr,
+        data: EirExpr,
+        reads: Vec<EirExpr>,
+        origin: EirOrigin,
+    },
+    MemorySyncRead {
+        clock: EirExpr,
+        memory: String,
+        enable: EirExpr,
+        addr: EirExpr,
+        target: EirPlace,
+        reads: Vec<EirExpr>,
         origin: EirOrigin,
     },
 }

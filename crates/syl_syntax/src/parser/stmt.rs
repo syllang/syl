@@ -68,6 +68,20 @@ impl Parser {
                 .parse_signal_stmt()
                 .map(|stmt| BlockEntry::Stmt(Box::new(stmt)));
         }
+        if matches!(self.peek_kind(), Some(TokenKind::Ident(s)) if s == "mem")
+            && matches!(
+                self.tokens.get(self.pos + 1).map(|t| &t.kind),
+                Some(TokenKind::Ident(_))
+            )
+            && matches!(
+                self.tokens.get(self.pos + 2).map(|t| &t.kind),
+                Some(TokenKind::Colon)
+            )
+        {
+            return self
+                .parse_mem_stmt()
+                .map(|stmt| BlockEntry::Stmt(Box::new(stmt)));
+        }
         if self.check(&TokenKind::KwReg) {
             return self
                 .parse_reg_stmt()
@@ -256,6 +270,32 @@ impl Parser {
         })
     }
 
+    fn parse_mem_stmt(&mut self) -> Result<Stmt, Vec<Diagnostic>> {
+        let start = self.bump().unwrap().span;
+        let name = self.expect_ident()?;
+        self.expect(TokenKind::Colon)?;
+        let ty = self.parse_type_expr()?;
+        if self.check(&TokenKind::Eq) || self.check(&TokenKind::ColonEq) {
+            let span = self.bump().unwrap().span;
+            self.error(
+                span,
+                "`mem` declarations cannot have an initializer; use `mem_write`",
+            );
+            let _ = self.parse_expr(0)?;
+            return Err(std::mem::take(&mut self.diagnostics));
+        }
+        let end = self
+            .consume(&TokenKind::Semi)
+            .map(|t| t.span)
+            .unwrap_or(ty.span());
+        self.shadow_visible_mutable_local(&name);
+        Ok(Stmt::Mem {
+            name,
+            ty,
+            span: start.join(end),
+        })
+    }
+
     pub(super) fn parse_reg_stmt(&mut self) -> Result<Stmt, Vec<Diagnostic>> {
         let start = self.expect(TokenKind::KwReg)?.span;
         let name = self.expect_ident()?;
@@ -297,8 +337,39 @@ impl Parser {
         let domain = Some(self.parse_expr(0)?);
         self.expect(TokenKind::Comma)?;
         let value = self.parse_expr(0)?;
+        let mut mode = None;
+        let mut polarity = None;
+        while self.consume(&TokenKind::Comma).is_some() {
+            let qualifier = self.expect_ident()?;
+            let valid = match qualifier.as_str() {
+                "sync" | "async" if mode.is_none() => {
+                    mode = Some(if qualifier == "sync" {
+                        crate::ResetMode::Sync
+                    } else {
+                        crate::ResetMode::Async
+                    });
+                    true
+                }
+                "active_high" | "active_low" if polarity.is_none() => {
+                    polarity = Some(if qualifier == "active_high" {
+                        crate::ResetPolarity::ActiveHigh
+                    } else {
+                        crate::ResetPolarity::ActiveLow
+                    });
+                    true
+                }
+                _ => false,
+            };
+            if !valid {
+                self.error(self.prev_span(), "unknown or duplicate reset qualifier");
+                return Err(std::mem::take(&mut self.diagnostics));
+            }
+        }
         let end = self.expect(TokenKind::RParen)?.span;
-        Ok(RegReset::new(domain, value, start.join(end)))
+        let mut reset = RegReset::new(domain, value, start.join(end));
+        reset.mode = mode;
+        reset.polarity = polarity;
+        Ok(reset)
     }
 
     pub(super) fn parse_next_stmt(&mut self) -> Result<Stmt, Vec<Diagnostic>> {

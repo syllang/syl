@@ -84,6 +84,7 @@ impl<'a> DriverFactsCollector<'a> {
     fn collect_creates(&mut self) {
         for object in self.eir.objects() {
             let kind = match object.kind() {
+                EirObjectKind::Memory => CreateKind::Memory,
                 EirObjectKind::Signal => CreateKind::Signal,
                 EirObjectKind::Storage => CreateKind::Storage,
             };

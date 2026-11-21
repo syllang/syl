@@ -1,7 +1,9 @@
 mod body;
+mod cdc_attr;
 mod cycles;
 mod expr;
 mod fn_body;
+mod memory;
 
 use super::consts::TirConstEnv;
 use super::enum_layout;
@@ -117,6 +119,12 @@ impl TypePhaseChecker {
         let owner = self.current_owner()?;
         self.check_generics(owner, &item.generics, errors)?;
         self.check_params(owner, &item.params, errors)?;
+        self.check_cdc_attrs(
+            owner,
+            &item.attrs,
+            (&item.ports, item.result.as_ref()),
+            errors,
+        );
         if let Some(result) = &item.result {
             self.check_result(owner, result, errors)?;
         }
@@ -133,6 +141,12 @@ impl TypePhaseChecker {
     ) -> Result<(), CompileError> {
         self.check_generics(owner, &item.generics, errors)?;
         self.check_params(owner, &item.params, errors)?;
+        self.check_cdc_attrs(
+            owner,
+            &item.attrs,
+            (&item.ports, item.result.as_ref()),
+            errors,
+        );
         if let Some(result) = &item.result {
             self.check_result(owner, result, errors)?;
         }

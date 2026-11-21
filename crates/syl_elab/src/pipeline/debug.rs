@@ -177,6 +177,17 @@ fn dump_module(module: &EirModule, lines: &mut Vec<String>) {
 fn dump_item(item: &EirItem, indent: usize, lines: &mut Vec<String>) {
     let pad = " ".repeat(indent);
     match item {
+        EirItem::MemoryDecl { name, origin, .. } => {
+            lines.push(format!("{pad}memory {name} {}", origin_text(origin)))
+        }
+        EirItem::MemoryWrite { memory, origin, .. } => lines.push(format!(
+            "{pad}memory_write {memory} {}",
+            origin_text(origin)
+        )),
+        EirItem::MemorySyncRead { memory, origin, .. } => lines.push(format!(
+            "{pad}memory_read_sync {memory} {}",
+            origin_text(origin)
+        )),
         EirItem::Signal { name, origin, .. } => {
             lines.push(format!("{pad}signal {name} origin={}", origin_text(origin)));
         }
@@ -316,6 +327,7 @@ fn guard_frame_text(frame: &EirGuardFrame) -> String {
 
 fn object_kind_name(kind: EirObjectKind) -> &'static str {
     match kind {
+        EirObjectKind::Memory => "memory",
         EirObjectKind::Signal => "signal",
         EirObjectKind::Storage => "storage",
     }
@@ -337,6 +349,7 @@ fn eir_drive_kind_name(kind: EirDriveKind) -> &'static str {
 
 fn create_kind_name(kind: CreateKind) -> &'static str {
     match kind {
+        CreateKind::Memory => "memory",
         CreateKind::Signal => "signal",
         CreateKind::Storage => "storage",
     }

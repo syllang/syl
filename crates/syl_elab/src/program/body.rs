@@ -62,6 +62,11 @@ pub(crate) enum ElabStmt {
         value: Option<ElabExpr>,
         span: Span,
     },
+    Mem {
+        name: String,
+        ty: MirTypeRef,
+        span: Span,
+    },
     Reg {
         name: String,
         ty: Option<MirTypeRef>,
@@ -158,6 +163,11 @@ impl From<&HirStmt> for ElabStmt {
                 value: value.as_ref().map(ElabExpr::from),
                 span: *span,
             },
+            HirStmt::Mem { name, ty, span, .. } => Self::Mem {
+                name: name.clone(),
+                ty: ty.clone(),
+                span: *span,
+            },
             HirStmt::Reg {
                 name,
                 ty,
@@ -218,6 +228,8 @@ impl From<&HirStmt> for ElabStmt {
 #[derive(Clone)]
 #[non_exhaustive]
 pub(crate) struct ElabRegReset {
+    pub(crate) mode: Option<syl_hir::HirResetMode>,
+    pub(crate) polarity: Option<syl_hir::HirResetPolarity>,
     pub(crate) domain: Option<ElabExpr>,
     pub(crate) value: ElabExpr,
     pub(crate) span: Span,
@@ -226,6 +238,8 @@ pub(crate) struct ElabRegReset {
 impl From<&HirRegReset> for ElabRegReset {
     fn from(value: &HirRegReset) -> Self {
         Self {
+            mode: value.mode,
+            polarity: value.polarity,
             domain: value.domain.as_ref().map(ElabExpr::from),
             value: ElabExpr::from(&value.value),
             span: value.span,

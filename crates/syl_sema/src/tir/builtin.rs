@@ -11,6 +11,8 @@ pub enum BuiltinIntrinsic {
     Zero,
     Assert,
     Error,
+    MemWrite,
+    MemReadSync,
 }
 
 #[non_exhaustive]
@@ -50,6 +52,8 @@ impl<'a> BuiltinResolver<'a> {
             "z" => Some(BuiltinIntrinsic::HighZ),
             "zero" => Some(BuiltinIntrinsic::Zero),
             "assert" => Some(BuiltinIntrinsic::Assert),
+            "mem_write" => Some(BuiltinIntrinsic::MemWrite),
+            "mem_read_sync" => Some(BuiltinIntrinsic::MemReadSync),
             "error" => Some(BuiltinIntrinsic::Error),
             _ => None,
         }

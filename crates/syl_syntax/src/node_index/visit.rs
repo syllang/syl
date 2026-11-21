@@ -73,6 +73,10 @@ impl<'a> AstNodeIndexBuilder<'a> {
                     self.visit_expr(value, id);
                 }
             }
+            Stmt::Mem { name, ty, span } => {
+                let id = self.push_name(super::AstNodeKind::MemStmt, *span, Some(parent), name);
+                self.visit_type_expr(ty, id);
+            }
             Stmt::Reg {
                 name,
                 ty,

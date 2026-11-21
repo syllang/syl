@@ -2,6 +2,8 @@ mod ids;
 pub use ids::ObjectId;
 
 mod design;
+mod reset;
+pub use reset::{HwResetMode, HwResetPolarity};
 mod expr;
 mod parametric;
 mod place;

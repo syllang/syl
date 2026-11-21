@@ -69,6 +69,20 @@ impl EirFactCollector {
     fn collect_items(&mut self, items: &[EirItem]) -> Result<(), CompileError> {
         for item in items {
             match item {
+                EirItem::MemoryDecl {
+                    name,
+                    elem_width,
+                    origin,
+                    ..
+                } => self.objects.push(EirObject::new(super::EirObjectInput {
+                    module: self.module.clone(),
+                    name: name.clone(),
+                    width: elem_width.clone(),
+                    kind: EirObjectKind::Memory,
+                    activity: EirSignalActivity::Required,
+                    origin: origin.clone(),
+                })),
+                EirItem::MemoryWrite { reads, origin, .. } => self.record_reads(reads, origin)?,
                 EirItem::StaticParam { .. } => {}
                 EirItem::Signal {
                     activity,
@@ -115,6 +129,12 @@ impl EirFactCollector {
                     self.record_reads(reads, origin)?;
                 }
                 EirItem::ClockedStorage {
+                    target,
+                    reads,
+                    origin,
+                    ..
+                }
+                | EirItem::MemorySyncRead {
                     target,
                     reads,
                     origin,

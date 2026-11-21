@@ -162,6 +162,7 @@ where
         let params = self.generic_params(&env, &item.generics);
         let items = self.emit_body(&item.body, &mut env)?;
         Ok(EirModule::new(&item.name, params, ports, items)
+            .with_cdc_crossings(item.cdc_crossings.clone())
             .with_doc(item.doc.clone())
             .with_canonical_path(self.canonical_path(owner, &item.name))
             .with_origin(Some(env.origin(item.span))))
@@ -207,6 +208,7 @@ where
         }
         let params = self.generic_params(&env, &item.generics);
         Ok(EirModule::new_extern(&item.name, params, ports)
+            .with_cdc_crossings(item.cdc_crossings.clone())
             .with_doc(item.doc.clone())
             .with_canonical_path(self.canonical_path(owner, &item.name))
             .with_origin(Some(env.origin(item.span))))

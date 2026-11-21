@@ -251,6 +251,7 @@ impl TypePhaseChecker {
             }
             HirStmt::Signal { span, .. }
             | HirStmt::Reg { span, .. }
+            | HirStmt::Mem { span, .. }
             | HirStmt::Drive { span, .. }
             | HirStmt::Next { span, .. } => {
                 errors.push(CompileError::lowering_at(

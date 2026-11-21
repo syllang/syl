@@ -1,9 +1,11 @@
 mod assertions;
 mod builtin_stmt;
 pub(crate) mod for_emit;
+mod memory;
 mod next;
 pub(crate) mod place_emit;
 pub(crate) mod request;
+mod reset;
 mod software_locals;
 
 pub(crate) use request::{
@@ -14,7 +16,7 @@ pub(crate) use request::{
 use crate::{
     CompileError, EirError,
     const_eval::ConstValue,
-    eir::{EirExpr, EirItem, EirPlace, EirReset, EirSignalActivity},
+    eir::{EirExpr, EirItem, EirPlace, EirSignalActivity},
     mir::MirTypeRef,
     program::{ElabBlock, ElabExpr, ElabExprNode, ElabStmt},
 };
@@ -115,6 +117,9 @@ where
                     },
                     env,
                 )?),
+                ElabStmt::Mem { name, ty, span } => {
+                    items.extend(self.emit_mem(name, ty, *span, env)?)
+                }
                 ElabStmt::Reg {
                     name,
                     ty,
@@ -318,29 +323,8 @@ where
             .next_expr(request.name, request.body, env)?
             .unwrap_or_else(|| EirExpr::ident(&physical_name));
         let mut reads = self.next_reads(request.name, request.body, env)?;
-        let clock = request
-            .reset
-            .and_then(|reset| reset.domain.as_ref())
-            .and_then(|expr| env.clock_for_elab_reset_expr(expr, self))
-            .or_else(|| env.single_by_type("Clock", self))
-            .ok_or_else(|| {
-                CompileError::lowering_at(EirError::RegisterRequiresClock, request.span)
-            })?;
-        let reset = if let Some(reset) = request.reset {
-            let reset_expr = reset
-                .domain
-                .as_ref()
-                .map(|expr| self.elab_expr(expr, env))
-                .or_else(|| env.single_by_type("Reset", self))
-                .ok_or_else(|| {
-                    CompileError::lowering_at(EirError::RegisterRequiresReset, reset.span)
-                })?;
-            let reset_value = self.elab_expr(&reset.value, env);
-            reads.extend(self.elab_read_places(&reset.value, env));
-            Some(EirReset::new(reset_expr, reset_value))
-        } else {
-            None
-        };
+        let (clock, reset) =
+            self.register_clock_reset(request.reset, request.span, env, &mut reads)?;
         Ok(vec![
             EirItem::Storage {
                 width,
@@ -539,6 +523,9 @@ where
         compile_error_as_sv: bool,
         allow_stmt_builtins: bool,
     ) -> Result<Vec<EirItem>, CompileError> {
+        if let Some(items) = self.try_emit_memory_stmt(expr, env)? {
+            return Ok(items);
+        }
         if let Some(items) = self.try_emit_assert_stmt(expr, env, allow_stmt_builtins)? {
             return Ok(items);
         }
@@ -631,7 +618,7 @@ where
         }])
     }
 
-    fn place_expr(&self, expr: &ElabExpr, env: &Env) -> Result<EirPlace, CompileError> {
+    pub(super) fn place_expr(&self, expr: &ElabExpr, env: &Env) -> Result<EirPlace, CompileError> {
         let lowered = self.elab_expr(expr, env);
         EirPlace::try_from(&lowered).map_err(|_| {
             CompileError::lowering_at(EirError::UnsupportedHardwareValueExpression, expr.span())
