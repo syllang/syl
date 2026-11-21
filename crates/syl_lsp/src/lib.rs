@@ -148,7 +148,6 @@ impl LanguageServer for SylLanguageServer {
 
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
         let uri = params.text_document.uri;
-        let generation = self.next_diagnostics_generation();
         let version = ClientDocumentVersion::new(params.text_document.version).into_project();
         let edits =
             sync::to_text_document_edits(&mapping::LspMapper::new(), params.content_changes);
@@ -158,13 +157,17 @@ impl LanguageServer for SylLanguageServer {
             &edits,
             version,
         );
+        // A stale notification must leave the current diagnostic tasks intact.
+        if matches!(&result, Err(ProjectError::StaleDocumentVersion { .. })) {
+            return;
+        }
+        let generation = self.next_diagnostics_generation();
         if result.is_ok() {
             self.drc_scheduler.inputs_changed();
         }
         drop(host);
         match result {
             Ok(_) => {}
-            Err(ProjectError::StaleDocumentVersion { .. }) => return,
             Err(error) => {
                 self.publish_project_error(uri, error, generation).await;
                 return;

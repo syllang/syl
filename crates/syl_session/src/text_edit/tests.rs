@@ -61,6 +61,48 @@ fn line_end_clamping_preserves_crlf_and_empty_lines() {
 }
 
 #[test]
+fn reversed_raw_ranges_are_rejected_before_clamping_and_leave_the_batch_unchanged() {
+    let uri = DocumentUri::new("untitled:syl/reversed");
+    for (text, reversed) in [
+        ("abc", edit(100, 0, 99, 0, "!")),
+        ("abc", edit(0, 100, 0, 99, "!")),
+        ("", edit(100, 0, 99, 0, "!")),
+        ("abc\r\nx", edit(0, 100, 0, 99, "!")),
+        ("a💡", edit(0, 2, 0, 1, "!")),
+    ] {
+        let mut host = AnalysisHost::new();
+        host.open_document(uri.clone(), "untouched".into(), DocumentVersion::new(7));
+        let revision = host.database().revision();
+        let result = host.apply_document_changes_at_version(
+            &uri,
+            &[TextDocumentEdit::full(text), reversed],
+            DocumentVersion::new(8),
+        );
+        assert!(
+            matches!(result, Err(ProjectError::InvalidTextEdit { .. })),
+            "{result:?}"
+        );
+        let overlay = host.overlay(&uri).unwrap();
+        assert_eq!(overlay.text(), "untouched");
+        assert_eq!(overlay.version(), DocumentVersion::new(7));
+        assert_eq!(host.database().revision(), revision);
+    }
+}
+
+#[test]
+fn forward_out_of_bounds_ranges_still_clamp_to_line_and_document_ends() {
+    let uri = DocumentUri::new("untitled:syl/clamped");
+    for (text, forward, expected) in [
+        ("abc", edit(99, 0, 100, 0, "!"), "abc!"),
+        ("abc", edit(0, 99, 0, 100, "!"), "abc!"),
+        ("abc\r\nx", edit(0, 99, 0, 100, "!"), "abc!\r\nx"),
+        ("", edit(99, 0, 100, 0, "!"), "!"),
+    ] {
+        assert_eq!(apply(&uri, text, &[forward]).unwrap(), expected);
+    }
+}
+
+#[test]
 fn invalid_batch_and_stale_versions_leave_buffer_version_and_revision_unchanged() {
     let uri = DocumentUri::new("untitled:syl/atomic");
     let mut host = AnalysisHost::new();

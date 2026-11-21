@@ -60,14 +60,14 @@ pub(crate) fn apply(
     let mut buffer = current.to_owned();
     for edit in edits {
         if let Some(range) = edit.range() {
-            let start = offset(&buffer, range.start);
-            let end = offset(&buffer, range.end);
-            if start > end {
+            if (range.start.line, range.start.character) > (range.end.line, range.end.character) {
                 return Err(ProjectError::InvalidTextEdit {
                     uri: uri.to_string(),
                     message: "edit start position exceeds end position".into(),
                 });
             }
+            let start = offset(&buffer, range.start);
+            let end = offset(&buffer, range.end);
             buffer.replace_range(start..end, edit.text());
         } else {
             buffer.clone_from(&edit.text);
