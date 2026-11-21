@@ -26,3 +26,5 @@ verilator --lint-only --sv "$sv_tmp/minimal_features.sv"
 for top in CombAlu32 CounterPair BufferedWordPipe LaneArray; do
     verilator --lint-only --sv --top-module "$top" "$sv_tmp/mvp.sv"
 done
+
+"$workspace/scripts/check_std_sim.sh"

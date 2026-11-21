@@ -1,0 +1,42 @@
+map first_request(req: UInt<4>) -> UInt<4> =
+    select priority {
+        (req and 1) eq 1 => 1,
+        (req and 2) eq 2 => 2,
+        (req and 4) eq 4 => 4,
+        default => req and 8,
+    }
+
+cell FixedPriorityArbiter4(req: in UInt<4>) -> grant: UInt<4> {
+    grant := first_request(req)
+}
+
+cell RoundRobinArbiter4<D: Domain>(
+    clk: in Clock<D>, rst: in Reset<D>, req: in UInt<4>,
+    grant: out UInt<4>, grant_valid: out Bit, grant_idx: out UInt<2>,
+) {
+    reg ptr: UInt<2> reset(rst, 0)
+    signal eligible: UInt<4> := select priority {
+        ptr eq 1 => req and 14,
+        ptr eq 2 => req and 12,
+        ptr eq 3 => req and 8,
+        default => req,
+    }
+    signal candidates: UInt<4> := select priority {
+        eligible eq 0 => req,
+        default => eligible,
+    }
+    signal winner: UInt<4> := first_request(candidates)
+    signal idx: UInt<2> := select priority {
+        winner eq 8 => 3,
+        winner eq 4 => 2,
+        winner eq 2 => 1,
+        default => 0,
+    }
+    grant := winner
+    grant_idx := idx
+    grant_valid := not (req eq 0)
+    next ptr := select priority {
+        req eq 0 => ptr,
+        default => idx + 1,
+    }
+}

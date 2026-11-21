@@ -41,10 +41,13 @@ fn architecture_std_sources_enter_ordinary_session_pipeline() {
         .map(|package| package.name())
         .collect::<Vec<_>>();
     for expected in [
+        "std.arbiter",
         "std.assert",
         "std.bundle",
         "std.logic",
         "std.pipeline",
+        "std.pulse",
+        "std.skid",
         "std.stage",
         "std.stream",
         "std.vendor",
