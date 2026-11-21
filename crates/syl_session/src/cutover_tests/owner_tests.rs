@@ -467,3 +467,101 @@ fn import_cycle_adds_no_duplicate_declaration() {
         "import cycle must not duplicate a const: {codes:?}"
     );
 }
+
+#[test]
+fn unused_invalid_import_and_use_only_file_report_unknown_import() {
+    let fixture = PairFixture::new(
+        "fn helper() -> nat { return 1 }\n",
+        "use lib.missing\ncell Top(y: out Bit) { y := 1 }\n",
+    );
+    let mut host = fixture.host();
+    let snapshot = host.snapshot().expect("unused invalid import snapshot");
+    let app_uri = uri_for_module(&snapshot, "app");
+    let token = CancellationToken::new();
+    let codes = stage_codes(&snapshot, &app_uri, &token);
+    assert!(
+        codes.iter().any(|code| code == "E_MIDDLE_UNKNOWN_IMPORT"),
+        "unused broken import must report E_MIDDLE_UNKNOWN_IMPORT: {codes:?}"
+    );
+    assert!(
+        snapshot
+            .semantic_diagnostics()
+            .iter()
+            .any(|diagnostic| diagnostic.code.as_deref() == Some("E_MIDDLE_UNKNOWN_IMPORT")),
+        "workspace semantic diagnostics must include unused broken import"
+    );
+
+    let root = TempTree::new();
+    fs::write(root.path.join("b.syl"), "fn helper() -> nat { return 1 }\n").unwrap();
+    fs::write(root.path.join("a.syl"), "use b.missing\n").unwrap();
+    let mut use_only_host =
+        AnalysisHost::with_config(ProjectConfig::new().with_workspace_root(root.path.clone()));
+    use_only_host.set_roots(vec![root.path.join("a.syl")]);
+    let use_only = use_only_host.snapshot().expect("use-only invalid snapshot");
+    let a_uri = uri_for_module(&use_only, "a");
+    let use_only_codes = stage_codes(&use_only, &a_uri, &token);
+    assert!(
+        use_only_codes
+            .iter()
+            .any(|code| code == "E_MIDDLE_UNKNOWN_IMPORT"),
+        "use-only file with broken import must report E_MIDDLE_UNKNOWN_IMPORT: {use_only_codes:?}"
+    );
+    assert!(
+        use_only
+            .hir_diagnostics_with_token(&token)
+            .expect("use-only hir diagnostics")
+            .iter()
+            .any(|diagnostic| diagnostic.code.as_deref() == Some("E_MIDDLE_UNKNOWN_IMPORT")),
+        "workspace HIR diagnostics must include use-only file unknown import"
+    );
+
+    fs::write(root.path.join("a.syl"), "use b.helper\n").unwrap();
+    let use_only_valid = use_only_host.snapshot().expect("use-only valid snapshot");
+    let a_uri = uri_for_module(&use_only_valid, "a");
+    assert!(
+        stage_codes(&use_only_valid, &a_uri, &token).is_empty(),
+        "valid use-only file must have no diagnostics"
+    );
+    let definition = use_only_valid
+        .hir_analysis()
+        .definition_at(span_covering(&use_only_valid, &a_uri, "use b.helper"))
+        .expect("use-only valid import must stay in HirDesign::imports()");
+    assert_eq!(definition.name(), "helper");
+}
+
+#[test]
+fn valid_unused_import_is_retained_without_breaking_incremental_reuse() {
+    let fixture = PairFixture::new(
+        "fn helper() -> nat { return 1 }\nfn unused() -> nat { return 0 }\n",
+        "use lib.helper\ncell Top(y: out Bit) { y := 1 }\n",
+    );
+    let mut host = fixture.host();
+    let older = host.snapshot().expect("initial unused import snapshot");
+    let app_uri = uri_for_module(&older, "app");
+    let token = CancellationToken::new();
+    let hir = older
+        .hir_analysis_for_uri_with_token(&app_uri, &token)
+        .expect("app hir")
+        .expect("app hir result");
+    let definition = hir
+        .definition_at(span_covering(&older, &app_uri, "use lib.helper"))
+        .expect("valid unused import must stay in HirDesign::imports()");
+    assert_eq!(definition.name(), "helper");
+    assert!(
+        stage_codes(&older, &app_uri, &token).is_empty(),
+        "valid unused import must produce no diagnostics"
+    );
+    read_owner_through_navigation(&older, "app");
+    let owners = older.execution_count("owner_tir(");
+
+    fixture.write_lib("fn helper() -> nat { return 2 }\nfn unused() -> nat { return 0 }\n");
+    let body_edited = host.snapshot().expect("body edit snapshot");
+    read_owner_through_navigation(&body_edited, "app");
+    assert_eq!(body_edited.execution_count("owner_tir("), owners);
+
+    fixture
+        .write_lib("fn helper() -> nat { return 2 }\nfn unused(x: nat) -> nat { return 0 }\n");
+    let unused_sig_edited = host.snapshot().expect("unused signature edit snapshot");
+    read_owner_through_navigation(&unused_sig_edited, "app");
+    assert_eq!(unused_sig_edited.execution_count("owner_tir("), owners);
+}

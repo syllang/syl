@@ -115,8 +115,8 @@ pub(super) fn demanded_files(
     owner_item: &Item,
 ) -> Vec<(Vec<String>, AstFile)> {
     let mut resolver = DemandResolver::new(db, revision);
-    resolver.seed(owner_file, owner);
-    resolver.resolve();
+    resolver.seed(owner_file, owner, owner_item);
+    resolver.resolve(!matches!(owner_item, Item::Use(_)));
     resolver.assemble_files(owner, owner_item)
 }
 
@@ -133,11 +133,11 @@ pub(super) fn elab_companions<'db>(
     owner_item: &Item,
 ) -> Vec<SymbolId<'db>> {
     let mut resolver = DemandResolver::new(db, revision);
-    resolver.seed(owner_file, owner);
+    resolver.seed(owner_file, owner, owner_item);
     resolver
         .inplace
         .extend(super::refs::inplace_callees(owner_item));
-    resolver.resolve();
+    resolver.resolve(true);
     resolver.expand_companion_bodies(owner);
     resolver.companions(owner)
 }
@@ -172,8 +172,25 @@ impl<'db> DemandResolver<'db> {
         }
     }
 
-    fn seed(&mut self, owner_file: SourceFileInput, owner: SymbolId) {
+    fn seed(&mut self, owner_file: SourceFileInput, owner: SymbolId, owner_item: &Item) {
         self.owner_module = owner.module(self.db).clone();
+        if matches!(owner_item, Item::Use(_)) {
+            self.walk.modules.push(self.owner_module.clone());
+            let contract = declaration_contract(self.db, self.revision, owner);
+            if let Some(path) = contract.use_path.as_ref()
+                && let Some(target) = import_module(path)
+                && let Some(leaf) = path.last()
+                && let Some(target_file) = file_for_module(self.db, self.revision, &target)
+            {
+                let has_def = named_hits(self.db, target_file, leaf)
+                    .iter()
+                    .any(|hit| !matches!(hit.key.kind, SymbolKind::Use | SymbolKind::Error));
+                if has_def {
+                    self.demand(&target, leaf);
+                }
+            }
+            return;
+        }
         self.demand(&self.owner_module.clone(), owner.name(self.db));
         let text = super::owner_item_text(self.db, owner_file, owner);
         for name in identifiers(text) {
@@ -181,10 +198,13 @@ impl<'db> DemandResolver<'db> {
         }
     }
 
-    fn resolve(&mut self) {
+    fn resolve(&mut self, demand_owner_uses: bool) {
         loop {
             while let Some((module, name)) = self.walk.queue.pop() {
                 self.expand_demand(&module, &name);
+            }
+            if !demand_owner_uses {
+                break;
             }
             let before = self.walk.seen.len();
             self.demand_owner_uses();
@@ -381,14 +401,13 @@ impl<'db> DemandResolver<'db> {
             }
             hits.sort_by_key(|hit| hit.index);
             hits.dedup_by_key(|hit| hit.index);
-            if hits.is_empty() {
-                continue;
-            }
             let mut items = Vec::new();
+            let mut included_owner = false;
             for hit in hits {
                 let symbol = intern_symbol(self.db, &hit.key);
                 if module == owner_module && same_symbol(self.db, owner, &hit.key) {
                     items.push(owner_item.clone());
+                    included_owner = true;
                 } else {
                     items.push(
                         super::symbol_signature(self.db, self.revision, file, symbol)
@@ -396,6 +415,12 @@ impl<'db> DemandResolver<'db> {
                             .clone(),
                     );
                 }
+            }
+            if module == owner_module && !included_owner {
+                items.insert(0, owner_item.clone());
+            }
+            if items.is_empty() {
+                continue;
             }
             let source_id = SourceId::new(*file.source_id(self.db) as usize);
             let doc = super::file_module_doc(self.db, file).clone();
@@ -465,7 +490,7 @@ pub(super) fn symbols_in_files<'db>(
     for file in files {
         let index = super::file_item_index(db, *file);
         for key in &index.keys {
-            if matches!(key.kind, SymbolKind::Use | SymbolKind::Error) {
+            if matches!(key.kind, SymbolKind::Error) {
                 continue;
             }
             symbols.push(intern_symbol(db, key));
