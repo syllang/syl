@@ -572,6 +572,7 @@ fn signature_names_leaf(signature: Option<&str>, path: &[String]) -> bool {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 enum HirBuiltinIntrinsic {
+    Clog2,
     Zero,
     Assert,
     Error,
@@ -593,6 +594,7 @@ impl<'a> BuiltinCallCallee<'a> {
             return None;
         };
         match name.as_str() {
+            "clog2" => Some(HirBuiltinIntrinsic::Clog2),
             "z" => Some(HirBuiltinIntrinsic::Zero),
             "zero" => Some(HirBuiltinIntrinsic::Zero),
             "assert" => Some(HirBuiltinIntrinsic::Assert),

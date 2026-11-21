@@ -112,7 +112,12 @@ impl<'checker> TirConstTermResolver<'checker> {
         if let Some(name) = expr.ident() {
             return TirConstTerm::Named {
                 name: name.to_string(),
-                resolution: self.resolve_owner_generic_or_param(name),
+                resolution: self.resolve_owner_generic_or_param(name).or_else(|| {
+                    self.checker
+                        .hir
+                        .resolve_def_id(self.owner, name)
+                        .map(TirConstResolution::Def)
+                }),
             };
         }
         TirConstTerm::Expr {

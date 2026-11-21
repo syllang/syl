@@ -62,6 +62,7 @@ impl TypePhaseChecker {
                     Self::record_recoverable(errors, self.check_match_pattern(&arm.pattern));
                     self.check_map_expr(&arm.value, errors)?;
                 }
+                self.check_branch_types(arms.iter().map(|arm| &arm.value), errors);
                 Ok(())
             }
             HirExprNode::Select { arms, .. } => {
@@ -70,6 +71,7 @@ impl TypePhaseChecker {
                     self.check_map_expr(&arm.pattern, errors)?;
                     self.check_map_expr(&arm.value, errors)?;
                 }
+                self.check_branch_types(arms.iter().map(|arm| &arm.value), errors);
                 Ok(())
             }
             HirExprNode::Ident(_) | HirExprNode::Int(_) | HirExprNode::Str(_) => Ok(()),
@@ -150,6 +152,7 @@ impl TypePhaseChecker {
                     Self::record_recoverable(errors, self.check_match_pattern(&arm.pattern));
                     self.check_hardware_value_expr(&arm.value, errors)?;
                 }
+                self.check_branch_types(arms.iter().map(|arm| &arm.value), errors);
                 Ok(())
             }
             HirExprNode::Select { arms, .. } => {
@@ -160,6 +163,7 @@ impl TypePhaseChecker {
                     }
                     self.check_hardware_value_expr(&arm.value, errors)?;
                 }
+                self.check_branch_types(arms.iter().map(|arm| &arm.value), errors);
                 Ok(())
             }
             _ => {
