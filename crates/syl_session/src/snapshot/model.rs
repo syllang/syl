@@ -433,18 +433,24 @@ impl AnalysisSnapshot {
         if self.package_semantics.len() <= 1 {
             return self.with_db(|db, revision| workspace_diagnostics_query(db, revision).to_vec());
         }
-        self.package_semantics
+        let mut diagnostics = Vec::new();
+        for (name, local, closure) in self
+            .package_semantics
             .shards()
             .map(Self::shard_inputs)
             .collect::<Vec<_>>()
-            .into_iter()
-            .flat_map(|(name, local, closure)| {
-                self.with_db(|db, revision| {
-                    let unit = make_unit(db, &name, local, closure);
-                    package_diagnostics_query(db, revision, unit).to_vec()
-                })
-            })
-            .collect()
+        {
+            let shard_diagnostics = self.with_db(|db, revision| {
+                let unit = make_unit(db, &name, local, closure);
+                package_diagnostics_query(db, revision, unit).to_vec()
+            });
+            for diagnostic in shard_diagnostics {
+                if !diagnostics.contains(&diagnostic) {
+                    diagnostics.push(diagnostic);
+                }
+            }
+        }
+        diagnostics
     }
 
     pub fn hir_diagnostics_with_token(

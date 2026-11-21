@@ -6,9 +6,9 @@ The session evidence is `language_recursion_returns_deterministic_diagnostics` a
 
 The stage order in this document is the display order of the cycle report in `report` (`crates/syl_session/src/cutover_tests/cycle_tests.rs`). That report asks parse, HIR, TIR, and semantic separately and prints those sections in that order. Inside one section the messages stay in the order that call returns them. A section with one diagnostic has no second message to sort.
 
-That display order is not a merged production diagnostic list. `semantic_diagnostics` returns the first non-empty stage among HIR, TIR, and elaboration (`diagnostics_from` in `crates/syl_session/src/query/lower.rs`). It does not concatenate those stages, and it does not include parse diagnostics. When more than one package shard is present, the semantic section is the concatenation of those per-shard results, so one import error can appear once per shard. The IDE grouped diagnostic API keeps parse, HIR, and TIR in separate stage groups and leaves the elaboration group empty. It does not build one combined list.
+That display order is not a merged production diagnostic list. `semantic_diagnostics` returns the first non-empty stage among HIR, TIR, and elaboration (`diagnostics_from` in `crates/syl_session/src/query/lower.rs`). It does not concatenate those stages, and it does not include parse diagnostics. When more than one package shard is present, the semantic section merges those per-shard results deduplicated in first-seen order. The IDE grouped diagnostic API keeps parse, HIR, and TIR in separate stage groups and leaves the elaboration group empty. It does not build one combined list.
 
-The missing-import fixture shows the report: HIR reports `E_MIDDLE_UNKNOWN_IMPORT` and then `E_MIDDLE_UNRESOLVED_NAME`; TIR reports the unresolved name; each semantic shard repeats that HIR pair and does not append the TIR diagnostic again.
+The missing-import fixture shows the report: HIR reports `E_MIDDLE_UNKNOWN_IMPORT` and then `E_MIDDLE_UNRESOLVED_NAME`; TIR reports the unresolved name; the semantic section keeps that HIR pair once in first-seen order and does not append the TIR diagnostic again.
 
 ## Import and name graph
 
@@ -17,7 +17,7 @@ Syl has no visibility modifier. A name is visible when it is declared in the mod
 | case | allowed | result | owner |
 | --- | --- | --- | --- |
 | mutual `use` of names that exist | yes | no diagnostic; no hardware module when the files contain no cell | `syl_sema` import resolution, reported by `syl_session` |
-| `use` of a name the other module does not declare, then a use of that name | no | HIR `E_MIDDLE_UNKNOWN_IMPORT` on the `use` span, then HIR and TIR `E_MIDDLE_UNRESOLVED_NAME` on the use. Semantic repeats that pair once per package shard. No HWIR module | `syl_sema` name resolution |
+| `use` of a name the other module does not declare, then a use of that name | no | HIR `E_MIDDLE_UNKNOWN_IMPORT` on the `use` span, then HIR and TIR `E_MIDDLE_UNRESOLVED_NAME` on the use. Semantic reports that HIR pair once (deduplicated across package shards in first-seen order). No HWIR module | `syl_sema` name resolution |
 | const names that import each other and a port width reads one of them | the import is allowed; the value cycle is not a number | no diagnostic code. The port width is `unsupported(const cycle)`. One HWIR module | EIR const inlining in `syl_elab` |
 
 The unknown-import fixture is `use b.missing` at `0:0..13` and `y := missing` at `0:42..49`. The mutual import of existing functions is the `import cycle` case and stays empty.

@@ -210,8 +210,6 @@ hir: E_MIDDLE_UNRESOLVED_NAME unresolved name missing @0:42..49
 tir: E_MIDDLE_UNRESOLVED_NAME unresolved name missing @0:42..49
 semantic: E_MIDDLE_UNKNOWN_IMPORT unknown import b.missing at 0..13 @0:0..13
 semantic: E_MIDDLE_UNRESOLVED_NAME unresolved name missing @0:42..49
-semantic: E_MIDDLE_UNKNOWN_IMPORT unknown import b.missing at 0..13 @0:0..13
-semantic: E_MIDDLE_UNRESOLVED_NAME unresolved name missing @0:42..49
 hwir_modules=0
 ---
 cross-module const name cycle
