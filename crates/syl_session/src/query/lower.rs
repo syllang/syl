@@ -39,7 +39,7 @@ pub(super) fn analysis_for_symbols<'db>(
     revision: RevisionInput,
     symbols: &[SymbolId<'db>],
 ) -> Arc<HirAnalysisOutput> {
-    let extra = duplicate_module_diagnostics(db, revision, symbols);
+    let extra = duplicate_module_diagnostics(db, revision);
     if let [symbol] = symbols {
         let hir = Arc::clone(super::owner_hir(db, revision, *symbol));
         if extra.is_empty() {
@@ -611,11 +611,7 @@ fn files_for_module(db: &dyn SylDb, revision: RevisionInput, module: &str) -> Ve
     files
 }
 
-fn duplicate_module_diagnostics(
-    db: &dyn SylDb,
-    revision: RevisionInput,
-    symbols: &[SymbolId],
-) -> Vec<Diagnostic> {
+fn duplicate_module_diagnostics(db: &dyn SylDb, revision: RevisionInput) -> Vec<Diagnostic> {
     let files = revision.files(db);
     // The normal single-owner path preserves its Arc and allocates no diagnostic state.
     if !files.iter().enumerate().any(|(i, file)| {
@@ -625,10 +621,8 @@ fn duplicate_module_diagnostics(
     }) {
         return Vec::new();
     }
-    let scoped = symbols
-        .iter()
-        .map(|symbol| symbol.module(db).as_str())
-        .collect::<BTreeSet<_>>();
+    // File identity is a revision-wide invariant, including modules with no
+    // declarations. Every workspace/unit assembly must carry these diagnostics.
     let mut grouped: BTreeMap<&[String], Vec<SourceFileInput>> = BTreeMap::new();
     for file in files {
         grouped.entry(file.module_path(db)).or_default().push(*file);
@@ -636,9 +630,6 @@ fn duplicate_module_diagnostics(
     let mut diagnostics = Vec::new();
     for (path, mut files) in grouped {
         let module = path.join(".");
-        if !scoped.is_empty() && !scoped.contains(module.as_str()) {
-            continue;
-        }
         files.sort_by(|a, b| a.uri(db).cmp(b.uri(db)));
         files.dedup_by(|a, b| a.uri(db) == b.uri(db));
         let Some((first, rest)) = files.split_first() else {

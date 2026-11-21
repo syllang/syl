@@ -430,3 +430,75 @@ fn cross_module_fn_and_map_signatures_keep_stub_bodies_valid() {
     );
     assert_eq!(snapshot.hwir().unwrap().modules().len(), 1);
 }
+
+#[test]
+fn duplicate_empty_modules_block_unrelated_hardware_in_every_query_path() {
+    let root = TempTree::new();
+    let a = root.path.join("a");
+    let b = root.path.join("b");
+    std::fs::create_dir_all(&a).unwrap();
+    std::fs::create_dir_all(&b).unwrap();
+    let first = a.join("util.syl");
+    let second = b.join("util.syl");
+    let top = a.join("top.syl");
+    std::fs::write(&first, "").unwrap();
+    std::fs::write(&second, "").unwrap();
+    std::fs::write(&top, "cell Top(y: out Bit) { y := 1 }\n").unwrap();
+    let mut host = AnalysisHost::with_config(
+        ProjectConfig::new()
+            .with_workspace_root(a)
+            .with_workspace_root(b),
+    );
+    host.set_roots(vec![first.clone(), top.clone()]);
+    assert_eq!(host.snapshot().unwrap().hwir().unwrap().modules().len(), 1);
+    let mut previous = None;
+    for roots in [
+        vec![first.clone(), second.clone(), top.clone()],
+        vec![top.clone(), second.clone(), first.clone()],
+    ] {
+        host.set_roots(roots);
+        let snapshot = host.snapshot().unwrap();
+        // Ask for hardware first: diagnostics must guard the workspace query itself.
+        assert!(snapshot.hwir().is_none());
+        let token = CancellationToken::new();
+        let hir = snapshot.hir_diagnostics_with_token(&token).unwrap();
+        let duplicates = hir
+            .iter()
+            .filter(|d| d.code.as_deref() == Some("E_DUPLICATE_MODULE_FILE"))
+            .collect::<Vec<_>>();
+        assert_eq!(duplicates.len(), 1, "{hir:?}");
+        let diagnostic = duplicates[0];
+        assert_eq!(diagnostic.related.len(), 1);
+        assert_eq!(diagnostic.source.as_deref(), Some("syl_session"));
+        let message = diagnostic.message.clone();
+        if let Some(previous) = &previous {
+            assert_eq!(previous, &message);
+        }
+        previous = Some(message);
+        let semantic = snapshot.semantic_diagnostics();
+        assert_eq!(
+            semantic
+                .iter()
+                .filter(|d| d.code.as_deref() == Some("E_DUPLICATE_MODULE_FILE"))
+                .count(),
+            1
+        );
+        for file in snapshot.files() {
+            let stages = snapshot
+                .package_stage_diagnostics_with_token(file.uri(), &token)
+                .unwrap()
+                .unwrap();
+            assert!(
+                stages
+                    .hir()
+                    .iter()
+                    .any(|d| d.code.as_deref() == Some("E_DUPLICATE_MODULE_FILE")),
+                "{}: {stages:?}",
+                file.uri().as_str()
+            );
+            assert!(stages.elaboration().is_empty());
+        }
+        assert!(snapshot.hwir().is_none());
+        assert_eq!(semantic, snapshot.semantic_diagnostics());
+    }
+}
