@@ -59,9 +59,7 @@ fn retain<T>(
     value: Arc<T>,
     slot: impl FnOnce(&mut Retained) -> &mut Vec<Arc<T>>,
 ) -> &T {
-    let mut guard = kept
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    let mut guard = kept.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
     let entries = slot(&mut guard);
     if let Some(existing) = entries.iter().find(|entry| Arc::ptr_eq(entry, &value)) {
         let ptr = Arc::as_ptr(existing);

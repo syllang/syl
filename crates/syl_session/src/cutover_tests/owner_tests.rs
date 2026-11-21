@@ -559,8 +559,7 @@ fn valid_unused_import_is_retained_without_breaking_incremental_reuse() {
     read_owner_through_navigation(&body_edited, "app");
     assert_eq!(body_edited.execution_count("owner_tir("), owners);
 
-    fixture
-        .write_lib("fn helper() -> nat { return 2 }\nfn unused(x: nat) -> nat { return 0 }\n");
+    fixture.write_lib("fn helper() -> nat { return 2 }\nfn unused(x: nat) -> nat { return 0 }\n");
     let unused_sig_edited = host.snapshot().expect("unused signature edit snapshot");
     read_owner_through_navigation(&unused_sig_edited, "app");
     assert_eq!(unused_sig_edited.execution_count("owner_tir("), owners);

@@ -260,7 +260,10 @@ fn cancelled_hover_after_hir_cache_does_not_start_tir() {
     let cancelled_hir = snapshot
         .hir_analysis_for_uri_with_token(&uri, &token)
         .expect_err("a pre-cancelled token must consistently return Cancelled");
-    assert!(matches!(cancelled_hir, syl_session::ProjectError::Cancelled));
+    assert!(matches!(
+        cancelled_hir,
+        syl_session::ProjectError::Cancelled
+    ));
     snapshot
         .hir_analysis_for_uri_with_token(&uri, &CancellationToken::new())
         .expect("a cached HIR hit still answers with a fresh token")

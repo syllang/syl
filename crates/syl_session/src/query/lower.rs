@@ -322,7 +322,8 @@ impl<'db> DemandResolver<'db> {
                     if !reads_body {
                         continue;
                     }
-                    if !self.scanned.insert(hit.key.clone()) || same_symbol(self.db, owner, &hit.key)
+                    if !self.scanned.insert(hit.key.clone())
+                        || same_symbol(self.db, owner, &hit.key)
                     {
                         continue;
                     }

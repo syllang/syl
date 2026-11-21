@@ -41,13 +41,13 @@ fn inplace_stmt(stmt: &Stmt, names: &mut BTreeSet<String>) {
                 inplace_expr(value, names);
             }
         }
-        Stmt::Reg { reset, .. } => {
-            if let Some(reset) = reset {
-                if let Some(domain) = &reset.domain {
-                    inplace_expr(domain, names);
-                }
-                inplace_expr(&reset.value, names);
+        Stmt::Reg {
+            reset: Some(reset), ..
+        } => {
+            if let Some(domain) = &reset.domain {
+                inplace_expr(domain, names);
             }
+            inplace_expr(&reset.value, names);
         }
         Stmt::Assign { target, value, .. } | Stmt::Drive { target, value, .. } => {
             inplace_expr(target, names);
@@ -152,9 +152,9 @@ fn inplace_expr(expr: &Expr, names: &mut BTreeSet<String>) {
 fn callee_root(expr: &Expr) -> Option<&str> {
     match expr {
         Expr::Ident(name, _) => Some(name),
-        Expr::Field { base, .. }
-        | Expr::GenericApp { callee: base, .. }
-        | Expr::Group(base, _) => callee_root(base),
+        Expr::Field { base, .. } | Expr::GenericApp { callee: base, .. } | Expr::Group(base, _) => {
+            callee_root(base)
+        }
         _ => None,
     }
 }
