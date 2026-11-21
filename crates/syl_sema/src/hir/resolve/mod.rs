@@ -268,8 +268,18 @@ impl<'a> HirNameResolver<'a> {
                 value: None,
                 ..
             }
-            | HirStmt::Mem { id, name, .. }
-            | HirStmt::Reg { id, name, .. } => {
+            | HirStmt::Mem { id, name, .. } => {
+                self.push_local_id(name, *id);
+            }
+            HirStmt::Reg {
+                id, name, reset, ..
+            } => {
+                if let Some(reset) = reset {
+                    if let Some(domain) = &reset.domain {
+                        self.resolve_expr(owner, domain);
+                    }
+                    self.resolve_expr(owner, &reset.value);
+                }
                 self.push_local_id(name, *id);
             }
             HirStmt::Assign { target, value, .. } | HirStmt::Drive { target, value, .. } => {
