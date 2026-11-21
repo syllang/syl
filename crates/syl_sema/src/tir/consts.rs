@@ -10,7 +10,7 @@ use crate::{
     },
 };
 use std::collections::{BTreeMap, BTreeSet};
-use syl_hir::{DefId, LocalId};
+use syl_hir::{DefId, ExprId, LocalId};
 use syl_syntax::BinaryOp;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -26,6 +26,7 @@ pub(super) struct TirConstEnv {
     owner: DefId,
     bindings: BTreeMap<LocalId, TirConstBinding>,
     visited: BTreeSet<DefId>,
+    active_exprs: BTreeSet<(DefId, ExprId)>,
 }
 
 #[derive(Clone)]
@@ -90,6 +91,7 @@ impl TirConstEnv {
             owner,
             bindings: BTreeMap::new(),
             visited: BTreeSet::new(),
+            active_exprs: BTreeSet::new(),
         };
         for generic in generics {
             if let Some(kind) = generic
@@ -223,6 +225,14 @@ impl TirConstEnv {
         expr: &HirBodyExpr,
         checker: &TypePhaseChecker,
     ) -> Option<TirConstKind> {
+        self.evaluating_expr(expr, |env| env.expr_kind_inner(expr, checker))
+    }
+
+    fn expr_kind_inner(
+        &self,
+        expr: &HirBodyExpr,
+        checker: &TypePhaseChecker,
+    ) -> Option<TirConstKind> {
         match &expr.node {
             HirExprNode::Ident(_) => self
                 .local_binding(expr, checker)
@@ -241,7 +251,7 @@ impl TirConstEnv {
                 .and_then(|value| value.scalar_kind())
                 .or_else(|| {
                     self.field_value_expr(base, field, checker)
-                        .and_then(|value| self.expr_kind(value, checker))
+                        .and_then(|(env, value)| env.expr_kind(value, checker))
                 }),
             HirExprNode::Unary { op, expr } => {
                 let kind = self.expr_kind(expr, checker)?;
@@ -332,7 +342,9 @@ impl TirConstEnv {
         base: &'a HirBodyExpr,
         field: &str,
         checker: &'a TypePhaseChecker,
-    ) -> Option<&'a HirBodyExpr> {
+    ) -> Option<(Self, &'a HirBodyExpr)> {
+        // A projected field must retain both its declaring owner and active
+        // recursion path until the caller finishes evaluating that expression.
         match &base.node {
             HirExprNode::Group(inner) => self.field_value_expr(inner, field, checker),
             HirExprNode::Ident(_) => self.follow_const(base, checker, |env, item| {
@@ -341,10 +353,10 @@ impl TirConstEnv {
             HirExprNode::Aggregate { fields, .. } => fields
                 .iter()
                 .find(|named| named.name == field)
-                .map(|named| &named.value),
+                .map(|named| (self.clone(), &named.value)),
             HirExprNode::Field { base, field: inner } => {
-                let value = self.field_value_expr(base, inner, checker)?;
-                self.field_value_expr(value, field, checker)
+                let (env, value) = self.field_value_expr(base, inner, checker)?;
+                env.field_value_expr(value, field, checker)
             }
             _ => None,
         }
@@ -378,6 +390,14 @@ impl TirConstEnv {
         expr: &HirBodyExpr,
         checker: &TypePhaseChecker,
     ) -> Option<TirConstStructValue> {
+        self.evaluating_expr(expr, |env| env.const_struct_value_inner(expr, checker))
+    }
+
+    fn const_struct_value_inner(
+        &self,
+        expr: &HirBodyExpr,
+        checker: &TypePhaseChecker,
+    ) -> Option<TirConstStructValue> {
         match &expr.node {
             HirExprNode::Ident(_) => self
                 .local_binding(expr, checker)
@@ -402,9 +422,9 @@ impl TirConstEnv {
                 let def = self.struct_def_for_expr(expr, checker)?;
                 let mut out = TirConstStructValue::new(def);
                 for field in fields {
-                    let field_expr = self.field_value_expr(expr, &field.name, checker)?;
-                    let field_kind = self.expr_kind(field_expr, checker)?;
-                    let field_value = self.value_for_kind(field_kind, field_expr, checker)?;
+                    let (env, field_expr) = self.field_value_expr(expr, &field.name, checker)?;
+                    let field_kind = env.expr_kind(field_expr, checker)?;
+                    let field_value = env.value_for_kind(field_kind, field_expr, checker)?;
                     out = out.with_field(&field.name, field_value);
                 }
                 Some(out)
@@ -489,6 +509,18 @@ impl TirConstEnv {
         }
         nested.owner = def;
         evaluate(&nested, item)
+    }
+
+    fn evaluating_expr<T>(
+        &self,
+        expr: &HirBodyExpr,
+        evaluate: impl FnOnce(&Self) -> Option<T>,
+    ) -> Option<T> {
+        let mut nested = self.clone();
+        if !nested.active_exprs.insert((self.owner, expr.id())) {
+            return None;
+        }
+        evaluate(&nested)
     }
 
     fn const_item<'a>(

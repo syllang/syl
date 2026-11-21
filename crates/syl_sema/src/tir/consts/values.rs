@@ -11,6 +11,14 @@ impl TirConstEnv {
         expr: &HirBodyExpr,
         checker: &TypePhaseChecker,
     ) -> Option<bool> {
+        self.evaluating_expr(expr, |env| env.const_bool_value_inner(expr, checker))
+    }
+
+    fn const_bool_value_inner(
+        &self,
+        expr: &HirBodyExpr,
+        checker: &TypePhaseChecker,
+    ) -> Option<bool> {
         match &expr.node {
             HirExprNode::Bool(value) => Some(*value),
             HirExprNode::Ident(_) => self
@@ -37,7 +45,7 @@ impl TirConstEnv {
                 .and_then(|value| value.field_bool(field))
                 .or_else(|| {
                     self.field_value_expr(base, field, checker)
-                        .and_then(|value| self.const_bool_value(value, checker))
+                        .and_then(|(env, value)| env.const_bool_value(value, checker))
                 }),
             HirExprNode::Unary {
                 op: syl_syntax::UnaryOp::Not,
@@ -129,6 +137,10 @@ impl TirConstEnv {
         expr: &HirBodyExpr,
         checker: &TypePhaseChecker,
     ) -> Option<u64> {
+        self.evaluating_expr(expr, |env| env.const_nat_value_inner(expr, checker))
+    }
+
+    fn const_nat_value_inner(&self, expr: &HirBodyExpr, checker: &TypePhaseChecker) -> Option<u64> {
         match &expr.node {
             HirExprNode::Int(value) => Some(*value),
             HirExprNode::Ident(_) => self
@@ -155,7 +167,7 @@ impl TirConstEnv {
                 .and_then(|value| value.field_nat(field))
                 .or_else(|| {
                     self.field_value_expr(base, field, checker)
-                        .and_then(|value| self.const_nat_value(value, checker))
+                        .and_then(|(env, value)| env.const_nat_value(value, checker))
                 }),
             HirExprNode::Binary {
                 op, left, right, ..
