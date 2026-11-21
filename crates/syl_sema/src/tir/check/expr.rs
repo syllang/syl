@@ -215,11 +215,20 @@ impl TypePhaseChecker {
                 return Ok(());
             }
             if let Some(kind) = builtin
-                && matches!(kind, BuiltinIntrinsic::Assert | BuiltinIntrinsic::Error)
+                && matches!(
+                    kind,
+                    BuiltinIntrinsic::Assert
+                        | BuiltinIntrinsic::Error
+                        | BuiltinIntrinsic::MemWrite
+                        | BuiltinIntrinsic::MemReadSync
+                )
             {
                 let error = match kind {
                     BuiltinIntrinsic::Assert => EirError::AssertionStatementOnly,
                     BuiltinIntrinsic::Error => EirError::RuntimeErrorStatementOnly,
+                    BuiltinIntrinsic::MemWrite | BuiltinIntrinsic::MemReadSync => {
+                        EirError::MemoryOpStatementOnly
+                    }
                     BuiltinIntrinsic::HighZ | BuiltinIntrinsic::Zero => unreachable!(),
                 };
                 errors.push(CompileError::lowering_at(error, callee.span()));
@@ -295,11 +304,20 @@ impl TypePhaseChecker {
             ) && !self.is_map_callee(callee)
             {
                 if let Some(kind) = builtin
-                    && matches!(kind, BuiltinIntrinsic::Assert | BuiltinIntrinsic::Error)
+                    && matches!(
+                        kind,
+                        BuiltinIntrinsic::Assert
+                            | BuiltinIntrinsic::Error
+                            | BuiltinIntrinsic::MemWrite
+                            | BuiltinIntrinsic::MemReadSync
+                    )
                 {
                     let error = match kind {
                         BuiltinIntrinsic::Assert => EirError::AssertionStatementOnly,
                         BuiltinIntrinsic::Error => EirError::RuntimeErrorStatementOnly,
+                        BuiltinIntrinsic::MemWrite | BuiltinIntrinsic::MemReadSync => {
+                            EirError::MemoryOpStatementOnly
+                        }
                         BuiltinIntrinsic::HighZ | BuiltinIntrinsic::Zero => unreachable!(),
                     };
                     errors.push(CompileError::lowering_at(error, callee.span()));
@@ -529,7 +547,7 @@ impl TypePhaseChecker {
         }
     }
 
-    fn expr_name(&self, expr: &HirBodyExpr) -> Option<String> {
+    pub(super) fn expr_name(&self, expr: &HirBodyExpr) -> Option<String> {
         let mut current = expr;
         loop {
             match &current.node {

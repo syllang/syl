@@ -268,6 +268,7 @@ impl<'a> HirNameResolver<'a> {
                 value: None,
                 ..
             }
+            | HirStmt::Mem { id, name, .. }
             | HirStmt::Reg { id, name, .. } => {
                 self.push_local_id(name, *id);
             }
@@ -576,6 +577,7 @@ enum HirBuiltinIntrinsic {
     Zero,
     Assert,
     Error,
+    Memory,
 }
 
 #[non_exhaustive]
@@ -598,6 +600,7 @@ impl<'a> BuiltinCallCallee<'a> {
             "z" => Some(HirBuiltinIntrinsic::Zero),
             "zero" => Some(HirBuiltinIntrinsic::Zero),
             "assert" => Some(HirBuiltinIntrinsic::Assert),
+            "mem_write" | "mem_read_sync" => Some(HirBuiltinIntrinsic::Memory),
             "error" => Some(HirBuiltinIntrinsic::Error),
             _ => None,
         }

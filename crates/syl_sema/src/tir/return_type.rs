@@ -157,14 +157,18 @@ impl<'checker, 'bindings> SubstitutingTypeResolver<'checker, 'bindings> {
         base: &MirTypeRef,
         args: &[MirTypeRef],
     ) -> Result<TirType, CompileError> {
-        if matches!(base.type_name(), Some("Clock" | "Reset")) {
+        if base.type_name() == Some("Reset") {
+            return TypePhaseChecker::parse_reset_args(args, base.span(), |arg| {
+                self.resolve_mir_type_ref(arg)
+            });
+        }
+        if base.type_name() == Some("Clock") {
             let domain = args
                 .first()
                 .map(|arg| self.resolve_mir_type_ref(arg).map(Box::new))
                 .transpose()?;
             return match base.type_name() {
                 Some("Clock") => Ok(TirType::Clock { domain }),
-                Some("Reset") => Ok(TirType::Reset { domain }),
                 _ => Ok(TirType::Unknown),
             };
         }

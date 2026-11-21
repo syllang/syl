@@ -1,4 +1,6 @@
+mod cdc;
 mod collect;
+pub use cdc::{SummaryCdcCrossing, SummaryCdcKind};
 mod model;
 mod table;
 

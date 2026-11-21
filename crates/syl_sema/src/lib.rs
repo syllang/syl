@@ -10,7 +10,7 @@ pub mod query_support;
 pub mod summary;
 pub mod tir;
 
-pub use tir::TypeId;
+pub use tir::{TirResetMode, TirResetPolarity, TypeId};
 
 pub use binding::{ActualFormalBinder, FormalBinding};
 pub use contract::{
@@ -42,10 +42,10 @@ pub use summary::{
     },
     opaque::{
         BackendConstraint, OpaqueItemKind, OpaqueItemSummary, OpaqueItemSummaryBuilder,
-        OpaqueSummaryTable, SummaryCapability, SummaryDirection, SummaryDomain,
-        SummaryDomainBehavior, SummaryEndpoint, SummaryFieldDirection, SummaryLatencyClass,
-        SummaryLayout, SummaryLayoutConst, SummaryPath, SummaryProtocol,
-        SummaryProtocolPreservation, SummaryView, SummaryViewField, SummaryWordEncoding,
-        TrustBoundary,
+        OpaqueSummaryTable, SummaryCapability, SummaryCdcCrossing, SummaryCdcKind,
+        SummaryDirection, SummaryDomain, SummaryDomainBehavior, SummaryEndpoint,
+        SummaryFieldDirection, SummaryLatencyClass, SummaryLayout, SummaryLayoutConst, SummaryPath,
+        SummaryProtocol, SummaryProtocolPreservation, SummaryView, SummaryViewField,
+        SummaryWordEncoding, TrustBoundary,
     },
 };

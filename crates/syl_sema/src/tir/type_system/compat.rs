@@ -296,7 +296,13 @@ impl TirType {
             Self::Clock { domain } => Self::Clock {
                 domain: domain.as_ref().map(|d| Box::new(d.substitute(bindings))),
             },
-            Self::Reset { domain } => Self::Reset {
+            Self::Reset {
+                domain,
+                mode,
+                polarity,
+            } => Self::Reset {
+                mode: *mode,
+                polarity: *polarity,
                 domain: domain.as_ref().map(|d| Box::new(d.substitute(bindings))),
             },
             _ => self.clone(),

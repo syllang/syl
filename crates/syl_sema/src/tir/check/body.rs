@@ -188,6 +188,9 @@ impl TypePhaseChecker {
                         self.check_signal_initializer_expr(value, errors)?;
                     }
                 }
+                HirStmt::Mem { .. } => {
+                    self.check_memory_decl(stmt, errors)?;
+                }
                 HirStmt::Reg {
                     id,
                     name,
@@ -217,7 +220,24 @@ impl TypePhaseChecker {
                         self.check_hardware_value_expr(&reset.value, errors)?;
                     }
                 }
-                HirStmt::Next { value, .. } => {
+                HirStmt::Next { name, value, span } => {
+                    if self
+                        .hir
+                        .locals()
+                        .iter()
+                        .rev()
+                        .find(|l| {
+                            l.owner == self.current_owner.unwrap()
+                                && l.name == *name
+                                && l.span.start <= span.start
+                        })
+                        .is_some_and(|l| matches!(l.kind, HirLocalKind::Mem))
+                    {
+                        errors.push(CompileError::lowering_at(
+                            EirError::DirectDriveTargetIsMem { name: name.clone() },
+                            *span,
+                        ));
+                    }
                     Self::record_recoverable(errors, self.record_phase(value, Phase::Hardware));
                     self.check_hardware_value_expr(value, errors)?;
                 }
@@ -362,6 +382,9 @@ impl TypePhaseChecker {
         if let HirExprNode::Place { callee, args, .. } = &expr.node {
             return self.check_hardware_place_expr(callee, args, errors);
         }
+        if self.memory_builtin(expr).is_some() {
+            return self.check_memory_call(expr, errors);
+        }
         if self.is_runtime_error_builtin_call(expr) {
             if !allow_stmt_builtins {
                 errors.push(CompileError::lowering_at(
@@ -459,12 +482,20 @@ impl TypePhaseChecker {
         }
         Ok(())
     }
-    fn check_hardware_drive_target(
+    pub(super) fn check_hardware_drive_target(
         &mut self,
         target: &HirBodyExpr,
         errors: &mut Vec<CompileError>,
     ) -> Result<(), CompileError> {
         self.check_place_expr(target, errors)?;
+        if self.root_has_kind(target, |k| matches!(k, HirLocalKind::Mem)) {
+            errors.push(CompileError::lowering_at(
+                EirError::DirectDriveTargetIsMem {
+                    name: self.expr_name(target).unwrap_or_default(),
+                },
+                target.span(),
+            ));
+        }
         if let Some(name) = self.reg_drive_root_name(target) {
             errors.push(CompileError::lowering_at(
                 EirError::ContinuousDriveTargetIsReg { name },

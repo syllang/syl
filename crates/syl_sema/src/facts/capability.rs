@@ -139,7 +139,7 @@ fn capability_kind_for_id(
                 .map(|value| domain_fact_for_type(context.types, value))
                 .unwrap_or(DomainFact::Unknown),
         }),
-        TirType::Reset { domain } => Some(CapabilityKind::Reset {
+        TirType::Reset { domain, .. } => Some(CapabilityKind::Reset {
             domain: domain
                 .as_deref()
                 .map(|value| domain_fact_for_type(context.types, value))

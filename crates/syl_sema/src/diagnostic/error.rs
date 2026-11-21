@@ -132,6 +132,10 @@ pub enum TirError {
         method: String,
         candidates: String,
     },
+    #[error("invalid CDC synchronizer attribute: {reason}")]
+    InvalidCdcSyncAttribute { reason: String },
+    #[error("invalid reset qualifier: {detail}")]
+    InvalidResetQualifier { detail: String },
 }
 
 impl TirError {
@@ -160,6 +164,8 @@ impl TirError {
             Self::UnknownAggregateField { .. } => "E_MIDDLE_UNKNOWN_AGGREGATE_FIELD",
             Self::UnknownMethod { .. } => "E_MIDDLE_UNKNOWN_METHOD",
             Self::AmbiguousMethod { .. } => "E_MIDDLE_AMBIGUOUS_METHOD",
+            Self::InvalidCdcSyncAttribute { .. } => "E_MIDDLE_INVALID_CDC_ATTR",
+            Self::InvalidResetQualifier { .. } => "E_MIDDLE_INVALID_RESET_QUALIFIER",
         }
     }
 }
@@ -312,6 +318,27 @@ pub enum EirError {
     UnknownElaborationIdentifier { name: String },
     #[error("inplace requires a cell with a visible body, but {name} is declared extern")]
     InplaceOnExternCell { name: String },
+    #[error("CDC synchronizer {name} requires place to preserve its boundary")]
+    InplaceOnCdcSyncCell { name: String },
+    #[error(
+        "reset {reset} domain {reset_domain} does not match clock {clock} domain {clock_domain}"
+    )]
+    ResetClockDomainMismatch {
+        reset: String,
+        reset_domain: String,
+        clock: String,
+        clock_domain: String,
+    },
+    #[error("reset {name} configuration conflicts: {detail}")]
+    ResetConfigConflict { name: String, detail: String },
+    #[error("mem requires an array type")]
+    MemoryRequiresArrayType,
+    #[error("memory operations require a standalone hardware statement")]
+    MemoryOpStatementOnly,
+    #[error("memory target {name} is not a mem object")]
+    MemoryTargetMustBeMem { name: String },
+    #[error("mem {name} must be written with mem_write")]
+    DirectDriveTargetIsMem { name: String },
 }
 
 impl EirError {
@@ -349,6 +376,13 @@ impl EirError {
             Self::InvalidElaborationExpression => "E_MIDDLE_INVALID_ELAB_EXPR",
             Self::UnknownElaborationIdentifier { .. } => "E_MIDDLE_UNKNOWN_ELAB_IDENTIFIER",
             Self::InplaceOnExternCell { .. } => "E_MIDDLE_INPLACE_ON_EXTERN_CELL",
+            Self::InplaceOnCdcSyncCell { .. } => "E_MIDDLE_INPLACE_ON_CDC_SYNC",
+            Self::ResetClockDomainMismatch { .. } => "E_MIDDLE_RESET_DOMAIN_MISMATCH",
+            Self::ResetConfigConflict { .. } => "E_MIDDLE_RESET_CONFIG_CONFLICT",
+            Self::MemoryRequiresArrayType => "E_MIDDLE_MEMORY_REQUIRES_ARRAY_TYPE",
+            Self::MemoryOpStatementOnly => "E_MIDDLE_MEMORY_OP_STATEMENT_ONLY",
+            Self::MemoryTargetMustBeMem { .. } => "E_MIDDLE_MEMORY_TARGET_NOT_MEM",
+            Self::DirectDriveTargetIsMem { .. } => "E_MIDDLE_DIRECT_DRIVE_TO_MEM",
         }
     }
 }
@@ -384,6 +418,17 @@ pub enum DriverError {
     UnsupportedHardwareValueExpression,
     #[error("unknown parameter {name} for {callable}")]
     UnknownParameter { name: String, callable: String },
+    #[error(
+        "CDC violation: {signal} launched in {source_domain} sampled by {target} in {target_domain}"
+    )]
+    CdcViolation {
+        source_domain: String,
+        target_domain: String,
+        signal: String,
+        target: String,
+    },
+    #[error("duplicate memory write port for {name}")]
+    DuplicateMemoryWritePort { name: String },
 }
 
 impl DriverError {
@@ -401,6 +446,8 @@ impl DriverError {
             Self::MissingCellSummary { .. } => "E_MIDDLE_MISSING_CELL_SUMMARY",
             Self::UnsupportedHardwareValueExpression => "E_MIDDLE_UNSUPPORTED_HW_VALUE_EXPR",
             Self::UnknownParameter { .. } => "E_MIDDLE_UNKNOWN_PARAMETER",
+            Self::CdcViolation { .. } => "E_MIDDLE_CDC_VIOLATION",
+            Self::DuplicateMemoryWritePort { .. } => "E_MIDDLE_DUPLICATE_MEM_WRITE_PORT",
         }
     }
 }

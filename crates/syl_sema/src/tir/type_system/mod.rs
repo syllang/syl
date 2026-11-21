@@ -14,7 +14,9 @@ use syl_syntax::BinaryOp;
 pub(in crate::tir) mod compat;
 mod const_term;
 mod id;
+mod reset;
 mod table;
+pub use reset::{TirResetMode, TirResetPolarity};
 
 use super::consts::TirConstKind;
 pub use const_term::TirConstTerm;
@@ -34,6 +36,8 @@ pub enum TirType {
     },
     Reset {
         domain: Option<Box<TirType>>,
+        mode: TirResetMode,
+        polarity: TirResetPolarity,
     },
     Domain,
     Str,
@@ -72,8 +76,19 @@ impl PartialEq for TirType {
             | (Self::Bit, Self::Bit)
             | (Self::Domain, Self::Domain)
             | (Self::Str, Self::Str) => true,
-            (Self::Clock { domain: left }, Self::Clock { domain: right })
-            | (Self::Reset { domain: left }, Self::Reset { domain: right }) => left == right,
+            (Self::Clock { domain: left }, Self::Clock { domain: right }) => left == right,
+            (
+                Self::Reset {
+                    domain: left,
+                    mode: lm,
+                    polarity: lp,
+                },
+                Self::Reset {
+                    domain: right,
+                    mode: rm,
+                    polarity: rp,
+                },
+            ) => left == right && lm == rm && lp == rp,
             (Self::UInt { width: left }, Self::UInt { width: right }) => left == right,
             (Self::Bits { width: left }, Self::Bits { width: right }) => left == right,
             (Self::SInt { width: left }, Self::SInt { width: right }) => left == right,
@@ -165,7 +180,13 @@ impl TirType {
                     .as_ref()
                     .map(|domain| Box::new(domain.remap_ids(def_of, local_of))),
             },
-            Self::Reset { domain } => Self::Reset {
+            Self::Reset {
+                domain,
+                mode,
+                polarity,
+            } => Self::Reset {
+                mode: *mode,
+                polarity: *polarity,
                 domain: domain
                     .as_ref()
                     .map(|domain| Box::new(domain.remap_ids(def_of, local_of))),
@@ -222,10 +243,11 @@ impl TirType {
             Self::Clock {
                 domain: Some(domain),
             } => format!("Clock<{}>", domain.label()),
-            Self::Reset { domain: None } => "Reset".to_string(),
             Self::Reset {
-                domain: Some(domain),
-            } => format!("Reset<{}>", domain.label()),
+                domain,
+                mode,
+                polarity,
+            } => reset::label(domain.as_deref(), *mode, *polarity),
             Self::Domain => "Domain".to_string(),
             Self::Str => "string".to_string(),
             Self::UInt { width } => format!("UInt<{width}>"),
@@ -380,14 +402,17 @@ impl TypePhaseChecker {
                 Some("string" | "Str") => Ok(TirType::Str),
                 Some("Bit") => Ok(TirType::Bit),
                 Some("Clock") => Ok(TirType::Clock { domain: None }),
-                Some("Reset") => Ok(TirType::Reset { domain: None }),
+                Some("Reset") => self.parse_reset_type_ref(owner, ty),
                 Some("Domain") => Ok(TirType::Domain),
                 Some(name) => self.named_type_from_mir_path(owner, ty, name),
                 None => Ok(TirType::Unknown),
             };
         }
         if let Some(base) = ty.generic_base() {
-            if matches!(base.type_name(), Some("Clock" | "Reset")) {
+            if base.type_name() == Some("Reset") {
+                return self.parse_reset_type_ref(owner, ty);
+            }
+            if base.type_name() == Some("Clock") {
                 let domain = ty
                     .args()
                     .and_then(|args| args.first())
@@ -395,7 +420,6 @@ impl TypePhaseChecker {
                     .map(Box::new);
                 return match base.type_name() {
                     Some("Clock") => Ok(TirType::Clock { domain }),
-                    Some("Reset") => Ok(TirType::Reset { domain }),
                     _ => Ok(TirType::Unknown),
                 };
             }
