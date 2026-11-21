@@ -1070,6 +1070,8 @@ syl_query|struct|syl_query::navigation::HoverResult|public
 syl_query|struct|syl_query::navigation::PackageDiagnostics|public
 syl_query|struct|syl_query::navigation::StageDiagnostics|public
 syl_query|trait_method|syl_query::snapshot::api::AnalysisQueries::all_document_diagnostics|fn(self: &Self) -> Vec<crate::DocumentDiagnostics>
+syl_query|trait_method|syl_query::snapshot::api::AnalysisQueries::background_elaboration_diagnostics_with_token|fn(self: &Self, token: &CancellationToken) -> Result<GroupedDiagnostics, QueryError>
+syl_query|trait_method|syl_query::snapshot::api::AnalysisQueries::background_elaboration_diagnostics|fn(self: &Self) -> GroupedDiagnostics
 syl_query|trait_method|syl_query::snapshot::api::AnalysisQueries::completion_with_token|fn(self: &Self, uri: &DocumentUri, position: SourcePosition, token: &CancellationToken) -> Result<CompletionResult, QueryError>
 syl_query|trait_method|syl_query::snapshot::api::AnalysisQueries::completions_at_with_token|fn(self: &Self, uri: &DocumentUri, utf16_position: SourcePosition, token: &CancellationToken) -> Result<CompletionResult, QueryError>
 syl_query|trait_method|syl_query::snapshot::api::AnalysisQueries::completions_at|fn(self: &Self, uri: &DocumentUri, utf16_position: SourcePosition) -> CompletionResult

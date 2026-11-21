@@ -4,7 +4,7 @@ use syl_sema::{
     OpaqueItemKind, OpaqueItemSummary, SummaryCapability, SummaryDirection, SummaryEndpoint,
     SummaryLatencyClass, SummaryLayout, SummaryPath, TrustBoundary,
 };
-use syl_session::{AnalysisHost, CancellationToken, DocumentUri, DocumentVersion};
+use syl_session::{AnalysisDatabase, CancellationToken, DocumentUri, DocumentVersion};
 use syl_span::SourcePosition;
 
 #[test]
@@ -12,7 +12,7 @@ fn grouped_diagnostics_track_package_document_and_stage_boundaries() {
     let parse_uri = DocumentUri::new("untitled:syl/parse");
     let tir_uri = DocumentUri::new("untitled:syl/sema");
     let elab_uri = DocumentUri::new("untitled:syl/elab");
-    let mut host = AnalysisHost::new();
+    let mut host = AnalysisDatabase::new();
     host.open_document(
         parse_uri.clone(),
         "cell Broken(".to_string(),
@@ -51,7 +51,7 @@ fn grouped_diagnostics_track_package_document_and_stage_boundaries() {
 fn hover_and_completion_do_not_trigger_elaboration() {
     let source = "cell Top(x: in Bit, y: out Bit) {\n    y := x\n}\n";
     let uri = DocumentUri::new("untitled:syl/app");
-    let mut host = AnalysisHost::new();
+    let mut host = AnalysisDatabase::new();
     host.open_document(uri.clone(), source.to_string(), DocumentVersion::new(1));
     let snapshot = host
         .snapshot()
@@ -83,7 +83,7 @@ bundle Word {
 }
 "#;
     let uri = DocumentUri::new("untitled:syl/docs");
-    let mut host = AnalysisHost::new();
+    let mut host = AnalysisDatabase::new();
     host.open_document(uri.clone(), source.to_string(), DocumentVersion::new(1));
     let snapshot = host.snapshot().expect("doc query fixture must snapshot");
     let file = snapshot
@@ -109,7 +109,7 @@ bundle Word {
 }
 "#;
     let uri = DocumentUri::new("untitled:syl/doc-hover");
-    let mut host = AnalysisHost::new();
+    let mut host = AnalysisDatabase::new();
     host.open_document(uri.clone(), source.to_string(), DocumentVersion::new(1));
     let snapshot = host.snapshot().expect("doc hover fixture must snapshot");
 
@@ -131,7 +131,7 @@ fn navigation_queries_use_target_package_semantic_shard() {
     let beta_updated_source = "cell Beta(y: out Bit) {\n    y := 1\n}\n";
     let alpha_uri = DocumentUri::new("untitled:syl/alpha");
     let beta_uri = DocumentUri::new("untitled:syl/beta");
-    let mut host = AnalysisHost::new();
+    let mut host = AnalysisDatabase::new();
     host.open_document(
         alpha_uri.clone(),
         alpha_source.to_string(),
@@ -179,7 +179,7 @@ fn navigation_queries_use_target_package_semantic_shard() {
 #[test]
 fn cancelled_grouped_diagnostics_do_not_start_semantic_stages() {
     let uri = DocumentUri::new("untitled:syl/app");
-    let mut host = AnalysisHost::new();
+    let mut host = AnalysisDatabase::new();
     host.open_document(
         uri,
         "cell Top(y: out Bit) {\n    y := 1\n}\n".to_string(),
@@ -206,7 +206,7 @@ fn cancelled_grouped_diagnostics_stop_before_later_package_semantics() {
     for attempt in 0..20 {
         let alpha_uri = DocumentUri::new(format!("untitled:syl/alpha{attempt}"));
         let beta_uri = DocumentUri::new(format!("untitled:syl/beta{attempt}"));
-        let mut host = AnalysisHost::new();
+        let mut host = AnalysisDatabase::new();
         host.open_document(
             alpha_uri,
             "cell Alpha(y: out Bit) { y := 1 }\n".to_string(),
@@ -240,7 +240,7 @@ fn cancelled_grouped_diagnostics_stop_before_later_package_semantics() {
 fn cancelled_hover_after_hir_cache_does_not_start_tir() {
     let source = "cell Top(x: in Bit, y: out Bit) {\n    y := x\n}\n";
     let uri = DocumentUri::new("untitled:syl/app");
-    let mut host = AnalysisHost::new();
+    let mut host = AnalysisDatabase::new();
     host.open_document(uri.clone(), source.to_string(), DocumentVersion::new(1));
     let snapshot = host
         .snapshot()
@@ -292,7 +292,7 @@ fn completion_suppresses_invalid_assignment_cleanup_contexts() {
 
     for (uri, source, marker) in cases {
         let uri = DocumentUri::new(uri);
-        let mut host = AnalysisHost::new();
+        let mut host = AnalysisDatabase::new();
         host.open_document(uri.clone(), source.to_string(), DocumentVersion::new(1));
         let snapshot = host
             .snapshot()
