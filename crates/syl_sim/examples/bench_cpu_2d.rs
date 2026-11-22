@@ -6,7 +6,7 @@ use std::{
     fmt::Write,
     fs,
     path::Path,
-    sync::atomic::{AtomicU64, Ordering::Relaxed},
+    sync::atomic::{AtomicU8, AtomicU64, Ordering::Relaxed},
     time::Instant,
 };
 use syl_sim::{
@@ -82,6 +82,14 @@ fn emit(dir: &Path, case: &str) {
         include_str!("bench_cpu_2d/harness.cpp")
             .replace("@DRIVE@", &drive)
             .replace("@DIGEST@", &digest)
+            .replace(
+                "@CHECKPOINT@",
+                if case == "Fault" {
+                    "if (cycle == 499) checkpoint[lane] = char('0' + d.y);"
+                } else {
+                    ""
+                },
+            )
             .replace("@FAULT@", if case == "Fault" { "true" } else { "false" }),
     )
     .unwrap();
@@ -113,9 +121,23 @@ fn main() {
     let (ir, top, params) = fixture(case);
     let design = SimDesign::lower(&ir, top, &params).unwrap();
     let inputs = ports(&design, HwDirection::In);
-    let outputs = ports(&design, HwDirection::Out);
+    let outputs = if case == "Fault" {
+        Vec::new()
+    } else {
+        ports(&design, HwDirection::Out)
+    };
     let failure = AtomicU64::new(u64::MAX);
     let digest = AtomicU64::new(0);
+    // Fault exposes its sole register q as y. Save every committed bit before
+    // any trajectory attempts the failing edge, independent of early-stop granularity.
+    let fault_register = (case == "Fault").then(|| {
+        assert_eq!(design.regs.len(), 1);
+        assert!(design.memories.is_empty());
+        design.regs[0].signal
+    });
+    let checkpoint: Vec<_> = (0..if fault_register.is_some() { batch } else { 0 })
+        .map(|_| AtomicU8::new(b'?'))
+        .collect();
     let setup;
     let elapsed;
     if mode == "scalar" {
@@ -135,6 +157,11 @@ fn main() {
                     };
                     failure.store((f.cycle << 32) + lane as u64, Relaxed);
                     break 'cycles;
+                }
+                if cycle == 499
+                    && let Some(q) = fault_register
+                {
+                    checkpoint[lane].store(b'0' + s.read(q).as_u64().unwrap() as u8, Relaxed);
                 }
             }
         }
@@ -179,6 +206,13 @@ fn main() {
                     failure.fetch_min((c << 32) + (first + i) as u64, Relaxed);
                     break;
                 }
+                if cycle == 499
+                    && let Some(q) = fault_register
+                {
+                    for (offset, &bit) in tile.word(&program, q, 0).iter().enumerate() {
+                        checkpoint[first + offset].store(b'0' + bit as u8, Relaxed);
+                    }
+                }
             }
             let mut sum = 0u64;
             for p in &outputs {
@@ -199,11 +233,23 @@ fn main() {
         setup = start as f64 * 1e-9;
         elapsed = (last_end.load(Relaxed) - start) as f64 * 1e-9;
     }
+    let snapshot: String = checkpoint
+        .iter()
+        .map(|bit| char::from(bit.load(Relaxed)))
+        .collect();
+    let sum = if fault_register.is_some() {
+        snapshot.bytes().enumerate().fold(0u64, |sum, (lane, bit)| {
+            sum.wrapping_add(mix(((lane as u64) << 1) | u64::from(bit - b'0')))
+        })
+    } else {
+        digest.load(Relaxed)
+    };
     println!(
-        "{:.9} {:.9} {} {}",
+        "{:.9} {:.9} {} {} {}",
         setup,
         elapsed,
-        digest.load(Relaxed),
-        failure.load(Relaxed)
+        sum,
+        failure.load(Relaxed),
+        snapshot
     );
 }

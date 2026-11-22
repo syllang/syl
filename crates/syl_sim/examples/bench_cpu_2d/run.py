@@ -21,8 +21,12 @@ def command(*args):
 def sample(args):
     start = time.perf_counter()
     raw = command(*args).splitlines()[-1].split()
-    return dict(setup_s=float(raw[0]), hot_s=float(raw[1]), digest=int(raw[2]),
+    result = dict(setup_s=float(raw[0]), hot_s=float(raw[1]), digest=int(raw[2]),
                 failure=int(raw[3]), wall_s=time.perf_counter() - start)
+    if len(raw) == 5:
+        result["checkpoint_bits"] = raw[4]
+        result["checkpoint_cycle"] = 499
+    return result
 
 
 def measure(args, fault=False):
@@ -76,8 +80,29 @@ def measure_fault(folder):
             result["cold_wall_s"] = time.perf_counter() - start
             result["compile_s"] = compile_s
             results[config] = result
-    assert all(r["failure"] == (500 << 32) + 3073 for r in results.values()), results
+    validate_fault(results, batch)
     return results
+
+
+def splitmix64(x):
+    mask = (1 << 64) - 1
+    x = (x + 0x9e3779b97f4a7c15) & mask
+    x = ((x ^ (x >> 30)) * 0xbf58476d1ce4e5b9) & mask
+    x = ((x ^ (x >> 27)) * 0x94d049bb133111eb) & mask
+    return x ^ (x >> 31)
+
+
+def validate_fault(results, batch):
+    # At edge 499 reset is inactive and the entire stored state is q := i.
+    # Input i is physical port 3, limb 0 of the Fault fixture.
+    bits = "".join(str(splitmix64(lane * 0x517cc1b727220a95
+                                  ^ 499 * 0x5851f42d4c957f2d ^ (3 << 32)) & 1)
+                   for lane in range(batch))
+    digest = sum(splitmix64((lane << 1) | int(bit)) for lane, bit in enumerate(bits)) % (1 << 64)
+    for config, result in results.items():
+        assert result["checkpoint_cycle"] == 499 and result["checkpoint_bits"] == bits, config
+        assert result["digest"] == digest, config
+        assert result["failure"] == (500 << 32) + 3073, config
 
 
 def main():
@@ -91,9 +116,12 @@ def main():
     version = command("verilator", "--version").strip()
     assert "Verilator 5.052 " in version, version
     data = json.loads(args.output.read_text()) if args.resume and args.output.exists() else dict(
-        cpu=command("lscpu"), system=platform.platform(), verilator=version,
+        format_version=2, cpu=command("lscpu"), system=platform.platform(), verilator=version,
         rustc=command("rustc", "-Vv"), cpp=command("g++", "--version").splitlines()[0],
         builds={}, rows=[], failure={})
+
+    if data.get("format_version") != 2:
+        parser.error("the saved run uses an older timing protocol; use a fresh output or omit --resume")
 
     def persist():
         args.output.write_text(json.dumps(data, indent=2) + "\n")

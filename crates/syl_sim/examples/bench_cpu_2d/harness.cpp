@@ -27,6 +27,7 @@ int main(int argc, char **argv) {
     const int batch = std::stoi(argv[1]), cycles = std::stoi(argv[2]);
     const int workers = std::min(batch, std::stoi(argv[3])), internal = std::stoi(argv[4]);
     std::vector<uint64_t> sums(workers), failures(workers, UINT64_MAX);
+    std::string checkpoint(@FAULT@ ? batch : 0, '?');
     std::vector<std::thread> team;
     Clock::time_point hot, end;
     std::barrier start(workers, [&]() noexcept { hot = Clock::now(); });
@@ -53,19 +54,24 @@ int main(int argc, char **argv) {
                 d.clk = 1;
                 d.eval();
                 if constexpr (@FAULT@) {
+                    @CHECKPOINT@
                     if (context.gotError()) {
                         failures[id] = (uint64_t(cycle) << 32) + lane;
                         break;
                     }
                 }
-                d.clk = 0;
-                d.eval();
             }
         }
         uint64_t sum = 0;
         for (int lane = begin; lane < limit; ++lane) {
             auto &d = *models[lane - begin];
-            @DIGEST@
+            d.clk = 0;
+            d.eval();
+            if constexpr (@FAULT@) {
+                sum += mix((uint64_t(lane) << 1) | uint64_t(checkpoint[lane] - '0'));
+            } else {
+                @DIGEST@
+            }
         }
         sums[id] = sum;
         finish.arrive_and_wait();
@@ -78,7 +84,7 @@ int main(int argc, char **argv) {
     uint64_t sum = 0;
     for (auto s : sums)
         sum += s;
-    std::printf("%.9f %.9f %llu %llu\n", std::chrono::duration<double>(hot - cold).count(),
+    std::printf("%.9f %.9f %llu %llu %s\n", std::chrono::duration<double>(hot - cold).count(),
                 std::chrono::duration<double>(end - hot).count(), (unsigned long long)sum,
-                (unsigned long long)*std::min_element(failures.begin(), failures.end()));
+                (unsigned long long)*std::min_element(failures.begin(), failures.end()), checkpoint.c_str());
 }
