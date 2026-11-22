@@ -1,0 +1,21 @@
+[package]
+name = "syl_sim"
+description = "Concrete word-level simulation design and scheduler for Syl."
+documentation = "https://docs.rs/syl_sim"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+
+[dependencies]
+syl_elab.workspace = true
+syl_hw.workspace = true
+syl_span.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+syl_sema.workspace = true
+syl_syntax.workspace = true

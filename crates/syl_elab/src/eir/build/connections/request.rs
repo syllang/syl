@@ -35,6 +35,7 @@ pub(crate) struct ViewSignalSpec<'a> {
 
 #[non_exhaustive]
 pub(crate) struct InstanceEmitRequest<'a> {
+    pub(crate) source_name: Option<&'a str>,
     pub(crate) inst_name: &'a str,
     pub(crate) callee: &'a ElabExpr,
     pub(crate) args: &'a [ElabCallArg],
@@ -45,6 +46,7 @@ pub(crate) struct InstanceEmitRequest<'a> {
 
 #[non_exhaustive]
 pub(crate) struct CellInlineRequest<'a> {
+    pub(crate) source_name: Option<&'a str>,
     pub(crate) callable_def: DefId,
     pub(crate) inst_name: &'a str,
     pub(crate) callable_name: &'a str,

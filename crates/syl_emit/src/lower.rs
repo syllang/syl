@@ -159,10 +159,12 @@ impl<'a> SvEmitter<'a> {
                 name: name.clone(),
                 value: self.lower_expr(value)?,
             }),
-            HwItem::SignalDecl { width, name } => Ok(SvItem::Wire {
-                width: width.clone(),
-                name: name.clone(),
-            }),
+            HwItem::SignalDecl { width, name } | HwItem::ControlSignalDecl { width, name, .. } => {
+                Ok(SvItem::Wire {
+                    width: width.clone(),
+                    name: name.clone(),
+                })
+            }
             HwItem::StorageDecl { width, name } => Ok(SvItem::Reg {
                 width: width.clone(),
                 name: name.clone(),

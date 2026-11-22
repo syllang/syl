@@ -122,6 +122,7 @@ impl HwGuardFrame {
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct HwOrigin {
+    source_field: Option<String>,
     source: SourceId,
     span_start: usize,
     span_end: usize,
@@ -129,6 +130,16 @@ pub struct HwOrigin {
 }
 
 impl HwOrigin {
+    /// Syl field before flattening an interface or prefixing an in-place local.
+    pub fn source_field(&self) -> Option<&str> {
+        self.source_field.as_deref()
+    }
+
+    pub fn with_source_field(mut self, field: Option<String>) -> Self {
+        self.source_field = field;
+        self
+    }
+
     pub fn source_index(&self) -> usize {
         self.source.get()
     }
@@ -140,6 +151,7 @@ impl HwOrigin {
     ) -> Self {
         Self {
             source,
+            source_field: None,
             span_start,
             span_end,
             expansion_stack,
@@ -167,6 +179,7 @@ impl HwOrigin {
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct HwExpansion {
+    source_name: Option<String>,
     callable: String,
     instance: String,
     source: SourceId,
@@ -175,6 +188,15 @@ pub struct HwExpansion {
 }
 
 impl HwExpansion {
+    /// Source binding relative to the enclosing expansion.
+    pub fn source_name(&self) -> Option<&str> {
+        self.source_name.as_deref()
+    }
+    pub fn with_source_name(mut self, name: Option<String>) -> Self {
+        self.source_name = name;
+        self
+    }
+
     pub fn new(
         callable: impl Into<String>,
         instance: impl Into<String>,
@@ -183,6 +205,7 @@ impl HwExpansion {
         span_end: usize,
     ) -> Self {
         Self {
+            source_name: None,
             callable: callable.into(),
             instance: instance.into(),
             source,
@@ -273,17 +296,39 @@ impl HwModule {
 #[derive(Debug)]
 #[non_exhaustive]
 pub struct HwParam {
+    default_expr: Option<HwExpr>,
+    is_bool: bool,
     doc: Option<String>,
     name: String,
     default: String,
 }
 
 impl HwParam {
+    /// Source-level default, absent for a required generic. The SV printing
+    /// default also permits standalone emission of unspecialized modules.
+    pub fn default_expr(&self) -> Option<&HwExpr> {
+        self.default_expr.as_ref()
+    }
+    pub fn with_default_expr(mut self, expr: Option<HwExpr>) -> Self {
+        self.default_expr = expr;
+        self
+    }
+
+    pub fn with_bool(mut self, is_bool: bool) -> Self {
+        self.is_bool = is_bool;
+        self
+    }
+    pub fn is_bool(&self) -> bool {
+        self.is_bool
+    }
+
     pub fn new(name: impl Into<String>, default: impl Into<String>) -> Self {
         Self {
             doc: None,
             name: name.into(),
             default: default.into(),
+            is_bool: false,
+            default_expr: None,
         }
     }
 
@@ -312,6 +357,9 @@ impl HwParam {
 #[derive(Debug)]
 #[non_exhaustive]
 pub struct HwPort {
+    origin: Option<HwOrigin>,
+    domain: crate::HwPortDomain,
+    source_name: Option<String>,
     doc: Option<String>,
     direction: HwDirection,
     width: String,
@@ -319,9 +367,34 @@ pub struct HwPort {
 }
 
 impl HwPort {
+    pub fn with_source(
+        mut self,
+        name: impl Into<String>,
+        origin: HwOrigin,
+        domain: crate::HwPortDomain,
+    ) -> Self {
+        self.source_name = Some(name.into());
+        self.origin = Some(origin);
+        self.domain = domain;
+        self
+    }
+
+    pub fn origin(&self) -> Option<&HwOrigin> {
+        self.origin.as_ref()
+    }
+    pub fn source_name(&self) -> &str {
+        self.source_name.as_deref().unwrap_or(&self.name)
+    }
+    pub fn domain(&self) -> &crate::HwPortDomain {
+        &self.domain
+    }
+
     pub fn new(direction: HwDirection, width: impl Into<String>, name: impl Into<String>) -> Self {
         Self {
             doc: None,
+            origin: None,
+            domain: crate::HwPortDomain::Data,
+            source_name: None,
             direction,
             width: width.into(),
             name: name.into(),
@@ -371,6 +444,12 @@ pub enum HwItem {
     StaticParam { name: String, value: HwExpr },
     /// A combinational signal declaration.
     SignalDecl { width: String, name: String },
+    /// Local control net with its declared clock or reset type.
+    ControlSignalDecl {
+        width: String,
+        name: String,
+        domain: crate::HwPortDomain,
+    },
     /// A storage element (register) declaration.
     StorageDecl { width: String, name: String },
     /// A continuous assignment: `lhs = rhs`.
@@ -478,6 +557,7 @@ impl HwReset {
 #[derive(Debug)]
 #[non_exhaustive]
 pub struct HwInstance {
+    source_name: Option<String>,
     target_canonical_path: Vec<String>,
     module: String,
     params: Vec<HwParamBind>,
@@ -494,11 +574,21 @@ impl HwInstance {
     ) -> Self {
         Self {
             target_canonical_path: Vec::new(),
+            source_name: None,
             module: module.into(),
             params,
             name: name.into(),
             connections,
         }
+    }
+
+    pub fn with_source_name(mut self, name: impl Into<String>) -> Self {
+        self.source_name = Some(name.into());
+        self
+    }
+
+    pub fn source_name(&self) -> &str {
+        self.source_name.as_deref().unwrap_or(&self.name)
     }
 
     /// Returns the instantiated module name.

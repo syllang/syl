@@ -119,7 +119,7 @@ impl<'a> Validator<'a> {
                 self.check_identifier(Some(module.name()), HwBindingKind::LocalParam, name);
                 scope.declare_visible(module.name(), HwBindingKind::LocalParam, name, self);
             }
-            HwItem::SignalDecl { width, name } => {
+            HwItem::SignalDecl { width, name } | HwItem::ControlSignalDecl { width, name, .. } => {
                 self.check_identifier(Some(module.name()), HwBindingKind::Signal, name);
                 self.check_width(module.name(), HwBindingKind::Signal, name, width);
                 scope.declare_visible(module.name(), HwBindingKind::Signal, name, self);
@@ -215,7 +215,10 @@ impl<'a> Validator<'a> {
     ) {
         match item {
             HwItem::StaticParam { value, .. } => self.validate_expr(module, value, scope),
-            HwItem::SignalDecl { .. } | HwItem::StorageDecl { .. } | HwItem::MemoryDecl { .. } => {}
+            HwItem::SignalDecl { .. }
+            | HwItem::ControlSignalDecl { .. }
+            | HwItem::StorageDecl { .. }
+            | HwItem::MemoryDecl { .. } => {}
             HwItem::MemoryWrite {
                 clock,
                 memory,

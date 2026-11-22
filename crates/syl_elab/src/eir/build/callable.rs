@@ -232,13 +232,19 @@ where
                 );
                 continue;
             }
-            let default = param
+            let default_expr = param
                 .default
                 .as_ref()
-                .map(|expr| self.elab_expr(expr, env))
-                .map(|expr| expr.fact_key())
-                .unwrap_or_else(|| "1".to_string());
-            out.push(EirParam::new(&param.name, default).with_doc(param.doc.clone()));
+                .map(|e| (self.elab_expr(e, env), e.span()));
+            let default = default_expr
+                .as_ref()
+                .map(|(e, _)| e.fact_key())
+                .unwrap_or_else(|| "1".into());
+            let mut formal = EirParam::new(&param.name, default).with_doc(param.doc.clone());
+            formal.default_expr = default_expr;
+            formal.is_bool =
+                param.kind.as_ref().and_then(|ty| self.static_type_name(ty)) == Some("bool");
+            out.push(formal);
         }
         out
     }

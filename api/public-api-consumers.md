@@ -51,6 +51,10 @@ opaque summary contracts.
 CLI, facade, query, and LSP consumers that need project loading, VFS, package snapshots, and
 workspace-scoped analysis.
 
+## syl_sim
+
+Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+
 ## syl_span
 
 All compiler layers, CLI, LSP, and embedding consumers that need source identity, ranges, and
@@ -872,6 +876,7 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_hw|enum|syl_hw::parametric::ParametricHwItem|public` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|enum|syl_hw::place::HwPlaceExpr|public` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|enum|syl_hw::place::HwPlace|public` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|enum|syl_hw::reset::HwPortDomain|public` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|enum|syl_hw::reset::HwResetMode|public` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|enum|syl_hw::reset::HwResetPolarity|public` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|enum|syl_hw::validate::diagnostic::HwBindingKind|public` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
@@ -886,9 +891,11 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_hw|method|syl_hw::design::HwExpansion::callable|fn(self: &Self) -> &str` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwExpansion::instance|fn(self: &Self) -> &str` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwExpansion::new|fn(callable: impl Into<String>, instance: impl Into<String>, source: SourceId, span_start: usize, span_end: usize) -> Self` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|method|syl_hw::design::HwExpansion::source_name|fn(self: &Self) -> Option<&str>` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwExpansion::source|fn(self: &Self) -> SourceId` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwExpansion::span_end|fn(self: &Self) -> usize` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwExpansion::span_start|fn(self: &Self) -> usize` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|method|syl_hw::design::HwExpansion::with_source_name|fn(self: Self, name: Option<String>) -> Self` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwGuard::display|fn(self: &Self) -> String` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwGuard::frames|fn(self: &Self) -> &[HwGuardFrame]` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwGuard::is_root|fn(self: &Self) -> bool` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
@@ -899,7 +906,9 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_hw|method|syl_hw::design::HwInstance::name|fn(self: &Self) -> &str` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwInstance::new|fn(module: impl Into<String>, params: Vec<HwParamBind>, name: impl Into<String>, connections: Vec<HwConnection>) -> Self` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwInstance::params|fn(self: &Self) -> &[HwParamBind]` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|method|syl_hw::design::HwInstance::source_name|fn(self: &Self) -> &str` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwInstance::target_canonical_path|fn(self: &Self) -> &[String]` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|method|syl_hw::design::HwInstance::with_source_name|fn(self: Self, name: impl Into<String>) -> Self` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwInstance::with_target_canonical_path|fn(self: Self, path: Vec<String>) -> Self` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwModule::doc|fn(self: &Self) -> Option<&str>` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwModule::items|fn(self: &Self) -> &[HwItem]` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
@@ -910,24 +919,34 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_hw|method|syl_hw::design::HwModule::with_doc|fn(self: Self, doc: Option<String>) -> Self` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwOrigin::expansion_stack|fn(self: &Self) -> &[HwExpansion]` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwOrigin::new|fn(source: SourceId, span_start: usize, span_end: usize, expansion_stack: Vec<HwExpansion>) -> Self` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|method|syl_hw::design::HwOrigin::source_field|fn(self: &Self) -> Option<&str>` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwOrigin::source_index|fn(self: &Self) -> usize` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwOrigin::source|fn(self: &Self) -> SourceId` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwOrigin::span_end|fn(self: &Self) -> usize` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwOrigin::span_start|fn(self: &Self) -> usize` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|method|syl_hw::design::HwOrigin::with_source_field|fn(self: Self, field: Option<String>) -> Self` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|method|syl_hw::design::HwParam::default_expr|fn(self: &Self) -> Option<&HwExpr>` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwParam::default|fn(self: &Self) -> &str` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwParam::doc|fn(self: &Self) -> Option<&str>` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|method|syl_hw::design::HwParam::is_bool|fn(self: &Self) -> bool` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwParam::name|fn(self: &Self) -> &str` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwParam::new|fn(name: impl Into<String>, default: impl Into<String>) -> Self` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|method|syl_hw::design::HwParam::with_bool|fn(self: Self, is_bool: bool) -> Self` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|method|syl_hw::design::HwParam::with_default_expr|fn(self: Self, expr: Option<HwExpr>) -> Self` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwParam::with_doc|fn(self: Self, doc: Option<String>) -> Self` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwParamBind::name|fn(self: &Self) -> &str` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwParamBind::new|fn(name: impl Into<String>, value: impl Into<String>) -> Self` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwParamBind::value|fn(self: &Self) -> &str` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwPort::direction|fn(self: &Self) -> HwDirection` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwPort::doc|fn(self: &Self) -> Option<&str>` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|method|syl_hw::design::HwPort::domain|fn(self: &Self) -> &crate::HwPortDomain` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwPort::name|fn(self: &Self) -> &str` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwPort::new|fn(direction: HwDirection, width: impl Into<String>, name: impl Into<String>) -> Self` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|method|syl_hw::design::HwPort::origin|fn(self: &Self) -> Option<&HwOrigin>` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|method|syl_hw::design::HwPort::source_name|fn(self: &Self) -> &str` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwPort::width|fn(self: &Self) -> &str` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwPort::with_doc|fn(self: Self, doc: Option<String>) -> Self` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|method|syl_hw::design::HwPort::with_source|fn(self: Self, name: impl Into<String>, origin: HwOrigin, domain: crate::HwPortDomain) -> Self` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwReset::condition|fn(self: &Self) -> &HwExpr` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwReset::mode|fn(self: &Self) -> crate::HwResetMode` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwReset::new|fn(condition: HwExpr, value: HwExpr) -> Self` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
@@ -948,6 +967,7 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_hw|method|syl_hw::parametric::ParametricHwItem::origin|fn(self: &Self) -> &HwOrigin` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::parametric::ParametricHwModule::canonical_path|fn(self: &Self) -> &[String]` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::parametric::ParametricHwModule::doc|fn(self: &Self) -> Option<&str>` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|method|syl_hw::parametric::ParametricHwModule::is_extern|fn(self: &Self) -> bool` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::parametric::ParametricHwModule::items|fn(self: &Self) -> &[ParametricHwItem]` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::parametric::ParametricHwModule::name|fn(self: &Self) -> &str` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::parametric::ParametricHwModule::new|fn(name: impl Into<String>, params: Vec<HwParam>, ports: Vec<HwPort>, items: Vec<ParametricHwItem>) -> Self` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
@@ -956,6 +976,7 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_hw|method|syl_hw::parametric::ParametricHwModule::ports|fn(self: &Self) -> &[HwPort]` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::parametric::ParametricHwModule::with_canonical_path|fn(self: Self, path: Vec<String>) -> Self` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::parametric::ParametricHwModule::with_doc|fn(self: Self, doc: Option<String>) -> Self` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|method|syl_hw::parametric::ParametricHwModule::with_extern|fn(self: Self, is_extern: bool) -> Self` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::parametric::ParametricHwModule::with_origin|fn(self: Self, origin: Option<HwOrigin>) -> Self` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::place::HwPlace::display|fn(self: &Self) -> String` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::place::HwPlaceExpr::display|fn(self: &Self) -> String` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
@@ -1007,6 +1028,7 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_hw|use|HwParam|named|source=design::HwParam` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|use|HwPlaceExpr|named|source=place::HwPlaceExpr` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|use|HwPlace|named|source=place::HwPlace` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|use|HwPortDomain|named|source=reset::HwPortDomain` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|use|HwPort|named|source=design::HwPort` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|use|HwResetMode|named|source=reset::HwResetMode` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|use|HwResetPolarity|named|source=reset::HwResetPolarity` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
@@ -1033,6 +1055,7 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_hw|variant|syl_hw::design::HwItem::ClockedAssert|{ clock: crate::HwExpr, trigger: crate::HwExpr, message: crate::HwExpr }` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|variant|syl_hw::design::HwItem::ClockedStorage|{ clock: crate::HwExpr, target: crate::HwExpr, reset: Option<HwReset>, next: crate::HwExpr }` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|variant|syl_hw::design::HwItem::ContinuousDrive|{ lhs: crate::HwExpr, rhs: crate::HwExpr }` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|variant|syl_hw::design::HwItem::ControlSignalDecl|{ width: String, name: String, domain: crate::HwPortDomain }` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|variant|syl_hw::design::HwItem::InitialError|{ message: crate::HwExpr }` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|variant|syl_hw::design::HwItem::Instance|(HwInstance)` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|variant|syl_hw::design::HwItem::MemoryDecl|{ name: String, elem_width: String, depth: String }` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
@@ -1094,6 +1117,9 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_hw|variant|syl_hw::place::HwPlaceExpr::Op|{ name: String, args: Vec<HwPlaceExpr> }` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|variant|syl_hw::place::HwPlaceExpr::Str|(String)` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|variant|syl_hw::place::HwPlaceExpr::Zero|unit` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|variant|syl_hw::reset::HwPortDomain::Clock|{ name: Option<String> }` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|variant|syl_hw::reset::HwPortDomain::Data|unit` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|variant|syl_hw::reset::HwPortDomain::Reset|{ name: Option<String>, mode: HwResetMode, polarity: HwResetPolarity }` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|variant|syl_hw::reset::HwResetMode::Async|unit` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|variant|syl_hw::reset::HwResetMode::Sync|unit` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|variant|syl_hw::reset::HwResetPolarity::ActiveHigh|unit` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
@@ -2807,6 +2833,172 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_session|variant|syl_session::error::ProjectError::ReadDir|{ path: std::path::PathBuf, source: std::io::Error }` - CLI, facade, query, and LSP consumers that need project loading, VFS, package snapshots, and workspace-scoped analysis.
 - `syl_session|variant|syl_session::error::ProjectError::Read|{ path: std::path::PathBuf, source: std::io::Error }` - CLI, facade, query, and LSP consumers that need project loading, VFS, package snapshots, and workspace-scoped analysis.
 - `syl_session|variant|syl_session::error::ProjectError::StaleDocumentVersion|{ uri: String, requested: u64, current: u64 }` - CLI, facade, query, and LSP consumers that need project loading, VFS, package snapshots, and workspace-scoped analysis.
+- `syl_sim|enum|syl_sim::design::ParamValue|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|enum|syl_sim::design::Selector|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|enum|syl_sim::design::SimError|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|enum|syl_sim::design::SimExpr|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::AssertId::0|usize` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::ClockDomain::name|Option<String>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::ClockDomain::signal|SignalId` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::CombAssign::target|SimTarget` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::CombAssign::value|SimExpr` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::CombId::0|usize` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::DomainId::0|usize` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::InstanceFamily::members|Vec<InstanceId>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::InstanceFamily::module|Vec<String>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::InstanceFamily::parameters|std::collections::BTreeMap<String, ParamValue>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::InstanceId::0|usize` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::MemCombReadPort::address|SimExpr` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::MemId::0|usize` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::MemSyncReadPort::address|SimExpr` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::MemSyncReadPort::clock|DomainId` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::MemSyncReadPort::enable|SimExpr` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::MemSyncReadPort::target|SimTarget` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::MemWritePort::address|SimExpr` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::MemWritePort::clock|DomainId` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::MemWritePort::data|SimExpr` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::MemWritePort::enable|SimExpr` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::RegId::0|usize` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::ResetDomain::mode|syl_hw::HwResetMode` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::ResetDomain::name|Option<String>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::ResetDomain::polarity|syl_hw::HwResetPolarity` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::ResetDomain::signal|SignalId` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::ResetId::0|usize` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SignalId::0|usize` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimAssert::clock|DomainId` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimAssert::condition|SimExpr` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimAssert::message|String` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimAssert::reset_mask|Option<ResetId>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimAssert::source|SourceLocation` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimDesign::assertions|Vec<SimAssert>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimDesign::clocks|Vec<ClockDomain>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimDesign::comb_eval_order|Vec<CombId>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimDesign::comb|Vec<CombAssign>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimDesign::externs|Vec<SimExternInstance>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimDesign::families|Vec<InstanceFamily>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimDesign::instances|Vec<SimInstance>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimDesign::memories|Vec<SimMem>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimDesign::regs|Vec<SimReg>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimDesign::resets|Vec<ResetDomain>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimDesign::signals|Vec<SimSignal>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimExternInstance::connections|Vec<(SignalId, SimExpr)>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimExternInstance::instance|InstanceId` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimInstance::parent|Option<InstanceId>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimInstance::ports|Vec<SimPort>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimInstance::source|SourceLocation` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimInstance::template|TemplateId` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimMem::comb_reads|Vec<MemCombReadPort>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimMem::depth|u32` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimMem::source|SourceLocation` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimMem::sync_reads|Vec<MemSyncReadPort>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimMem::width|u32` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimMem::writes|Vec<MemWritePort>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimPort::direction|syl_hw::HwDirection` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimPort::name|String` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimPort::signal|SignalId` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimReg::clock|DomainId` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimReg::next|SimExpr` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimReg::reset|Option<(ResetId, SimExpr)>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimReg::signal|SignalId` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimReg::source|SourceLocation` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimReg::width|u32` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimSignal::alias|Option<SimTarget>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimSignal::source|SourceLocation` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimSignal::width|u32` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimTarget::selectors|Vec<Selector>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimTarget::signal|SignalId` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SourceLocation::instance|InstanceId` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SourceLocation::name|String` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SourceLocation::origin|syl_hw::HwOrigin` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SourceLocation::path|String` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::TemplateId::0|usize` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|method|syl_sim::design::SimDesign::assertion|fn(self: &Self, id: AssertId) -> &SimAssert` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|method|syl_sim::design::SimDesign::lower|fn(output: &ElaborationOutput, top: &str, parameters: &BTreeMap<String, ParamValue>) -> Result<Self, SimError>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|method|syl_sim::design::SimDesign::register|fn(self: &Self, id: RegId) -> &SimReg` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|method|syl_sim::design::SimDesign::signal|fn(self: &Self, id: SignalId) -> &SimSignal` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|method|syl_sim::design::SimDesign::top_ports|fn(self: &Self) -> &[SimPort]` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|method|syl_sim::design::SourceLocation::span|fn(self: &Self) -> Span` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|struct|syl_sim::design::AssertId|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|struct|syl_sim::design::ClockDomain|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|struct|syl_sim::design::CombAssign|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|struct|syl_sim::design::CombId|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|struct|syl_sim::design::DomainId|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|struct|syl_sim::design::InstanceFamily|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|struct|syl_sim::design::InstanceId|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|struct|syl_sim::design::MemCombReadPort|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|struct|syl_sim::design::MemId|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|struct|syl_sim::design::MemSyncReadPort|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|struct|syl_sim::design::MemWritePort|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|struct|syl_sim::design::RegId|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|struct|syl_sim::design::ResetDomain|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|struct|syl_sim::design::ResetId|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|struct|syl_sim::design::SignalId|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|struct|syl_sim::design::SimAssert|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|struct|syl_sim::design::SimDesign|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|struct|syl_sim::design::SimExternInstance|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|struct|syl_sim::design::SimInstance|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|struct|syl_sim::design::SimMem|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|struct|syl_sim::design::SimPort|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|struct|syl_sim::design::SimReg|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|struct|syl_sim::design::SimSignal|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|struct|syl_sim::design::SimTarget|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|struct|syl_sim::design::SourceLocation|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|struct|syl_sim::design::TemplateId|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|AssertId|named|source=design::AssertId` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|ClockDomain|named|source=design::ClockDomain` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|CombAssign|named|source=design::CombAssign` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|CombId|named|source=design::CombId` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|DomainId|named|source=design::DomainId` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|HwBinaryOp|named|source=syl_hw::HwBinaryOp` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|HwDirection|named|source=syl_hw::HwDirection` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|HwResetMode|named|source=syl_hw::HwResetMode` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|HwResetPolarity|named|source=syl_hw::HwResetPolarity` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|HwSelectMode|named|source=syl_hw::HwSelectMode` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|HwUnaryOp|named|source=syl_hw::HwUnaryOp` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|InstanceFamily|named|source=design::InstanceFamily` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|InstanceId|named|source=design::InstanceId` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|MemCombReadPort|named|source=design::MemCombReadPort` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|MemId|named|source=design::MemId` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|MemSyncReadPort|named|source=design::MemSyncReadPort` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|MemWritePort|named|source=design::MemWritePort` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|ParamValue|named|source=design::ParamValue` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|RegId|named|source=design::RegId` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|ResetDomain|named|source=design::ResetDomain` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|ResetId|named|source=design::ResetId` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|Selector|named|source=design::Selector` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|SignalId|named|source=design::SignalId` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|SimAssert|named|source=design::SimAssert` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|SimDesign|named|source=design::SimDesign` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|SimError|named|source=design::SimError` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|SimExpr|named|source=design::SimExpr` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|SimExternInstance|named|source=design::SimExternInstance` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|SimInstance|named|source=design::SimInstance` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|SimMem|named|source=design::SimMem` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|SimPort|named|source=design::SimPort` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|SimReg|named|source=design::SimReg` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|SimSignal|named|source=design::SimSignal` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|SimTarget|named|source=design::SimTarget` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|SourceLocation|named|source=design::SourceLocation` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|TemplateId|named|source=design::TemplateId` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|variant|syl_sim::design::ParamValue::Bool|(bool)` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|variant|syl_sim::design::ParamValue::Nat|(u64)` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|variant|syl_sim::design::Selector::Index|{ index: Box<SimExpr>, width: u32 }` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|variant|syl_sim::design::Selector::Slice|{ high: u32, low: u32 }` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|variant|syl_sim::design::SimError::CombinationalCycle|{ chain: Vec<String>, members: Vec<String> }` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|variant|syl_sim::design::SimError::Elaboration|(String)` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|variant|syl_sim::design::SimError::Invalid|(String)` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|variant|syl_sim::design::SimExpr::Binary|{ op: syl_hw::HwBinaryOp, left: Box<SimExpr>, right: Box<SimExpr> }` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|variant|syl_sim::design::SimExpr::Bool|(bool)` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|variant|syl_sim::design::SimExpr::Concat|(Vec<SimExpr>)` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|variant|syl_sim::design::SimExpr::HighZ|unit` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|variant|syl_sim::design::SimExpr::Int|(u64)` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|variant|syl_sim::design::SimExpr::MemoryRead|{ memory: MemId, port: usize }` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|variant|syl_sim::design::SimExpr::Mux|{ cond: Box<SimExpr>, then_value: Box<SimExpr>, else_value: Box<SimExpr> }` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|variant|syl_sim::design::SimExpr::Project|{ value: Box<SimExpr>, selector: Selector }` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|variant|syl_sim::design::SimExpr::Read|(SimTarget)` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|variant|syl_sim::design::SimExpr::Select|{ mode: syl_hw::HwSelectMode, arms: Vec<(SimExpr, SimExpr)>, default: Box<SimExpr> }` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|variant|syl_sim::design::SimExpr::Unary|{ op: syl_hw::HwUnaryOp, expr: Box<SimExpr> }` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|variant|syl_sim::design::SimExpr::Zero|unit` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_span|assoc_const|syl_span::SourceId::UNKNOWN|public` - All compiler layers, CLI, LSP, and embedding consumers that need source identity, ranges, and diagnostics.
 - `syl_span|enum|syl_span::DiagnosticSeverity|public` - All compiler layers, CLI, LSP, and embedding consumers that need source identity, ranges, and diagnostics.
 - `syl_span|field|syl_span::Diagnostic::code|Option<String>` - All compiler layers, CLI, LSP, and embedding consumers that need source identity, ranges, and diagnostics.

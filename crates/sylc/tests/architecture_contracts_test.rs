@@ -318,6 +318,13 @@ fn crate_contracts() -> &'static [CrateContract] {
             ],
         },
         CrateContract {
+            name: "syl_sim",
+            rank: 5,
+            dependencies: &["syl_elab", "syl_hw", "syl_span"],
+            dev_dependencies: &["syl_sema", "syl_syntax"],
+            readme_mentions: &["SimDesign", "syl_elab", "syl_hw", "comb_eval_order"],
+        },
+        CrateContract {
             name: "syl_emit",
             rank: 5,
             dependencies: &["syl_hw"],

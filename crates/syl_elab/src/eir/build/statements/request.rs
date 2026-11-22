@@ -64,6 +64,7 @@ pub(crate) struct AggregateAssignEmit<'a> {
 
 #[non_exhaustive]
 pub(crate) struct ForEmit<'a> {
+    pub(crate) binding: Option<&'a str>,
     pub(crate) name: &'a str,
     pub(crate) range_expr: &'a ElabExpr,
     pub(crate) body: &'a ElabBlock,

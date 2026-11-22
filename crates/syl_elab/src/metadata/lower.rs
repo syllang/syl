@@ -277,6 +277,7 @@ impl<'a> HardwareMetadataLowerer<'a> {
                 .map(|expansion| self.lower_expansion(expansion))
                 .collect(),
         )
+        .with_source_field(origin.field.clone())
     }
 
     fn lower_expansion(&self, expansion: &EirExpansion) -> HwExpansion {
@@ -287,5 +288,6 @@ impl<'a> HardwareMetadataLowerer<'a> {
             expansion.span().start,
             expansion.span().end,
         )
+        .with_source_name(expansion.source_name.clone())
     }
 }

@@ -30,6 +30,8 @@ impl<C: crate::const_eval::ConstValueElaborator + ?Sized> EirBuilder<'_, C> {
                     .map(str::to_owned),
             },
             Some("Reset") => EirPortDomain::Reset {
+                mode: Self::reset_config(Some(ty)).0,
+                polarity: Self::reset_config(Some(ty)).1,
                 domain: self
                     .reset_domain(ty)
                     .and_then(MirTypeRef::path_name)
@@ -141,6 +143,10 @@ impl<C: crate::const_eval::ConstValueElaborator + ?Sized> EirBuilder<'_, C> {
             .values()
             .find(|v| v.code == *condition && self.static_type_name(&v.ty) == Some("Reset"))
             .map(|v| &v.ty);
+        Self::reset_config(ty)
+    }
+
+    fn reset_config(ty: Option<&MirTypeRef>) -> (EirResetMode, EirResetPolarity) {
         let args = ty.and_then(MirTypeRef::args).unwrap_or_default();
         (
             if args.iter().any(|a| a.path_name() == Some("Async")) {

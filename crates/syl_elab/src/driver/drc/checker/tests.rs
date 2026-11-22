@@ -43,6 +43,7 @@ fn tri_drive(target: &str, enable: EirExpr, value: u64) -> EirItem {
 
 fn optional_signal(name: &str) -> EirItem {
     EirItem::Signal {
+        domain: crate::eir::EirPortDomain::Data,
         width: "1".into(),
         name: name.to_string(),
         activity: EirSignalActivity::Optional,
@@ -135,6 +136,7 @@ fn duplicate_driver_keeps_expansion_call_stack_in_related_spans() {
         Vec::new(),
         vec![
             EirItem::Signal {
+                domain: crate::eir::EirPortDomain::Data,
                 width: "1".into(),
                 name: "v".to_string(),
                 activity: crate::eir::EirSignalActivity::Required,

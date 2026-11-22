@@ -140,6 +140,7 @@ fn rejects_const_cycles_in_port_signal_and_storage_widths() {
             Vec::new(),
             Vec::new(),
             vec![EirItem::Signal {
+                domain: crate::eir::EirPortDomain::Data,
                 width: width(),
                 name: "s".into(),
                 activity: EirSignalActivity::Required,

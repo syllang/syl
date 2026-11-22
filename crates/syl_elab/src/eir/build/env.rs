@@ -193,9 +193,10 @@ impl Env {
         callable: impl Into<String>,
         instance: impl Into<String>,
         span: Span,
+        source_name: String,
     ) {
         self.expansion_stack
-            .push(EirExpansion::new(callable, instance, span));
+            .push(EirExpansion::new(callable, instance, span).with_source_name(source_name));
     }
 
     pub(crate) fn single_by_type<C>(

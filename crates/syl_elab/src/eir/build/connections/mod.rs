@@ -145,11 +145,11 @@ where
                     env_ty.clone(),
                 );
                 env.insert(&port_name, EirExpr::ident(&port_name), env_ty.clone());
-                ports.push(
-                    EirPort::new(direction, width, port_name, env.origin(spec.span))
-                        .with_domain(self.port_domain(&env_ty))
-                        .with_doc(spec.doc.map(ToOwned::to_owned)),
-                );
+                let mut port = EirPort::new(direction, width, port_name, env.origin(spec.span))
+                    .with_domain(self.port_domain(&env_ty))
+                    .with_doc(spec.doc.map(ToOwned::to_owned));
+                port.source_name = Some(format!("{}.{}", spec.name, field.name));
+                ports.push(port);
             }
         }
         Ok(())
@@ -194,6 +194,7 @@ where
         )
         .unwrap_or_else(|| {
             vec![EirItem::Signal {
+                domain: self.port_domain(ty),
                 width: self.width_bound(env.owner, ty),
                 name: prefix.to_string(),
                 activity: EirSignalActivity::Optional,
@@ -217,6 +218,7 @@ where
                     let signal_name = format!("{}_{}", spec.physical_prefix, field.name);
                     let width = self.width_bound(env.owner, &field_ty);
                     items.push(EirItem::Signal {
+                        domain: self.port_domain(&field_ty),
                         width,
                         name: signal_name.clone(),
                         activity: match field.direction {
@@ -226,7 +228,9 @@ where
                             }
                             ElabViewDirection::Unsupported => EirSignalActivity::Optional,
                         },
-                        origin: env.origin(spec.span),
+                        origin: env
+                            .origin(spec.span)
+                            .with_field(format!("{}.{}", spec.binding, field.name)),
                     });
                     env.insert(&signal_name, EirExpr::ident(&signal_name), field_ty.clone());
                     env.insert(
@@ -268,6 +272,7 @@ where
                 ));
             }
             return self.emit_cell_inline(CellInlineRequest {
+                source_name: request.source_name,
                 callable_def,
                 inst_name: request.inst_name,
                 callable_name: &callable_name,
@@ -324,14 +329,16 @@ where
             )?;
         }
         let target = self.canonical_path(callable_def, &callable_name);
+        let mut origin = request.env.origin(request.span);
+        origin.field = request.source_name.map(str::to_owned);
         Ok(vec![EirItem::Instance(
             EirInstance::new(
                 callable_name,
                 params,
                 safe_name,
-                request.inst_name,
+                request.source_name.unwrap_or(request.inst_name),
                 conns,
-                request.env.origin(request.span),
+                origin,
             )
             .with_target_canonical_path(target),
         )])
@@ -342,10 +349,21 @@ where
         request: CellInlineRequest<'_>,
     ) -> Result<Vec<EirItem>, CompileError> {
         let call_span = self.call_span(request.callee, request.args);
-        let mut cell_env = Env::with_prefix(self.sanitize(request.inst_name));
+        let physical = self.sanitize(request.inst_name);
+        let mut cell_env = Env::with_prefix(&physical);
         cell_env.owner = Some(request.callable_def);
         cell_env.expansion_stack = request.caller_env.expansion_stack.clone();
-        cell_env.push_expansion(request.callable_name, request.inst_name, call_span);
+        let binding = request.source_name.unwrap_or_else(|| {
+            request
+                .caller_env
+                .prefix
+                .as_deref()
+                .filter(|prefix| !prefix.is_empty())
+                .and_then(|prefix| request.inst_name.strip_prefix(prefix))
+                .and_then(|suffix| suffix.strip_prefix('_'))
+                .unwrap_or(request.inst_name)
+        });
+        cell_env.push_expansion(request.callable_name, physical, call_span, binding.into());
         self.insert_call_generics(
             &mut cell_env,
             request.item,
