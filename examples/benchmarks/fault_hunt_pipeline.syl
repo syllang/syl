@@ -8,10 +8,10 @@ cell SequenceGuard<PREFIX: nat = 61, D: Domain>(
     clk: in Clock<D>, rst: in Reset<D>, sample: in UInt<128>, inject: in Bit,
     digest: out UInt<128>, matched: out Bit,
 ) {
+    signal tag: UInt<128> := sample and 255
     reg first: Bit reset(rst, 0)
     reg second: Bit reset(rst, 0)
     reg third: Bit reset(rst, 0)
-    signal tag: UInt<128> := sample and 255
     next first := tag eq PREFIX
     next second := first and (tag eq 218)
     next third := second and (tag eq 237)
@@ -20,10 +20,12 @@ cell SequenceGuard<PREFIX: nat = 61, D: Domain>(
     signal trip: Bit := inject and hit
     assert(not trip)
 
+    signal mixed_next: UInt<128>
     reg mixed: UInt<128> reset(rst, 0)
     reg sum: UInt<128> reset(rst, 0)
     // Fold the full data word into a pipelined rolling signature.
-    next mixed := sum xor sample
+    mixed_next := sum xor sample
+    next mixed := mixed_next
     next sum := mixed + sum
     digest := sum
 }

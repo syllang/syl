@@ -1,6 +1,6 @@
-#[path = "sim_workloads_test/rtl.rs"]
+#[path = "sim_workloads_test/rtl_test.rs"]
 mod rtl;
-#[path = "support/simulation_dir.rs"]
+#[path = "support/simulation_dir_test.rs"]
 mod simulation_dir;
 mod support;
 
@@ -18,6 +18,7 @@ struct Workload {
     dir: SimulationDir,
     path: PathBuf,
     design: SimDesign,
+    backends: Vec<rtl::Backend>,
 }
 
 impl Workload {
@@ -48,8 +49,13 @@ impl Workload {
                 .map(|f| (&f.module, f.members.len()))
                 .collect::<Vec<_>>()
         );
-        rtl::build(&dir, &path, &design, top);
-        Self { dir, path, design }
+        let backends = rtl::build(&dir, &path, &design, top);
+        Self {
+            dir,
+            path,
+            design,
+            backends,
+        }
     }
 
     fn compare(&self, cycles: usize, mut stimulus: impl FnMut(usize, &mut Simulator)) {
@@ -70,7 +76,7 @@ impl Workload {
             let after = rtl::pins(&sim, HwDirection::Out);
             writeln!(rows, "{input} {before} {after}").unwrap();
         }
-        rtl::compare(&self.dir, &rows, cycles);
+        rtl::compare(&self.dir, &self.backends, &rows, cycles);
     }
 }
 
@@ -229,7 +235,7 @@ fn fault_sequence_matches_rtl_and_replays_with_source_location() {
             writeln!(fault_trace, "{input} {before} 0").unwrap();
         }
     }
-    rtl::expect_assertion(&w.dir, &fault_trace, 20);
+    rtl::expect_assertion(&w.dir, &w.backends, &fault_trace, 20);
     fs::write(
         w.dir.0.join("stimulus.json"),
         serde_json::to_vec(&steps).unwrap(),

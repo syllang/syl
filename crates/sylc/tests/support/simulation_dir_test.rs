@@ -1,5 +1,6 @@
 use std::{
     env, fs,
+    io::ErrorKind,
     path::PathBuf,
     process::{Command, Output},
     time::{SystemTime, UNIX_EPOCH},
@@ -36,5 +37,24 @@ impl SimulationDir {
 impl Drop for SimulationDir {
     fn drop(&mut self) {
         let _ = fs::remove_dir_all(&self.0);
+    }
+}
+
+pub fn tool_available(tool: &str) -> bool {
+    let version = if matches!(tool, "iverilog" | "vvp") {
+        "-V"
+    } else {
+        "--version"
+    };
+    match Command::new(tool).arg(version).output() {
+        Ok(output) => {
+            assert!(
+                output.status.success(),
+                "{tool} {version} failed: {output:?}"
+            );
+            true
+        }
+        Err(error) if error.kind() == ErrorKind::NotFound => false,
+        Err(error) => panic!("could not probe {tool}: {error}"),
     }
 }

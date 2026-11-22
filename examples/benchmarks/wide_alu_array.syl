@@ -4,9 +4,11 @@ cell WideAluPE<D: Domain>(
     clk: in Clock<D>, rst: in Reset<D>, word: in UInt<32>, op: in UInt<2>,
     result: out UInt<32>,
 ) {
+    signal alu: UInt<32>
     reg stage: UInt<32> reset(rst, 0)
     reg acc: UInt<32> reset(rst, 0)
-    next stage := select priority {
+    next stage := alu
+    alu := select priority {
         op eq 0 => word,
         op eq 1 => word xor acc,
         op eq 2 => acc and word,

@@ -1,13 +1,12 @@
 use std::{
     fs,
-    io::ErrorKind,
     path::Path,
     process::{Command, Output},
 };
 
-#[path = "support/simulation_dir.rs"]
+#[path = "support/simulation_dir_test.rs"]
 mod simulation_dir;
-use simulation_dir::{SimulationDir, run};
+use simulation_dir::{SimulationDir, run, tool_available};
 
 #[test]
 fn verilator_alu_matches_wrapping_arithmetic_and_bundle_layout() {
@@ -182,25 +181,6 @@ fn simulate(example: &str, top: &str, parameters: &[&str], testbench: &str) {
         "simulation did not complete: {stdout}"
     );
     eprintln!("{top}: {}", stdout.trim());
-}
-
-fn tool_available(tool: &str) -> bool {
-    let version = if tool == "iverilog" {
-        "-V"
-    } else {
-        "--version"
-    };
-    match Command::new(tool).arg(version).output() {
-        Ok(output) => {
-            assert!(
-                output.status.success(),
-                "{tool} {version} failed: {output:?}"
-            );
-            true
-        }
-        Err(error) if error.kind() == ErrorKind::NotFound => false,
-        Err(error) => panic!("could not probe {tool}: {error}"),
-    }
 }
 
 #[path = "verilator_sim_test/native_diff_test.rs"]

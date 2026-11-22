@@ -8,9 +8,11 @@ cell SharedRamArbiter<W: nat = 32, DEPTH: nat = 16, ADDR_W: nat = 4, D: Domain>(
     grant_a: out Bit, grant_b: out Bit,
     valid_a: out Bit, valid_b: out Bit, rsp_a: out UInt<W>, rsp_b: out UInt<W>,
 ) {
+    signal take_a: Bit
+    signal take_b: Bit
     reg prefer_b: Bit reset(rst, 0)
-    signal take_a: Bit := not rst and req_a and not (req_b and prefer_b)
-    signal take_b: Bit := not rst and req_b and not take_a
+    take_a := not rst and req_a and not (req_b and prefer_b)
+    take_b := not rst and req_b and not take_a
     next prefer_b := select priority { take_a => 1, take_b => 0, default => prefer_b, }
     grant_a := take_a
     grant_b := take_b
