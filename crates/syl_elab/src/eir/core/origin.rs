@@ -60,6 +60,7 @@ impl EirOrigin {
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub(crate) struct EirExpansion {
+    pub(crate) source_name: Option<String>,
     callable: String,
     instance: String,
     span: Span,
@@ -72,10 +73,16 @@ impl EirExpansion {
         span: Span,
     ) -> Self {
         Self {
+            source_name: None,
             callable: callable.into(),
             instance: instance.into(),
             span,
         }
+    }
+
+    pub(crate) fn with_source_name(mut self, name: String) -> Self {
+        self.source_name = Some(name);
+        self
     }
 
     pub(crate) fn callable(&self) -> &str {

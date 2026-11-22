@@ -891,9 +891,11 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_hw|method|syl_hw::design::HwExpansion::callable|fn(self: &Self) -> &str` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwExpansion::instance|fn(self: &Self) -> &str` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwExpansion::new|fn(callable: impl Into<String>, instance: impl Into<String>, source: SourceId, span_start: usize, span_end: usize) -> Self` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|method|syl_hw::design::HwExpansion::source_name|fn(self: &Self) -> Option<&str>` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwExpansion::source|fn(self: &Self) -> SourceId` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwExpansion::span_end|fn(self: &Self) -> usize` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwExpansion::span_start|fn(self: &Self) -> usize` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|method|syl_hw::design::HwExpansion::with_source_name|fn(self: Self, name: Option<String>) -> Self` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwGuard::display|fn(self: &Self) -> String` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwGuard::frames|fn(self: &Self) -> &[HwGuardFrame]` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwGuard::is_root|fn(self: &Self) -> bool` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
@@ -1053,6 +1055,7 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_hw|variant|syl_hw::design::HwItem::ClockedAssert|{ clock: crate::HwExpr, trigger: crate::HwExpr, message: crate::HwExpr }` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|variant|syl_hw::design::HwItem::ClockedStorage|{ clock: crate::HwExpr, target: crate::HwExpr, reset: Option<HwReset>, next: crate::HwExpr }` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|variant|syl_hw::design::HwItem::ContinuousDrive|{ lhs: crate::HwExpr, rhs: crate::HwExpr }` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|variant|syl_hw::design::HwItem::ControlSignalDecl|{ width: String, name: String, domain: crate::HwPortDomain }` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|variant|syl_hw::design::HwItem::InitialError|{ message: crate::HwExpr }` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|variant|syl_hw::design::HwItem::Instance|(HwInstance)` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|variant|syl_hw::design::HwItem::MemoryDecl|{ name: String, elem_width: String, depth: String }` - Elaboration, emission, and backend validation code that consumes the hardware graph model.

@@ -69,9 +69,24 @@ impl<'a> HwLowerer<'a> {
     }
 
     fn lower_port(&self, port: &EirPort) -> Result<HwPort, CompileError> {
+        let domain = self.lower_domain(port.domain());
+        Ok(HwPort::new(
+            self.lower_direction(port.direction())?,
+            port.width(),
+            port.name(),
+        )
+        .with_source(
+            port.source_name.as_deref().unwrap_or(port.name()),
+            self.lower_origin(port.origin()),
+            domain,
+        )
+        .with_doc(port.doc().map(ToOwned::to_owned)))
+    }
+
+    fn lower_domain(&self, role: &crate::eir::EirPortDomain) -> syl_hw::HwPortDomain {
         use crate::eir::{EirPortDomain, EirResetMode, EirResetPolarity};
         use syl_hw::{HwPortDomain, HwResetMode, HwResetPolarity};
-        let domain = match port.domain() {
+        match role {
             EirPortDomain::Data => HwPortDomain::Data,
             EirPortDomain::Clock { domain } => HwPortDomain::Clock {
                 name: domain.clone(),
@@ -91,18 +106,7 @@ impl<'a> HwLowerer<'a> {
                     EirResetPolarity::ActiveLow => HwResetPolarity::ActiveLow,
                 },
             },
-        };
-        Ok(HwPort::new(
-            self.lower_direction(port.direction())?,
-            port.width(),
-            port.name(),
-        )
-        .with_source(
-            port.source_name.as_deref().unwrap_or(port.name()),
-            self.lower_origin(port.origin()),
-            domain,
-        )
-        .with_doc(port.doc().map(ToOwned::to_owned)))
+        }
     }
 
     fn lower_direction(&self, direction: EirDirection) -> Result<HwDirection, CompileError> {
@@ -184,14 +188,22 @@ impl<'a> HwLowerer<'a> {
                 self.lower_origin(origin),
             )]),
             EirItem::Signal {
+                domain,
                 width,
                 name,
                 origin,
                 ..
             } => Ok(vec![ParametricHwItem::core(
-                HwItem::SignalDecl {
-                    width: width.source().to_string(),
-                    name: name.clone(),
+                match domain {
+                    crate::eir::EirPortDomain::Data => HwItem::SignalDecl {
+                        width: width.source().to_string(),
+                        name: name.clone(),
+                    },
+                    _ => HwItem::ControlSignalDecl {
+                        width: width.source().to_string(),
+                        name: name.clone(),
+                        domain: self.lower_domain(domain),
+                    },
                 },
                 self.lower_origin(origin),
             )]),
@@ -509,5 +521,6 @@ impl<'a> HwLowerer<'a> {
             expansion.span().start,
             expansion.span().end,
         )
+        .with_source_name(expansion.source_name.clone())
     }
 }

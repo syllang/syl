@@ -249,6 +249,7 @@ pub(crate) enum EirItem {
         origin: EirOrigin,
     },
     Signal {
+        domain: EirPortDomain,
         width: EirBound,
         name: String,
         activity: EirSignalActivity,

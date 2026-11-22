@@ -42,7 +42,7 @@ pub(crate) fn concretize(
             connections: BTreeMap::new(),
         },
     )?;
-    lower.design.comb_eval_order = crate::schedule::order(&lower.design)?;
+    lower.design.comb_eval_order = crate::schedule::order(&mut lower.design)?;
     Ok(lower.design)
 }
 
@@ -77,12 +77,20 @@ struct Scope {
 
 impl Scope {
     fn source(&self, name: &str, origin: &HwOrigin) -> SourceLocation {
-        let mut path = self.path.clone();
+        self.source_under(&self.path, name, origin)
+    }
+
+    fn source_under(&self, parent: &str, name: &str, origin: &HwOrigin) -> SourceLocation {
+        let mut path = parent.to_owned();
         let mut prefix = String::new();
         for frame in origin.expansion_stack() {
             let instance = frame.instance();
             path.push('.');
-            path.push_str(instance.strip_prefix(&prefix).unwrap_or(instance));
+            path.push_str(
+                frame
+                    .source_name()
+                    .unwrap_or_else(|| instance.strip_prefix(&prefix).unwrap_or(instance)),
+            );
             prefix = format!("{instance}_");
         }
         let local = name.strip_prefix(&prefix).unwrap_or(name);
@@ -363,7 +371,9 @@ impl<'a> Lower<'a> {
         } else {
             &scope.path
         };
-        let path = format!("{prefix}.{name}");
+        let source = scope.source_under(prefix, &name, origin);
+        let path = source.path;
+        let name = source.name;
         let mut params = Bindings::new();
         for bind in instance.params() {
             let formal = module

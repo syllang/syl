@@ -195,6 +195,63 @@ fn sequential_domains_memory_ports_and_origins() {
         let span = mem.source.span();
         assert_eq!(span.source, SourceId::new(1));
         assert!(RAM[span.start..span.end].contains("mem storage"));
+        let port = |name: &str| {
+            let signal = d
+                .top_ports()
+                .iter()
+                .find(|p| p.name == name)
+                .unwrap()
+                .signal;
+            SimTarget {
+                signal,
+                selectors: vec![],
+            }
+        };
+        let read = |name| SimExpr::Read(port(name));
+        let and = |left, right| SimExpr::Binary {
+            op: HwBinaryOp::BitAnd,
+            left: Box::new(left),
+            right: Box::new(right),
+        };
+        let write = &mem.writes[0];
+        let single = top == "SinglePortRam";
+        assert_eq!(write.address, read(if single { "addr" } else { "waddr" }));
+        assert_eq!(write.data, read("wdata"));
+        assert_eq!(
+            write.enable,
+            if single {
+                and(read("en"), read("we"))
+            } else {
+                read("we")
+            }
+        );
+        let expected_output = if let Some(sync) = mem.sync_reads.first() {
+            let not_write = SimExpr::Unary {
+                op: HwUnaryOp::Not,
+                expr: Box::new(read("we")),
+            };
+            assert_eq!(
+                sync.enable,
+                if single {
+                    and(read("en"), not_write)
+                } else {
+                    read("re")
+                }
+            );
+            assert_eq!(sync.address, read(if single { "addr" } else { "raddr" }));
+            SimExpr::Read(sync.target.clone())
+        } else {
+            assert_eq!(mem.comb_reads[0].address, read("raddr"));
+            SimExpr::MemoryRead {
+                memory: MemId(0),
+                port: 0,
+            }
+        };
+        assert!(
+            d.comb
+                .iter()
+                .any(|a| a.target == port("rdata") && a.value == expected_output)
+        );
     }
 }
 
@@ -249,6 +306,23 @@ cell Top<D: Domain>(clk: in Clock<D>, rst: in Reset<D, Async, ActiveLow>, i: in 
     let boundary = &d.externs[0];
     assert_eq!(d.instances[boundary.instance.0].source.path, "Top.black");
     assert_eq!(boundary.connections.len(), 2);
+    let pairs: BTreeMap<_, _> = boundary
+        .connections
+        .iter()
+        .map(|(formal, actual)| {
+            let SimExpr::Read(target) = actual else {
+                panic!("expected a port signal")
+            };
+            (
+                d.signal(*formal).source.path.as_str(),
+                d.signal(target.signal).source.path.as_str(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        pairs,
+        BTreeMap::from([("Top.black.i", "Top.i"), ("Top.black.o", "Top.y")])
+    );
     let assertion = d.assertion(AssertId(0));
     let span = assertion.source.span();
     assert_eq!(&source[span.start..span.end], "assert(i)");
@@ -396,4 +470,213 @@ fn already_unrolled_placements_retain_source_array_names() {
             format!("LaneArray.lanes[{i}]")
         );
     }
+}
+
+#[test]
+fn direct_port_slice_dependency_avoids_false_cycle_and_detects_real_cycle() {
+    let source = r#"
+cell Pick(i: in UInt<2>) -> o: Bit { o := i[0] }
+cell Top(i: in Bit) -> o: Bit {
+ signal a: UInt<2>
+ let p = place Pick(i: a)
+ a[0] := i
+ a[1] := p
+ o := a[1]
+}
+"#;
+    let d = SimDesign::lower(&compile(&[("slice", source)]), "Top", &BTreeMap::new()).unwrap();
+    let position = |path: &str, selectors: &[Selector]| {
+        d.comb_eval_order
+            .iter()
+            .position(|id| {
+                let target = &d.comb[id.0].target;
+                d.signal(target.signal).source.path == path && target.selectors == selectors
+            })
+            .unwrap()
+    };
+    let low = position("Top.a", &[Selector::Slice { low: 0, high: 0 }]);
+    let child = position("Top.p", &[]);
+    let high = position("Top.a", &[Selector::Slice { low: 1, high: 1 }]);
+    let output = position("Top.o", &[]);
+    let input_low = position("Top.p.i", &[Selector::Slice { low: 0, high: 0 }]);
+    let input_high = position("Top.p.i", &[Selector::Slice { low: 1, high: 1 }]);
+    assert!(low < input_low && input_low < child && child < high && high < output);
+    assert!(high < input_high);
+    for (idx, bit) in [(input_low, 0), (input_high, 1)] {
+        let assign = &d.comb[d.comb_eval_order[idx].0];
+        let SimExpr::Read(t) = &assign.value else {
+            panic!("expected a sliced copy")
+        };
+        assert_eq!(d.signal(t.signal).source.path, "Top.a");
+        assert_eq!(
+            t.selectors,
+            [Selector::Slice {
+                low: bit,
+                high: bit
+            }]
+        );
+    }
+    let source = source.replace("o := i[0]", "o := i[1]");
+    let err =
+        SimDesign::lower(&compile(&[("slice", &source)]), "Top", &BTreeMap::new()).unwrap_err();
+    assert!(matches!(err, SimError::CombinationalCycle { .. }));
+}
+
+#[test]
+fn local_reset_signal_inherits_domain_and_polarity() {
+    let source = r#"
+cell Top(clk: in Clock, rst: in Reset<Async, ActiveLow>, i: in Bit) -> o: Bit {
+ signal r: Reset<Async, ActiveLow>
+ r := rst
+ reg q: Bit reset(r, 0)
+ next q := i
+ o := q
+}
+"#;
+    let d = SimDesign::lower(
+        &compile(&[("local_reset", source)]),
+        "Top",
+        &BTreeMap::new(),
+    )
+    .unwrap();
+    let reg = d.register(RegId(0));
+    let reset = &d.resets[reg.reset.as_ref().unwrap().0.0];
+    assert_eq!(d.signal(reset.signal).source.path, "Top.r");
+    assert!(d.comb.iter().any(|a| a.target.signal == reset.signal
+        && matches!(&a.value,SimExpr::Read(t) if d.signal(t.signal).source.path == "Top.rst")));
+    assert_eq!(
+        (reset.mode, reset.polarity),
+        (HwResetMode::Async, HwResetPolarity::ActiveLow)
+    );
+}
+
+#[test]
+fn parameterized_clog2_selects_the_same_static_branch_as_sv() {
+    let source = r#"
+fn clog2(x: nat) -> nat {
+    var n: nat = 0
+    var p: nat = 1
+    while p < x {
+        p = p << 1
+        n = n + 1
+    }
+    return n
+}
+cell Top<W: nat>(y: out Bit) {
+    const IDX_W: nat = clog2(W)
+    if IDX_W == 0 { y := 0 } else { y := 1 }
+}
+"#;
+    let output = compile(&[("clog2", source)]);
+    for (w, branch) in [(1, 0), (8, 1)] {
+        let params = BTreeMap::from([("W".into(), ParamValue::Nat(w))]);
+        let d = SimDesign::lower(&output, "Top", &params).unwrap();
+        assert_eq!(d.signal(d.comb[0].target.signal).width, 1);
+        assert_eq!(d.comb[0].value, SimExpr::Int(branch));
+    }
+    // Specialize a second top with a nonzero clog2-sized local declaration.
+    let widths = source.replace(
+        "if IDX_W == 0 { y := 0 } else { y := 1 }",
+        "signal idx: UInt<IDX_W> := 0\n y := idx eq 0",
+    );
+    let output = compile(&[("widths", &widths)]);
+    for (w, expected) in [(2, 1), (8, 3), (9, 4)] {
+        let d = SimDesign::lower(
+            &output,
+            "Top",
+            &BTreeMap::from([("W".into(), ParamValue::Nat(w))]),
+        )
+        .unwrap();
+        assert_eq!(
+            d.signals
+                .iter()
+                .find(|s| s.source.name == "idx")
+                .unwrap()
+                .width,
+            expected
+        );
+    }
+}
+
+#[test]
+fn inplace_instances_keep_source_paths_inside_constant_for() {
+    let source = r#"
+cell Leaf(i: in Bit) -> o: Bit { o := i }
+cell Wrap(i: in Bit) -> o: Bit {
+    let sub = place Leaf(i: i)
+    o := sub
+}
+cell Top(i: in [2] Bit) -> o: [2] Bit {
+    let wraps = for j in 0..2 {
+        inplace Wrap(i: i[j])
+    }
+    o := i
+}
+"#;
+    let design =
+        SimDesign::lower(&compile(&[("inline_for", source)]), "Top", &BTreeMap::new()).unwrap();
+    let leaves: Vec<_> = design
+        .instances
+        .iter()
+        .filter(|instance| instance.source.name == "sub")
+        .collect();
+    assert_eq!(leaves.len(), 2);
+    assert_eq!(leaves[0].source.path, "Top.wraps[0].sub");
+    assert_eq!(leaves[1].source.path, "Top.wraps[1].sub");
+    assert!(
+        design
+            .signals
+            .iter()
+            .any(|signal| signal.source.path == "Top.wraps[0].sub.i")
+    );
+    assert!(
+        design
+            .signals
+            .iter()
+            .any(|signal| signal.source.path == "Top.wraps[1].sub.i")
+    );
+}
+
+#[test]
+fn repeated_inline_wrappers_preserve_subcell_ports_and_state() {
+    let src = "cell Leaf(clk: in Clock,i: in Bit) -> o: Bit { reg q: Bit next q := i o := q }
+cell Wrap(clk: in Clock,i: in Bit) -> o: Bit { let sub = place Leaf(clk: clk,i: i) o := sub }
+cell Top(clk: in Clock,i: in Bit) -> o: Bit { let a = inplace Wrap(clk: clk,i: i) let b = inplace Wrap(clk: clk,i: a) o := b }";
+    let d = SimDesign::lower(&compile(&[("inline", src)]), "Top", &BTreeMap::new()).unwrap();
+    for (index, prefix) in ["Top.a.sub", "Top.b.sub"].iter().enumerate() {
+        let child = &d.instances[index + 1];
+        assert_eq!(child.source.path, *prefix);
+        assert_eq!(child.source.name, "sub");
+        for p in &child.ports {
+            assert_eq!(
+                d.signal(p.signal).source.path,
+                format!("{prefix}.{}", p.name)
+            );
+        }
+        assert_eq!(d.regs[index].source.path, format!("{prefix}.q"));
+    }
+}
+
+#[test]
+fn empty_design_has_no_top_ports() {
+    assert!(SimDesign::default().top_ports().is_empty());
+}
+
+#[test]
+fn local_clock_and_reset_drive_sequential_sampling_and_assertions() {
+    let src = "cell Top(c: in Bit,n: in Bit,i: in Bit) -> o: Bit {
+        signal clk: Clock := c
+        signal rst: Reset<Async,ActiveLow> := n
+        reg q: Bit reset(rst,0)
+        next q := i
+        assert(i)
+        o := q
+    }";
+    let d = SimDesign::lower(&compile(&[("local", src)]), "Top", &BTreeMap::new()).unwrap();
+    let r = &d.regs[0];
+    let id = r.reset.as_ref().unwrap().0;
+    assert_eq!(d.signal(d.clocks[r.clock.0].signal).source.path, "Top.clk");
+    assert_eq!(d.signal(d.resets[id.0].signal).source.path, "Top.rst");
+    assert_eq!(d.assertions[0].reset_mask, Some(id));
+    assert_eq!(d.assertions[0].clock, r.clock);
 }

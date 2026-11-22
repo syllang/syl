@@ -41,6 +41,8 @@ pub(crate) struct Env {
     pub(crate) owner: Option<DefId>,
     pub(crate) prefix: Option<String>,
     pub(crate) expr_place_prefix: Option<String>,
+    // Source name of the bound element while lowering a for-expression tail.
+    pub(crate) bound_element: Option<String>,
 }
 
 impl Env {
@@ -193,9 +195,10 @@ impl Env {
         callable: impl Into<String>,
         instance: impl Into<String>,
         span: Span,
+        source_name: String,
     ) {
         self.expansion_stack
-            .push(EirExpansion::new(callable, instance, span));
+            .push(EirExpansion::new(callable, instance, span).with_source_name(source_name));
     }
 
     pub(crate) fn single_by_type<C>(

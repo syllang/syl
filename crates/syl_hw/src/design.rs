@@ -179,6 +179,7 @@ impl HwOrigin {
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct HwExpansion {
+    source_name: Option<String>,
     callable: String,
     instance: String,
     source: SourceId,
@@ -187,6 +188,15 @@ pub struct HwExpansion {
 }
 
 impl HwExpansion {
+    /// Source binding relative to the enclosing expansion.
+    pub fn source_name(&self) -> Option<&str> {
+        self.source_name.as_deref()
+    }
+    pub fn with_source_name(mut self, name: Option<String>) -> Self {
+        self.source_name = name;
+        self
+    }
+
     pub fn new(
         callable: impl Into<String>,
         instance: impl Into<String>,
@@ -195,6 +205,7 @@ impl HwExpansion {
         span_end: usize,
     ) -> Self {
         Self {
+            source_name: None,
             callable: callable.into(),
             instance: instance.into(),
             source,
@@ -433,6 +444,12 @@ pub enum HwItem {
     StaticParam { name: String, value: HwExpr },
     /// A combinational signal declaration.
     SignalDecl { width: String, name: String },
+    /// Local control net with its declared clock or reset type.
+    ControlSignalDecl {
+        width: String,
+        name: String,
+        domain: crate::HwPortDomain,
+    },
     /// A storage element (register) declaration.
     StorageDecl { width: String, name: String },
     /// A continuous assignment: `lhs = rhs`.

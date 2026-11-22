@@ -817,9 +817,11 @@ syl_hw|method|syl_hw::design::HwDesign::new|fn(modules: Vec<HwModule>) -> Self
 syl_hw|method|syl_hw::design::HwExpansion::callable|fn(self: &Self) -> &str
 syl_hw|method|syl_hw::design::HwExpansion::instance|fn(self: &Self) -> &str
 syl_hw|method|syl_hw::design::HwExpansion::new|fn(callable: impl Into<String>, instance: impl Into<String>, source: SourceId, span_start: usize, span_end: usize) -> Self
+syl_hw|method|syl_hw::design::HwExpansion::source_name|fn(self: &Self) -> Option<&str>
 syl_hw|method|syl_hw::design::HwExpansion::source|fn(self: &Self) -> SourceId
 syl_hw|method|syl_hw::design::HwExpansion::span_end|fn(self: &Self) -> usize
 syl_hw|method|syl_hw::design::HwExpansion::span_start|fn(self: &Self) -> usize
+syl_hw|method|syl_hw::design::HwExpansion::with_source_name|fn(self: Self, name: Option<String>) -> Self
 syl_hw|method|syl_hw::design::HwGuard::display|fn(self: &Self) -> String
 syl_hw|method|syl_hw::design::HwGuard::frames|fn(self: &Self) -> &[HwGuardFrame]
 syl_hw|method|syl_hw::design::HwGuard::is_root|fn(self: &Self) -> bool
@@ -979,6 +981,7 @@ syl_hw|variant|syl_hw::design::HwGuardFrame::Loop|{ label: String }
 syl_hw|variant|syl_hw::design::HwItem::ClockedAssert|{ clock: crate::HwExpr, trigger: crate::HwExpr, message: crate::HwExpr }
 syl_hw|variant|syl_hw::design::HwItem::ClockedStorage|{ clock: crate::HwExpr, target: crate::HwExpr, reset: Option<HwReset>, next: crate::HwExpr }
 syl_hw|variant|syl_hw::design::HwItem::ContinuousDrive|{ lhs: crate::HwExpr, rhs: crate::HwExpr }
+syl_hw|variant|syl_hw::design::HwItem::ControlSignalDecl|{ width: String, name: String, domain: crate::HwPortDomain }
 syl_hw|variant|syl_hw::design::HwItem::InitialError|{ message: crate::HwExpr }
 syl_hw|variant|syl_hw::design::HwItem::Instance|(HwInstance)
 syl_hw|variant|syl_hw::design::HwItem::MemoryDecl|{ name: String, elem_width: String, depth: String }

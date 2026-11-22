@@ -243,6 +243,7 @@ where
         }
         let width = self.width_bound(env.owner, &ty);
         items.push(EirItem::Signal {
+            domain: self.port_domain(&ty),
             width,
             name: physical_name.clone(),
             activity: EirSignalActivity::Required,

@@ -62,6 +62,19 @@ where
                 env.unique_label(&format!("gen_{}", request.name), request.span),
                 value
             ));
+            loop_env.bound_element = env.prefix.as_deref().and_then(|prefix| {
+                let suffix = format!("[{}]", request.name);
+                let binding = prefix.strip_suffix(&suffix)?;
+                let parent = env
+                    .expansion_stack
+                    .last()
+                    .map(|f| format!("{}_", f.instance()));
+                let local = parent
+                    .as_ref()
+                    .and_then(|p| binding.strip_prefix(p.as_str()))
+                    .unwrap_or(binding);
+                Some(format!("{local}[{value}]"))
+            });
             let mut body =
                 self.emit_for_iteration_body(request.body, &mut loop_env, request.name, value)?;
             // A bound for-expression has a Syl element name even when this

@@ -1,9 +1,20 @@
+mod partition;
 use crate::{constant::Result, design::*};
 use std::collections::{BTreeMap, BTreeSet};
 
 /// The graph is on assignments, so independent drivers of disjoint slices
 /// retain distinct schedule slots. Edges point from a reader to its producers.
-pub(crate) fn order(design: &SimDesign) -> Result<Vec<CombId>> {
+pub(crate) fn order(design: &mut SimDesign) -> Result<Vec<CombId>> {
+    match schedule(design) {
+        Err(SimError::CombinationalCycle { .. }) => {
+            partition::split(design);
+            schedule(design)
+        }
+        order => order,
+    }
+}
+
+fn schedule(design: &SimDesign) -> Result<Vec<CombId>> {
     let mut writers = BTreeMap::<SignalId, Vec<(usize, (u32, u32))>>::new();
     for (id, assign) in design.comb.iter().enumerate() {
         writers

@@ -194,6 +194,7 @@ where
         )
         .unwrap_or_else(|| {
             vec![EirItem::Signal {
+                domain: self.port_domain(ty),
                 width: self.width_bound(env.owner, ty),
                 name: prefix.to_string(),
                 activity: EirSignalActivity::Optional,
@@ -217,6 +218,7 @@ where
                     let signal_name = format!("{}_{}", spec.physical_prefix, field.name);
                     let width = self.width_bound(env.owner, &field_ty);
                     items.push(EirItem::Signal {
+                        domain: self.port_domain(&field_ty),
                         width,
                         name: signal_name.clone(),
                         activity: match field.direction {
@@ -347,7 +349,23 @@ where
         let mut cell_env = Env::with_prefix(self.sanitize(request.inst_name));
         cell_env.owner = Some(request.callable_def);
         cell_env.expansion_stack = request.caller_env.expansion_stack.clone();
-        cell_env.push_expansion(request.callable_name, request.inst_name, call_span);
+        let caller = request.caller_env;
+        let prefix = caller.prefix.as_deref().unwrap_or("");
+        let binding = if request.inst_name == prefix {
+            caller.bound_element.as_deref().unwrap_or(request.inst_name)
+        } else {
+            request
+                .inst_name
+                .strip_prefix(prefix)
+                .and_then(|s| s.strip_prefix('_'))
+                .unwrap_or(request.inst_name)
+        };
+        cell_env.push_expansion(
+            request.callable_name,
+            request.inst_name,
+            call_span,
+            binding.into(),
+        );
         self.insert_call_generics(
             &mut cell_env,
             request.item,

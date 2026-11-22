@@ -19,13 +19,18 @@ impl Lower<'_> {
                         .params
                         .insert(name.clone(), ParamValue::Nat(eval(value, &scope.params)?));
                 }
-                HwItem::SignalDecl { width, name } | HwItem::StorageDecl { width, name } => {
-                    self.declare(
+                HwItem::SignalDecl { width, name }
+                | HwItem::StorageDecl { width, name }
+                | HwItem::ControlSignalDecl { width, name, .. } => {
+                    let signal = self.declare(
                         scope,
                         name,
                         dimension(width, &scope.params)?,
                         scope.source(name, origin),
                     )?;
+                    if let HwItem::ControlSignalDecl { domain, .. } = item {
+                        self.domain(signal, domain, None)?;
+                    }
                 }
                 HwItem::MemoryDecl {
                     name,
@@ -95,6 +100,7 @@ impl Lower<'_> {
         match item {
             HwItem::StaticParam { .. }
             | HwItem::SignalDecl { .. }
+            | HwItem::ControlSignalDecl { .. }
             | HwItem::StorageDecl { .. }
             | HwItem::MemoryDecl { .. } => {}
             HwItem::ContinuousDrive { lhs, rhs } => {

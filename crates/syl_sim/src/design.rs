@@ -250,6 +250,8 @@ impl SimDesign {
         &self.assertions[id.0]
     }
     pub fn top_ports(&self) -> &[SimPort] {
-        &self.instances[0].ports
+        self.instances
+            .first()
+            .map_or(&[], |instance| instance.ports.as_slice())
     }
 }

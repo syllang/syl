@@ -82,6 +82,14 @@ pub(crate) fn eval(expr: &HwExpr, env: &Bindings) -> Result<u64> {
             }
             eval(default, env)
         }
+        HwExpr::Call { name, args } if name == "clog2" && args.len() == 1 => {
+            let value = eval(&args[0], env)?;
+            Ok(if value <= 1 {
+                0
+            } else {
+                (u64::BITS - (value - 1).leading_zeros()) as u64
+            })
+        }
         _ => invalid(format!("expected a static expression, got {expr:?}")),
     }
 }

@@ -288,5 +288,6 @@ impl<'a> HardwareMetadataLowerer<'a> {
             expansion.span().start,
             expansion.span().end,
         )
+        .with_source_name(expansion.source_name.clone())
     }
 }
