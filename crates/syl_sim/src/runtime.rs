@@ -77,14 +77,20 @@ pub enum StateMode {
     TwoState,
 }
 
+pub(crate) enum AssertionMode {
+    Stop,
+    Record(Option<(u64, AssertId)>),
+    Replay { step: u64, id: AssertId },
+}
+
 pub struct Simulator<'d> {
     design: &'d SimDesign,
     mode: StateMode,
     trajectory: TrajectoryState,
     values: Vec<Value>,
     models: BTreeMap<InstanceId, External>,
-    pub(crate) record_assertions: bool,
-    pub(crate) first_assertion: Option<(u64, AssertId)>,
+    pub(crate) assertions: AssertionMode,
+    pub(crate) stimulus_step: Option<u64>,
     pub strict_unique: bool,
     pub unique_violations: Vec<UniqueOverlapViolation>,
 }
@@ -192,8 +198,8 @@ impl<'d> Simulator<'d> {
                     .collect(),
                 cycle: 0,
             },
-            record_assertions: false,
-            first_assertion: None,
+            assertions: AssertionMode::Stop,
+            stimulus_step: None,
             strict_unique: false,
             unique_violations: Vec::new(),
         }
@@ -611,16 +617,27 @@ impl<'d> Simulator<'d> {
                 .is_none_or(|r| self.reset_level(r) == Logic::Zero)
                 && self.eval(&a.condition, 0, (&a.source).into())?.truth() == Logic::Zero
             {
-                if self.record_assertions {
-                    self.first_assertion
-                        .get_or_insert((self.cycle() + 1, AssertId(id)));
-                    break;
+                let cycle = self.stimulus_step.unwrap_or_else(|| self.cycle() + 1);
+                let coordinate = (cycle, AssertId(id));
+                match &mut self.assertions {
+                    AssertionMode::Record(first) => {
+                        if first.is_none_or(|previous| coordinate < previous) {
+                            *first = Some(coordinate);
+                        }
+                        break;
+                    }
+                    // A larger ID may fail during an earlier transition of this
+                    // same stimulus step. Continue until the selected site fires.
+                    AssertionMode::Replay { step, id } if cycle == *step && coordinate.1 > *id => {
+                        break;
+                    }
+                    _ => {}
                 }
                 return Err(AssertionFailure {
                     assert_id: AssertId(id),
                     path: a.source.path.clone(),
                     span: a.source.span(),
-                    cycle: self.trajectory.cycle + 1,
+                    cycle,
                     message: a.message.clone(),
                 }
                 .into());

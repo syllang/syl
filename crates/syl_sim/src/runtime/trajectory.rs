@@ -64,8 +64,8 @@ impl TrajectoryState {
             values: std::mem::take(values),
             trajectory: std::mem::take(self),
             models: BTreeMap::new(),
-            record_assertions: false,
-            first_assertion: None,
+            assertions: AssertionMode::Stop,
+            stimulus_step: None,
             strict_unique: false,
             unique_violations: Vec::new(),
         };

@@ -5,6 +5,7 @@
 //! ordinary Rust builds and tests do not require CUDA.  A caller can compile
 //! the returned source with [`compile_cuda`] when `nvcc` is available.
 
+mod build_dir;
 pub(crate) mod cache;
 pub use cache::{CudaCache, probe_cuda};
 mod emit;
@@ -54,7 +55,7 @@ pub struct GeneratedCuda {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct RunnerOptions {
     pub batch: usize,
-    /// One-based CUDA cycle numbers span 1 through u32::MAX.
+    /// Zero evaluates initial outputs. Positive counts apply that many rising edges.
     pub cycles: u64,
     pub block_size: usize,
 }
@@ -108,18 +109,23 @@ pub fn compile_cuda(source: &str, output: impl AsRef<Path>) -> Result<PathBuf, S
 }
 
 fn compile(source: &str, output: &Path, object: bool) -> Result<PathBuf, String> {
-    compile_for(source, output, object, Some(&cache::target_arch()?))
+    compile_for(source, output, object, Some(&cache::target_arch()?), None)
 }
 fn compile_for(
     source: &str,
     output: &Path,
     object: bool,
     arch: Option<&str>,
+    owner: Option<&std::fs::File>,
 ) -> Result<PathBuf, String> {
     let source_path = output.with_extension("cu");
     std::fs::write(&source_path, source)
         .map_err(|e| format!("write {}: {e}", source_path.display()))?;
     let mut compiler = Command::new("nvcc");
+    if let Some(owner) = owner {
+        // Keep the staging lock alive in the compiler if its parent exits.
+        compiler.stdin(owner.try_clone().map_err(|e| e.to_string())?);
+    }
     compiler.arg("-O3");
     if let Some(arch) = arch {
         compiler.arg(format!("-arch={arch}"));
@@ -174,8 +180,8 @@ impl RunnerOptions {
         if !(1..=i32::MAX as usize).contains(&self.batch) {
             return Err("batch must be in 1..=2147483647".into());
         }
-        if !(1..=u64::from(u32::MAX)).contains(&self.cycles) {
-            return Err("cycles must be in 1..=4294967295".into());
+        if self.cycles > u64::from(u32::MAX) {
+            return Err("cycles must be in 0..=4294967295".into());
         }
         if !(1..=1024).contains(&self.block_size) {
             return Err("block size must be in 1..=1024".into());

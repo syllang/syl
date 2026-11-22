@@ -93,7 +93,8 @@ edge asserts top resets according to polarity. Packed top ports occupy consecuti
 64-bit word indices in declaration order. `batch_stimulus_word` takes the
 port's first index and a little-endian limb offset. The final digest is the
 wrapping sum of output words multiplied by `2 * (output_limb * batch + lane) + 1`.
-Detection records the lowest cycle, lane and assertion ID, in that order, while
+At zero cycles each backend settles the initial inputs and computes this digest.
+Detection orders failures by global stimulus step, lane and assertion ID, while
 execution continues through the requested final cycle. The run verifies that
 coordinate with the reference simulator and returns its source location.
 `replay_failure` can also record the reference waveform through the failing edge.

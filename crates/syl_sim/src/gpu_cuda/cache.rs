@@ -1,6 +1,10 @@
 //! One translation unit per executable. A content key includes the actual
 //! compiler version and architecture, but excludes runtime launch arguments.
-use super::{RunnerOptions, RunnerResult, compile_for, launch};
+use super::{
+    RunnerOptions, RunnerResult,
+    build_dir::{self, BuildDir},
+    compile_for, launch,
+};
 use sha2::{Digest, Sha256};
 use std::{
     env, fs, io,
@@ -121,7 +125,7 @@ struct Executable {
     path: PathBuf,
     cache_hit: bool,
     compile_ms: f64,
-    _build_dir: Option<tempfile::TempDir>,
+    _build_dir: Option<BuildDir>,
 }
 
 pub(crate) struct Toolchain {
@@ -143,8 +147,10 @@ impl Toolchain {
             .map_or_else(|| cache_root(cache), |d| d.path().into());
         private_directory(&directory)
             .map_err(|e| format!("CUDA cache {}: {e}", directory.display()))?;
-        let version = compiler_version(&directory)?;
+        build_dir::reclaim(&directory)
+            .map_err(|e| format!("inspect CUDA cache staging directories: {e}"))?;
         let arch = target_arch()?;
+        let version = compiler_version()?;
         let mut toolchain = Self {
             native_device: None,
             arch,
@@ -159,7 +165,13 @@ impl Toolchain {
     }
     pub(crate) fn probe(&self) -> Result<(), String> {
         if self.native_device.is_none() {
-            self.device_arch()?;
+            let device = self.device_arch()?;
+            if capability(&self.arch) > capability(&device) {
+                return Err(format!(
+                    "CUDA target {} is incompatible with device {device}: target compute capability exceeds device capability",
+                    self.arch
+                ));
+            }
         }
         Ok(())
     }
@@ -175,7 +187,7 @@ impl Toolchain {
             return Err(format!("CUDA device probe failed: {}", output.status));
         }
         let arch = String::from_utf8_lossy(&output.stdout).trim().to_owned();
-        if !valid_arch(&arch) {
+        if !valid_arch(&arch) || arch == "native" {
             return Err("invalid compute capability from CUDA device probe".into());
         }
         Ok(arch)
@@ -202,13 +214,10 @@ impl Toolchain {
                 _build_dir: None,
             });
         }
-        let temp = tempfile::Builder::new()
-            .prefix(".compile-")
-            .tempdir_in(&self.directory)
-            .map_err(|e| e.to_string())?;
+        let temp = BuildDir::create(&self.directory).map_err(|e| e.to_string())?;
         let binary = temp.path().join("runner");
         let start = Instant::now();
-        compile_for(source, &binary, false, arch)?;
+        compile_for(source, &binary, false, arch, Some(temp.owner()))?;
         let (path, build_dir) = if self.temporary.is_some() {
             (binary, Some(temp))
         } else {
@@ -239,32 +248,30 @@ impl Toolchain {
     }
 }
 
-// Memoize --version across CLI invocations, invalidating on compiler replacement.
-// The artifact key itself uses the complete version output.
-fn compiler_version(dir: &Path) -> Result<Vec<u8>, String> {
-    let nvcc = env::split_paths(&env::var_os("PATH").unwrap_or_default())
-        .map(|p| p.join("nvcc"))
-        .find(|p| p.is_file())
-        .and_then(|p| p.canonicalize().ok())
-        .ok_or("nvcc is unavailable")?;
-    let meta = fs::metadata(&nvcc).map_err(|e| e.to_string())?;
-    let stamp = format!("{}:{:?}", meta.len(), meta.modified());
-    let key = fingerprint(&[nvcc.as_os_str().as_encoded_bytes(), stamp.as_bytes()]);
-    let path = dir.join(format!("nvcc-{key}.version"));
-    if let Ok(v) = fs::read(&path) {
-        return Ok(v);
-    }
-    let result = Command::new(nvcc)
+// Called on validated, concrete sm_ targets.
+fn capability(arch: &str) -> u16 {
+    arch[3..]
+        .trim_end_matches(|c: char| c.is_ascii_lowercase())
+        .parse()
+        .expect("validated CUDA capability")
+}
+
+fn compiler_version() -> Result<Vec<u8>, String> {
+    // Use the same PATH search and executable-permission checks as compilation.
+    // A stable wrapper can select a different underlying compiler on each run.
+    let result = Command::new("nvcc")
         .arg("--version")
         .output()
-        .map_err(|e| format!("run nvcc: {e}"))?;
+        .map_err(|e| {
+            if e.kind() == io::ErrorKind::NotFound {
+                "nvcc is unavailable".to_string()
+            } else {
+                format!("run nvcc: {e}")
+            }
+        })?;
     if !result.status.success() {
         return Err("nvcc --version failed".into());
     }
-    let mut temp = tempfile::NamedTempFile::new_in(dir).map_err(|e| e.to_string())?;
-    use io::Write;
-    temp.write_all(&result.stdout).map_err(|e| e.to_string())?;
-    temp.persist(path).map_err(|e| e.to_string())?;
     Ok(result.stdout)
 }
 

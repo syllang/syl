@@ -4,6 +4,7 @@
 //! modulo 2^64. Assertion detection does not interrupt this reduction.
 use crate::backend::{LocalBackend, Program};
 use crate::gpu_cuda::{CudaCache, KernelMode, RunnerOptions};
+use crate::runtime::AssertionMode;
 use crate::*;
 use std::{io::Write, sync::Mutex};
 
@@ -248,19 +249,22 @@ fn trajectory<'a>(
     {
         sim.drive(p.signal, Value::zero(d.signal(p.signal).width))?;
     }
-    if o.cycles == 0 {
-        sim.eval_comb()?;
-    }
-    for cycle in 1..=o.cycles {
-        ports.drive(&mut sim, o.seed, lane, cycle)?;
-        sim.eval_comb()?;
+    // A zero-edge run still settles and observes the initial inputs at step zero.
+    let first_step = u64::from(o.cycles != 0);
+    for cycle in first_step..=o.cycles {
+        sim.stimulus_step = Some(cycle);
+        if cycle != 0 {
+            ports.drive(&mut sim, o.seed, lane, cycle)?;
+        }
+        let settled = sim.eval_comb();
         sample(&sim)?;
-        if !ports.rising.is_empty() {
-            let edge = sim.step_clocks(&ports.rising);
-            sample(&sim)?;
-            edge?;
-            sim.step_clocks(&ports.falling)?;
-            sample(&sim)?;
+        settled?;
+        if cycle != 0 && !ports.rising.is_empty() {
+            for events in [&ports.rising, &ports.falling] {
+                let edge = sim.step_clocks(events);
+                sample(&sim)?;
+                edge?;
+            }
         }
         if o.fail_on_x
             && let Some(p) = d
@@ -269,8 +273,9 @@ fn trajectory<'a>(
                 .find(|p| p.direction != HwDirection::In && !sim.read(p.signal).is_known())
         {
             return Err(RuntimeError::Invalid(format!(
-                "batch {lane}, cycle {cycle}: unknown output {}",
-                p.name
+                "batch {lane}, cycle {cycle}: unknown output {}={}",
+                p.name,
+                sim.read(p.signal)
             )));
         }
     }
@@ -281,9 +286,9 @@ fn reference(d: &SimDesign, o: BatchOptions, ports: &Ports) -> Result<Reduction,
     let mut result = Reduction::default();
     for lane in 0..o.batch {
         let mut sim = Simulator::with_mode(d, o.state_mode);
-        sim.record_assertions = true;
+        sim.assertions = AssertionMode::Record(None);
         let sim = trajectory(sim, o, ports, lane, |_| Ok(()))?;
-        if let Some((cycle, assert_id)) = sim.first_assertion {
+        if let AssertionMode::Record(Some((cycle, assert_id))) = sim.assertions {
             result.record(FailureCoordinate {
                 cycle,
                 batch: lane,
@@ -317,20 +322,23 @@ pub fn replay_failure(
         .transpose()
         .map_err(io_error)?;
     let mut time = 0;
+    let mut sim = Simulator::with_mode(d, o.state_mode);
+    sim.assertions = AssertionMode::Replay {
+        step: expected.cycle,
+        id: expected.assert_id,
+    };
     let result = trajectory(
-        Simulator::with_mode(d, o.state_mode),
-        o,
+        sim,
+        BatchOptions {
+            cycles: expected.cycle.min(o.cycles),
+            ..o
+        },
         &Ports::new(d),
         expected.batch,
         |sim| {
             if let Some(w) = &mut wave {
                 w.sample(time, sim).map_err(io_error)?;
                 time += 1;
-            }
-            if sim.cycle() >= expected.cycle {
-                return Err(RuntimeError::Invalid(
-                    "expected assertion edge committed".into(),
-                ));
             }
             Ok(())
         },

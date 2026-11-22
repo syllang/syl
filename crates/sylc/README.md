@@ -110,8 +110,9 @@ or `--backend gpu-cuda --gpu-mode batch|family` to select a CUDA kernel.
 
 An invocation using only the original single-trace options retains four-state
 simulation and its cycle-count/output display. Direct stimulus and VCD tracing
-require a single reference trajectory. A failed deterministic batch reports
-the failing lane, cycle, hierarchy and assertion source span. With
+require a single reference trajectory. Seeded runs and failure replay use deterministic
+batch inputs, including with `--strict-unique` or `--fail-on-x`. A failed batch reports
+the failing lane, global stimulus step, hierarchy and assertion source span. With
 `--replay-vcd` it also writes that trajectory's waveform.
 
 ## Project manifests

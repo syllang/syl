@@ -164,7 +164,7 @@ fn concurrent_compilers_publish_one_complete_runner_and_uncached_plans_stay_cold
 }
 
 #[test]
-fn replay_drift_stops_at_the_claimed_rising_edge() {
+fn replay_drift_stops_at_the_end_of_the_claimed_stimulus_step() {
     let src = "cell T<D:Domain>(clk:in Clock<D>,rst:in Reset<D>,i:in Bit)->q:Bit {reg v:Bit reset(rst,0) next v:=i assert(v eq v) q:=v}";
     let d = design("T", src);
     let o = BatchOptions {
@@ -178,11 +178,62 @@ fn replay_drift_stops_at_the_claimed_rising_edge() {
         assert_id: AssertId(0),
     };
     let error = replay_failure(&d, o, expected, Some(&mut wave)).unwrap_err();
-    assert!(
-        error
-            .to_string()
-            .contains("expected assertion edge committed")
-    );
+    assert!(error.to_string().contains("replay missed assertion"));
     let wave = String::from_utf8(wave).unwrap();
-    assert_eq!(wave.lines().rfind(|s| s.starts_with('#')), Some("#4"));
+    assert_eq!(wave.lines().rfind(|s| s.starts_with('#')), Some("#5"));
+}
+
+#[test]
+fn zero_cycles_settle_nonzero_combinational_outputs_without_an_edge() {
+    let d = design(
+        "T",
+        "cell T(clk:in Clock,i:in Bit)->q:UInt<8>{assert(i) q:=3}",
+    );
+    let o = BatchOptions {
+        batch: 4,
+        cycles: 0,
+        seed: u64::MAX,
+        ..Default::default()
+    };
+    let mut backends = vec![ResolvedBackend::CpuRef, ResolvedBackend::CpuSimd];
+    if gpu_cuda::probe_cuda().is_ok() {
+        for mode in [BatchPerThread, InstanceFamilyParallel] {
+            backends.push(ResolvedBackend::GpuCuda(mode));
+        }
+    }
+    for b in backends {
+        let r = run_batch(&d, b, o).unwrap();
+        assert_eq!(r.digest, 48, "{b:?}");
+        assert!(r.failure.is_none());
+    }
+}
+
+// The child has a rising edge only after the parent clock falls. Its
+// assertion therefore follows a different domain's edge in the same step.
+#[test]
+fn falling_phase_replay_samples_the_selected_assertion_in_a_step() {
+    let src = "cell Guard(clk:in Clock,en:in Bit)->q:Bit { assert(not en) q:=en }
+        cell T(pin:in Bit)->q:Bit { signal clk:Clock:=pin reg ready:Bit next ready:=1
+        signal falling:Bit:=(not pin) and ready assert(ready) let g=place Guard(clk:falling,en:1) q:=g }";
+    let mut d = design("T", src);
+    // Make the falling-phase assertion the lower ID to exercise the tie
+    // independently of the lowerer's enumeration order.
+    d.assertions.sort_by_key(|a| !a.source.path.contains(".g."));
+    assert_eq!(d.assertions.len(), 2);
+    let o = BatchOptions {
+        cycles: 5,
+        ..Default::default()
+    };
+    let r = run_batch(&d, ResolvedBackend::CpuRef, o).unwrap();
+    let (c, f) = r.failure.unwrap();
+    assert_eq!((c.cycle, c.batch, c.assert_id.0), (1, 0, 0));
+    assert!(f.path.contains(".g."), "{f}");
+    let mut v = Vec::new();
+    assert_eq!(replay_failure(&d, o, c, Some(&mut v)).unwrap(), f);
+    let wave = String::from_utf8(v).unwrap();
+    let last = wave.rsplit_once('#').unwrap().1;
+    assert!(
+        last.starts_with("2\n") && last.lines().any(|s| s == "0s0"),
+        "{last}"
+    );
 }

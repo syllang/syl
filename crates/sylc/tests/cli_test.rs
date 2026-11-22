@@ -675,3 +675,10 @@ mod vcd_inputs_test;
 
 #[path = "cli_test/sim_backends_test.rs"]
 mod sim_backends_test;
+
+#[path = "cli_test/batch_steps_test.rs"]
+mod batch_steps_test;
+
+#[cfg(unix)]
+#[path = "cli_test/cuda_cache_test.rs"]
+mod cuda_cache_test;
