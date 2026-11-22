@@ -11,6 +11,8 @@ homepage.workspace = true
 readme = "README.md"
 
 [dependencies]
+num-bigint = "0.4"
+smallvec = "1"
 syl_elab.workspace = true
 syl_hw.workspace = true
 syl_span.workspace = true

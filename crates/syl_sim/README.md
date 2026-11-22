@@ -14,11 +14,11 @@ The root instance owns the top ports. Every instance points to its canonical mod
 
 ## Allowed Dependencies
 
-The runtime-independent model consumes `syl_hw`, `syl_elab` and `syl_span`. Integration tests use the parser and semantic frontend.
+The concrete model consumes `syl_hw`, `syl_elab` and `syl_span`. The CPU executor uses inline packed words for widths through 64 bits and unsigned multiprecision arithmetic for larger operands. Integration tests use the parser and semantic frontend.
 
 ## Forbidden Dependencies
 
-Execution engines, the SystemVerilog emitter, CLI and IDE services live outside this layer.
+The SystemVerilog emitter, CLI and IDE services live outside this layer.
 
 ## Allowed Responsibilities
 
@@ -26,11 +26,11 @@ Specialization evaluates dimensions, expands generated scopes, connects ports an
 
 ## Forbidden Responsibilities
 
-Execution, clock generation, RAM allocation and black-box behavior belong to consumers.
+Consumers supply input stimuli, clock events and application-specific extern models.
 
 ## Public Surface Policy
 
-The concrete arenas, source metadata and lowering entry point are the interface to reference and accelerated executors.
+The concrete arenas, source metadata and lowering entry point are shared with `Simulator` and waveform consumers.
 
 ## Information retained during lowering
 
@@ -39,8 +39,17 @@ The existing hardware normalizer checks structure while leaving generated loops,
 ## Execution contract
 
 - Evaluate unsigned words in the destination context, truncating to the destination width. Concatenations place the first operand at the most significant end. Array index zero selects the least significant element.
-- Priority select picks the first true guard in source order. Unique select carries the mutual-exclusion promise; an executor can diagnose overlapping guards. Source order defines the emitted mux chain. With no true guard both forms take the default.
+- Priority select picks the first true guard in source order. Unique select carries the mutual-exclusion promise; an executor can diagnose overlapping guards. Source order defines the emitted mux chain. An unknown guard merges corresponding arm and fallback bits.
 - Zero fills its context. HighZ fills it with Z. Four-state consumers resolve shared nets and retain X for unknown data. A two-state executor must explicitly reject or declare its policy for unsupported X/Z and uninitialized reads.
 - Settle combinational logic before sampling rising edges. Coincident clocks sample the same pre-edge snapshot for registers, assertions and RAM ports, then commit together and settle again. Assertions test the positive source condition unless the reset mask is asserted.
 - A synchronous reset takes effect on its clock edge. An asynchronous assertion applies immediately and dominates clocked updates while held. Release alone never samples the next value. Polarity is explicit on the bound reset domain.
 - Storage and synchronous RAM read outputs start uninitialized. Enabled synchronous reads see the pre-write word on a same-address read/write edge. Disabled ports hold their state. Distributed reads observe committed writes during the next settle. Conflicting simultaneous writes have unspecified data. These contracts follow the standard pulse, skid buffer, arbiter, CDC, RAM and FIFO cells and their C++ reference harnesses.
+
+
+## Running the CPU reference model
+
+Create a `Simulator::new(&design)`, drive the top inputs, then call `eval_comb()` to settle that group of drives. Use `tick("clk")` for a pulse or `step_clocks` for simultaneous rising and falling events. A cycle counts a group containing a rising edge. Read a signal by ID, use `read_named` for a physical top port name, or inspect storage with `memory`. `Simulator::with_mode(&design, StateMode::TwoState)` initializes storage to zero and maps X and Z expression results to zero.
+
+Register an `ExternModel` for each external instance before evaluation. Models receive their named inputs on input changes and return all output values. An unregistered instance produces a runtime error naming its Syl path. A failed clocked assertion aborts the edge before sequential writes commit. Set `strict_unique` to turn a unique-overlap diagnostic into an error.
+
+`VcdWriter::sample(time, &sim)` writes changes at the supplied nanosecond timestamp. `VcdWriter::filtered` accepts a predicate over signal IDs and full Syl paths.

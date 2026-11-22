@@ -276,10 +276,12 @@ impl<'a> Lower<'a> {
                 let local = SimTarget::whole(signal);
                 match p.direction() {
                     HwDirection::In => self.design.comb.push(CombAssign {
+                        span: self.design.signal(signal).source.span(),
                         target: local,
                         value: actual.clone(),
                     }),
                     HwDirection::Out => self.design.comb.push(CombAssign {
+                        span: self.design.signal(signal).source.span(),
                         target: actual.as_target()?.clone(),
                         value: SimExpr::Read(local),
                     }),

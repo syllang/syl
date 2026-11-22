@@ -14,13 +14,32 @@ pub(crate) fn order(design: &mut SimDesign) -> Result<Vec<CombId>> {
     }
 }
 
-fn schedule(design: &SimDesign) -> Result<Vec<CombId>> {
+fn schedule(design: &mut SimDesign) -> Result<Vec<CombId>> {
     let mut writers = BTreeMap::<SignalId, Vec<(usize, (u32, u32))>>::new();
     for (id, assign) in design.comb.iter().enumerate() {
         writers
             .entry(assign.target.signal)
             .or_default()
             .push((id, range(&assign.target, design)));
+    }
+    // Model each callback as one combinational producer with all input
+    // ports as dependencies. This also detects cycles through a black box.
+    for (i, external) in design.externs.iter().enumerate() {
+        for port in &design.instances[external.instance.0].ports {
+            if port.direction != syl_hw::HwDirection::In {
+                let signal = design.signal(port.signal);
+                let (id, bits) = signal
+                    .alias
+                    .as_ref()
+                    .map_or((port.signal, (0, signal.width - 1)), |t| {
+                        (t.signal, range(t, design))
+                    });
+                writers
+                    .entry(id)
+                    .or_default()
+                    .push((design.comb.len() + i, bits));
+            }
+        }
     }
     let mut graph = Vec::new();
     for assign in &design.comb {
@@ -41,7 +60,39 @@ fn schedule(design: &SimDesign) -> Result<Vec<CombId>> {
         }
         graph.push(deps.into_iter().collect::<Vec<_>>());
     }
-    tarjan(&graph, design)
+    for external in &design.externs {
+        let mut deps = BTreeSet::new();
+        for port in &design.instances[external.instance.0].ports {
+            if port.direction != syl_hw::HwDirection::Out {
+                let signal = design
+                    .signal(port.signal)
+                    .alias
+                    .as_ref()
+                    .map_or(port.signal, |t| t.signal);
+                if let Some(nodes) = writers.get(&signal) {
+                    deps.extend(
+                        nodes
+                            .iter()
+                            .map(|(node, _)| *node)
+                            .filter(|n| *n != graph.len()),
+                    );
+                }
+            }
+        }
+        graph.push(deps.into_iter().collect());
+    }
+    let mut order = Vec::new();
+    for id in tarjan(&graph, design)? {
+        if id.0 < design.comb.len() {
+            order.push(id)
+        } else {
+            design.extern_slots.push((
+                order.len(),
+                design.externs[id.0 - design.comb.len()].instance,
+            ));
+        }
+    }
+    Ok(order)
 }
 
 fn range(target: &SimTarget, design: &SimDesign) -> (u32, u32) {
@@ -172,11 +223,14 @@ fn cycle(
     design: &SimDesign,
 ) -> SimError {
     let name = |id: usize| {
-        design
-            .signal(design.comb[id].target.signal)
-            .source
-            .path
-            .clone()
+        if let Some(a) = design.comb.get(id) {
+            design.signal(a.target.signal).source.path.clone()
+        } else {
+            design.instances[design.externs[id - design.comb.len()].instance.0]
+                .source
+                .path
+                .clone()
+        }
     };
     let mut positions = BTreeMap::new();
     let mut chain = Vec::new();
@@ -193,6 +247,14 @@ fn cycle(
     chain.push(name(node));
     chain.reverse(); // report producer -> reader
     SimError::CombinationalCycle {
+        span: design.comb.get(node).map_or_else(
+            || {
+                design.instances[design.externs[node - design.comb.len()].instance.0]
+                    .source
+                    .span()
+            },
+            |a| a.span,
+        ),
         chain,
         members: members.iter().copied().map(name).collect(),
     }

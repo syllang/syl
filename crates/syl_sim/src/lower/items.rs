@@ -111,7 +111,15 @@ impl Lower<'_> {
             HwItem::ContinuousDrive { lhs, rhs } => {
                 let target = self.expression(lhs, scope)?.as_target()?.clone();
                 let value = self.expression(rhs, scope)?;
-                self.design.comb.push(CombAssign { target, value });
+                self.design.comb.push(CombAssign {
+                    target,
+                    value,
+                    span: syl_span::Span::new_in(
+                        origin.source(),
+                        origin.span_start(),
+                        origin.span_end(),
+                    ),
+                });
             }
             HwItem::Instance(inst) => self.child(inst, origin, scope)?,
             HwItem::ClockedStorage {
@@ -145,6 +153,11 @@ impl Lower<'_> {
                     clock,
                     reset,
                     next,
+                    next_span: syl_span::Span::new_in(
+                        origin.source(),
+                        origin.span_start(),
+                        origin.span_end(),
+                    ),
                 });
             }
             HwItem::MemoryWrite {

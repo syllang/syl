@@ -153,6 +153,7 @@ pub(super) fn split(design: &mut SimDesign) {
                 for end in boundaries.copied().chain([dst.end]) {
                     let offset = end - dst.start;
                     design.comb.push(CombAssign {
+                        span: assign.span,
                         target: if low == 0 && offset == dst.width() {
                             assign.target.clone()
                         } else {

@@ -1,5 +1,6 @@
 mod cli;
 mod diagnostics;
+mod sim;
 
 use cli::{CliInvocation, RunMode, SylcApp};
 use diagnostics::{DiagnosticRenderer, project_error};
@@ -104,6 +105,12 @@ fn run(invocation: CliInvocation, cwd: &Path, report: &mut Report) -> Result<(),
             "clean analysis snapshot did not produce a hardware graph",
         )
     })?;
+    if let RunMode::Sim(args) = invocation.mode {
+        let params = sim::parameters(&args.params)?;
+        let design =
+            syl_sim::SimDesign::from_hwir(hwir, &args.top, &params).map_err(sim::design_error)?;
+        return sim::run(&design, &args, &mut report.diagnostics);
+    }
     let RunMode::Emit(output) = invocation.mode else {
         return Ok(());
     };

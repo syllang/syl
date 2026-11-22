@@ -228,3 +228,6 @@ impl Drop for SimulationDir {
         let _ = fs::remove_dir_all(&self.0);
     }
 }
+
+#[path = "verilator_sim_test/native_diff_test.rs"]
+mod native_diff_test;
