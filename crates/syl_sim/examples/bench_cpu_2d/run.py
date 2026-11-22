@@ -1,15 +1,18 @@
 """Run from the workspace root. Python 3.10+, C++20, Verilator 5.052."""
 import argparse
 import json
+import math
 import os
 from pathlib import Path
 import platform
+import statistics
 import subprocess
 import tempfile
 import time
 
-CASES = ["RoundRobinArbiter4", "SimpleDualPortRam", "SyncFifo-D8", "SyncFifo-D64",
-         "LaneArray-N1", "LaneArray-N4", "LaneArray-N16", "LaneArray-N64", "Fault"]
+THROUGHPUT_CASES = ["RoundRobinArbiter4", "SimpleDualPortRam", "SyncFifo-D8", "SyncFifo-D64",
+         "LaneArray-N1", "LaneArray-N4", "LaneArray-N16", "LaneArray-N64"]
+CASES = THROUGHPUT_CASES + ["Fault"]
 BATCHES = [1, 16, 64, 256, 1024, 4096]
 BIN = Path("target/release/examples/bench_cpu_2d").resolve()
 
@@ -33,7 +36,8 @@ def measure(args, fault=False):
     runs = [sample(args)]
     if not fault and runs[0]["hot_s"] < 0.25:
         runs.extend(sample(args) for _ in range(2))
-    assert len({(r["digest"], r["failure"]) for r in runs}) == 1
+    if len({(r["digest"], r["failure"]) for r in runs}) != 1:
+        raise ValueError(f"inconsistent digest or failure across repeats for {args}")
     result = dict(sorted(runs, key=lambda r: r["hot_s"])[len(runs) // 2])
     result["hot_samples_s"] = [r["hot_s"] for r in runs]
     return result
@@ -62,6 +66,51 @@ RUST_CONFIGS = [("scalar", 1), ("soa", 1), ("soa", 16), ("soa", 32)]
 
 def host_workers(batch, internal):
     return sorted({1, min(batch, 16 // internal), min(batch, 32 // internal)})
+
+
+def validate_configs(results, batch, case):
+    expected = {f"{mode}{threads}" for mode, threads in RUST_CONFIGS}
+    expected.update(f"v{i}x{w}" for i in (1, 2) for w in host_workers(batch, i))
+    if not isinstance(results, dict) or set(results) != expected:
+        raise ValueError(f"{case} B={batch} requires exactly {sorted(expected)}")
+
+
+def valid_seconds(value):
+    return type(value) in (float, int) and math.isfinite(value) and value > 0
+
+
+def validate_timings(result, config, fault=False):
+    samples = result.get("hot_samples_s")
+    if not isinstance(samples, list) or not samples or not all(map(valid_seconds, samples)):
+        raise ValueError(f"{config}: invalid hot timing samples")
+    expected_count = 1 if fault or samples[0] >= 0.25 else 3
+    if len(samples) != expected_count or result.get("hot_s") != statistics.median(samples):
+        raise ValueError(f"{config}: hot time or repeat count disagrees with samples")
+    if not (valid_seconds(result.get("setup_s")) and valid_seconds(result.get("wall_s"))):
+        raise ValueError(f"{config}: invalid setup or process wall time")
+    if config.startswith("v") and not valid_seconds(result.get("compile_s")):
+        raise ValueError(f"{config}: invalid compile time")
+    if fault and not valid_seconds(result.get("cold_wall_s")):
+        raise ValueError(f"{config}: invalid cold time")
+
+
+def validate_row(row, builds):
+    case, batch = row["case"], row["batch"]
+    if (case not in THROUGHPUT_CASES or type(batch) is not int or batch not in BATCHES
+            or row.get("cycles") != cycles(case, batch)):
+        raise ValueError(f"invalid throughput point: {case} B={batch}")
+    results = row["results"]
+    validate_configs(results, batch, case)
+    digest = results["scalar1"].get("digest")
+    if type(digest) is not int or not 0 <= digest < 2**64:
+        raise ValueError(f"{case} B={batch}: invalid scalar digest")
+    for config, result in results.items():
+        validate_timings(result, config)
+        if (type(result.get("digest")) is not int or result["digest"] != digest
+                or result.get("failure") != 2**64 - 1):
+            raise ValueError(f"{case} B={batch} {config}: inconsistent digest or failure")
+        if config.startswith("v") and result["compile_s"] != builds[config[1]]:
+            raise ValueError(f"{case} B={batch} {config}: inconsistent build time")
 
 
 def measure_fault(folder):
@@ -93,6 +142,9 @@ def splitmix64(x):
 
 
 def validate_fault(results, batch):
+    if type(batch) is not int or batch != 4096:
+        raise ValueError("Fault requires 4096 trajectories")
+    validate_configs(results, batch, "Fault")
     # At edge 499 reset is inactive and the entire stored state is q := i.
     # Input i is physical port 3, limb 0 of the Fault fixture.
     bits = "".join(str(splitmix64(lane * 0x517cc1b727220a95
@@ -100,36 +152,70 @@ def validate_fault(results, batch):
                    for lane in range(batch))
     digest = sum(splitmix64((lane << 1) | int(bit)) for lane, bit in enumerate(bits)) % (1 << 64)
     for config, result in results.items():
-        assert result["checkpoint_cycle"] == 499 and result["checkpoint_bits"] == bits, config
-        assert result["digest"] == digest, config
-        assert result["failure"] == (500 << 32) + 3073, config
+        if result.get("checkpoint_cycle") != 499 or result.get("checkpoint_bits") != bits:
+            raise ValueError(f"Fault {config}: incorrect edge-499 checkpoint")
+        if type(result.get("digest")) is not int or result["digest"] != digest:
+            raise ValueError(f"Fault {config}: incorrect edge-499 digest")
+        if type(result.get("failure")) is not int or result["failure"] != (500 << 32) + 3073:
+            raise ValueError(f"Fault {config}: incorrect first failure")
+        validate_timings(result, config, fault=True)
+
+
+def completed_cases(data):
+    if data.get("format_version") != 2:
+        raise ValueError("incompatible timing protocol; use a fresh output or omit --resume")
+    if not isinstance(data.get("rows"), list) or not isinstance(data.get("builds"), dict):
+        raise ValueError("invalid cached throughput rows or builds")
+    batches = {}
+    for case, builds in data["builds"].items():
+        if (case not in THROUGHPUT_CASES or set(builds) != {"1", "2"}
+                or not all(map(valid_seconds, builds.values()))):
+            raise ValueError(f"{case}: invalid Verilator builds")
+    for row in data["rows"]:
+        case, batch = row["case"], row["batch"]
+        if case not in data["builds"]:
+            raise ValueError(f"{case}: missing build times")
+        validate_row(row, data["builds"][case])
+        seen = batches.setdefault(case, set())
+        if batch in seen:
+            raise ValueError(f"{case} B={batch}: duplicate throughput point")
+        seen.add(batch)
+    complete = {case for case, seen in batches.items() if seen == set(BATCHES)}
+    if data["failure"] != {}:
+        validate_fault(data["failure"], 4096)
+        complete.add("Fault")
+    return complete
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, default=Path("docs/benchmarks/t3_cpu_2d.json"))
-    parser.add_argument("--cases", nargs="+", default=CASES)
+    parser.add_argument("--cases", nargs="+", choices=CASES, default=CASES)
     parser.add_argument("--resume", action="store_true")
     args = parser.parse_args()
+    data = None
+    cases = list(dict.fromkeys(args.cases))
+    if args.resume and args.output.exists():
+        data = json.loads(args.output.read_text())
+        complete = completed_cases(data)
+        cases = [case for case in cases if case not in complete]
+        if not cases:
+            return
+
     subprocess.run(["cargo", "build", "--target-dir", "target", "--release", "-p", "syl_sim", "--example", "bench_cpu_2d"],
                    env=dict(os.environ, RUSTFLAGS="-Ctarget-cpu=native"), check=True)
     version = command("verilator", "--version").strip()
-    assert "Verilator 5.052 " in version, version
-    data = json.loads(args.output.read_text()) if args.resume and args.output.exists() else dict(
-        format_version=2, cpu=command("lscpu"), system=platform.platform(), verilator=version,
-        rustc=command("rustc", "-Vv"), cpp=command("g++", "--version").splitlines()[0],
-        builds={}, rows=[], failure={})
-
-    if data.get("format_version") != 2:
-        parser.error("the saved run uses an older timing protocol; use a fresh output or omit --resume")
+    if "Verilator 5.052 " not in version:
+        raise RuntimeError(f"expected Verilator 5.052, found {version}")
+    if data is None:
+        data = dict(format_version=2, cpu=command("lscpu"), system=platform.platform(),
+                    verilator=version, rustc=command("rustc", "-Vv"),
+                    cpp=command("g++", "--version").splitlines()[0], builds={}, rows=[], failure={})
 
     def persist():
         args.output.write_text(json.dumps(data, indent=2) + "\n")
 
-    for case in args.cases:
-        prior = {r["batch"] for r in data["rows"] if r["case"] == case}
-        if prior == set(BATCHES) or (case == "Fault" and data["failure"]):
-            continue
+    for case in cases:
         with tempfile.TemporaryDirectory(prefix="syl-t3-") as tmp:
             folder = Path(tmp)
             if case == "Fault":
@@ -138,7 +224,7 @@ def main():
                 continue
 
             builds = {i: build(folder / str(i), case, i) for i in (1, 2)}
-            data["builds"][case] = {i: seconds for i, (_, seconds) in builds.items()}
+            data["builds"][case] = {str(i): seconds for i, (_, seconds) in builds.items()}
             # A restart builds fresh executables. Remeasure the whole partial case
             # so the reported cold build and every recorded hot sample refer to the same build.
             data["rows"] = [r for r in data["rows"] if r["case"] != case]
@@ -153,9 +239,9 @@ def main():
                         result = measure([exe, batch, count, workers, internal])
                         result["compile_s"] = compile_s
                         results[f"v{internal}x{workers}"] = result
-                assert all(r["failure"] == 2**64 - 1 for r in results.values()), results
-                assert len({r["digest"] for r in results.values()}) == 1, (case, batch, results)
-                data["rows"].append(dict(case=case, batch=batch, cycles=count, results=results))
+                row = dict(case=case, batch=batch, cycles=count, results=results)
+                validate_row(row, data["builds"][case])
+                data["rows"].append(row)
                 persist()
 
 
