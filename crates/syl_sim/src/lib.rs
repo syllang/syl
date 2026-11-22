@@ -2,6 +2,7 @@
 
 mod constant;
 mod design;
+pub mod gpu_cuda;
 mod lower;
 pub mod runtime;
 mod schedule;
