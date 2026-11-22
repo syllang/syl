@@ -41,7 +41,7 @@ pub(crate) struct SylcApp {
 pub(crate) enum SylcCommand {
     /// Type-check and run elaboration DRC without emitting SystemVerilog.
     Check(CheckArgs),
-    /// Run the native four-state simulator.
+    /// Simulate a single trace or a deterministic batch.
     Sim(SimArgs),
     /// Check and emit SystemVerilog to stdout or --out.
     Emit(EmitArgs),
@@ -66,6 +66,30 @@ pub(crate) struct SimArgs {
     /// Reject X or Z on a top output after a stimulus step or automatic cycle.
     #[arg(long)]
     pub fail_on_x: bool,
+    /// Simulation backend (default auto).
+    #[arg(long,value_parser=["auto","cpu-ref","cpu-simd","gpu-cuda"])]
+    pub backend: Option<String>,
+    /// Number of independent deterministic trajectories (default 1).
+    #[arg(long)]
+    pub batch: Option<usize>,
+    /// Base seed for deterministic stimuli (default 0).
+    #[arg(long)]
+    pub seed: Option<u64>,
+    /// Number of CPU SIMD host workers.
+    #[arg(long)]
+    pub threads: Option<usize>,
+    /// CUDA parallel mapping (default auto).
+    #[arg(long,value_parser=["auto","batch","family"])]
+    pub gpu_mode: Option<String>,
+    /// Write a reference waveform for the first batch assertion failure.
+    #[arg(long)]
+    pub replay_vcd: Option<PathBuf>,
+    /// Directory for compiled CUDA runners.
+    #[arg(long)]
+    pub gpu_cache_dir: Option<PathBuf>,
+    /// Compile CUDA runners in a temporary directory.
+    #[arg(long)]
+    pub no_gpu_cache: bool,
 }
 #[derive(Debug, Args)]
 pub(crate) struct CheckArgs {
