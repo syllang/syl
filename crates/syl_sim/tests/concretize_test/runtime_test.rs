@@ -279,3 +279,6 @@ fn pulse_synchronizer_coincident_edges() {
         assert_eq!((sent, received), (8, 8));
     }
 }
+
+#[path = "runtime_test/edge_contracts_test.rs"]
+mod edge_contracts_test;

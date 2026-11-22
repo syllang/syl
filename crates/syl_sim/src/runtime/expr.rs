@@ -15,6 +15,34 @@ fn predicate(op: Op) -> bool {
     )
 }
 
+// Unsized decimal constants are signed. A packed signal, part-select,
+// concatenation or unsigned arm makes its enclosing operation unsigned.
+fn signed(e: &E) -> bool {
+    match e {
+        E::Int(_) => true,
+        E::Unary {
+            op: HwUnaryOp::Neg,
+            expr,
+        } => signed(expr),
+        E::Binary {
+            op: Op::Shl, left, ..
+        } => signed(left),
+        E::Binary { op, left, right } => !predicate(*op) && signed(left) && signed(right),
+        E::Mux {
+            then_value,
+            else_value,
+            ..
+        } => signed(then_value) && signed(else_value),
+        E::Select { arms, default, .. } => signed(default) && arms.iter().all(|(_, v)| signed(v)),
+        _ => false,
+    }
+}
+#[derive(Clone, Copy)]
+struct ExprType {
+    width: u32,
+    signed: bool,
+}
+
 impl Simulator<'_> {
     pub(super) fn target_width(&self, t: &SimTarget) -> u32 {
         t.selectors
@@ -26,7 +54,8 @@ impl Simulator<'_> {
     fn natural(&self, e: &E) -> Result<u32> {
         Ok(match e {
             E::Read(t) => self.target_width(t),
-            E::Int(n) => (64 - n.leading_zeros()).max(32),
+            // Unsized decimal literals include their positive sign bit.
+            E::Int(n) => (65 - n.leading_zeros()).max(32),
             E::Bool(_) | E::HighZ | E::Zero => 1,
             E::Unary {
                 op: HwUnaryOp::Not, ..
@@ -109,7 +138,34 @@ impl Simulator<'_> {
             .unwrap_or_else(|| Value::x(self.design.memories[id.0].width)))
     }
     pub(super) fn eval(&mut self, e: &E, context: u32, site: Site) -> Result<Value> {
-        let w = context.max(self.natural(e)?);
+        self.eval_as(e, context, site, self.mode)
+    }
+    pub(super) fn eval_as(
+        &mut self,
+        e: &E,
+        context: u32,
+        site: Site,
+        mode: StateMode,
+    ) -> Result<Value> {
+        self.eval_typed(
+            e,
+            ExprType {
+                width: context,
+                signed: signed(e),
+            },
+            site,
+            mode,
+        )
+    }
+    fn eval_typed(
+        &mut self,
+        e: &E,
+        mut ty: ExprType,
+        site: Site,
+        mode: StateMode,
+    ) -> Result<Value> {
+        ty.width = ty.width.max(self.natural(e)?);
+        let w = ty.width;
         let v = match e {
             E::Read(t) => self.read_target(t, site)?,
             E::Int(n) => Value::from_u64(w, *n),
@@ -122,9 +178,9 @@ impl Simulator<'_> {
                 site,
             )?,
             E::Unary { op, expr } => match op {
-                HwUnaryOp::Not => self.eval(expr, 0, site)?.logical_not(),
+                HwUnaryOp::Not => self.eval_as(expr, 0, site, mode)?.logical_not(),
                 HwUnaryOp::Neg => Value::zero(w)
-                    .binary(Op::Sub, &self.eval(expr, w, site)?)
+                    .binary(Op::Sub, &self.eval_typed(expr, ty, site, mode)?)
                     .map_err(RuntimeError::Invalid)?,
                 _ => {
                     return Err(RuntimeError::Invalid(format!(
@@ -138,33 +194,57 @@ impl Simulator<'_> {
                     op if predicate(*op) => self.natural(left)?.max(self.natural(right)?),
                     _ => w,
                 };
-                let a = self.eval(left, operands, site)?;
-                let b = self.eval(right, if *op == Op::Shl { 0 } else { operands }, site)?;
-                a.binary(*op, &b).map_err(RuntimeError::Invalid)?
+                let signed_operands = if predicate(*op) {
+                    signed(left) && signed(right)
+                } else {
+                    ty.signed
+                };
+                let operand_type = ExprType {
+                    width: operands,
+                    signed: signed_operands,
+                };
+                let a = if matches!(op, Op::AndAnd | Op::OrOr) {
+                    self.eval_as(left, 0, site, mode)?
+                } else {
+                    self.eval_typed(left, operand_type, site, mode)?
+                };
+                let b = if matches!(op, Op::Shl | Op::AndAnd | Op::OrOr) {
+                    self.eval_as(right, 0, site, mode)?
+                } else {
+                    self.eval_typed(right, operand_type, site, mode)?
+                };
+                if signed_operands {
+                    a.signed_binary(*op, &b)
+                } else {
+                    a.binary(*op, &b)
+                }
+                .map_err(RuntimeError::Invalid)?
             }
             E::Mux {
                 cond,
                 then_value,
                 else_value,
-            } => match self.eval(cond, 0, site)?.truth() {
-                Logic::One => self.eval(then_value, w, site)?,
-                Logic::Zero => self.eval(else_value, w, site)?,
+            } => match self.eval_as(cond, 0, site, mode)?.truth() {
+                Logic::One => self.eval_typed(then_value, ty, site, mode)?,
+                Logic::Zero => self.eval_typed(else_value, ty, site, mode)?,
                 cond => Value::mux(
                     cond,
-                    &self.eval(then_value, w, site)?,
-                    &self.eval(else_value, w, site)?,
+                    &self.eval_typed(then_value, ty, site, mode)?,
+                    &self.eval_typed(else_value, ty, site, mode)?,
                 ),
             },
             E::Select {
-                mode,
+                mode: select_mode,
                 arms,
                 default,
             } => {
                 let mut guards = Vec::with_capacity(arms.len());
                 for (g, _) in arms {
-                    guards.push(self.eval(g, 0, site)?.truth())
+                    guards.push(self.eval_as(g, 0, site, mode)?.truth())
                 }
-                if mode.is_unique() && guards.iter().filter(|g| **g == Logic::One).count() > 1 {
+                if select_mode.is_unique()
+                    && guards.iter().filter(|g| **g == Logic::One).count() > 1
+                {
                     let warning = UniqueOverlapViolation {
                         path: site.path.into(),
                         span: site.span,
@@ -178,11 +258,19 @@ impl Simulator<'_> {
                     }
                 }
                 let winner = guards.iter().position(|g| *g == Logic::One);
-                let mut result =
-                    self.eval(winner.map_or(default.as_ref(), |i| &arms[i].1), w, site)?;
+                let mut result = self.eval_typed(
+                    winner.map_or(default.as_ref(), |i| &arms[i].1),
+                    ty,
+                    site,
+                    mode,
+                )?;
                 for i in (0..winner.unwrap_or(arms.len())).rev() {
                     if guards[i] == Logic::X {
-                        result = Value::mux(Logic::X, &self.eval(&arms[i].1, w, site)?, &result)
+                        result = Value::mux(
+                            Logic::X,
+                            &self.eval_typed(&arms[i].1, ty, site, mode)?,
+                            &result,
+                        )
                     }
                 }
                 result
@@ -190,13 +278,13 @@ impl Simulator<'_> {
             E::Concat(parts) => {
                 let values = parts
                     .iter()
-                    .map(|p| self.eval(p, 0, site))
+                    .map(|p| self.eval_as(p, 0, site, mode))
                     .collect::<Result<Vec<_>>>()?;
                 Value::concat(&values)
                     .ok_or_else(|| RuntimeError::Invalid("concatenation too wide".into()))?
             }
             E::Project { value, selector } => {
-                let v = self.eval(value, 0, site)?;
+                let v = self.eval_as(value, 0, site, mode)?;
                 let sw = width(selector);
                 match self.offset(selector, v.width(), site)? {
                     Some(low) => v.slice(low, sw),
@@ -204,6 +292,11 @@ impl Simulator<'_> {
                 }
             }
         };
-        Ok(self.project(if v.width() == w { v } else { v.resized(w) }))
+        let v = if v.width() == w { v } else { v.resized(w) };
+        Ok(if mode == StateMode::TwoState {
+            v.into_two_state()
+        } else {
+            v
+        })
     }
 }

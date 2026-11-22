@@ -194,6 +194,8 @@ pub struct SimAssert {
 
 #[derive(Clone, Debug)]
 pub struct SimExternInstance {
+    /// Formal clock ports whose transitions sample model inputs as a group.
+    pub clocks: Vec<SignalId>,
     pub instance: InstanceId,
     /// Concrete external formal signals and their parent-side expressions.
     pub connections: Vec<(SignalId, SimExpr)>,

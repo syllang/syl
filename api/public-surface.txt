@@ -2813,6 +2813,7 @@ syl_sim|field|syl_sim::design::SimDesign::memories|Vec<SimMem>
 syl_sim|field|syl_sim::design::SimDesign::regs|Vec<SimReg>
 syl_sim|field|syl_sim::design::SimDesign::resets|Vec<ResetDomain>
 syl_sim|field|syl_sim::design::SimDesign::signals|Vec<SimSignal>
+syl_sim|field|syl_sim::design::SimExternInstance::clocks|Vec<SignalId>
 syl_sim|field|syl_sim::design::SimExternInstance::connections|Vec<(SignalId, SimExpr)>
 syl_sim|field|syl_sim::design::SimExternInstance::instance|InstanceId
 syl_sim|field|syl_sim::design::SimInstance::parent|Option<InstanceId>
@@ -2849,7 +2850,6 @@ syl_sim|field|syl_sim::runtime::AssertionFailure::cycle|u64
 syl_sim|field|syl_sim::runtime::AssertionFailure::message|String
 syl_sim|field|syl_sim::runtime::AssertionFailure::path|String
 syl_sim|field|syl_sim::runtime::AssertionFailure::span|syl_span::Span
-syl_sim|field|syl_sim::runtime::Simulator::design|&SimDesign
 syl_sim|field|syl_sim::runtime::Simulator::strict_unique|bool
 syl_sim|field|syl_sim::runtime::Simulator::unique_violations|Vec<UniqueOverlapViolation>
 syl_sim|field|syl_sim::runtime::UniqueOverlapViolation::cycle|u64
@@ -2864,6 +2864,7 @@ syl_sim|method|syl_sim::design::SimDesign::top_ports|fn(self: &Self) -> &[SimPor
 syl_sim|method|syl_sim::design::SourceLocation::span|fn(self: &Self) -> Span
 syl_sim|method|syl_sim::runtime::Simulator::clock|fn(self: &Self, name: &str) -> std::result::Result<DomainId, RuntimeError>
 syl_sim|method|syl_sim::runtime::Simulator::cycle|fn(self: &Self) -> u64
+syl_sim|method|syl_sim::runtime::Simulator::design|fn(self: &Self) -> &SimDesign
 syl_sim|method|syl_sim::runtime::Simulator::drive_named|fn(self: &mut Self, name: &str, value: Value) -> std::result::Result<(), RuntimeError>
 syl_sim|method|syl_sim::runtime::Simulator::drive|fn(self: &mut Self, id: SignalId, value: Value) -> std::result::Result<(), RuntimeError>
 syl_sim|method|syl_sim::runtime::Simulator::eval_comb|fn(self: &mut Self) -> std::result::Result<(), RuntimeError>

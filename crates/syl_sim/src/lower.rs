@@ -300,6 +300,12 @@ impl<'a> Lower<'a> {
         }
         if module.is_extern() {
             self.design.externs.push(SimExternInstance {
+                clocks: self.design.instances[id.0]
+                    .ports
+                    .iter()
+                    .filter(|p| self.clocks.contains_key(&p.signal))
+                    .map(|p| p.signal)
+                    .collect(),
                 instance: id,
                 connections: extern_ports,
             });

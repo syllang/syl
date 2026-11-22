@@ -38,11 +38,11 @@ The existing hardware normalizer checks structure while leaving generated loops,
 
 ## Execution contract
 
-- Evaluate unsigned words in the destination context, truncating to the destination width. Concatenations place the first operand at the most significant end. Array index zero selects the least significant element.
+- Packed signals are unsigned. Unsized decimal literals use signed arithmetic when both operands and the enclosing expression are signed. The destination supplies width, and assignment truncates the result. Concatenations place the first operand at the most significant end. Array index zero selects the least significant element.
 - Priority select picks the first true guard in source order. Unique select carries the mutual-exclusion promise; an executor can diagnose overlapping guards. Source order defines the emitted mux chain. An unknown guard merges corresponding arm and fallback bits.
 - Zero fills its context. HighZ fills it with Z. Four-state consumers resolve shared nets and retain X for unknown data. A two-state executor must explicitly reject or declare its policy for unsupported X/Z and uninitialized reads.
-- Settle combinational logic before sampling rising edges. Coincident clocks sample the same pre-edge snapshot for registers, assertions and RAM ports, then commit together and settle again. Assertions test the positive source condition unless the reset mask is asserted.
-- A synchronous reset takes effect on its clock edge. An asynchronous assertion applies immediately and dominates clocked updates while held. Release alone never samples the next value. Polarity is explicit on the bound reset domain.
+- Propagate changed clock pins and their combinational dependencies before sampling. On coincident edges, registers, RAM ports and clocked extern models see the new pin levels and the old storage values. Commit the sampled updates together. A masked assertion fires when the reset is known inactive and the condition is known false.
+- A synchronous reset takes effect on its clock edge. An asynchronous assertion samples the reset expression immediately. While reset is active, each rising clock edge samples that expression again. Release alone never samples the next value. Polarity is explicit on the bound reset domain.
 - Storage and synchronous RAM read outputs start uninitialized. Enabled synchronous reads see the pre-write word on a same-address read/write edge. Disabled ports hold their state. Distributed reads observe committed writes during the next settle. Conflicting simultaneous writes have unspecified data. These contracts follow the standard pulse, skid buffer, arbiter, CDC, RAM and FIFO cells and their C++ reference harnesses.
 
 

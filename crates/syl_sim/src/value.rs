@@ -231,6 +231,46 @@ impl Value {
             }
         }
     }
+    // Both operands have already been sized by the expression evaluator.
+    pub(crate) fn signed_binary(&self, op: Op, rhs: &Self) -> Result<Self, String> {
+        if !matches!(
+            op,
+            Op::Div | Op::Rem | Op::Lt | Op::LtEq | Op::Gt | Op::GtEq
+        ) || !self.is_known()
+            || !rhs.is_known()
+        {
+            return self.binary(op, rhs);
+        }
+        let negative = self.bit(self.width - 1) == Logic::One;
+        let rhs_negative = rhs.bit(rhs.width - 1) == Logic::One;
+        if matches!(op, Op::Lt | Op::LtEq | Op::Gt | Op::GtEq) {
+            if negative == rhs_negative {
+                return self.binary(op, rhs);
+            }
+            return Ok(Self::scalar(if matches!(op, Op::Lt | Op::LtEq) {
+                negative
+            } else {
+                rhs_negative
+            }));
+        }
+        let zero = Self::zero(self.width);
+        let magnitude = if negative {
+            zero.binary(Op::Sub, self)?
+        } else {
+            self.clone()
+        };
+        let divisor = if rhs_negative {
+            zero.binary(Op::Sub, rhs)?
+        } else {
+            rhs.clone()
+        };
+        let result = magnitude.binary(op, &divisor)?;
+        if (op == Op::Rem && negative) || (op == Op::Div && negative != rhs_negative) {
+            zero.binary(Op::Sub, &result)
+        } else {
+            Ok(result)
+        }
+    }
     pub fn binary(&self, op: Op, rhs: &Self) -> Result<Self, String> {
         use Op::*;
         let width = self.width.max(rhs.width);
