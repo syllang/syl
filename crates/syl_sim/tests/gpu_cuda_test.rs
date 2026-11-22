@@ -4,7 +4,8 @@ use syl_elab::{ElaborationOutput, HardwareCompiler};
 use syl_sema::{SemanticSession, SemanticSourceFile};
 use syl_sim::SimDesign;
 use syl_sim::gpu_cuda::{
-    CodegenOptions, KernelMode, compile_cuda, cuda_availability, generate_cuda,
+    CodegenOptions, KernelMode, RunnerOptions, compile_cuda, cuda_availability, generate_cuda,
+    run_cuda,
 };
 use syl_span::SourceId;
 use syl_syntax::SourceParser;
@@ -59,4 +60,30 @@ fn cuda_source_compiles_when_nvcc_is_available() {
     assert!(result.is_ok(), "{result:?}");
     let _ = std::fs::remove_file(object.with_extension("cu"));
     let _ = std::fs::remove_file(object);
+}
+
+#[test]
+fn cuda_runner_executes_on_real_device_when_available() {
+    if cuda_availability() != syl_sim::gpu_cuda::CudaAvailability::Available {
+        return;
+    }
+    let output = compile("cell Top(i: in Bit) -> o: Bit { o := not i }");
+    let design = SimDesign::lower(&output, "Top", &BTreeMap::new()).unwrap();
+    let path = std::env::temp_dir().join(format!("syl_cuda_runner_{}", std::process::id()));
+    let result = run_cuda(
+        &design,
+        CodegenOptions::default(),
+        RunnerOptions {
+            batch: 32,
+            cycles: 1_000,
+            block_size: 32,
+        },
+        &path,
+    )
+    .unwrap();
+    assert_eq!(result.batch, 32);
+    assert_eq!(result.cycles, 1_000);
+    assert!(result.elapsed_ms >= 0.0);
+    let _ = std::fs::remove_file(path.with_extension("cu"));
+    let _ = std::fs::remove_file(path);
 }

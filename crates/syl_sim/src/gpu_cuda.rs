@@ -45,6 +45,39 @@ pub struct GeneratedCuda {
     pub mode: KernelMode,
 }
 
+/// Host-side launch parameters for the self-contained CUDA runner.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct RunnerOptions {
+    pub batch: usize,
+    pub cycles: u64,
+    pub block_size: usize,
+}
+
+impl Default for RunnerOptions {
+    fn default() -> Self {
+        Self {
+            batch: 1,
+            cycles: 1_000,
+            block_size: 256,
+        }
+    }
+}
+
+/// JSON summary emitted by the self-contained runner.
+#[derive(Clone, Debug, PartialEq)]
+pub struct RunnerResult {
+    pub batch: usize,
+    pub cycles: u64,
+    pub elapsed_ms: f64,
+    pub h2d_ms: f64,
+    pub d2h_ms: f64,
+    pub peak_vram_mib: usize,
+    pub fail_batch: Option<usize>,
+    pub fail_cycle: Option<u64>,
+    pub fail_assert: Option<usize>,
+    pub output: String,
+}
+
 /// Result of probing the local CUDA compiler.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CudaAvailability {
@@ -84,6 +117,180 @@ pub fn compile_cuda(source: &str, output: impl AsRef<Path>) -> Result<PathBuf, S
     Ok(output.to_path_buf())
 }
 
+/// Compile a generated CUDA translation unit as a runnable executable.
+pub fn compile_cuda_executable(source: &str, output: impl AsRef<Path>) -> Result<PathBuf, String> {
+    let output = output.as_ref();
+    let source_path = output.with_extension("cu");
+    std::fs::write(&source_path, source)
+        .map_err(|e| format!("write {}: {e}", source_path.display()))?;
+    let result = Command::new("nvcc")
+        .args(["-O3", "-arch=sm_75"])
+        .arg(&source_path)
+        .arg("-o")
+        .arg(output)
+        .output()
+        .map_err(|e| format!("run nvcc: {e}"))?;
+    if !result.status.success() {
+        return Err(format!(
+            "nvcc failed with {}\n{}",
+            result.status,
+            String::from_utf8_lossy(&result.stderr)
+        ));
+    }
+    Ok(output.to_path_buf())
+}
+
+/// Compile and run a generated CUDA program. The translation unit includes a
+/// host `main` that owns all allocations, CUDA event timing and JSON output.
+pub fn run_cuda(
+    design: &SimDesign,
+    codegen: CodegenOptions,
+    options: RunnerOptions,
+    executable: impl AsRef<Path>,
+) -> Result<RunnerResult, String> {
+    if cuda_availability() == CudaAvailability::Unavailable {
+        return Err("nvcc is unavailable".into());
+    }
+    let generated = runner_source(&GeneratedOptions {
+        design,
+        options: codegen,
+    });
+    let executable = compile_cuda_executable(&generated, executable.as_ref())?;
+    let output = Command::new(&executable)
+        .args([
+            options.batch.to_string(),
+            options.cycles.to_string(),
+            options.block_size.to_string(),
+        ])
+        .output()
+        .map_err(|e| format!("run {}: {e}", executable.display()))?;
+    if !output.status.success() {
+        return Err(format!(
+            "CUDA runner failed with {}\n{}",
+            output.status,
+            String::from_utf8_lossy(&output.stderr)
+        ));
+    }
+    let text = String::from_utf8_lossy(&output.stdout).into_owned();
+    parse_runner_result(&text)
+}
+
+struct GeneratedOptions<'a> {
+    design: &'a SimDesign,
+    options: CodegenOptions,
+}
+
+fn runner_source(options: &GeneratedOptions<'_>) -> String {
+    let generated_cuda = generate_cuda(options.design, options.options);
+    let mut generated = generated_cuda.source;
+    generated.push_str(&runner_main(
+        generated_cuda.signal_slots,
+        generated_cuda.memory_words.max(1),
+    ));
+    generated
+}
+
+fn parse_runner_result(text: &str) -> Result<RunnerResult, String> {
+    let json = text
+        .lines()
+        .find(|line| line.trim_start().starts_with('{'))
+        .ok_or_else(|| format!("runner produced no JSON: {text}"))?;
+    fn number<T: std::str::FromStr>(json: &str, key: &str) -> Result<T, String> {
+        let marker = format!("\"{key}\":");
+        let value = json
+            .split_once(&marker)
+            .and_then(|(_, tail)| tail.split([',', '}']).next())
+            .ok_or_else(|| format!("missing {key}"))?
+            .trim();
+        value.parse().map_err(|_| format!("invalid {key}: {value}"))
+    }
+    fn optional_number<T: std::str::FromStr>(json: &str, key: &str) -> Result<Option<T>, String> {
+        let marker = format!("\"{key}\":");
+        let value = json
+            .split_once(&marker)
+            .and_then(|(_, tail)| tail.split([',', '}']).next())
+            .ok_or_else(|| format!("missing {key}"))?
+            .trim();
+        if value == "null" {
+            Ok(None)
+        } else {
+            value
+                .parse()
+                .map(Some)
+                .map_err(|_| format!("invalid {key}: {value}"))
+        }
+    }
+    Ok(RunnerResult {
+        batch: number(json, "batch")?,
+        cycles: number(json, "cycles")?,
+        elapsed_ms: number(json, "elapsed_ms")?,
+        h2d_ms: number(json, "h2d_ms")?,
+        d2h_ms: number(json, "d2h_ms")?,
+        peak_vram_mib: number(json, "peak_vram_mib")?,
+        fail_batch: optional_number(json, "fail_batch")?,
+        fail_cycle: optional_number(json, "fail_cycle")?,
+        fail_assert: optional_number(json, "fail_assert")?,
+        output: json.to_owned(),
+    })
+}
+
+fn runner_main(signal_slots: usize, memory_words: usize) -> String {
+    r#"
+#include <cstdio>
+#include <cstdlib>
+#include <cuda_runtime.h>
+int main(int argc, char** argv) {
+  const unsigned int batch = argc > 1 ? (unsigned int)strtoul(argv[1], nullptr, 10) : 1u;
+  const unsigned long long cycles = argc > 2 ? strtoull(argv[2], nullptr, 10) : 1000ull;
+  const unsigned int requested_block = argc > 3 ? (unsigned int)strtoul(argv[3], nullptr, 10) : 256u;
+  const unsigned int block = requested_block < batch ? requested_block : batch;
+  const unsigned int threads = batch;
+  const size_t state_words = @SIGNAL_SLOTS@ull * threads;
+  const size_t memory_words = @MEMORY_WORDS@ull * threads;
+  unsigned long long* state = nullptr;
+  unsigned long long* memory = nullptr;
+  SylGpuSummary host_summary{0, 0xffffffffu, 0xffffffffu, 0xffffffffu};
+  SylGpuSummary* device_summary = nullptr;
+  cudaEvent_t h2d_start, h2d_stop, kernel_start, kernel_stop, d2h_start, d2h_stop;
+  cudaEventCreate(&h2d_start); cudaEventCreate(&h2d_stop);
+  cudaEventCreate(&kernel_start); cudaEventCreate(&kernel_stop);
+  cudaEventCreate(&d2h_start); cudaEventCreate(&d2h_stop);
+  cudaMalloc(&state, state_words * sizeof(unsigned long long));
+  cudaMalloc(&memory, memory_words * sizeof(unsigned long long));
+  cudaMalloc(&device_summary, sizeof(SylGpuSummary));
+  cudaEventRecord(h2d_start);
+  cudaMemset(state, 0, state_words * sizeof(unsigned long long));
+  cudaMemset(memory, 0, memory_words * sizeof(unsigned long long));
+  cudaMemcpy(device_summary, &host_summary, sizeof(host_summary), cudaMemcpyHostToDevice);
+  cudaEventRecord(h2d_stop); cudaEventSynchronize(h2d_stop);
+  cudaEventRecord(kernel_start);
+  syl_sim_kernel<<<(threads + block - 1) / block, block>>>(state, memory, device_summary, cycles, threads);
+  cudaEventRecord(kernel_stop); cudaEventSynchronize(kernel_stop);
+  cudaEventRecord(d2h_start);
+  cudaMemcpy(&host_summary, device_summary, sizeof(host_summary), cudaMemcpyDeviceToHost);
+  cudaEventRecord(d2h_stop); cudaEventSynchronize(d2h_stop);
+  size_t free_bytes = 0, total_bytes = 0;
+  cudaMemGetInfo(&free_bytes, &total_bytes);
+  float h2d_ms = 0, kernel_ms = 0, d2h_ms = 0;
+  cudaEventElapsedTime(&h2d_ms, h2d_start, h2d_stop);
+  cudaEventElapsedTime(&kernel_ms, kernel_start, kernel_stop);
+  cudaEventElapsedTime(&d2h_ms, d2h_start, d2h_stop);
+  const size_t used = total_bytes - free_bytes;
+  char fail_batch[32], fail_cycle[32], fail_assert[32];
+  if (host_summary.fail_batch == 0xffffffffu) std::snprintf(fail_batch, sizeof(fail_batch), "null"); else std::snprintf(fail_batch, sizeof(fail_batch), "%u", host_summary.fail_batch);
+  if (host_summary.fail_cycle == 0xffffffffu) std::snprintf(fail_cycle, sizeof(fail_cycle), "null"); else std::snprintf(fail_cycle, sizeof(fail_cycle), "%u", host_summary.fail_cycle);
+  if (host_summary.fail_assert == 0xffffffffu) std::snprintf(fail_assert, sizeof(fail_assert), "null"); else std::snprintf(fail_assert, sizeof(fail_assert), "%u", host_summary.fail_assert);
+  std::printf("{\"batch\":%u,\"cycles\":%llu,\"elapsed_ms\":%.6f,\"h2d_ms\":%.6f,\"d2h_ms\":%.6f,\"peak_vram_mib\":%zu,\"fail_batch\":%s,\"fail_cycle\":%s,\"fail_assert\":%s}\n",
+    batch, cycles, kernel_ms, h2d_ms, d2h_ms, used / (1024 * 1024), fail_batch, fail_cycle, fail_assert);
+  cudaFree(state); cudaFree(memory); cudaFree(device_summary);
+  cudaEventDestroy(h2d_start); cudaEventDestroy(h2d_stop); cudaEventDestroy(kernel_start); cudaEventDestroy(kernel_stop); cudaEventDestroy(d2h_start); cudaEventDestroy(d2h_stop);
+  return 0;
+}
+"#
+    .replace("@SIGNAL_SLOTS@", &signal_slots.to_string())
+    .replace("@MEMORY_WORDS@", &memory_words.to_string())
+}
+
 /// Generate a compilable persistent CUDA kernel for a concrete simulation
 /// design.  All signal and memory accesses use SoA indexing.
 pub fn generate_cuda(design: &SimDesign, options: CodegenOptions) -> GeneratedCuda {
@@ -117,7 +324,9 @@ pub fn generate_cuda(design: &SimDesign, options: CodegenOptions) -> GeneratedCu
     .unwrap();
     out.push_str("extern \"C\" __global__ void syl_sim_kernel(unsigned long long* state, unsigned long long* memory, SylGpuSummary* summary, unsigned long long cycles, unsigned int total_threads) {\n");
     out.push_str("  const unsigned int tid = blockIdx.x * blockDim.x + threadIdx.x;\n  if (tid >= total_threads) return;\n  unsigned long long rng = 0x9e3779b97f4a7c15ull ^ (unsigned long long)tid;\n");
-    out.push_str("  if (tid == 0) { summary->cycles = 0; summary->fail_batch = 0xffffffffu; summary->fail_cycle = 0xffffffffu; summary->fail_assert = 0xffffffffu; }\n  __syncthreads();\n");
+    if options.mode == KernelMode::InstanceFamilyParallel {
+        out.push_str("  __syncthreads();\n");
+    }
     if options.mode == KernelMode::InstanceFamilyParallel {
         writeln!(
             out,
@@ -260,9 +469,7 @@ fn target_assignment(design: &SimDesign, target: &SimTarget, value: &str) -> Str
         }
     }
     let field_mask = mask(width);
-    format!(
-        "{slot} = ({slot} & ~({field_mask}ull << {low})) | ((({value}) & {field_mask}) << {low});"
-    )
+    format!("{slot} = ({slot} & ~({field_mask} << {low})) | ((({value}) & {field_mask}) << {low});")
 }
 
 fn expression(design: &SimDesign, expr: &SimExpr, memory_bases: &[usize]) -> String {
