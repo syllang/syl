@@ -124,3 +124,41 @@ fn parallel_reduction_orders_by_cycle_then_lane_then_assertion() {
         .is_err()
     );
 }
+
+#[test]
+fn concurrent_compilers_publish_one_complete_runner_and_uncached_plans_stay_cold() {
+    if gpu_cuda::probe_cuda().is_err() {
+        return;
+    }
+    let (top, src) = SHAPES[2];
+    let d = design(top, src);
+    let cache = tempfile::tempdir().unwrap();
+    let r = BackendRequest {
+        choice: SimBackendChoice::GpuCuda,
+        batch: 4,
+        cycles: 11,
+        ..Default::default()
+    };
+    let plan = select_local_backend(&d, &r, CudaCache::Directory(cache.path())).unwrap();
+    let barrier = std::sync::Barrier::new(2);
+    let run = || {
+        barrier.wait();
+        plan.run(17, 1).unwrap()
+    };
+    let (a, b) = std::thread::scope(|s| {
+        let other = s.spawn(run);
+        (run(), other.join().unwrap())
+    });
+    let hot = plan.run(17, 1).unwrap();
+    assert_eq!(a.digest, b.digest);
+    assert_eq!(hot.digest, a.digest);
+    assert_eq!(hot.cache_hit, Some(true));
+    assert_eq!(hot.compile_ms, 0.);
+    assert!(a.cache_hit == Some(false) || b.cache_hit == Some(false));
+    let isolated = select_local_backend(&d, &r, CudaCache::Disabled).unwrap();
+    for _ in 0..2 {
+        let result = isolated.run(17, 1).unwrap();
+        assert_eq!(result.cache_hit, Some(false));
+        assert_eq!(result.digest, hot.digest);
+    }
+}

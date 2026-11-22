@@ -61,7 +61,7 @@ fn valid_arch(arch: &str) -> bool {
 pub(super) fn target_arch() -> Result<String, String> {
     if let Some(arch) = env::var_os("SYL_CUDA_ARCH") {
         let arch = arch.to_str().filter(|s| valid_arch(s)).ok_or(
-            "invalid SYL_CUDA_ARCH (expected sm_XX, sm_XXX, optional letter suffix, or native)",
+            "invalid SYL_CUDA_ARCH (expected sm_ followed by two or three digits and an optional lowercase letter, or native)",
         )?;
         return Ok(arch.to_owned());
     }
@@ -117,12 +117,19 @@ fn private_directory(path: &Path) -> io::Result<()> {
     Ok(())
 }
 
+struct Executable {
+    path: PathBuf,
+    cache_hit: bool,
+    compile_ms: f64,
+    _build_dir: Option<tempfile::TempDir>,
+}
+
 pub(crate) struct Toolchain {
     arch: String,
     version: Vec<u8>,
     native_device: Option<String>,
     directory: PathBuf,
-    _temporary: Option<tempfile::TempDir>,
+    temporary: Option<tempfile::TempDir>,
 }
 
 impl Toolchain {
@@ -143,7 +150,7 @@ impl Toolchain {
             arch,
             version,
             directory,
-            _temporary: tmp,
+            temporary: tmp,
         };
         if toolchain.arch == "native" {
             toolchain.native_device = Some(toolchain.device_arch()?);
@@ -157,8 +164,10 @@ impl Toolchain {
         Ok(())
     }
     fn device_arch(&self) -> Result<String, String> {
-        let (probe, _, _) = self.executable(include_str!("probe.cu"), None)?;
-        let output = Command::new(probe).output().map_err(|e| e.to_string())?;
+        let probe = self.executable(include_str!("probe.cu"), None)?;
+        let output = Command::new(&probe.path)
+            .output()
+            .map_err(|e| e.to_string())?;
         if output.status.code() == Some(77) {
             return Err("nvcc is installed but no usable CUDA device is available".into());
         }
@@ -181,12 +190,17 @@ impl Toolchain {
         ]))
     }
     pub(crate) fn contains(&self, source: &str) -> bool {
-        self.path(source, Some(&self.arch)).is_file()
+        self.temporary.is_none() && self.path(source, Some(&self.arch)).is_file()
     }
-    fn executable(&self, source: &str, arch: Option<&str>) -> Result<(PathBuf, bool, f64), String> {
+    fn executable(&self, source: &str, arch: Option<&str>) -> Result<Executable, String> {
         let path = self.path(source, arch);
-        if path.is_file() {
-            return Ok((path, true, 0.0));
+        if self.temporary.is_none() && path.is_file() {
+            return Ok(Executable {
+                path,
+                cache_hit: true,
+                compile_ms: 0.,
+                _build_dir: None,
+            });
         }
         let temp = tempfile::Builder::new()
             .prefix(".compile-")
@@ -195,8 +209,18 @@ impl Toolchain {
         let binary = temp.path().join("runner");
         let start = Instant::now();
         compile_for(source, &binary, false, arch)?;
-        fs::rename(binary, &path).map_err(|e| format!("publish CUDA executable: {e}"))?;
-        Ok((path, false, start.elapsed().as_secs_f64() * 1000.))
+        let (path, build_dir) = if self.temporary.is_some() {
+            (binary, Some(temp))
+        } else {
+            fs::rename(binary, &path).map_err(|e| format!("publish CUDA executable: {e}"))?;
+            (path, None)
+        };
+        Ok(Executable {
+            path,
+            cache_hit: false,
+            compile_ms: start.elapsed().as_secs_f64() * 1000.,
+            _build_dir: build_dir,
+        })
     }
     pub(crate) fn run(
         &self,
@@ -204,8 +228,14 @@ impl Toolchain {
         options: RunnerOptions,
         seed: u64,
     ) -> Result<RunnerResult, String> {
-        let (path, hit, ms) = self.executable(source, Some(&self.arch))?;
-        launch(&path, options, seed, hit, ms)
+        let binary = self.executable(source, Some(&self.arch))?;
+        launch(
+            &binary.path,
+            options,
+            seed,
+            binary.cache_hit,
+            binary.compile_ms,
+        )
     }
 }
 
