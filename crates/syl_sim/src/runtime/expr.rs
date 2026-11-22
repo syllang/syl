@@ -238,7 +238,7 @@ impl Simulator<'_> {
                     let warning = UniqueOverlapViolation {
                         path: site.path.into(),
                         span: site.span,
-                        cycle: self.trajectory.cycle,
+                        cycle: self.stimulus_step.unwrap_or(self.trajectory.cycle),
                     };
                     if self.strict_unique {
                         return Err(warning.into());

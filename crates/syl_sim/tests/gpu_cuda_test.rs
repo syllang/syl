@@ -131,13 +131,6 @@ fn launch_options_reject_out_of_range_before_compilation() {
         ),
         (
             RunnerOptions {
-                cycles: 0,
-                ..Default::default()
-            },
-            "cycles",
-        ),
-        (
-            RunnerOptions {
                 batch: usize::MAX,
                 ..Default::default()
             },

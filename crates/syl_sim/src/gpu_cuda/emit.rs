@@ -80,7 +80,7 @@ impl Emit<'_> {
             low += l;
             width = high - l + 1;
         }
-        if width > 64 {
+        if width > 128 {
             return Err(format!("wide unsliced expression on {:?}", t.signal));
         }
         let offset = if self.local.is_some()
@@ -140,8 +140,8 @@ impl Emit<'_> {
     }
     fn expr(&self, e: &E, context: u32) -> Result<String, String> {
         let width = self.width(e)?.max(context);
-        if width > 64 {
-            return Err("expression exceeds 64 bits".into());
+        if width > 128 {
+            return Err("expression exceeds 128 bits".into());
         }
         let v = match e {
             E::Read(t) => {
@@ -156,7 +156,13 @@ impl Emit<'_> {
                     return Err("family input must read a top input or its own local state".into());
                 }
                 let (s, l, w) = self.target(t)?;
-                return Ok(format!("f.read({s},{l},{w})"));
+                let read = if w > 64 { "read_wide" } else { "read" };
+                let value = format!("f.{read}({s},{l},{w})");
+                return Ok(if width > 64 {
+                    format!("Wide({value})")
+                } else {
+                    value
+                });
             }
             E::Bool(b) => u8::from(*b).to_string(),
             E::Zero => "0ull".into(),
@@ -212,7 +218,7 @@ impl Emit<'_> {
                     v = if v.is_empty() {
                         val
                     } else {
-                        format!("(({v} << {}) | {val})", self.width(p)?)
+                        format!("((Wide({v}) << {}) | {val})", self.width(p)?)
                     };
                 }
                 v
@@ -221,7 +227,7 @@ impl Emit<'_> {
                 value,
                 selector: Selector::Slice { low, high },
             } => format!(
-                "(({} >> {low}) & mask({}))",
+                "(({} >> {low}) & wide_mask({}))",
                 self.expr(value, 0)?,
                 high - low + 1
             ),
@@ -231,7 +237,8 @@ impl Emit<'_> {
             )?,
             _ => return Err(format!("unsupported expression {e:?}")),
         };
-        Ok(format!("(({v}) & mask({width}))"))
+        let mask = if width > 64 { "wide_mask" } else { "mask" };
+        Ok(format!("(({v}) & {mask}({width}))"))
     }
     fn mem_base(&self, m: usize) -> Result<String, String> {
         if let Some(local) = self.local {
@@ -258,7 +265,8 @@ impl Emit<'_> {
     }
     pub fn assign(&self, t: &SimTarget, v: &E) -> Result<String, String> {
         let (s, l, w) = self.target(t)?;
-        Ok(format!("f.put({s},{l},{w},{});\n", self.expr(v, w)?))
+        let put = if w > 64 { "put_wide" } else { "put" };
+        Ok(format!("f.{put}({s},{l},{w},{});\n", self.expr(v, w)?))
     }
     fn reset(&self, id: crate::ResetId) -> Result<String, String> {
         let r = &self.design.resets[id.0];
@@ -281,6 +289,17 @@ impl Emit<'_> {
                     self.expr(rv, r.width)?
                 );
             }
+            if r.width > 64 {
+                writeln!(sample, "Wide next{i} = {val};").unwrap();
+                writeln!(
+                    commit,
+                    "f.put_wide({},0,{},next{i});",
+                    self.slot(r.signal)?,
+                    r.width
+                )
+                .unwrap();
+                continue;
+            }
             writeln!(sample, "Word next{i} = {val};").unwrap();
             writeln!(
                 commit,
@@ -301,7 +320,8 @@ impl Emit<'_> {
                     self.read_mem(id, &r.address)?
                 )
                 .unwrap();
-                writeln!(commit, "if(re{i}_{j}) f.put({s},{l},{w},rd{i}_{j});").unwrap();
+                let put = if w > 64 { "put_wide" } else { "put" };
+                writeln!(commit, "if(re{i}_{j}) f.{put}({s},{l},{w},rd{i}_{j});").unwrap();
             }
             for (j, p) in m.writes.iter().enumerate() {
                 writeln!(

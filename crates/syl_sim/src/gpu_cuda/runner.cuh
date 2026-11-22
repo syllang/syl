@@ -8,13 +8,13 @@ __device__ __forceinline__ void barrier() {
 
 __global__ void syl_sim_kernel(Word *state, Word *mem, Word *failure,
                                Word *outputs, unsigned batch, unsigned first,
-                               unsigned count) {
+                               unsigned count, Word seed) {
   size_t tid = size_t(blockIdx.x) * blockDim.x + threadIdx.x;
   unsigned b = PARALLEL ? tid / FAMILY : tid;
   unsigned lane = PARALLEL ? tid % FAMILY : 0;
   if (b >= batch)
     return;
-  Frame f{state, mem, failure, b, batch};
+  Frame f{state, mem, failure, b, batch, seed};
   for (unsigned step = 0; step < count; ++step) {
     unsigned cycle = first + step;
     if (lane == 0) {
@@ -73,14 +73,14 @@ struct Timer {
   }
 };
 // Parse before narrowing: a wrapped cycle number can hide a clocked failure.
-static unsigned positive_arg(const char *name, const char *arg,
-                             unsigned limit) {
+static unsigned unsigned_arg(const char *name, const char *arg,
+                             unsigned minimum, unsigned limit) {
   char *end = nullptr;
   errno = 0;
   const auto value = std::strtoull(arg, &end, 10);
-  if (*arg < '0' || *arg > '9' || *end || errno == ERANGE || !value ||
+  if (*arg < '0' || *arg > '9' || *end || errno == ERANGE || value < minimum ||
       value > limit) {
-    std::fprintf(stderr, "%s must be in 1..%u\n", name, limit);
+    std::fprintf(stderr, "%s must be in %u..%u\n", name, minimum, limit);
     std::exit(2);
   }
   return static_cast<unsigned>(value);
@@ -95,10 +95,17 @@ int main(int argc, char **argv) {
   CUDA(probe);
   if (argc == 2 && !std::strcmp(argv[1], "probe"))
     return 0;
-  unsigned batch = argc > 1 ? positive_arg("batch", argv[1], 0x7fffffff) : 1;
-  unsigned cycles = argc > 2 ? positive_arg("cycles", argv[2], UINT_MAX) : 1000;
-  unsigned block = argc > 3 ? positive_arg("block", argv[3], 1024) : 256;
+  unsigned batch = argc > 1 ? unsigned_arg("batch", argv[1], 1, 0x7fffffff) : 1;
+  unsigned cycles = argc > 2 ? unsigned_arg("cycles", argv[2], 0, UINT_MAX) : 1000;
+  unsigned block = argc > 3 ? unsigned_arg("block", argv[3], 1, 1024) : 256;
   const char *mode = argc > 4 ? argv[4] : "summary";
+  char *end = nullptr;
+  errno = 0;
+  Word seed = argc > 5 ? std::strtoull(argv[5], &end, 10) : 0;
+  if (argc > 5 && (*argv[5] < '0' || *argv[5] > '9' || *end || errno == ERANGE)) {
+    std::fprintf(stderr, "invalid seed\n");
+    return 2;
+  }
   bool each = !std::strcmp(mode, "each") || !std::strcmp(mode, "trace");
   bool dump = !std::strcmp(mode, "trace") || !std::strcmp(mode, "final");
   if ((~0ull / ASSERT_COUNT) / batch < cycles)
@@ -125,11 +132,13 @@ int main(int argc, char **argv) {
   double h2d = t.stop(), kernel = 0, d2h = 0;
   size_t bytes = 16;
   std::vector<Word> samples;
-  for (unsigned start = 0; start < cycles;) {
-    unsigned n = each ? 1 : cycles;
+  unsigned start = 0;
+  // Even a zero-edge run must settle initial outputs before reduction.
+  do {
+    unsigned n = each ? std::min(cycles, 1u) : cycles;
     t.start();
     syl_sim_kernel<<<blocks, threads>>>(state, mem, summary, outputs, batch,
-                                        start + 1, n);
+                                        start + 1, n, seed);
     CUDA(cudaGetLastError());
     kernel += t.stop();
     if (each || dump) {
@@ -141,7 +150,7 @@ int main(int argc, char **argv) {
         samples.insert(samples.end(), host, host + words);
     }
     start += n;
-  }
+  } while (start < cycles);
   t.start();
   checksum<<<64, 128>>>(outputs, words, summary + 1);
   CUDA(cudaGetLastError());

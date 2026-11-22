@@ -91,6 +91,34 @@ Each JSON array entry drives a simultaneous group of inputs, settles asynchronou
 
 Automatic runs initialize inputs to zero, assert top resets according to polarity on the first cycle and pulse all top clocks together. `--cycles` includes the reset cycle and defaults to one. A repeated `--param K=V` binds a natural number or boolean. `--strict-unique` fails on overlapping true guards. `--fail-on-x` fails when a top output contains X or Z at the end of a step. The command prints the cycle count and final output bits.
 
+### Deterministic batch simulation
+
+```sh
+sylc sim examples/benchmarks/wide_alu_array.syl --top WideAluArray --batch 256 --cycles 1000 --seed 42
+sylc sim examples/benchmarks/fault_hunt_pipeline.syl --top FaultHuntPipeline --backend cpu-simd --threads 4 --batch 7 --cycles 12 --seed 2691343690239311708 --replay-vcd fault.vcd
+```
+
+Batch runs print the selected backend, batch size, cycle count, seed and final
+64-bit digest. The default `--backend auto` routes deterministic runs using
+the measured CPU/GPU crossover, available device, instance-family shape and
+compiler cache. Use `--backend cpu-ref` for a two-state reference comparison,
+or `--backend gpu-cuda --gpu-mode batch|family` to select a CUDA kernel.
+`--gpu-cache-dir` overrides `SYL_CUDA_CACHE_DIR`. The cache defaults to
+`$XDG_CACHE_HOME/syl/cuda` or the system temporary directory's
+`syl-cuda-cache`. Use `--no-gpu-cache` for an isolated cold run. The optional
+`SYL_CUDA_ARCH` selects an nvcc target such as `sm_86` or `native`.
+
+An invocation using only the original single-trace options retains four-state
+simulation and its cycle-count/output display. Explicitly selecting a backend
+uses deterministic inputs even for a single lane. Direct stimulus and VCD tracing
+use a single reference trajectory and accept `--backend auto` or `--backend cpu-ref`.
+Batch size, seed, thread count, GPU mode, GPU cache controls and failure replay
+each select batch inputs and conflict with direct tracing. Deterministic reference
+runs also support `--strict-unique` and `--fail-on-x`. A failed batch reports
+the failing lane, global stimulus step, hierarchy and assertion source span. With
+`--replay-vcd` it also writes that trajectory's waveform, starting with the
+settled inputs and signals before the first stimulus step.
+
 ## Project manifests
 
 ```toml

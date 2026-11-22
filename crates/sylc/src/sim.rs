@@ -1,3 +1,4 @@
+mod batch;
 use crate::{cli::SimArgs, cli_error};
 use serde::Deserialize;
 use std::{
@@ -109,6 +110,10 @@ pub(super) fn run<'a>(
     protected: impl Iterator<Item = &'a Path>,
     diagnostics: &mut Vec<Diagnostic>,
 ) -> Result<()> {
+    let protected: Vec<_> = protected.collect();
+    if batch::run(design, args, &protected)? {
+        return Ok(());
+    }
     let mut sim = Simulator::new(design);
     sim.strict_unique = args.strict_unique;
     let steps = args
@@ -126,7 +131,7 @@ pub(super) fn run<'a>(
             .vcd
             .as_ref()
             .map(|path| {
-                let f = wave_file(path, protected)?;
+                let f = wave_file(path, &protected)?;
                 VcdWriter::new(BufWriter::new(f), design).map_err(error)
             })
             .transpose()?,
@@ -261,7 +266,7 @@ pub(super) fn run<'a>(
     Ok(())
 }
 
-fn wave_file<'a>(path: &Path, protected: impl Iterator<Item = &'a Path>) -> Result<File> {
+fn wave_file(path: &Path, protected: &[&Path]) -> Result<File> {
     // Compare the identity of the open destination before truncating it.
     // This includes hard links and keeps writes tied to the checked handle.
     let file = File::options()
@@ -272,8 +277,18 @@ fn wave_file<'a>(path: &Path, protected: impl Iterator<Item = &'a Path>) -> Resu
         .map_err(error)?;
     let destination =
         same_file::Handle::from_file(file.try_clone().map_err(error)?).map_err(error)?;
+    ensure_safe_destination(path, &destination, protected)?;
+    file.set_len(0).map_err(error)?;
+    Ok(file)
+}
+
+fn ensure_safe_destination(
+    path: &Path,
+    destination: &same_file::Handle,
+    protected: &[&Path],
+) -> Result<()> {
     for input in protected {
-        if same_file::Handle::from_path(input).map_err(error)? == destination {
+        if same_file::Handle::from_path(input).map_err(error)? == *destination {
             return Err(error(format!(
                 "VCD destination {} refers to input {}",
                 path.display(),
@@ -281,6 +296,5 @@ fn wave_file<'a>(path: &Path, protected: impl Iterator<Item = &'a Path>) -> Resu
             )));
         }
     }
-    file.set_len(0).map_err(error)?;
-    Ok(file)
+    Ok(())
 }

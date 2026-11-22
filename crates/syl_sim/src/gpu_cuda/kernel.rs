@@ -41,9 +41,12 @@ pub fn try_generate_cuda(d: &SimDesign, options: CodegenOptions) -> Result<Gener
     source.push_str(include_str!("device.cuh"));
     let mut drive = String::new();
     let mut outputs = Vec::new();
+    let mut port_end = 0u64;
     for p in d.top_ports() {
         let base = bases[p.signal.0];
         let width = d.signal(p.signal).width;
+        let port_base = port_end;
+        port_end += u64::from(width.div_ceil(64));
         match p.direction {
             HwDirection::Out => outputs.extend(base..base + width.div_ceil(64) as usize),
             HwDirection::In => {
@@ -58,7 +61,7 @@ pub fn try_generate_cuda(d: &SimDesign, options: CodegenOptions) -> Result<Gener
                     )
                     .unwrap();
                 } else {
-                    writeln!(drive,"for(unsigned i=0;i<{};++i) f.word({base}+i)=stimulus(f.b,cycle,{base}+i) & mask(min(64u,{width}u-i*64));",width.div_ceil(64)).unwrap();
+                    writeln!(drive,"for(unsigned i=0;i<{};++i) f.word({base}+i)=stimulus(f.seed,f.b,cycle,{port_base}ull+i) & mask(min(64u,{width}u-i*64));",width.div_ceil(64)).unwrap();
                 }
             }
             _ => return Err("inout pins are unsupported".into()),
