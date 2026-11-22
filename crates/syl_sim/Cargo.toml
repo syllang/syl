@@ -12,10 +12,12 @@ readme = "README.md"
 
 [dependencies]
 num-bigint = "0.4"
+sha2 = "0.10"
 smallvec = "1"
 syl_elab.workspace = true
 syl_hw.workspace = true
 syl_span.workspace = true
+tempfile = "3"
 thiserror.workspace = true
 
 [dev-dependencies]

@@ -75,7 +75,29 @@ The fast path initializes storage to zero and projects X/Z values to zero.
 It supports a single external clock, synchronous resets, register updates,
 RAM words up to 64 bits, fixed packed slices and clocked assertions. Wider
 packed buses use multiple limbs. Compilation returns an error for unsupported
-operations such as wide arithmetic, dynamic packed indexing or external cells.
+operations such as wide division, dynamic packed indexing or external cells.
+Wide addition, bitwise logic and equality use little-endian limbs.
 On an assertion failure, `tick` returns the tile-local lane and one-based edge
 before committing the sequential updates. Add the tile offset to recover the
 global trajectory index.
+
+## Routed batches
+
+`select_backend` uses the explicit GPU availability and cache-hit observations in
+`BackendRequest`. `select_local_backend` obtains those observations on the host
+and retains the selected program for repeated calls to `LocalBackend::run`.
+`run_batch` executes an explicitly resolved backend.
+
+Each lane uses the same SplitMix64 input stream on all backends. The first
+edge asserts top resets according to polarity. Packed top ports occupy consecutive
+64-bit word indices in declaration order. `batch_stimulus_word` takes the
+port's first index and a little-endian limb offset. The final digest is the
+wrapping sum of output words multiplied by `2 * (output_limb * batch + lane) + 1`.
+Detection records the lowest cycle, lane and assertion ID, in that order, while
+execution continues through the requested final cycle. The run verifies that
+coordinate with the reference simulator and returns its source location.
+`replay_failure` can also record the reference waveform through the failing edge.
+
+CUDA runners compile on demand with nvcc. The cache key covers generated
+source, compiler version and target architecture. Forced family mode uses a
+single-thread block for a design without independent mappable children.

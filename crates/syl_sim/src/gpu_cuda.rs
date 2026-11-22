@@ -1,10 +1,12 @@
-//! CUDA C++ prototype generation for word-level simulation designs.
+//! CUDA C++ runner generation for word-level simulation designs.
 //!
 //! The generated kernel keeps state in a structure-of-arrays layout and runs
 //! all requested cycles on the device.  It is intentionally self contained so
 //! ordinary Rust builds and tests do not require CUDA.  A caller can compile
 //! the returned source with [`compile_cuda`] when `nvcc` is available.
 
+pub(crate) mod cache;
+pub use cache::{CudaCache, probe_cuda};
 mod emit;
 mod family;
 mod kernel;
@@ -73,6 +75,9 @@ pub struct RunnerResult {
     pub batch: usize,
     pub cycles: u64,
     pub elapsed_ms: f64,
+    pub compile_ms: f64,
+    pub cache_hit: bool,
+    pub digest: u64,
     pub h2d_ms: f64,
     pub d2h_ms: f64,
     pub peak_vram_mib: usize,
@@ -97,18 +102,28 @@ pub fn cuda_availability() -> CudaAvailability {
     }
 }
 
-/// Compile generated CUDA source into an object file with the RTX 2080 Ti
-/// architecture selected.  The source is written to a sibling `.cu` file.
+/// Compile generated CUDA source into an object file for the detected target.  The source is written to a sibling `.cu` file.
 pub fn compile_cuda(source: &str, output: impl AsRef<Path>) -> Result<PathBuf, String> {
     compile(source, output.as_ref(), true)
 }
 
 fn compile(source: &str, output: &Path, object: bool) -> Result<PathBuf, String> {
+    compile_for(source, output, object, Some(&cache::target_arch()?))
+}
+fn compile_for(
+    source: &str,
+    output: &Path,
+    object: bool,
+    arch: Option<&str>,
+) -> Result<PathBuf, String> {
     let source_path = output.with_extension("cu");
     std::fs::write(&source_path, source)
         .map_err(|e| format!("write {}: {e}", source_path.display()))?;
     let mut compiler = Command::new("nvcc");
-    compiler.args(["-O3", "-arch=sm_75"]);
+    compiler.arg("-O3");
+    if let Some(arch) = arch {
+        compiler.arg(format!("-arch={arch}"));
+    }
     if object {
         compiler.arg("-c");
     }
@@ -141,20 +156,41 @@ pub fn run_cuda(
     options: RunnerOptions,
     executable: impl AsRef<Path>,
 ) -> Result<RunnerResult, String> {
-    if !(1..=i32::MAX as usize).contains(&options.batch) {
-        return Err("batch must be in 1..=2147483647".into());
-    }
-    if !(1..=u64::from(u32::MAX)).contains(&options.cycles) {
-        return Err("cycles must be in 1..=4294967295".into());
-    }
-    if !(1..=1024).contains(&options.block_size) {
-        return Err("block size must be in 1..=1024".into());
-    }
-    if cuda_availability() == CudaAvailability::Unavailable {
-        return Err("nvcc is unavailable".into());
-    }
+    options.validate()?;
     let generated = try_generate_cuda(design, codegen)?.source;
+    let start = std::time::Instant::now();
     let executable = compile_cuda_executable(&generated, executable.as_ref())?;
+    launch(
+        &executable,
+        options,
+        0,
+        false,
+        start.elapsed().as_secs_f64() * 1000.,
+    )
+}
+
+impl RunnerOptions {
+    pub(crate) fn validate(self) -> Result<(), String> {
+        if !(1..=i32::MAX as usize).contains(&self.batch) {
+            return Err("batch must be in 1..=2147483647".into());
+        }
+        if !(1..=u64::from(u32::MAX)).contains(&self.cycles) {
+            return Err("cycles must be in 1..=4294967295".into());
+        }
+        if !(1..=1024).contains(&self.block_size) {
+            return Err("block size must be in 1..=1024".into());
+        }
+        Ok(())
+    }
+}
+
+fn launch(
+    executable: &Path,
+    options: RunnerOptions,
+    seed: u64,
+    hit: bool,
+    ms: f64,
+) -> Result<RunnerResult, String> {
     let executable =
         std::path::absolute(executable).map_err(|e| format!("resolve CUDA executable: {e}"))?;
     let output = Command::new(&executable)
@@ -162,6 +198,8 @@ pub fn run_cuda(
             options.batch.to_string(),
             options.cycles.to_string(),
             options.block_size.to_string(),
+            "summary".to_owned(),
+            seed.to_string(),
         ])
         .output()
         .map_err(|e| format!("run {}: {e}", executable.display()))?;
@@ -173,10 +211,14 @@ pub fn run_cuda(
         ));
     }
     let text = String::from_utf8_lossy(&output.stdout).into_owned();
-    parse_runner_result(&text)
+    parse_runner_result(&text, hit, ms)
 }
 
-fn parse_runner_result(text: &str) -> Result<RunnerResult, String> {
+fn parse_runner_result(
+    text: &str,
+    cache_hit: bool,
+    compile_ms: f64,
+) -> Result<RunnerResult, String> {
     let json = text
         .lines()
         .find(|line| line.trim_start().starts_with('{'))
@@ -209,6 +251,9 @@ fn parse_runner_result(text: &str) -> Result<RunnerResult, String> {
     Ok(RunnerResult {
         batch: number(json, "batch")?,
         cycles: number(json, "cycles")?,
+        cache_hit,
+        compile_ms,
+        digest: number(json, "digest")?,
         elapsed_ms: number(json, "elapsed_ms")?,
         h2d_ms: number(json, "h2d_ms")?,
         d2h_ms: number(json, "d2h_ms")?,

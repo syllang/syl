@@ -2759,19 +2759,53 @@ syl_session|variant|syl_session::error::ProjectError::ReadDirEntry|{ path: std::
 syl_session|variant|syl_session::error::ProjectError::ReadDir|{ path: std::path::PathBuf, source: std::io::Error }
 syl_session|variant|syl_session::error::ProjectError::Read|{ path: std::path::PathBuf, source: std::io::Error }
 syl_session|variant|syl_session::error::ProjectError::StaleDocumentVersion|{ uri: String, requested: u64, current: u64 }
+syl_sim|enum|syl_sim::backend::GpuKernelMode|public
+syl_sim|enum|syl_sim::backend::ResolvedBackend|public
+syl_sim|enum|syl_sim::backend::SimBackendChoice|public
 syl_sim|enum|syl_sim::design::ParamValue|public
 syl_sim|enum|syl_sim::design::Selector|public
 syl_sim|enum|syl_sim::design::SimError|public
 syl_sim|enum|syl_sim::design::SimExpr|public
 syl_sim|enum|syl_sim::gpu_cuda::CudaAvailability|public
 syl_sim|enum|syl_sim::gpu_cuda::KernelMode|public
+syl_sim|enum|syl_sim::gpu_cuda::cache::CudaCache|public
 syl_sim|enum|syl_sim::runtime::ClockEvent|public
 syl_sim|enum|syl_sim::runtime::RuntimeError|public
 syl_sim|enum|syl_sim::runtime::StateMode|public
 syl_sim|enum|syl_sim::value::Logic|public
+syl_sim|field|syl_sim::backend::BackendRequest::batch|usize
+syl_sim|field|syl_sim::backend::BackendRequest::choice|SimBackendChoice
+syl_sim|field|syl_sim::backend::BackendRequest::cycles|u64
+syl_sim|field|syl_sim::backend::BackendRequest::direct_vcd|bool
+syl_sim|field|syl_sim::backend::BackendRequest::fail_on_x|bool
+syl_sim|field|syl_sim::backend::BackendRequest::gpu_available|bool
+syl_sim|field|syl_sim::backend::BackendRequest::gpu_cache_hit|bool
+syl_sim|field|syl_sim::backend::BackendRequest::gpu_mode|GpuKernelMode
+syl_sim|field|syl_sim::backend::BackendRequest::state_mode|crate::StateMode
+syl_sim|field|syl_sim::backend::BackendRequest::stimulus|bool
+syl_sim|field|syl_sim::backend::BackendRequest::strict_unique|bool
+syl_sim|field|syl_sim::backend::BackendSelection::backend|ResolvedBackend
+syl_sim|field|syl_sim::backend::BackendSelection::reason|&str
+syl_sim|field|syl_sim::backend::LocalBackend::selection|BackendSelection
 syl_sim|field|syl_sim::batch_cpu::BatchFailure::batch_idx|usize
 syl_sim|field|syl_sim::batch_cpu::BatchFailure::cycle|u64
 syl_sim|field|syl_sim::batch_cpu::BatchFailure::error|crate::RuntimeError
+syl_sim|field|syl_sim::batch_run::BatchOptions::batch|usize
+syl_sim|field|syl_sim::batch_run::BatchOptions::cache|crate::gpu_cuda::CudaCache<'a>
+syl_sim|field|syl_sim::batch_run::BatchOptions::cycles|u64
+syl_sim|field|syl_sim::batch_run::BatchOptions::fail_on_x|bool
+syl_sim|field|syl_sim::batch_run::BatchOptions::seed|u64
+syl_sim|field|syl_sim::batch_run::BatchOptions::state_mode|StateMode
+syl_sim|field|syl_sim::batch_run::BatchOptions::strict_unique|bool
+syl_sim|field|syl_sim::batch_run::BatchOptions::threads|usize
+syl_sim|field|syl_sim::batch_run::BatchResult::cache_hit|Option<bool>
+syl_sim|field|syl_sim::batch_run::BatchResult::compile_ms|f64
+syl_sim|field|syl_sim::batch_run::BatchResult::digest|u64
+syl_sim|field|syl_sim::batch_run::BatchResult::failure|Option<(FailureCoordinate, AssertionFailure)>
+syl_sim|field|syl_sim::batch_run::BatchResult::kernel_ms|f64
+syl_sim|field|syl_sim::batch_run::FailureCoordinate::assert_id|AssertId
+syl_sim|field|syl_sim::batch_run::FailureCoordinate::batch|usize
+syl_sim|field|syl_sim::batch_run::FailureCoordinate::cycle|u64
 syl_sim|field|syl_sim::design::AssertId::0|usize
 syl_sim|field|syl_sim::design::ClockDomain::name|Option<String>
 syl_sim|field|syl_sim::design::ClockDomain::signal|SignalId
@@ -2862,8 +2896,11 @@ syl_sim|field|syl_sim::gpu_cuda::RunnerOptions::batch|usize
 syl_sim|field|syl_sim::gpu_cuda::RunnerOptions::block_size|usize
 syl_sim|field|syl_sim::gpu_cuda::RunnerOptions::cycles|u64
 syl_sim|field|syl_sim::gpu_cuda::RunnerResult::batch|usize
+syl_sim|field|syl_sim::gpu_cuda::RunnerResult::cache_hit|bool
+syl_sim|field|syl_sim::gpu_cuda::RunnerResult::compile_ms|f64
 syl_sim|field|syl_sim::gpu_cuda::RunnerResult::cycles|u64
 syl_sim|field|syl_sim::gpu_cuda::RunnerResult::d2h_ms|f64
+syl_sim|field|syl_sim::gpu_cuda::RunnerResult::digest|u64
 syl_sim|field|syl_sim::gpu_cuda::RunnerResult::elapsed_ms|f64
 syl_sim|field|syl_sim::gpu_cuda::RunnerResult::fail_assert|Option<usize>
 syl_sim|field|syl_sim::gpu_cuda::RunnerResult::fail_batch|Option<usize>
@@ -2871,6 +2908,7 @@ syl_sim|field|syl_sim::gpu_cuda::RunnerResult::fail_cycle|Option<u64>
 syl_sim|field|syl_sim::gpu_cuda::RunnerResult::h2d_ms|f64
 syl_sim|field|syl_sim::gpu_cuda::RunnerResult::output|String
 syl_sim|field|syl_sim::gpu_cuda::RunnerResult::peak_vram_mib|usize
+syl_sim|field|syl_sim::runtime::AssertionFailure::assert_id|AssertId
 syl_sim|field|syl_sim::runtime::AssertionFailure::cycle|u64
 syl_sim|field|syl_sim::runtime::AssertionFailure::message|String
 syl_sim|field|syl_sim::runtime::AssertionFailure::path|String
@@ -2880,12 +2918,19 @@ syl_sim|field|syl_sim::runtime::Simulator::unique_violations|Vec<UniqueOverlapVi
 syl_sim|field|syl_sim::runtime::UniqueOverlapViolation::cycle|u64
 syl_sim|field|syl_sim::runtime::UniqueOverlapViolation::path|String
 syl_sim|field|syl_sim::runtime::UniqueOverlapViolation::span|syl_span::Span
+syl_sim|function|syl_sim::backend::select_backend|fn(d: &crate::SimDesign, r: &BackendRequest) -> Result<BackendSelection, String>
+syl_sim|function|syl_sim::backend::select_local_backend|fn(d: &crate::SimDesign, r: &BackendRequest, cache: crate::gpu_cuda::CudaCache<'_>) -> Result<LocalBackend<'d>, String>
+syl_sim|function|syl_sim::batch_run::batch_stimulus_word|fn(seed: u64, batch: usize, cycle: u64, port_word: u64, limb: u32) -> u64
+syl_sim|function|syl_sim::batch_run::replay_failure|fn(d: &SimDesign, o: BatchOptions<'_>, expected: FailureCoordinate, writer: Option<&mut dyn Write>) -> Result<AssertionFailure, RuntimeError>
+syl_sim|function|syl_sim::batch_run::run_batch|fn(d: &SimDesign, backend: ResolvedBackend, o: BatchOptions<'_>) -> Result<BatchResult, RuntimeError>
+syl_sim|function|syl_sim::gpu_cuda::cache::probe_cuda|fn() -> Result<(), String>
 syl_sim|function|syl_sim::gpu_cuda::compile_cuda_executable|fn(source: &str, output: impl AsRef<std::path::Path>) -> Result<std::path::PathBuf, String>
 syl_sim|function|syl_sim::gpu_cuda::compile_cuda|fn(source: &str, output: impl AsRef<std::path::Path>) -> Result<std::path::PathBuf, String>
 syl_sim|function|syl_sim::gpu_cuda::cuda_availability|fn() -> CudaAvailability
 syl_sim|function|syl_sim::gpu_cuda::kernel::generate_cuda|fn(design: &crate::SimDesign, options: super::CodegenOptions) -> super::GeneratedCuda
 syl_sim|function|syl_sim::gpu_cuda::kernel::try_generate_cuda|fn(d: &crate::SimDesign, options: super::CodegenOptions) -> Result<super::GeneratedCuda, String>
 syl_sim|function|syl_sim::gpu_cuda::run_cuda|fn(design: &crate::SimDesign, codegen: CodegenOptions, options: RunnerOptions, executable: impl AsRef<std::path::Path>) -> Result<RunnerResult, String>
+syl_sim|method|syl_sim::backend::LocalBackend::run|fn(self: &Self, seed: u64, threads: usize) -> Result<BatchResult, RuntimeError>
 syl_sim|method|syl_sim::batch_cpu::BatchCpuSimulator::batch_size|fn(self: &Self) -> usize
 syl_sim|method|syl_sim::batch_cpu::BatchCpuSimulator::batch_stride|fn(self: &Self) -> usize
 syl_sim|method|syl_sim::batch_cpu::BatchCpuSimulator::broadcast_named|fn(self: &mut Self, name: &str, value: Value) -> Result<(), RuntimeError>
@@ -2960,8 +3005,14 @@ syl_sim|method|syl_sim::vcd::VcdWriter::filtered|fn(out: W, design: &SimDesign, 
 syl_sim|method|syl_sim::vcd::VcdWriter::finish|fn(self: Self) -> io::Result<W>
 syl_sim|method|syl_sim::vcd::VcdWriter::new|fn(out: W, design: &SimDesign) -> io::Result<Self>
 syl_sim|method|syl_sim::vcd::VcdWriter::sample|fn(self: &mut Self, time: u64, sim: &Simulator<'_>) -> io::Result<()>
+syl_sim|struct|syl_sim::backend::BackendRequest|public
+syl_sim|struct|syl_sim::backend::BackendSelection|public
+syl_sim|struct|syl_sim::backend::LocalBackend|public
 syl_sim|struct|syl_sim::batch_cpu::BatchCpuSimulator|public
 syl_sim|struct|syl_sim::batch_cpu::BatchFailure|public
+syl_sim|struct|syl_sim::batch_run::BatchOptions|public
+syl_sim|struct|syl_sim::batch_run::BatchResult|public
+syl_sim|struct|syl_sim::batch_run::FailureCoordinate|public
 syl_sim|struct|syl_sim::design::AssertId|public
 syl_sim|struct|syl_sim::design::ClockDomain|public
 syl_sim|struct|syl_sim::design::CombAssign|public
@@ -3004,17 +3055,24 @@ syl_sim|trait_method|syl_sim::runtime::ExternModel::eval|fn(self: &mut Self, inp
 syl_sim|trait|syl_sim::runtime::ExternModel|public
 syl_sim|use|AssertId|named|source=design::AssertId
 syl_sim|use|AssertionFailure|named|source=runtime::AssertionFailure
+syl_sim|use|BackendRequest|named|source=backend::BackendRequest
+syl_sim|use|BackendSelection|named|source=backend::BackendSelection
 syl_sim|use|BatchCpuSimulator|named|source=batch_cpu::BatchCpuSimulator
 syl_sim|use|BatchFailure|named|source=batch_cpu::BatchFailure
+syl_sim|use|BatchOptions|named|source=batch_run::BatchOptions
+syl_sim|use|BatchResult|named|source=batch_run::BatchResult
 syl_sim|use|ClockDomain|named|source=design::ClockDomain
 syl_sim|use|ClockEvent|named|source=runtime::ClockEvent
 syl_sim|use|CombAssign|named|source=design::CombAssign
 syl_sim|use|CombId|named|source=design::CombId
+syl_sim|use|CudaCache|named|source=cache::CudaCache
 syl_sim|use|DomainId|named|source=design::DomainId
 syl_sim|use|ExternModel|named|source=runtime::ExternModel
+syl_sim|use|FailureCoordinate|named|source=batch_run::FailureCoordinate
 syl_sim|use|FastBatchCpuSimulator|named|source=fast_cpu::FastBatchCpuSimulator
 syl_sim|use|FastProgram|named|source=fast_cpu::FastProgram
 syl_sim|use|FastTile|named|source=fast_cpu::FastTile
+syl_sim|use|GpuKernelMode|named|source=backend::GpuKernelMode
 syl_sim|use|HwBinaryOp|named|source=syl_hw::HwBinaryOp
 syl_sim|use|HwDirection|named|source=syl_hw::HwDirection
 syl_sim|use|HwResetMode|named|source=syl_hw::HwResetMode
@@ -3023,6 +3081,7 @@ syl_sim|use|HwSelectMode|named|source=syl_hw::HwSelectMode
 syl_sim|use|HwUnaryOp|named|source=syl_hw::HwUnaryOp
 syl_sim|use|InstanceFamily|named|source=design::InstanceFamily
 syl_sim|use|InstanceId|named|source=design::InstanceId
+syl_sim|use|LocalBackend|named|source=backend::LocalBackend
 syl_sim|use|Logic|named|source=value::Logic
 syl_sim|use|MemCombReadPort|named|source=design::MemCombReadPort
 syl_sim|use|MemId|named|source=design::MemId
@@ -3032,10 +3091,12 @@ syl_sim|use|ParamValue|named|source=design::ParamValue
 syl_sim|use|RegId|named|source=design::RegId
 syl_sim|use|ResetDomain|named|source=design::ResetDomain
 syl_sim|use|ResetId|named|source=design::ResetId
+syl_sim|use|ResolvedBackend|named|source=backend::ResolvedBackend
 syl_sim|use|RuntimeError|named|source=runtime::RuntimeError
 syl_sim|use|Selector|named|source=design::Selector
 syl_sim|use|SignalId|named|source=design::SignalId
 syl_sim|use|SimAssert|named|source=design::SimAssert
+syl_sim|use|SimBackendChoice|named|source=backend::SimBackendChoice
 syl_sim|use|SimDesign|named|source=design::SimDesign
 syl_sim|use|SimError|named|source=design::SimError
 syl_sim|use|SimExpr|named|source=design::SimExpr
@@ -3053,8 +3114,24 @@ syl_sim|use|TemplateId|named|source=design::TemplateId
 syl_sim|use|UniqueOverlapViolation|named|source=runtime::UniqueOverlapViolation
 syl_sim|use|Value|named|source=value::Value
 syl_sim|use|VcdWriter|named|source=vcd::VcdWriter
+syl_sim|use|batch_stimulus_word|named|source=batch_run::batch_stimulus_word
 syl_sim|use|generate_cuda|named|source=kernel::generate_cuda
+syl_sim|use|probe_cuda|named|source=cache::probe_cuda
+syl_sim|use|replay_failure|named|source=batch_run::replay_failure
+syl_sim|use|run_batch|named|source=batch_run::run_batch
+syl_sim|use|select_backend|named|source=backend::select_backend
+syl_sim|use|select_local_backend|named|source=backend::select_local_backend
 syl_sim|use|try_generate_cuda|named|source=kernel::try_generate_cuda
+syl_sim|variant|syl_sim::backend::GpuKernelMode::Auto|unit
+syl_sim|variant|syl_sim::backend::GpuKernelMode::Batch|unit
+syl_sim|variant|syl_sim::backend::GpuKernelMode::Family|unit
+syl_sim|variant|syl_sim::backend::ResolvedBackend::CpuRef|unit
+syl_sim|variant|syl_sim::backend::ResolvedBackend::CpuSimd|unit
+syl_sim|variant|syl_sim::backend::ResolvedBackend::GpuCuda|(crate::gpu_cuda::KernelMode)
+syl_sim|variant|syl_sim::backend::SimBackendChoice::Auto|unit
+syl_sim|variant|syl_sim::backend::SimBackendChoice::CpuRef|unit
+syl_sim|variant|syl_sim::backend::SimBackendChoice::CpuSimd|unit
+syl_sim|variant|syl_sim::backend::SimBackendChoice::GpuCuda|unit
 syl_sim|variant|syl_sim::design::ParamValue::Bool|(bool)
 syl_sim|variant|syl_sim::design::ParamValue::Nat|(u64)
 syl_sim|variant|syl_sim::design::Selector::Index|{ index: Box<SimExpr>, width: u32 }
@@ -3078,6 +3155,9 @@ syl_sim|variant|syl_sim::gpu_cuda::CudaAvailability::Available|unit
 syl_sim|variant|syl_sim::gpu_cuda::CudaAvailability::Unavailable|unit
 syl_sim|variant|syl_sim::gpu_cuda::KernelMode::BatchPerThread|unit
 syl_sim|variant|syl_sim::gpu_cuda::KernelMode::InstanceFamilyParallel|unit
+syl_sim|variant|syl_sim::gpu_cuda::cache::CudaCache::Default|unit
+syl_sim|variant|syl_sim::gpu_cuda::cache::CudaCache::Directory|(&std::path::Path)
+syl_sim|variant|syl_sim::gpu_cuda::cache::CudaCache::Disabled|unit
 syl_sim|variant|syl_sim::runtime::ClockEvent::Falling|(DomainId)
 syl_sim|variant|syl_sim::runtime::ClockEvent::Rising|(DomainId)
 syl_sim|variant|syl_sim::runtime::RuntimeError::Assertion|(AssertionFailure)

@@ -44,11 +44,16 @@ pub(super) enum FastOp {
         data: usize,
         enable: usize,
     },
-    Check(usize),
+    Check(usize, usize),
     Stop,
 }
 
-pub(super) fn execute(ops: &[FastOp], plane: &mut [u64], temp: &mut [u64]) -> Option<usize> {
+pub(super) fn execute(
+    ops: &[FastOp],
+    plane: &mut [u64],
+    temp: &mut [u64],
+    stop_on_failure: bool,
+) -> Option<(usize, usize)> {
     let n = temp.len();
     let mut failure = None;
     for &op in ops {
@@ -199,14 +204,14 @@ pub(super) fn execute(ops: &[FastOp], plane: &mut [u64], temp: &mut [u64]) -> Op
                 }
                 continue;
             }
-            FastOp::Check(s) => {
+            FastOp::Check(s, id) => {
                 if let Some(i) = row(s).iter().position(|&v| v == 0) {
-                    failure = Some(failure.map_or(i, |old: usize| old.min(i)));
+                    failure = Some(failure.map_or((i, id), |old: (usize, usize)| old.min((i, id))));
                 }
                 continue;
             }
             FastOp::Stop => {
-                if failure.is_some() {
+                if stop_on_failure && failure.is_some() {
                     return failure;
                 }
                 continue;

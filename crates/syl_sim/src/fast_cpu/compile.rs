@@ -124,8 +124,8 @@ impl Builder<'_> {
         Ok(out.slot)
     }
     fn binary(&mut self, op: B, a: View, b: View, w: u32) -> Result<View> {
-        if w > 64 {
-            return Err(invalid("wide arithmetic result"));
+        if a.width.max(b.width).max(w) > 64 {
+            return self.wide_binary(op, a, b, w);
         }
         let a = self.word(a)?;
         let b = self.word(b)?;
@@ -138,6 +138,48 @@ impl Builder<'_> {
             mask: mask(w),
         });
         Ok(dst)
+    }
+    // Lower wide operations to the existing word-plane instructions. Carry and
+    // equality reductions stay lane-local, including a partially occupied high limb.
+    fn wide_binary(&mut self, op: B, a: View, b: View, width: u32) -> Result<View> {
+        let bits = a.width.max(b.width).max(width);
+        let out = self.alloc(width);
+        let mut carry = self.zero;
+        let mut equal = self.const_word(1, 1);
+        for low in (0..bits).step_by(64) {
+            let w = (bits - low).min(64);
+            let limb = |v: View| {
+                if low < v.width {
+                    v.slice(low, (v.width - low).min(w))
+                } else {
+                    self.zero
+                }
+            };
+            let (x, y) = (limb(a), limb(b));
+            let chunk = match op {
+                B::BitAnd | B::BitXor | B::BitOr => self.binary(op, x, y, w)?,
+                B::Add => {
+                    let sum = self.binary(B::Add, x, y, w)?;
+                    let value = self.binary(B::Add, sum, carry, w)?;
+                    let c1 = self.binary(B::Lt, sum, x, 1)?;
+                    let c2 = self.binary(B::Lt, value, sum, 1)?;
+                    carry = self.binary(B::BitOr, c1, c2, 1)?;
+                    value
+                }
+                B::Eq | B::NotEq => {
+                    let same = self.binary(B::Eq, x, y, 1)?;
+                    equal = self.binary(B::BitAnd, equal, same, 1)?;
+                    continue;
+                }
+                _ => return Err(invalid("unsupported wide arithmetic operation")),
+            };
+            self.copy(out.slice(low, w), chunk);
+        }
+        match op {
+            B::Eq => Ok(equal),
+            B::NotEq => self.binary(B::Eq, equal, self.zero, 1),
+            _ => Ok(out),
+        }
     }
     fn mux(&mut self, cond: View, a: View, b: View, w: u32) -> Result<View> {
         let cond = self.word(cond)?;
@@ -485,14 +527,14 @@ pub(super) fn compile(d: &SimDesign) -> Result<FastProgram> {
             });
         }
     }
-    for a in &d.assertions {
+    for (id, a) in d.assertions.iter().enumerate() {
         let mut v = b.expr(&a.condition, 0)?;
         if let Some(id) = a.reset_mask {
             let r = b.reset(id.0)?;
             v = b.binary(B::OrOr, v, r, 1)?;
         }
         let s = b.word(v)?;
-        b.ops.push(Op::Check(s));
+        b.ops.push(Op::Check(s, id));
     }
     if !d.assertions.is_empty() {
         b.ops.push(Op::Stop);

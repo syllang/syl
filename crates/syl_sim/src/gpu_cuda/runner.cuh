@@ -8,13 +8,13 @@ __device__ __forceinline__ void barrier() {
 
 __global__ void syl_sim_kernel(Word *state, Word *mem, Word *failure,
                                Word *outputs, unsigned batch, unsigned first,
-                               unsigned count) {
+                               unsigned count, Word seed) {
   size_t tid = size_t(blockIdx.x) * blockDim.x + threadIdx.x;
   unsigned b = PARALLEL ? tid / FAMILY : tid;
   unsigned lane = PARALLEL ? tid % FAMILY : 0;
   if (b >= batch)
     return;
-  Frame f{state, mem, failure, b, batch};
+  Frame f{state, mem, failure, b, batch, seed};
   for (unsigned step = 0; step < count; ++step) {
     unsigned cycle = first + step;
     if (lane == 0) {
@@ -99,6 +99,13 @@ int main(int argc, char **argv) {
   unsigned cycles = argc > 2 ? positive_arg("cycles", argv[2], UINT_MAX) : 1000;
   unsigned block = argc > 3 ? positive_arg("block", argv[3], 1024) : 256;
   const char *mode = argc > 4 ? argv[4] : "summary";
+  char *end = nullptr;
+  errno = 0;
+  Word seed = argc > 5 ? std::strtoull(argv[5], &end, 10) : 0;
+  if (argc > 5 && (*argv[5] < '0' || *argv[5] > '9' || *end || errno == ERANGE)) {
+    std::fprintf(stderr, "invalid seed\n");
+    return 2;
+  }
   bool each = !std::strcmp(mode, "each") || !std::strcmp(mode, "trace");
   bool dump = !std::strcmp(mode, "trace") || !std::strcmp(mode, "final");
   if ((~0ull / ASSERT_COUNT) / batch < cycles)
@@ -129,7 +136,7 @@ int main(int argc, char **argv) {
     unsigned n = each ? 1 : cycles;
     t.start();
     syl_sim_kernel<<<blocks, threads>>>(state, mem, summary, outputs, batch,
-                                        start + 1, n);
+                                        start + 1, n, seed);
     CUDA(cudaGetLastError());
     kernel += t.stop();
     if (each || dump) {

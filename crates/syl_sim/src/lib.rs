@@ -27,3 +27,13 @@ pub use runtime::{
 };
 pub use value::{Logic, Value};
 pub use vcd::VcdWriter;
+
+mod backend;
+mod batch_run;
+pub use backend::{
+    BackendRequest, BackendSelection, GpuKernelMode, LocalBackend, ResolvedBackend,
+    SimBackendChoice, select_backend, select_local_backend,
+};
+pub use batch_run::{
+    BatchOptions, BatchResult, FailureCoordinate, batch_stimulus_word, replay_failure, run_batch,
+};

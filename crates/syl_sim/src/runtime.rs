@@ -24,6 +24,7 @@ impl ClockEvent {
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("cycle {cycle}, {path}: {message}")]
 pub struct AssertionFailure {
+    pub assert_id: AssertId,
     pub cycle: u64,
     pub path: String,
     pub span: Span,
@@ -82,6 +83,8 @@ pub struct Simulator<'d> {
     trajectory: TrajectoryState,
     values: Vec<Value>,
     models: BTreeMap<InstanceId, External>,
+    pub(crate) record_assertions: bool,
+    pub(crate) first_assertion: Option<(u64, AssertId)>,
     pub strict_unique: bool,
     pub unique_violations: Vec<UniqueOverlapViolation>,
 }
@@ -108,6 +111,39 @@ fn posedge(old: Logic, new: Logic) -> bool {
     )
 }
 
+pub(crate) fn clock_sources(design: &SimDesign) -> Vec<SignalId> {
+    // A local clock can be a whole-net copy of a top clock (or Bit).
+    // Keep its IR identity for diagnostics while sharing physical edges.
+    let copies: BTreeMap<_, _> = design
+        .comb
+        .iter()
+        .filter_map(|a| {
+            if let SimExpr::Read(t) = &a.value
+                && t.selectors.is_empty()
+                && a.target.selectors.is_empty()
+            {
+                Some((a.target.signal, t.signal))
+            } else {
+                None
+            }
+        })
+        .collect();
+    design
+        .clocks
+        .iter()
+        .map(|c| {
+            let mut signal = c.signal;
+            for _ in 0..copies.len() {
+                let Some(&parent) = copies.get(&signal) else {
+                    break;
+                };
+                signal = parent;
+            }
+            signal
+        })
+        .collect()
+}
+
 impl<'d> Simulator<'d> {
     pub fn new(design: &'d SimDesign) -> Self {
         Self::with_mode(design, StateMode::FourState)
@@ -119,36 +155,7 @@ impl<'d> Simulator<'d> {
             Value::zero
         };
 
-        // A local clock can be a whole-net copy of a top clock (or Bit).
-        // Keep its IR identity for diagnostics while sharing physical edges.
-        let copies: BTreeMap<_, _> = design
-            .comb
-            .iter()
-            .filter_map(|a| {
-                if let SimExpr::Read(t) = &a.value
-                    && t.selectors.is_empty()
-                    && a.target.selectors.is_empty()
-                {
-                    Some((a.target.signal, t.signal))
-                } else {
-                    None
-                }
-            })
-            .collect();
-        let clock_sources = design
-            .clocks
-            .iter()
-            .map(|c| {
-                let mut signal = c.signal;
-                for _ in 0..copies.len() {
-                    let Some(&parent) = copies.get(&signal) else {
-                        break;
-                    };
-                    signal = parent;
-                }
-                signal
-            })
-            .collect();
+        let clock_sources = clock_sources(design);
         Self {
             design,
             mode,
@@ -185,6 +192,8 @@ impl<'d> Simulator<'d> {
                     .collect(),
                 cycle: 0,
             },
+            record_assertions: false,
+            first_assertion: None,
             strict_unique: false,
             unique_violations: Vec::new(),
         }
@@ -591,17 +600,24 @@ impl<'d> Simulator<'d> {
                 }
             }
         }
-        for a in self
+        for (id, a) in self
             .design
             .assertions
             .iter()
-            .filter(|a| rising.contains(&a.clock))
+            .enumerate()
+            .filter(|(_, a)| rising.contains(&a.clock))
         {
             if a.reset_mask
                 .is_none_or(|r| self.reset_level(r) == Logic::Zero)
                 && self.eval(&a.condition, 0, (&a.source).into())?.truth() == Logic::Zero
             {
+                if self.record_assertions {
+                    self.first_assertion
+                        .get_or_insert((self.cycle() + 1, AssertId(id)));
+                    break;
+                }
                 return Err(AssertionFailure {
+                    assert_id: AssertId(id),
                     path: a.source.path.clone(),
                     span: a.source.span(),
                     cycle: self.trajectory.cycle + 1,

@@ -20,6 +20,13 @@ pub struct FastProgram {
 }
 
 impl FastProgram {
+    pub(crate) fn storage_bytes(&self, batch: usize) -> Option<usize> {
+        self.slots
+            .checked_add(1)?
+            .checked_mul(batch)?
+            .checked_mul(size_of::<u64>())
+            .filter(|&bytes| bytes <= isize::MAX as usize)
+    }
     /// Compile the combinational DAG and a read-before-write rising-edge schedule.
     pub fn new(design: &SimDesign) -> Result<Self, RuntimeError> {
         compile::compile(design)
@@ -62,26 +69,37 @@ impl FastTile {
     }
 
     pub fn eval_comb(&mut self, program: &FastProgram) {
-        kernel::execute(&program.comb, &mut self.plane, &mut self.scratch);
+        kernel::execute(&program.comb, &mut self.plane, &mut self.scratch, false);
     }
 
     /// Sample the rising edge, check every assertion on old state, then settle low.
     /// A failed tile returns its lowest failing lane and one-based edge number.
     pub fn tick(&mut self, program: &FastProgram) -> Result<(), (usize, u64)> {
+        self.step(program, true)
+            .map_or(Ok(()), |(lane, cycle, _)| Err((lane, cycle)))
+    }
+
+    pub(crate) fn step(
+        &mut self,
+        program: &FastProgram,
+        stop: bool,
+    ) -> Option<(usize, u64, usize)> {
         let stride = self.lanes();
         if let Some(clk) = program.clock {
             self.plane[clk * stride..(clk + 1) * stride].fill(1);
         }
         self.eval_comb(program);
-        if let Some(lane) = kernel::execute(&program.edge, &mut self.plane, &mut self.scratch) {
-            return Err((lane, self.cycle + 1));
+        let failure = kernel::execute(&program.edge, &mut self.plane, &mut self.scratch, stop)
+            .map(|(lane, id)| (lane, self.cycle + 1, id));
+        if stop && failure.is_some() {
+            return failure;
         }
         if let Some(clk) = program.clock {
             self.plane[clk * stride..(clk + 1) * stride].fill(0);
         }
         self.eval_comb(program);
         self.cycle += 1;
-        Ok(())
+        failure
     }
 }
 
