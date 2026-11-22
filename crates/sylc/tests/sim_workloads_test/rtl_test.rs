@@ -2,7 +2,7 @@ use super::simulation_dir::{SimulationDir, run, tool_available};
 use std::{fmt::Write, fs, path::Path, process::Command};
 use syl_sim::{HwDirection, SimDesign, Simulator};
 
-// One text row per clock: inputs (excluding clk), outputs before the edge,
+// One text row per clock: 1-based row index, inputs (excluding clk), outputs before the edge,
 // outputs after it. Concatenation in port order preserves arbitrary bus widths.
 pub fn pins(sim: &Simulator, direction: HwDirection) -> String {
     let mut bits = String::new();
@@ -73,26 +73,29 @@ pub fn build(work: &SimulationDir, path: &Path, d: &SimDesign, top: &str) -> Vec
 {top} dut(.*);
 logic [{in_width}-1:0] values;
 logic [{out_width}-1:0] before_edge, after_edge;
-int trace, cycle;
+integer trace, row_idx, previous_row;
 initial begin
     clk = 0;
-    cycle = 0;
+    previous_row = 0;
     trace = $fopen("trace", "r");
-    while ($fscanf(trace, "%b %b %b", values, before_edge, after_edge) == 3) begin
-        cycle++;
+    while ($fscanf(trace, "%d %b %b %b", row_idx, values, before_edge, after_edge) == 4) begin
+        if (row_idx !== previous_row + 1)
+            $fatal(1, "trace row %0d follows %0d", row_idx, previous_row);
+        previous_row = row_idx;
         {{{inputs}}} = values;
         #1;
-        if (cycle > 1 && {{{outputs}}} !== before_edge)
-            $fatal(1, "cycle %0d pre-edge: expected %h got %h", cycle, before_edge, {{{outputs}}});
-        if ($test$plusargs("log_edges")) $display("EDGE %0d", cycle);
+        if (row_idx > 1 && {{{outputs}}} !== before_edge)
+            $fatal(1, "cycle %0d pre-edge: expected %h got %h", row_idx, before_edge, {{{outputs}}});
+        if ($test$plusargs("log_edges")) $display("EDGE %0d", row_idx);
         clk = 1;
         #1;
         if ({{{outputs}}} !== after_edge)
-            $fatal(1, "cycle %0d post-edge: expected %h got %h", cycle, after_edge, {{{outputs}}});
+            $fatal(1, "cycle %0d post-edge: expected %h got %h", row_idx, after_edge, {{{outputs}}});
+        $display("CHECKED %0d", row_idx);
         clk = 0;
         #1;
     end
-    $display("PASS %0d", cycle);
+    $display("PASS");
     $finish;
 end
 endmodule
@@ -144,10 +147,14 @@ pub fn compare(work: &SimulationDir, backends: &[Backend], trace: &str, cycles: 
         let out = run(&mut backend.command(work), "RTL comparison");
         let log = String::from_utf8(out.stdout).unwrap();
         assert!(!log.contains("assert failed"), "{backend:?}: {log}");
-        assert!(
-            log.lines().any(|l| l == format!("PASS {cycles}")),
-            "{backend:?}: {log}"
-        );
+        // Verilator 5.032 can constant-fold a timing-loop counter to zero after
+        // the loop. Count completed comparisons from inside the loop instead.
+        let checked = log
+            .lines()
+            .filter_map(|line| line.strip_prefix("CHECKED "))
+            .map(|row| row.parse::<usize>().unwrap());
+        assert!(checked.eq(1..=cycles), "{backend:?}: {log}");
+        assert!(log.lines().any(|line| line == "PASS"), "{backend:?}: {log}");
     }
 }
 

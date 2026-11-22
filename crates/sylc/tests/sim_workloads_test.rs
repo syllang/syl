@@ -74,7 +74,7 @@ impl Workload {
             };
             sim.tick("clk").unwrap();
             let after = rtl::pins(&sim, HwDirection::Out);
-            writeln!(rows, "{input} {before} {after}").unwrap();
+            writeln!(rows, "{cycle} {input} {before} {after}").unwrap();
         }
         rtl::compare(&self.dir, &self.backends, &rows, cycles);
     }
@@ -218,7 +218,7 @@ fn fault_sequence_matches_rtl_and_replays_with_source_location() {
         if cycle < 20 {
             result.unwrap();
             let after = rtl::pins(&sim, HwDirection::Out);
-            writeln!(fault_trace, "{input} {before} {after}").unwrap();
+            writeln!(fault_trace, "{cycle} {input} {before} {after}").unwrap();
         } else {
             let Err(RuntimeError::Assertion(f)) = result else {
                 panic!("expected assertion at edge 20")
@@ -232,7 +232,7 @@ fn fault_sequence_matches_rtl_and_replays_with_source_location() {
             );
             assert_eq!(f.path, "FaultHuntPipeline.guard.assert[0]");
             assert_eq!(f.cycle, cycle);
-            writeln!(fault_trace, "{input} {before} 0").unwrap();
+            writeln!(fault_trace, "{cycle} {input} {before} 0").unwrap();
         }
     }
     rtl::expect_assertion(&w.dir, &w.backends, &fault_trace, 20);
