@@ -6,18 +6,14 @@ use super::{
     compile_for, launch,
 };
 use sha2::{Digest, Sha256};
-use std::{
-    env, fs, io,
-    path::{Path, PathBuf},
-    process::Command,
-    time::Instant,
-};
+use std::path::{Path, PathBuf};
+use std::{env, fs, io, process::Command, time::Instant};
 
 #[derive(Clone, Copy, Debug, Default)]
 pub enum CudaCache<'a> {
     #[default]
     Default,
-    Directory(&'a Path),
+    Directory(&'a std::path::Path),
     Disabled,
 }
 

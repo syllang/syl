@@ -6,7 +6,8 @@ use crate::backend::{LocalBackend, Program};
 use crate::gpu_cuda::{CudaCache, KernelMode, RunnerOptions};
 use crate::runtime::AssertionMode;
 use crate::*;
-use std::{io::Write, sync::Mutex};
+use std::io::Write;
+use std::sync::Mutex;
 
 #[derive(Clone, Copy, Debug)]
 pub struct BatchOptions<'a> {
