@@ -273,6 +273,10 @@ impl SimDesign {
     pub fn assertion(&self, id: AssertId) -> &SimAssert {
         &self.assertions[id.0]
     }
+    /// Canonical module specializations and their concrete instance members.
+    pub fn instance_families(&self) -> &[InstanceFamily] {
+        &self.families
+    }
     pub fn top_ports(&self) -> &[SimPort] {
         self.instances
             .first()

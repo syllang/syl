@@ -1090,6 +1090,7 @@ name = "syl_sim"
 version = "0.1.0"
 dependencies = [
  "num-bigint",
+ "serde_json",
  "smallvec",
  "syl_elab",
  "syl_hw",

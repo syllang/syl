@@ -1,0 +1,27 @@
+cell CheckedRam<BAD: nat, D: Domain>(
+    clk: in Clock<D>, rst: in Reset<D>, data: in UInt<8>, addr: in UInt<2>,
+    sampled: out UInt<8>, live: out UInt<8>,
+) {
+    mem storage: [4] UInt<8>
+    signal q: UInt<8>
+    mem_write(storage, clk, 1, addr, data)
+    mem_read_sync(storage, clk, 1, addr, q)
+    sampled := q
+    assert(not (q eq BAD))
+    live := storage[addr]
+}
+
+cell CheckedArray<MEMBER_BAD: nat = 256, PARENT_BAD: nat = 256, D: Domain>(
+    clk: in Clock<D>, rst: in Reset<D>, data: in [4] UInt<8>, addr: in [4] UInt<2>,
+    sampled: out [4] UInt<8>, live: out [4] UInt<8>, history: out UInt<8>,
+) {
+    signal words: [4] UInt<8>
+    let lanes = for i in 0..4 {
+        place CheckedRam<MEMBER_BAD,D>(clk:clk,rst:rst,data:data[i],addr:addr[i],sampled:words[i],live:live[i])
+    }
+    assert(not (words[2] eq PARENT_BAD))
+    mem previous: [4] UInt<8>
+    mem_write(previous, clk, 1, addr[0], words[2])
+    mem_read_sync(previous, clk, 1, addr[0], history)
+    sampled := words
+}

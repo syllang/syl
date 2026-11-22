@@ -2837,6 +2837,8 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_sim|enum|syl_sim::design::Selector|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|enum|syl_sim::design::SimError|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|enum|syl_sim::design::SimExpr|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|enum|syl_sim::gpu_cuda::CudaAvailability|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|enum|syl_sim::gpu_cuda::KernelMode|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|enum|syl_sim::runtime::ClockEvent|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|enum|syl_sim::runtime::RuntimeError|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|enum|syl_sim::runtime::StateMode|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
@@ -2920,6 +2922,26 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_sim|field|syl_sim::design::SourceLocation::origin|syl_hw::HwOrigin` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|field|syl_sim::design::SourceLocation::path|String` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|field|syl_sim::design::TemplateId::0|usize` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::gpu_cuda::CodegenOptions::family_index|Option<usize>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::gpu_cuda::CodegenOptions::mode|KernelMode` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::gpu_cuda::GeneratedCuda::family_size|usize` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::gpu_cuda::GeneratedCuda::memory_words|usize` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::gpu_cuda::GeneratedCuda::mode|KernelMode` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::gpu_cuda::GeneratedCuda::signal_slots|usize` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::gpu_cuda::GeneratedCuda::source|String` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::gpu_cuda::RunnerOptions::batch|usize` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::gpu_cuda::RunnerOptions::block_size|usize` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::gpu_cuda::RunnerOptions::cycles|u64` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::gpu_cuda::RunnerResult::batch|usize` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::gpu_cuda::RunnerResult::cycles|u64` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::gpu_cuda::RunnerResult::d2h_ms|f64` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::gpu_cuda::RunnerResult::elapsed_ms|f64` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::gpu_cuda::RunnerResult::fail_assert|Option<usize>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::gpu_cuda::RunnerResult::fail_batch|Option<usize>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::gpu_cuda::RunnerResult::fail_cycle|Option<u64>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::gpu_cuda::RunnerResult::h2d_ms|f64` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::gpu_cuda::RunnerResult::output|String` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::gpu_cuda::RunnerResult::peak_vram_mib|usize` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|field|syl_sim::runtime::AssertionFailure::cycle|u64` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|field|syl_sim::runtime::AssertionFailure::message|String` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|field|syl_sim::runtime::AssertionFailure::path|String` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
@@ -2929,8 +2951,15 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_sim|field|syl_sim::runtime::UniqueOverlapViolation::cycle|u64` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|field|syl_sim::runtime::UniqueOverlapViolation::path|String` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|field|syl_sim::runtime::UniqueOverlapViolation::span|syl_span::Span` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|function|syl_sim::gpu_cuda::compile_cuda_executable|fn(source: &str, output: impl AsRef<std::path::Path>) -> Result<std::path::PathBuf, String>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|function|syl_sim::gpu_cuda::compile_cuda|fn(source: &str, output: impl AsRef<std::path::Path>) -> Result<std::path::PathBuf, String>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|function|syl_sim::gpu_cuda::cuda_availability|fn() -> CudaAvailability` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|function|syl_sim::gpu_cuda::kernel::generate_cuda|fn(design: &crate::SimDesign, options: super::CodegenOptions) -> super::GeneratedCuda` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|function|syl_sim::gpu_cuda::kernel::try_generate_cuda|fn(d: &crate::SimDesign, options: super::CodegenOptions) -> Result<super::GeneratedCuda, String>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|function|syl_sim::gpu_cuda::run_cuda|fn(design: &crate::SimDesign, codegen: CodegenOptions, options: RunnerOptions, executable: impl AsRef<std::path::Path>) -> Result<RunnerResult, String>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|method|syl_sim::design::SimDesign::assertion|fn(self: &Self, id: AssertId) -> &SimAssert` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|method|syl_sim::design::SimDesign::from_hwir|fn(hw: &syl_hw::ParametricHwDesign, top: &str, parameters: &BTreeMap<String, ParamValue>) -> Result<Self, SimError>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|method|syl_sim::design::SimDesign::instance_families|fn(self: &Self) -> &[InstanceFamily]` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|method|syl_sim::design::SimDesign::lower|fn(output: &ElaborationOutput, top: &str, parameters: &BTreeMap<String, ParamValue>) -> Result<Self, SimError>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|method|syl_sim::design::SimDesign::register|fn(self: &Self, id: RegId) -> &SimReg` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|method|syl_sim::design::SimDesign::signal|fn(self: &Self, id: SignalId) -> &SimSignal` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
@@ -3000,6 +3029,10 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_sim|struct|syl_sim::design::SimTarget|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|struct|syl_sim::design::SourceLocation|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|struct|syl_sim::design::TemplateId|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|struct|syl_sim::gpu_cuda::CodegenOptions|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|struct|syl_sim::gpu_cuda::GeneratedCuda|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|struct|syl_sim::gpu_cuda::RunnerOptions|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|struct|syl_sim::gpu_cuda::RunnerResult|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|struct|syl_sim::runtime::AssertionFailure|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|struct|syl_sim::runtime::Simulator|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|struct|syl_sim::runtime::UniqueOverlapViolation|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
@@ -3053,6 +3086,8 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_sim|use|UniqueOverlapViolation|named|source=runtime::UniqueOverlapViolation` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|use|Value|named|source=value::Value` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|use|VcdWriter|named|source=vcd::VcdWriter` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|generate_cuda|named|source=kernel::generate_cuda` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|try_generate_cuda|named|source=kernel::try_generate_cuda` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|variant|syl_sim::design::ParamValue::Bool|(bool)` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|variant|syl_sim::design::ParamValue::Nat|(u64)` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|variant|syl_sim::design::Selector::Index|{ index: Box<SimExpr>, width: u32 }` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
@@ -3072,6 +3107,10 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_sim|variant|syl_sim::design::SimExpr::Select|{ mode: syl_hw::HwSelectMode, arms: Vec<(SimExpr, SimExpr)>, default: Box<SimExpr> }` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|variant|syl_sim::design::SimExpr::Unary|{ op: syl_hw::HwUnaryOp, expr: Box<SimExpr> }` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|variant|syl_sim::design::SimExpr::Zero|unit` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|variant|syl_sim::gpu_cuda::CudaAvailability::Available|unit` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|variant|syl_sim::gpu_cuda::CudaAvailability::Unavailable|unit` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|variant|syl_sim::gpu_cuda::KernelMode::BatchPerThread|unit` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|variant|syl_sim::gpu_cuda::KernelMode::InstanceFamilyParallel|unit` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|variant|syl_sim::runtime::ClockEvent::Falling|(DomainId)` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|variant|syl_sim::runtime::ClockEvent::Rising|(DomainId)` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|variant|syl_sim::runtime::RuntimeError::Assertion|(AssertionFailure)` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
