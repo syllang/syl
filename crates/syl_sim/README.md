@@ -22,7 +22,7 @@ Execution engines, the SystemVerilog emitter, CLI and IDE services live outside 
 
 ## Allowed Responsibilities
 
-Specialization evaluates dimensions, expands generated scopes, connects ports and records explicit memory read/write ports. Tarjan components diagnose feedback across cell boundaries. When whole-word copies introduce apparent feedback, specialization splits transparent copies at the connected slice boundaries and schedules the resulting assignments. For an acyclic design, `comb_eval_order` lists assignment IDs with their dependencies first. Registers and synchronous memory outputs break combinational paths.
+Specialization evaluates dimensions, expands generated scopes, connects ports and records explicit memory read/write ports. Tarjan components diagnose feedback across cell boundaries. When word-level dependencies introduce apparent feedback, specialization partitions fixed reads, copies and bitwise AND, OR and XOR at connected slice boundaries. Each interval has an executable assignment. Port connections align low bits, discard truncated high bits and zero-extend narrower unsigned words. For an acyclic design, `comb_eval_order` lists assignment IDs with their dependencies first. Registers and synchronous memory outputs break combinational paths.
 
 ## Forbidden Responsibilities
 

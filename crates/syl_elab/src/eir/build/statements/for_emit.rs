@@ -1,10 +1,6 @@
 use crate::{
-    CompileError, EirError,
-    const_eval::ConstValue,
-    eir::EirExpr,
-    eir::EirItem,
-    mir::MirTypeRef,
-    program::{ElabBlock, ElabExprNode},
+    CompileError, EirError, const_eval::ConstValue, eir::EirExpr, eir::EirItem, mir::MirTypeRef,
+    program::ElabExprNode,
 };
 
 use super::{EirBuilder, Env, ForEmit, place_emit::NamedExprPlaceEmit};
@@ -62,37 +58,7 @@ where
                 env.unique_label(&format!("gen_{}", request.name), request.span),
                 value
             ));
-            loop_env.bound_element = env.prefix.as_deref().and_then(|prefix| {
-                let suffix = format!("[{}]", request.name);
-                let binding = prefix.strip_suffix(&suffix)?;
-                let parent = env
-                    .expansion_stack
-                    .last()
-                    .map(|f| format!("{}_", f.instance()));
-                let local = parent
-                    .as_ref()
-                    .and_then(|p| binding.strip_prefix(p.as_str()))
-                    .unwrap_or(binding);
-                Some(format!("{local}[{value}]"))
-            });
-            let mut body =
-                self.emit_for_iteration_body(request.body, &mut loop_env, request.name, value)?;
-            // A bound for-expression has a Syl element name even when this
-            // pass has already unrolled it into uniquely named physical cells.
-            if let Some(binding) = &env.prefix
-                && binding.ends_with(&format!("[{}]", request.name))
-                && let Some(EirItem::Instance(instance)) = body.last_mut()
-                && request
-                    .body
-                    .tail
-                    .as_ref()
-                    .is_some_and(|tail| matches!(tail.node, ElabExprNode::Place { .. }))
-            {
-                instance.set_source_name(
-                    binding.replace(&format!("[{}]", request.name), &format!("[{value}]")),
-                );
-            }
-            items.extend(body);
+            items.extend(self.emit_for_body(&request, &mut loop_env, &value.to_string(), false)?);
         }
         self.sync_visible_software_locals(&loop_env, env);
         Ok(items)
@@ -117,8 +83,7 @@ where
             env.unique_label(&format!("gen_{}", request.name), request.span),
             index
         ));
-        let body_items =
-            self.emit_symbolic_for_body(request.body, &mut loop_env, request.name, &index)?;
+        let body_items = self.emit_for_body(&request, &mut loop_env, &index, true)?;
         self.merge_visible_software_locals_after_loop(&loop_env, env);
         Ok(vec![EirItem::SymbolicStaticFor {
             index,
@@ -130,52 +95,16 @@ where
         }])
     }
 
-    fn emit_for_iteration_body(
+    fn emit_for_body(
         &self,
-        body: &ElabBlock,
+        request: &ForEmit<'_>,
         env: &mut Env,
-        loop_name: &str,
-        index: u64,
-    ) -> Result<Vec<EirItem>, CompileError> {
-        let mut filtered = body.clone();
-        let tail = filtered.tail.take();
-        let mut items = self.emit_body_impl(&filtered, env, false)?;
-        if let Some(tail) = tail
-            && let ElabExprNode::Place {
-                callee,
-                args,
-                inplace,
-            } = &tail.node
-        {
-            let inst_name = env
-                .prefix
-                .as_deref()
-                .map(|prefix| prefix.replace(&format!("[{loop_name}]"), &format!("[{index}]")))
-                .unwrap_or_else(|| format!("place_{index}"));
-            items.extend(self.emit_named_expr_place(
-                NamedExprPlaceEmit {
-                    inst_name: &inst_name,
-                    callee,
-                    args,
-                    inplace: *inplace,
-                    span: tail.span(),
-                },
-                env,
-            )?);
-        }
-        Ok(items)
-    }
-
-    fn emit_symbolic_for_body(
-        &self,
-        body: &ElabBlock,
-        env: &mut Env,
-        loop_name: &str,
         index: &str,
+        symbolic: bool,
     ) -> Result<Vec<EirItem>, CompileError> {
-        let mut filtered = body.clone();
+        let mut filtered = request.body.clone();
         let tail = filtered.tail.take();
-        let mut items = self.emit_body_impl(&filtered, env, true)?;
+        let mut items = self.emit_body_impl(&filtered, env, symbolic)?;
         if let Some(tail) = tail
             && let ElabExprNode::Place {
                 callee,
@@ -186,10 +115,12 @@ where
             let inst_name = env
                 .prefix
                 .as_deref()
-                .map(|prefix| prefix.replace(&format!("[{loop_name}]"), &format!("[{index}]")))
+                .map(|prefix| prefix.replace(&format!("[{}]", request.name), &format!("[{index}]")))
                 .unwrap_or_else(|| format!("place_{index}"));
+            let element = request.binding.map(|name| format!("{name}[{index}]"));
             items.extend(self.emit_named_expr_place(
                 NamedExprPlaceEmit {
+                    source_name: element.as_deref(),
                     inst_name: &inst_name,
                     callee,
                     args,

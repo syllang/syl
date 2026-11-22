@@ -407,10 +407,6 @@ impl EirInstance {
         &self.name
     }
 
-    pub(crate) fn set_source_name(&mut self, name: String) {
-        self.source_name = name;
-    }
-
     pub(crate) fn source_name(&self) -> &str {
         &self.source_name
     }

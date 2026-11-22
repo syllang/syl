@@ -10,6 +10,7 @@ use super::{EirBuilder, Env, ExprPlaceEmit};
 
 #[non_exhaustive]
 pub(super) struct NamedExprPlaceEmit<'a> {
+    pub(super) source_name: Option<&'a str>,
     pub(super) inst_name: &'a str,
     pub(super) callee: &'a ElabExpr,
     pub(super) args: &'a [ElabCallArg],
@@ -29,6 +30,7 @@ where
         let inst_name = self.expr_place_inst_name(&request, env);
         self.emit_named_expr_place(
             NamedExprPlaceEmit {
+                source_name: None,
                 inst_name: &inst_name,
                 callee: request.callee,
                 args: request.args,
@@ -55,6 +57,7 @@ where
             ));
         }
         items.extend(self.emit_instance(InstanceEmitRequest {
+            source_name: request.source_name,
             inst_name: request.inst_name,
             callee: request.callee,
             args: request.args,

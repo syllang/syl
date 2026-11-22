@@ -68,25 +68,26 @@ struct Placement<'a> {
 struct Scope {
     instance: InstanceId,
     path: String,
-    instance_path: String,
     params: Bindings,
-    indices: Vec<(String, u64)>,
+    generates: Vec<Generate>,
     signals: BTreeMap<String, SimTarget>,
     memories: BTreeMap<String, MemId>,
 }
 
+#[derive(Clone)]
+struct Generate {
+    label: String,
+    iteration: Option<(String, u64)>,
+}
+
 impl Scope {
     fn source(&self, name: &str, origin: &HwOrigin) -> SourceLocation {
-        self.source_under(&self.path, name, origin)
-    }
-
-    fn source_under(&self, parent: &str, name: &str, origin: &HwOrigin) -> SourceLocation {
-        let mut path = parent.to_owned();
+        let mut relative = String::new();
         let mut prefix = String::new();
         for frame in origin.expansion_stack() {
             let instance = frame.instance();
-            path.push('.');
-            path.push_str(
+            relative.push('.');
+            relative.push_str(
                 frame
                     .source_name()
                     .unwrap_or_else(|| instance.strip_prefix(&prefix).unwrap_or(instance)),
@@ -102,10 +103,30 @@ impl Scope {
         } else {
             field
         };
+        relative.push('.');
+        relative.push_str(leaf);
+        let mut field = field.to_owned();
+        let mut path = self.path.clone();
+        for generate in &self.generates {
+            if let Some((index, value)) = &generate.iteration {
+                let symbolic = format!("[{index}]");
+                if relative.contains(&symbolic) {
+                    // A bound array element already names this iteration. Keep
+                    // any enclosing anonymous generate scopes for uniqueness.
+                    let concrete = format!("[{value}]");
+                    relative = relative.replace(&symbolic, &concrete);
+                    field = field.replace(&symbolic, &concrete);
+                    continue;
+                }
+            }
+            path.push('.');
+            path.push_str(&generate.label);
+        }
+        path.push_str(&relative);
         SourceLocation {
             instance: self.instance,
-            path: format!("{path}.{leaf}"),
-            name: field.into(),
+            path,
+            name: field,
             origin: origin.clone(),
         }
     }
@@ -220,10 +241,9 @@ impl<'a> Lower<'a> {
         });
         let mut scope = Scope {
             instance: id,
-            instance_path: place.path.clone(),
             path: place.path,
             params,
-            indices: Vec::new(),
+            generates: Vec::new(),
             signals: BTreeMap::new(),
             memories: BTreeMap::new(),
         };
@@ -362,16 +382,7 @@ impl<'a> Lower<'a> {
                     instance.target_canonical_path()
                 ))
             })?;
-        let mut name = instance.source_name().to_owned();
-        for (index, n) in &scope.indices {
-            name = name.replace(&format!("[{index}]"), &format!("[{n}]"))
-        }
-        let prefix = if name != instance.source_name() {
-            &scope.instance_path
-        } else {
-            &scope.path
-        };
-        let source = scope.source_under(prefix, &name, origin);
+        let source = scope.source(instance.source_name(), origin);
         let path = source.path;
         let name = source.name;
         let mut params = Bindings::new();

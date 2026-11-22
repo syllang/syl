@@ -166,6 +166,7 @@ where
                     span,
                 } => items.extend(self.emit_for(
                     ForEmit {
+                        binding: None,
                         name,
                         range_expr: range,
                         body,
@@ -222,6 +223,7 @@ where
                 } = &value.node
                 {
                     items.extend(self.emit_instance(InstanceEmitRequest {
+                        source_name: None,
                         inst_name: &physical_name,
                         callee,
                         args,
@@ -258,6 +260,7 @@ where
             } = &value.node
             {
                 items.extend(self.emit_instance(InstanceEmitRequest {
+                    source_name: None,
                     inst_name: &physical_name,
                     callee,
                     args,
@@ -465,6 +468,7 @@ where
         loop_env.prefix = Some(format!("{local_name}[{loop_name}]"));
         self.emit_for(
             ForEmit {
+                binding: Some(binding_name),
                 name: loop_name,
                 range_expr: range,
                 body,
@@ -482,6 +486,7 @@ where
         let physical_name = env.local_name(request.name);
         let Some(result_ty) = self.callable_result_type_from_elab(request.callee, env) else {
             let items = self.emit_instance(InstanceEmitRequest {
+                source_name: None,
                 inst_name: &physical_name,
                 callee: request.callee,
                 args: request.args,
@@ -499,6 +504,7 @@ where
         let mut items =
             self.emit_result_signals(&physical_name, &result_ty, request.value.span(), env);
         items.extend(self.emit_instance(InstanceEmitRequest {
+            source_name: None,
             inst_name: &physical_name,
             callee: request.callee,
             args: request.args,

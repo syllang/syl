@@ -1,4 +1,4 @@
-use super::{Lower, Scope};
+use super::{Generate, Lower, Scope};
 use crate::{
     constant::{Result, dimension, eval, invalid},
     design::*,
@@ -64,7 +64,10 @@ impl Lower<'_> {
                     ..
                 } => {
                     let mut nested = scope.clone();
-                    nested.path = format!("{}.{label}", scope.path);
+                    nested.generates.push(Generate {
+                        label: label.clone(),
+                        iteration: None,
+                    });
                     self.block(
                         if eval(cond, &scope.params)? != 0 {
                             then_items
@@ -85,8 +88,10 @@ impl Lower<'_> {
                     for i in eval(start, &scope.params)?..eval(end, &scope.params)? {
                         let mut nested = scope.clone();
                         nested.params.insert(index.clone(), ParamValue::Nat(i));
-                        nested.indices.push((index.clone(), i));
-                        nested.path = format!("{}.{label}[{i}]", scope.path);
+                        nested.generates.push(Generate {
+                            label: format!("{label}[{i}]"),
+                            iteration: Some((index.clone(), i)),
+                        });
                         self.block(items, &mut nested)?;
                     }
                 }

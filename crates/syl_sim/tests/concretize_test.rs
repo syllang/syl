@@ -472,55 +472,8 @@ fn already_unrolled_placements_retain_source_array_names() {
     }
 }
 
-#[test]
-fn direct_port_slice_dependency_avoids_false_cycle_and_detects_real_cycle() {
-    let source = r#"
-cell Pick(i: in UInt<2>) -> o: Bit { o := i[0] }
-cell Top(i: in Bit) -> o: Bit {
- signal a: UInt<2>
- let p = place Pick(i: a)
- a[0] := i
- a[1] := p
- o := a[1]
-}
-"#;
-    let d = SimDesign::lower(&compile(&[("slice", source)]), "Top", &BTreeMap::new()).unwrap();
-    let position = |path: &str, selectors: &[Selector]| {
-        d.comb_eval_order
-            .iter()
-            .position(|id| {
-                let target = &d.comb[id.0].target;
-                d.signal(target.signal).source.path == path && target.selectors == selectors
-            })
-            .unwrap()
-    };
-    let low = position("Top.a", &[Selector::Slice { low: 0, high: 0 }]);
-    let child = position("Top.p", &[]);
-    let high = position("Top.a", &[Selector::Slice { low: 1, high: 1 }]);
-    let output = position("Top.o", &[]);
-    let input_low = position("Top.p.i", &[Selector::Slice { low: 0, high: 0 }]);
-    let input_high = position("Top.p.i", &[Selector::Slice { low: 1, high: 1 }]);
-    assert!(low < input_low && input_low < child && child < high && high < output);
-    assert!(high < input_high);
-    for (idx, bit) in [(input_low, 0), (input_high, 1)] {
-        let assign = &d.comb[d.comb_eval_order[idx].0];
-        let SimExpr::Read(t) = &assign.value else {
-            panic!("expected a sliced copy")
-        };
-        assert_eq!(d.signal(t.signal).source.path, "Top.a");
-        assert_eq!(
-            t.selectors,
-            [Selector::Slice {
-                low: bit,
-                high: bit
-            }]
-        );
-    }
-    let source = source.replace("o := i[0]", "o := i[1]");
-    let err =
-        SimDesign::lower(&compile(&[("slice", &source)]), "Top", &BTreeMap::new()).unwrap_err();
-    assert!(matches!(err, SimError::CombinationalCycle { .. }));
-}
+#[path = "concretize_test/port_schedule_test.rs"]
+mod port_schedule_test;
 
 #[test]
 fn local_reset_signal_inherits_domain_and_polarity() {
@@ -598,63 +551,70 @@ cell Top<W: nat>(y: out Bit) {
     }
 }
 
-#[test]
-fn inplace_instances_keep_source_paths_inside_constant_for() {
-    let source = r#"
-cell Leaf(i: in Bit) -> o: Bit { o := i }
-cell Wrap(i: in Bit) -> o: Bit {
-    let sub = place Leaf(i: i)
-    o := sub
-}
-cell Top(i: in [2] Bit) -> o: [2] Bit {
-    let wraps = for j in 0..2 {
-        inplace Wrap(i: i[j])
+fn check_leaf_paths(d: &SimDesign, prefixes: [&str; 2]) {
+    assert_eq!(d.instances.len(), 3);
+    let mut ids = BTreeSet::new();
+    for prefix in prefixes {
+        let child = d
+            .instances
+            .iter()
+            .find(|c| c.source.path == prefix)
+            .unwrap();
+        assert!(ids.insert(child.source.instance));
+        assert_eq!(child.source.name, "sub");
+        assert_eq!(child.ports.len(), 3);
+        for p in &child.ports {
+            let port = &d.signal(p.signal).source;
+            assert_eq!(port.instance, child.source.instance);
+            assert_eq!(port.path, format!("{prefix}.{}", p.name));
+        }
+        let reg = d
+            .regs
+            .iter()
+            .find(|r| r.source.instance == child.source.instance)
+            .unwrap();
+        assert_eq!(reg.source.path, format!("{prefix}.q"));
     }
-    o := i
 }
-"#;
-    let design =
-        SimDesign::lower(&compile(&[("inline_for", source)]), "Top", &BTreeMap::new()).unwrap();
-    let leaves: Vec<_> = design
-        .instances
-        .iter()
-        .filter(|instance| instance.source.name == "sub")
-        .collect();
-    assert_eq!(leaves.len(), 2);
-    assert_eq!(leaves[0].source.path, "Top.wraps[0].sub");
-    assert_eq!(leaves[1].source.path, "Top.wraps[1].sub");
-    assert!(
-        design
-            .signals
-            .iter()
-            .any(|signal| signal.source.path == "Top.wraps[0].sub.i")
-    );
-    assert!(
-        design
-            .signals
-            .iter()
-            .any(|signal| signal.source.path == "Top.wraps[1].sub.i")
-    );
+
+const WRAPPERS: &str = "
+cell Leaf(clk: in Clock,i: in Bit) -> o: Bit { reg q: Bit next q := i o := q }
+cell Wrap(clk: in Clock,i: in Bit) -> o: Bit { let sub = place Leaf(clk: clk,i: i) o := sub }";
+
+#[test]
+fn inline_array_paths_match_for_constant_and_parameterized_bounds() {
+    for (generics, bound, params) in [
+        ("", "2", BTreeMap::new()),
+        (
+            "<N: nat>",
+            "N",
+            BTreeMap::from([("N".into(), ParamValue::Nat(2))]),
+        ),
+    ] {
+        let source = format!(
+            "{WRAPPERS}
+cell Top{generics}(clk: in Clock,i: in [{bound}] Bit) -> o: [{bound}] Bit {{
+    let wraps = for j in 0..{bound} {{ inplace Wrap(clk: clk,i: i[j]) }}
+    o := i
+}}"
+        );
+        let design = SimDesign::lower(&compile(&[("array", &source)]), "Top", &params).unwrap();
+        check_leaf_paths(&design, ["Top.wraps[0].sub", "Top.wraps[1].sub"]);
+    }
 }
 
 #[test]
 fn repeated_inline_wrappers_preserve_subcell_ports_and_state() {
-    let src = "cell Leaf(clk: in Clock,i: in Bit) -> o: Bit { reg q: Bit next q := i o := q }
-cell Wrap(clk: in Clock,i: in Bit) -> o: Bit { let sub = place Leaf(clk: clk,i: i) o := sub }
-cell Top(clk: in Clock,i: in Bit) -> o: Bit { let a = inplace Wrap(clk: clk,i: i) let b = inplace Wrap(clk: clk,i: a) o := b }";
-    let d = SimDesign::lower(&compile(&[("inline", src)]), "Top", &BTreeMap::new()).unwrap();
-    for (index, prefix) in ["Top.a.sub", "Top.b.sub"].iter().enumerate() {
-        let child = &d.instances[index + 1];
-        assert_eq!(child.source.path, *prefix);
-        assert_eq!(child.source.name, "sub");
-        for p in &child.ports {
-            assert_eq!(
-                d.signal(p.signal).source.path,
-                format!("{prefix}.{}", p.name)
-            );
-        }
-        assert_eq!(d.regs[index].source.path, format!("{prefix}.q"));
-    }
+    let src = format!(
+        "{WRAPPERS}
+cell Top(clk: in Clock,i: in Bit) -> o: Bit {{
+    let _a = inplace Wrap(clk: clk,i: i)
+    let a = inplace Wrap(clk: clk,i: _a)
+    o := a
+}}"
+    );
+    let d = SimDesign::lower(&compile(&[("inline", &src)]), "Top", &BTreeMap::new()).unwrap();
+    check_leaf_paths(&d, ["Top._a.sub", "Top.a.sub"]);
 }
 
 #[test]

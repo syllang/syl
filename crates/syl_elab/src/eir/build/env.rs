@@ -41,8 +41,6 @@ pub(crate) struct Env {
     pub(crate) owner: Option<DefId>,
     pub(crate) prefix: Option<String>,
     pub(crate) expr_place_prefix: Option<String>,
-    // Source name of the bound element while lowering a for-expression tail.
-    pub(crate) bound_element: Option<String>,
 }
 
 impl Env {

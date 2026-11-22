@@ -272,6 +272,7 @@ where
                 ));
             }
             return self.emit_cell_inline(CellInlineRequest {
+                source_name: request.source_name,
                 callable_def,
                 inst_name: request.inst_name,
                 callable_name: &callable_name,
@@ -333,7 +334,7 @@ where
                 callable_name,
                 params,
                 safe_name,
-                request.inst_name,
+                request.source_name.unwrap_or(request.inst_name),
                 conns,
                 request.env.origin(request.span),
             )
@@ -346,26 +347,21 @@ where
         request: CellInlineRequest<'_>,
     ) -> Result<Vec<EirItem>, CompileError> {
         let call_span = self.call_span(request.callee, request.args);
-        let mut cell_env = Env::with_prefix(self.sanitize(request.inst_name));
+        let physical = self.sanitize(request.inst_name);
+        let mut cell_env = Env::with_prefix(&physical);
         cell_env.owner = Some(request.callable_def);
         cell_env.expansion_stack = request.caller_env.expansion_stack.clone();
-        let caller = request.caller_env;
-        let prefix = caller.prefix.as_deref().unwrap_or("");
-        let binding = if request.inst_name == prefix {
-            caller.bound_element.as_deref().unwrap_or(request.inst_name)
-        } else {
+        let binding = request.source_name.unwrap_or_else(|| {
             request
-                .inst_name
-                .strip_prefix(prefix)
-                .and_then(|s| s.strip_prefix('_'))
+                .caller_env
+                .prefix
+                .as_deref()
+                .filter(|prefix| !prefix.is_empty())
+                .and_then(|prefix| request.inst_name.strip_prefix(prefix))
+                .and_then(|suffix| suffix.strip_prefix('_'))
                 .unwrap_or(request.inst_name)
-        };
-        cell_env.push_expansion(
-            request.callable_name,
-            request.inst_name,
-            call_span,
-            binding.into(),
-        );
+        });
+        cell_env.push_expansion(request.callable_name, physical, call_span, binding.into());
         self.insert_call_generics(
             &mut cell_env,
             request.item,
