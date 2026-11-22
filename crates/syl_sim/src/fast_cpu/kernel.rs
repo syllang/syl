@@ -18,6 +18,13 @@ pub(super) enum FastOp {
         op: B,
         mask: u64,
     },
+    SignedBinary {
+        dst: usize,
+        a: usize,
+        b: usize,
+        op: B,
+        width: u32,
+    },
     Mux {
         dst: usize,
         cond: usize,
@@ -118,6 +125,35 @@ pub(super) fn execute(ops: &[FastOp], plane: &mut [u64], temp: &mut [u64]) -> Op
                     B::GtEq => binary!(a, b, |x, y| u64::from(x >= y)),
                     B::AndAnd => binary!(a, b, |x, y| u64::from(x != 0 && y != 0)),
                     B::OrOr => binary!(a, b, |x, y| u64::from(x != 0 || y != 0)),
+                    _ => unreachable!("checked during compilation"),
+                }
+                dst
+            }
+            FastOp::SignedBinary {
+                dst,
+                a,
+                b,
+                op,
+                width,
+            } => {
+                let shift = 64 - width;
+                let signed = |v: u64| ((v << shift) as i64) >> shift;
+                let mask = super::mask(width);
+                match op {
+                    B::Lt => binary!(a, b, |x, y| u64::from(signed(x) < signed(y))),
+                    B::LtEq => binary!(a, b, |x, y| u64::from(signed(x) <= signed(y))),
+                    B::Gt => binary!(a, b, |x, y| u64::from(signed(x) > signed(y))),
+                    B::GtEq => binary!(a, b, |x, y| u64::from(signed(x) >= signed(y))),
+                    B::Div => binary!(a, b, |x, y| if y == 0 {
+                        0
+                    } else {
+                        signed(x).wrapping_div(signed(y)) as u64 & mask
+                    }),
+                    B::Rem => binary!(a, b, |x, y| if y == 0 {
+                        0
+                    } else {
+                        signed(x).wrapping_rem(signed(y)) as u64 & mask
+                    }),
                     _ => unreachable!("checked during compilation"),
                 }
                 dst

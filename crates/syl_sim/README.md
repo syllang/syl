@@ -56,6 +56,13 @@ Register an `ExternModel` for each external instance before evaluation. Models r
 
 ## Running independent two-state trajectories
 
+`BatchCpuSimulator` accepts `Value` inputs for independent trajectories.
+Signals are stored in slot-major order. Each lane has its own RAM and event
+history and uses T2 to settle combinational logic and sample clock groups.
+`new` selects two-state mode and `with_mode` also supports four-state values.
+A clocked assertion failure carries the global lane index and the one-based
+failing edge in both the batch error and its nested assertion diagnostic.
+
 Compile a `FastProgram` from the specialized `SimDesign` and use it to create a
 `FastBatchCpuSimulator`. Its `for_each_tile` callback receives a global lane
 offset and exclusive access to a `FastTile`. Use the same program throughout.

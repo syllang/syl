@@ -109,3 +109,224 @@ fn every_output_word_matches_reference_before_and_after_each_edge() {
         }
     }
 }
+
+fn lower_cell(top: &str, source: &str) -> SimDesign {
+    let ast = syl_syntax::SourceParser::new(source).parse_file().unwrap();
+    let file = syl_sema::SemanticSourceFile::new(vec!["fixture".into()], &ast);
+    let hir = syl_sema::SemanticSession::new_sources(vec![file])
+        .resolve_hir()
+        .unwrap();
+    let ir = syl_elab::HardwareCompiler::new().output_for_tir(&hir.check_tir().unwrap());
+    SimDesign::lower(&ir, top, &Default::default()).unwrap()
+}
+
+#[test]
+fn falling_edges_and_direct_clock_drives_settle_like_t2() {
+    use syl_sim::{BatchCpuSimulator, ClockEvent, Value};
+    let design = lower_cell(
+        "Top",
+        "cell Top<D: Domain>(clk:in Clock<D>,rst:in Reset<D>,i:in Bit)->y:Bit {
+        reg q:Bit reset(rst,0) next q:=i y:=q }",
+    );
+    let mut batch = BatchCpuSimulator::new(&design, 2);
+    let mut reference = Simulator::with_mode(&design, StateMode::TwoState);
+    let one = Value::from_u64(1, 1);
+    reference.drive_named("i", one.clone()).unwrap();
+    batch.broadcast_named("i", one.clone()).unwrap();
+    let falling = [ClockEvent::Falling(reference.clock("clk").unwrap())];
+    batch.step_clocks(&falling).unwrap();
+    reference.step_clocks(&falling).unwrap();
+    assert_eq!(batch.cycle(), 0);
+    assert_eq!(batch.cycle(), reference.cycle());
+    assert_eq!(
+        batch.read_named(1, "y").unwrap(),
+        reference.read_named("y").unwrap()
+    );
+    assert_eq!(reference.read_named("y").unwrap(), &Value::zero(1));
+    batch.broadcast_named("clk", one.clone()).unwrap();
+    reference.drive_named("clk", one.clone()).unwrap();
+    batch.eval_comb().unwrap();
+    reference.eval_comb().unwrap();
+    assert_eq!(batch.cycle(), 1);
+    assert_eq!(batch.cycle(), reference.cycle());
+    assert_eq!(
+        batch.read_named(1, "y").unwrap(),
+        reference.read_named("y").unwrap()
+    );
+    assert_eq!(reference.read_named("y").unwrap(), &one);
+}
+
+#[test]
+fn simultaneous_domains_sample_pre_edge_state_in_both_orders() {
+    use syl_sim::{BatchCpuSimulator, ClockEvent, Value};
+    let design = lower_cell(
+        "PulseSynchronizer",
+        include_str!("../../../examples/std/cdc.syl"),
+    );
+    for reverse in [false, true] {
+        let mut reference = Simulator::with_mode(&design, StateMode::TwoState);
+        let mut batch = BatchCpuSimulator::new(&design, 2);
+        let domains = ["src_clk", "dst_clk"].map(|p| reference.clock(p).unwrap());
+        for cycle in 1..=5 {
+            let pulse = Value::from_u64(1, u64::from(cycle == 1));
+            batch.broadcast_named("src_pulse", pulse.clone()).unwrap();
+            reference.drive_named("src_pulse", pulse).unwrap();
+            for edge in [ClockEvent::Rising, ClockEvent::Falling] {
+                let mut events = domains.map(edge);
+                if reverse {
+                    events.reverse();
+                }
+                reference.step_clocks(&events).unwrap();
+                batch.step_clocks(&events).unwrap();
+                assert_eq!(batch.cycle(), cycle);
+                assert_eq!(batch.cycle(), reference.cycle());
+                for reg in &design.regs {
+                    assert_eq!(
+                        batch.read(1, reg.signal).unwrap(),
+                        reference.read(reg.signal)
+                    );
+                }
+                assert_eq!(
+                    batch.read_named(1, "dst_pulse").unwrap(),
+                    reference.read_named("dst_pulse").unwrap()
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn all_public_clock_entry_points_report_the_failing_edge() {
+    use syl_sim::{BatchCpuSimulator, ClockEvent, RuntimeError, Value};
+    let (ir, top, params) = fixture("Fault");
+    let d = SimDesign::lower(&ir, top, &params).unwrap();
+    let reference = Simulator::with_mode(&d, StateMode::TwoState);
+    let inject = reference.port("inject").unwrap();
+    let p = FastProgram::new(&d).unwrap();
+    let mut simd = FastBatchCpuSimulator::new(&p, 3, 3);
+    simd.for_each_tile(1, |_, tile| {
+        tile.input_word(&p, inject, 0)[1] = 1;
+        assert_eq!(tile.tick(&p), Err((1, 1)));
+    });
+    for entry in ["tick", "events", "drive"] {
+        let mut batch = BatchCpuSimulator::new(&d, 3);
+        batch.drive(1, inject, Value::from_u64(1, 1)).unwrap();
+        let failure = match entry {
+            "tick" => batch.tick("clk"),
+            "events" => batch.step_clocks(&[ClockEvent::Rising(reference.clock("clk").unwrap())]),
+            _ => {
+                batch.broadcast_named("clk", Value::from_u64(1, 1)).unwrap();
+                batch.eval_comb()
+            }
+        }
+        .unwrap_err();
+        let RuntimeError::Assertion(inner) = failure.error else {
+            panic!("expected assertion")
+        };
+        assert_eq!((failure.batch_idx, failure.cycle), (1, 1));
+        assert_eq!(failure.cycle, inner.cycle);
+    }
+}
+
+#[test]
+fn four_state_batch_preserves_initial_storage_and_high_impedance() {
+    use syl_sim::{BatchCpuSimulator, MemId, Value};
+    let (ir, top, params) = fixture("SimpleDualPortRam");
+    let d = SimDesign::lower(&ir, top, &params).unwrap();
+    let batch = BatchCpuSimulator::with_mode(&d, 3, StateMode::FourState);
+    let reference = Simulator::new(&d);
+    for lane in 0..3 {
+        assert_eq!(
+            batch.read_named(lane, "rdata").unwrap(),
+            reference.read_named("rdata").unwrap()
+        );
+        assert!(batch.read_named(lane, "rdata").unwrap().has_x());
+        for address in 0..d.memories[0].depth {
+            assert_eq!(
+                batch.memory(lane, MemId(0), address),
+                reference.memory(MemId(0), address)
+            );
+            assert!(batch.memory(lane, MemId(0), address).unwrap().has_x());
+        }
+    }
+    let d = lower_cell("Top", "cell Top(p:inout Bit) {p:=z()}");
+    let mut batch = BatchCpuSimulator::with_mode(&d, 2, StateMode::FourState);
+    let mut reference = Simulator::new(&d);
+    for pin in [Value::z(1), Value::from_u64(1, 1), Value::z(1)] {
+        batch.drive_named(1, "p", pin.clone()).unwrap();
+        reference.drive_named("p", pin.clone()).unwrap();
+        batch.eval_comb().unwrap();
+        reference.eval_comb().unwrap();
+        assert_eq!(
+            batch.read_named(1, "p").unwrap(),
+            reference.read_named("p").unwrap()
+        );
+        assert_eq!(reference.read_named("p").unwrap(), &pin);
+    }
+}
+
+#[test]
+fn signed_operations_and_sign_filled_right_shift_match_t2() {
+    use syl_sim::{HwBinaryOp as Op, HwUnaryOp, Selector, SimExpr as E};
+    let source = "cell Top(i:in Bit)->q:UInt<8> {q:=select priority {i => (-3)/2, default=>0,}}";
+    check_arithmetic(&lower_cell("Top", source), 255);
+    let binary = |op, left, right| E::Binary {
+        op,
+        left: Box::new(left),
+        right: Box::new(right),
+    };
+    let neg = |n| E::Unary {
+        op: HwUnaryOp::Neg,
+        expr: Box::new(E::Int(n)),
+    };
+    let quotient = binary(Op::Div, neg(3), E::Int(2));
+    // The concrete IR has Shl and packed projections. An arithmetic right shift
+    // by one repeats the sign bit and takes bits 7..1 of the two's-complement word.
+    let slice = |low, high| E::Project {
+        value: Box::new(neg(3)),
+        selector: Selector::Slice { low, high },
+    };
+    let shift = E::Concat(vec![slice(7, 7), slice(1, 7)]);
+    for (expr, expected) in [
+        (quotient.clone(), 255),
+        (binary(Op::Rem, neg(3), E::Int(2)), 255),
+        (binary(Op::Div, neg(3), E::Int(0)), 0),
+        (binary(Op::Lt, neg(3), E::Int(2)), 1),
+        (binary(Op::GtEq, neg(3), neg(2)), 0),
+        (binary(Op::Gt, neg(2), neg(3)), 1),
+        (binary(Op::LtEq, neg(3), neg(3)), 1),
+        (binary(Op::Add, quotient, E::Bool(false)), 254), // unsigned enclosing context
+        (shift, 254),
+    ] {
+        let mut d = lower_cell("Top", "cell Top(i:in Bit)->q:UInt<8> {q:=i}");
+        d.comb[0].value = expr;
+        check_arithmetic(&d, expected);
+    }
+    let min = binary(Op::Shl, E::Int(1), E::Int(63));
+    let mut wide = lower_cell("Top", "cell Top(i:in Bit)->q:UInt<64> {q:=i}");
+    for (op, expected) in [(Op::Div, 1u64 << 63), (Op::Rem, 0)] {
+        wide.comb[0].value = binary(op, min.clone(), neg(1));
+        check_arithmetic(&wide, expected);
+    }
+}
+
+fn check_arithmetic(design: &SimDesign, expected: u64) {
+    use syl_sim::{BatchCpuSimulator, Value};
+    let mut reference = Simulator::with_mode(design, StateMode::TwoState);
+    let i = reference.port("i").unwrap();
+    let q = reference.port("q").unwrap();
+    reference.drive(i, Value::from_u64(1, 1)).unwrap();
+    reference.eval_comb().unwrap();
+    assert_eq!(reference.read(q).as_u64(), Some(expected));
+    let mut batch = BatchCpuSimulator::new(design, 3);
+    batch.broadcast(i, Value::from_u64(1, 1)).unwrap();
+    batch.eval_comb().unwrap();
+    assert!(batch.read_batch(q).iter().all(|v| v == reference.read(q)));
+    let p = FastProgram::new(design).unwrap();
+    let mut fast = FastBatchCpuSimulator::new(&p, 3, 2);
+    fast.for_each_tile(2, |_, tile| {
+        tile.input_word(&p, i, 0).fill(1);
+        tile.eval_comb(&p);
+        assert!(tile.word(&p, q, 0).iter().all(|&n| n == expected));
+    });
+}

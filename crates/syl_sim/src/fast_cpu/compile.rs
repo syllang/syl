@@ -1,4 +1,5 @@
 use super::{FastOp as Op, FastProgram, mask};
+use crate::runtime::signed;
 use crate::{
     HwBinaryOp as B, HwDirection, HwResetMode, HwResetPolarity, HwUnaryOp, RuntimeError, Selector,
     SimDesign, SimExpr as E, SimTarget,
@@ -162,6 +163,9 @@ impl Builder<'_> {
         Ok(out)
     }
     fn expr(&mut self, e: &E, context: u32) -> Result<View> {
+        self.expr_typed(e, context, signed(e))
+    }
+    fn expr_typed(&mut self, e: &E, context: u32, signed_context: bool) -> Result<View> {
         match e {
             E::Read(t) => self.target(t),
             E::Int(x) => {
@@ -201,7 +205,11 @@ impl Builder<'_> {
                 self.gather(memory.0, a)
             }
             E::Unary { op, expr } => {
-                let v = self.expr(expr, if *op == HwUnaryOp::Not { 0 } else { context })?;
+                let v = if *op == HwUnaryOp::Not {
+                    self.expr(expr, 0)?
+                } else {
+                    self.expr_typed(expr, context, signed_context)?
+                };
                 match op {
                     HwUnaryOp::Not => self.binary(B::Eq, v, self.zero, 1),
                     HwUnaryOp::Neg => self.binary(B::Sub, self.zero, v, v.width.max(context)),
@@ -223,8 +231,22 @@ impl Builder<'_> {
                 } else {
                     context.max(natural)
                 };
-                let a = self.expr(left, ctx)?;
-                let b = self.expr(right, if *op == B::Shl { 0 } else { ctx })?;
+                let signed_operands = if pred {
+                    signed(left) && signed(right)
+                } else {
+                    signed_context
+                };
+                let logical = matches!(op, B::AndAnd | B::OrOr);
+                let a = if logical {
+                    self.expr(left, 0)?
+                } else {
+                    self.expr_typed(left, ctx, signed_operands)?
+                };
+                let b = if logical || *op == B::Shl {
+                    self.expr(right, 0)?
+                } else {
+                    self.expr_typed(right, ctx, signed_operands)?
+                };
                 if !matches!(
                     op,
                     B::BitAnd
@@ -247,13 +269,23 @@ impl Builder<'_> {
                 ) {
                     return Err(invalid("unsupported binary operation"));
                 }
-                if matches!(op, B::Lt | B::LtEq | B::Gt | B::GtEq | B::Div | B::Rem)
-                    && signed(left)
-                    && signed(right)
+                if signed_operands
+                    && matches!(op, B::Lt | B::LtEq | B::Gt | B::GtEq | B::Div | B::Rem)
                 {
-                    return Err(invalid(
-                        "signed comparison and division require reference execution",
-                    ));
+                    if ctx > 64 {
+                        return Err(invalid("wide signed arithmetic operand"));
+                    }
+                    let a = self.word(a)?;
+                    let b = self.word(b)?;
+                    let dst = self.alloc(if pred { 1 } else { ctx });
+                    self.ops.push(Op::SignedBinary {
+                        dst: dst.slot,
+                        a,
+                        b,
+                        op: *op,
+                        width: ctx,
+                    });
+                    return Ok(dst);
                 }
                 let w = if pred {
                     1
@@ -273,16 +305,16 @@ impl Builder<'_> {
                     .max(self.width(then_value)?)
                     .max(self.width(else_value)?);
                 let c = self.expr(cond, 0)?;
-                let a = self.expr(then_value, context)?;
-                let b = self.expr(else_value, context)?;
+                let a = self.expr_typed(then_value, context, signed_context)?;
+                let b = self.expr_typed(else_value, context, signed_context)?;
                 self.mux(c, a, b, a.width.max(b.width).max(context))
             }
             E::Select { arms, default, .. } => {
                 let context = context.max(self.width(e)?);
-                let mut acc = self.expr(default, context)?;
+                let mut acc = self.expr_typed(default, context, signed_context)?;
                 for (g, v) in arms.iter().rev() {
                     let c = self.expr(g, 0)?;
-                    let a = self.expr(v, context)?;
+                    let a = self.expr_typed(v, context, signed_context)?;
                     acc = self.mux(c, a, acc, a.width.max(acc.width).max(context))?;
                 }
                 Ok(acc)
@@ -353,30 +385,6 @@ impl Builder<'_> {
         } else {
             Ok(v)
         }
-    }
-}
-fn signed(e: &E) -> bool {
-    match e {
-        E::Int(_) => true,
-        E::Unary {
-            op: HwUnaryOp::Neg,
-            expr,
-        } => signed(expr),
-        E::Binary {
-            left, op: B::Shl, ..
-        } => signed(left),
-        E::Binary {
-            left,
-            right,
-            op: B::Add | B::Sub | B::Mul | B::Div | B::Rem | B::BitAnd | B::BitOr | B::BitXor,
-        } => signed(left) && signed(right),
-        E::Select { arms, default, .. } => signed(default) && arms.iter().all(|(_, v)| signed(v)),
-        E::Mux {
-            then_value,
-            else_value,
-            ..
-        } => signed(then_value) && signed(else_value),
-        _ => false,
     }
 }
 pub(super) fn compile(d: &SimDesign) -> Result<FastProgram> {
