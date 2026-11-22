@@ -13,7 +13,7 @@ use syl_sim::{ParamValue, SimDesign};
 use syl_span::SourceId;
 use syl_syntax::SourceParser;
 
-fn compile(files: &[(&str, &str)]) -> ElaborationOutput {
+pub fn compile(files: &[(&str, &str)]) -> ElaborationOutput {
     let ast = files
         .iter()
         .enumerate()

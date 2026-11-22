@@ -72,6 +72,20 @@ struct Timer {
     cudaEventDestroy(end);
   }
 };
+// Parse before narrowing: a wrapped cycle number can hide a clocked failure.
+static unsigned positive_arg(const char *name, const char *arg,
+                             unsigned limit) {
+  char *end = nullptr;
+  errno = 0;
+  const auto value = std::strtoull(arg, &end, 10);
+  if (*arg < '0' || *arg > '9' || *end || errno == ERANGE || !value ||
+      value > limit) {
+    std::fprintf(stderr, "%s must be in 1..%u\n", name, limit);
+    std::exit(2);
+  }
+  return static_cast<unsigned>(value);
+}
+
 int main(int argc, char **argv) {
   int count = 0;
   cudaError_t probe = cudaGetDeviceCount(&count);
@@ -81,14 +95,13 @@ int main(int argc, char **argv) {
   CUDA(probe);
   if (argc == 2 && !std::strcmp(argv[1], "probe"))
     return 0;
-  unsigned batch = argc > 1 ? std::strtoul(argv[1], nullptr, 10) : 1;
-  unsigned cycles = argc > 2 ? std::strtoul(argv[2], nullptr, 10) : 1000;
-  unsigned block = argc > 3 ? std::strtoul(argv[3], nullptr, 10) : 256;
+  unsigned batch = argc > 1 ? positive_arg("batch", argv[1], 0x7fffffff) : 1;
+  unsigned cycles = argc > 2 ? positive_arg("cycles", argv[2], UINT_MAX) : 1000;
+  unsigned block = argc > 3 ? positive_arg("block", argv[3], 1024) : 256;
   const char *mode = argc > 4 ? argv[4] : "summary";
   bool each = !std::strcmp(mode, "each") || !std::strcmp(mode, "trace");
   bool dump = !std::strcmp(mode, "trace") || !std::strcmp(mode, "final");
-  if (!batch || batch > 0x7fffffff || !cycles || !block || block > 1024 ||
-      (~0ull / ASSERT_COUNT) / batch < cycles)
+  if ((~0ull / ASSERT_COUNT) / batch < cycles)
     return 2;
   unsigned threads = PARALLEL ? FAMILY : block;
   unsigned blocks = PARALLEL ? batch : (batch + threads - 1) / threads;

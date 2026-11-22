@@ -52,6 +52,7 @@ pub struct GeneratedCuda {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct RunnerOptions {
     pub batch: usize,
+    /// One-based CUDA cycle numbers span 1 through u32::MAX.
     pub cycles: u64,
     pub block_size: usize,
 }
@@ -140,11 +141,22 @@ pub fn run_cuda(
     options: RunnerOptions,
     executable: impl AsRef<Path>,
 ) -> Result<RunnerResult, String> {
+    if !(1..=i32::MAX as usize).contains(&options.batch) {
+        return Err("batch must be in 1..=2147483647".into());
+    }
+    if !(1..=u64::from(u32::MAX)).contains(&options.cycles) {
+        return Err("cycles must be in 1..=4294967295".into());
+    }
+    if !(1..=1024).contains(&options.block_size) {
+        return Err("block size must be in 1..=1024".into());
+    }
     if cuda_availability() == CudaAvailability::Unavailable {
         return Err("nvcc is unavailable".into());
     }
     let generated = try_generate_cuda(design, codegen)?.source;
     let executable = compile_cuda_executable(&generated, executable.as_ref())?;
+    let executable =
+        std::path::absolute(executable).map_err(|e| format!("resolve CUDA executable: {e}"))?;
     let output = Command::new(&executable)
         .args([
             options.batch.to_string(),

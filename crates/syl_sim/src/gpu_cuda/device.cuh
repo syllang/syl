@@ -1,5 +1,6 @@
 #include <algorithm>
-#include <chrono>
+#include <cerrno>
+#include <climits>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -34,7 +35,7 @@ struct Frame {
       word(slot + 1) = (word(slot + 1) & ~high) | ((v >> (64 - low)) & high);
     }
   }
-  __device__ Word read_mem(unsigned base, unsigned depth, Word addr) const {
+  __device__ Word read_mem(size_t base, unsigned depth, Word addr) const {
     return addr < depth ? mem[(base + addr) * batch + b] : 0;
   }
 };

@@ -6,20 +6,60 @@ use crate::{
 };
 use std::fmt::Write;
 
+/// Concrete arena indices owned by a single partition (or the entire DUT).
+pub(super) struct Resources {
+    pub slots: Vec<usize>,
+    pub regs: Vec<usize>,
+    pub memories: Vec<usize>,
+    pub assertions: Vec<usize>,
+}
+
+impl Resources {
+    pub fn select(d: &SimDesign, owns: impl Fn(crate::InstanceId) -> bool) -> Self {
+        Self {
+            slots: d
+                .signals
+                .iter()
+                .enumerate()
+                .filter_map(|(i, s)| owns(s.source.instance).then_some(i))
+                .collect(),
+            regs: d
+                .regs
+                .iter()
+                .enumerate()
+                .filter_map(|(i, r)| owns(r.source.instance).then_some(i))
+                .collect(),
+            memories: d
+                .memories
+                .iter()
+                .enumerate()
+                .filter_map(|(i, m)| owns(m.source.instance).then_some(i))
+                .collect(),
+            assertions: d
+                .assertions
+                .iter()
+                .enumerate()
+                .filter_map(|(i, a)| owns(a.source.instance).then_some(i))
+                .collect(),
+        }
+    }
+}
+
 pub(super) struct Emit<'a> {
     pub design: &'a SimDesign,
     pub bases: &'a [usize],
-    pub local: Option<&'a [usize]>,
+    pub local: Option<&'a Resources>,
     pub lane: usize,
     pub lanes: usize,
 }
 
 impl Emit<'_> {
     pub fn slot(&self, id: SignalId) -> Result<String, String> {
-        if let Some(slots) = self.local
+        if let Some(resources) = self.local
             && self.design.signal(id).source.instance.0 != 0
         {
-            let index = slots
+            let index = resources
+                .slots
                 .iter()
                 .position(|s| *s == id.0)
                 .ok_or("cross-family dependency")?;
@@ -193,16 +233,25 @@ impl Emit<'_> {
         };
         Ok(format!("(({v}) & mask({width}))"))
     }
-    fn mem_base(&self, m: usize) -> usize {
-        self.design.memories[..m]
+    fn mem_base(&self, m: usize) -> Result<String, String> {
+        if let Some(local) = self.local {
+            let slot = local
+                .memories
+                .iter()
+                .position(|&id| id == m)
+                .ok_or("cross-family memory dependency")?;
+            return Ok(format!("family_mem_base[lane][{slot}]"));
+        }
+        Ok(self.design.memories[..m]
             .iter()
-            .map(|v| v.depth as usize)
-            .sum()
+            .map(|v| u64::from(v.depth))
+            .sum::<u64>()
+            .to_string())
     }
     fn read_mem(&self, m: usize, address: &E) -> Result<String, String> {
         Ok(format!(
             "f.read_mem({},{},{})",
-            self.mem_base(m),
+            self.mem_base(m)?,
             self.design.memories[m].depth,
             self.expr(address, 0)?
         ))
@@ -219,17 +268,11 @@ impl Emit<'_> {
             u8::from(r.polarity == HwResetPolarity::ActiveHigh)
         ))
     }
-    pub fn edge(&self) -> Result<String, String> {
+    pub fn edge(&self, resources: &Resources) -> Result<(String, String), String> {
         let mut sample = String::new();
         let mut commit = String::new();
-        let owns = |id: usize| self.local.is_none_or(|slots| slots.contains(&id));
-        for (i, r) in self
-            .design
-            .regs
-            .iter()
-            .filter(|r| owns(r.signal.0))
-            .enumerate()
-        {
+        for (i, &id) in resources.regs.iter().enumerate() {
+            let r = &self.design.regs[id];
             let mut val = self.expr(&r.next, r.width)?;
             if let Some((id, rv)) = &r.reset {
                 val = format!(
@@ -247,14 +290,15 @@ impl Emit<'_> {
             )
             .unwrap();
         }
-        for (i, m) in self.design.memories.iter().enumerate() {
+        for (i, &id) in resources.memories.iter().enumerate() {
+            let m = &self.design.memories[id];
             for (j, r) in m.sync_reads.iter().enumerate() {
                 let (s, l, w) = self.target(&r.target)?;
                 writeln!(
                     sample,
                     "bool re{i}_{j} = {}; Word rd{i}_{j} = {};",
                     self.expr(&r.enable, 0)?,
-                    self.read_mem(i, &r.address)?
+                    self.read_mem(id, &r.address)?
                 )
                 .unwrap();
                 writeln!(commit, "if(re{i}_{j}) f.put({s},{l},{w},rd{i}_{j});").unwrap();
@@ -268,17 +312,23 @@ impl Emit<'_> {
                     self.expr(&p.data, m.width)?
                 )
                 .unwrap();
-                writeln!(commit,"if(we{i}_{j} && wa{i}_{j}<{}) f.mem[({}+wa{i}_{j})*f.batch+f.b] = wd{i}_{j} & mask({});",m.depth,self.mem_base(i),m.width).unwrap();
+                writeln!(commit,"if(we{i}_{j} && wa{i}_{j}<{}) f.mem[({}+wa{i}_{j})*f.batch+f.b] = wd{i}_{j} & mask({});",m.depth,self.mem_base(id)?,m.width).unwrap();
             }
         }
-        for (i, a) in self.design.assertions.iter().enumerate() {
+        for (i, &id) in resources.assertions.iter().enumerate() {
+            let a = &self.design.assertions[id];
+            let assert_id = if self.local.is_some() {
+                format!("family_assert_id[lane][{i}]")
+            } else {
+                id.to_string()
+            };
             let disabled = a
                 .reset_mask
                 .map(|id| self.reset(id))
                 .transpose()?
                 .unwrap_or_else(|| "false".into());
-            writeln!(sample,"if(!{disabled} && !({})) atomicMin(f.failure, ((Word(cycle-1)*f.batch + f.b)*ASSERT_COUNT)+{i});",self.expr(&a.condition,0)?).unwrap();
+            writeln!(sample,"if(!{disabled} && !({})) atomicMin(f.failure, ((Word(cycle-1)*f.batch + f.b)*ASSERT_COUNT)+{assert_id});",self.expr(&a.condition,0)?).unwrap();
         }
-        Ok(sample + &commit)
+        Ok((sample, commit))
     }
 }

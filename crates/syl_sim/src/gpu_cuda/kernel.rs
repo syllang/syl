@@ -113,7 +113,8 @@ pub fn try_generate_cuda(d: &SimDesign, options: CodegenOptions) -> Result<Gener
             let a = &d.comb[id.0];
             source.push_str(&e.assign(&a.target, &a.value)?);
         }
-        writeln!(source,"}}\n__device__ void step_clock(Frame f,unsigned,unsigned cycle) {{\n{} }}\n__device__ void gather(Frame) {{}}",e.edge()?).unwrap();
+        let (sample, commit) = e.edge(&super::emit::Resources::select(d, |_| true))?;
+        writeln!(source,"}}\n__device__ void step_clock(Frame f,unsigned,unsigned cycle) {{\n{sample}{commit}}}\n__device__ void gather(Frame) {{}}").unwrap();
     }
     source.push_str(include_str!("runner.cuh"));
     Ok(GeneratedCuda {
