@@ -14,6 +14,38 @@ THROUGHPUT_CASES = ["RoundRobinArbiter4", "SimpleDualPortRam", "SyncFifo-D8", "S
          "LaneArray-N1", "LaneArray-N4", "LaneArray-N16", "LaneArray-N64"]
 CASES = THROUGHPUT_CASES + ["Fault"]
 BATCHES = [1, 16, 64, 256, 1024, 4096]
+# Golden outputs from the verified format-v2 matrix, in ascending batch size.
+EXPECTED_THROUGHPUT_DIGESTS = {
+    (case, batch): digest
+    for case, digests in {
+        "RoundRobinArbiter4": (
+            5209017503618734443, 9218209677226779467, 11380903595388585226,
+            17106762948914812018, 17071836774958863390, 12020996003381699917),
+        "SimpleDualPortRam": (
+            8650540608028339347, 9546040134826356013, 9653211605945073904,
+            14597110560512966979, 9670094316022790332, 6607019259109491407),
+        "SyncFifo-D8": (
+            12861238034057911010, 334025169333683862, 2396965691768092965,
+            2168975633948188960, 8111577841237920049, 13836929895425862317),
+        "SyncFifo-D64": (
+            9067166808205259551, 2800172720975498024, 1322656135809853445,
+            16539323837819289271, 4899422867358870716, 141039909748334605),
+        "LaneArray-N1": (
+            13489606331283376550, 7605078613985149322, 14263058525684361543,
+            11302983647163634405, 2916313884596197931, 3369134271052469832),
+        "LaneArray-N4": (
+            3692248856015827678, 1885580247445829542, 8150955254614456390,
+            18222492794946700875, 1186930140080031722, 694183099661000295),
+        "LaneArray-N16": (
+            17360358802705982404, 6991395816702655219, 12172545905301647592,
+            6874003765685272719, 9675898006659697059, 6327325067053878646),
+        "LaneArray-N64": (
+            3818117848507102531, 7158640249534982732, 6711939975407609069,
+            16955472669682096980, 2967889634390082124, 10845028691391121441),
+    }.items()
+    for batch, digest in zip((1, 16, 64, 256, 1024, 4096), digests, strict=True)
+}
+TIMING_TOLERANCE_S = 1e-3
 BIN = Path("target/release/examples/bench_cpu_2d").resolve()
 
 
@@ -88,10 +120,19 @@ def validate_timings(result, config, fault=False):
         raise ValueError(f"{config}: hot time or repeat count disagrees with samples")
     if not (valid_seconds(result.get("setup_s")) and valid_seconds(result.get("wall_s"))):
         raise ValueError(f"{config}: invalid setup or process wall time")
+    if result["wall_s"] + TIMING_TOLERANCE_S < result["setup_s"] + result["hot_s"]:
+        raise ValueError(f"{config}: process wall time is shorter than setup plus hot time")
     if config.startswith("v") and not valid_seconds(result.get("compile_s")):
         raise ValueError(f"{config}: invalid compile time")
-    if fault and not valid_seconds(result.get("cold_wall_s")):
-        raise ValueError(f"{config}: invalid cold time")
+    if fault:
+        cold = result.get("cold_wall_s")
+        if not valid_seconds(cold):
+            raise ValueError(f"{config}: invalid cold time")
+        if config.startswith("v"):
+            if cold + TIMING_TOLERANCE_S < result["compile_s"] + result["wall_s"]:
+                raise ValueError(f"{config}: cold time is shorter than compile plus process time")
+        elif cold != result["wall_s"]:
+            raise ValueError(f"{config}: Rust cold time must equal process wall time")
 
 
 def validate_row(row, builds):
@@ -102,8 +143,8 @@ def validate_row(row, builds):
     results = row["results"]
     validate_configs(results, batch, case)
     digest = results["scalar1"].get("digest")
-    if type(digest) is not int or not 0 <= digest < 2**64:
-        raise ValueError(f"{case} B={batch}: invalid scalar digest")
+    if type(digest) is not int or digest != EXPECTED_THROUGHPUT_DIGESTS[(case, batch)]:
+        raise ValueError(f"{case} B={batch}: unexpected digest for this workload")
     for config, result in results.items():
         validate_timings(result, config)
         if (type(result.get("digest")) is not int or result["digest"] != digest
