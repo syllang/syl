@@ -1,0 +1,41 @@
+// The low byte of each 128-bit data word is its tag. Four consecutive
+// matching tags qualify a fault at the fourth rising edge when
+// inject is high. With uniform independent bytes the sequence is 1 in 2^32.
+// PREFIX selects the first byte (0..255). Reset discards partial matches.
+// Replay vector: xorshift32(0x5eed1234), shifts (13,17,5), high byte
+// after each advance. Reset on edge 1, inject high: first failure on edge 20.
+cell SequenceGuard<PREFIX: nat = 61, D: Domain>(
+    clk: in Clock<D>, rst: in Reset<D>, sample: in UInt<128>, inject: in Bit,
+    digest: out UInt<128>, matched: out Bit,
+) {
+    signal tag: UInt<128> := sample and 255
+    reg first: Bit reset(rst, 0)
+    reg second: Bit reset(rst, 0)
+    reg third: Bit reset(rst, 0)
+    next first := tag eq PREFIX
+    next second := first and (tag eq 218)
+    next third := second and (tag eq 237)
+    signal hit: Bit := third and (tag eq 223)
+    matched := hit
+    signal trip: Bit := inject and hit
+    assert(not trip)
+
+    signal mixed_next: UInt<128>
+    reg mixed: UInt<128> reset(rst, 0)
+    reg sum: UInt<128> reset(rst, 0)
+    // Fold the full data word into a pipelined rolling signature.
+    mixed_next := sum xor sample
+    next mixed := mixed_next
+    next sum := mixed + sum
+    digest := sum
+}
+
+cell FaultHuntPipeline<PREFIX: nat = 61, D: Domain>(
+    clk: in Clock<D>, rst: in Reset<D>, sample: in UInt<128>, inject: in Bit,
+    digest: out UInt<128>, matched: out Bit,
+) {
+    if PREFIX > 255 { compile_error("PREFIX must fit one byte") }
+    let guard = place SequenceGuard<PREFIX, D>(
+        clk: clk, rst: rst, sample: sample, inject: inject, digest: digest, matched: matched,
+    )
+}
