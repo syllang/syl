@@ -116,6 +116,8 @@ enum EirModuleKind {
 #[derive(Clone, Debug)]
 #[non_exhaustive]
 pub(crate) struct EirParam {
+    pub(crate) is_bool: bool,
+    pub(crate) default_expr: Option<(EirExpr, syl_span::Span)>,
     doc: Option<String>,
     name: String,
     default: String,
@@ -127,6 +129,8 @@ impl EirParam {
             doc: None,
             name: name.into(),
             default: default.into(),
+            is_bool: false,
+            default_expr: None,
         }
     }
 
@@ -151,6 +155,7 @@ impl EirParam {
 #[derive(Clone, Debug)]
 #[non_exhaustive]
 pub(crate) struct EirPort {
+    pub(crate) source_name: Option<String>,
     domain: EirPortDomain,
     doc: Option<String>,
     direction: EirDirection,
@@ -163,8 +168,14 @@ pub(crate) struct EirPort {
 #[non_exhaustive]
 pub(crate) enum EirPortDomain {
     Data,
-    Clock { domain: Option<String> },
-    Reset { domain: Option<String> },
+    Clock {
+        domain: Option<String>,
+    },
+    Reset {
+        domain: Option<String>,
+        mode: super::EirResetMode,
+        polarity: super::EirResetPolarity,
+    },
 }
 impl EirPort {
     pub(crate) fn with_domain(mut self, domain: EirPortDomain) -> Self {
@@ -182,6 +193,7 @@ impl EirPort {
     ) -> Self {
         Self {
             domain: EirPortDomain::Data,
+            source_name: None,
             doc: None,
             direction,
             width: width.into(),
@@ -392,6 +404,10 @@ impl EirInstance {
 
     pub(crate) fn name(&self) -> &str {
         &self.name
+    }
+
+    pub(crate) fn set_source_name(&mut self, name: String) {
+        self.source_name = name;
     }
 
     pub(crate) fn source_name(&self) -> &str {

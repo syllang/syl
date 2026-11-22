@@ -15,3 +15,18 @@ pub enum HwResetPolarity {
     ActiveHigh,
     ActiveLow,
 }
+
+/// Domain annotation on a physical module port before instance connections are resolved.
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum HwPortDomain {
+    Data,
+    Clock {
+        name: Option<String>,
+    },
+    Reset {
+        name: Option<String>,
+        mode: HwResetMode,
+        polarity: HwResetPolarity,
+    },
+}

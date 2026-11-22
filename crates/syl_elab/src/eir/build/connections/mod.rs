@@ -145,11 +145,11 @@ where
                     env_ty.clone(),
                 );
                 env.insert(&port_name, EirExpr::ident(&port_name), env_ty.clone());
-                ports.push(
-                    EirPort::new(direction, width, port_name, env.origin(spec.span))
-                        .with_domain(self.port_domain(&env_ty))
-                        .with_doc(spec.doc.map(ToOwned::to_owned)),
-                );
+                let mut port = EirPort::new(direction, width, port_name, env.origin(spec.span))
+                    .with_domain(self.port_domain(&env_ty))
+                    .with_doc(spec.doc.map(ToOwned::to_owned));
+                port.source_name = Some(format!("{}.{}", spec.name, field.name));
+                ports.push(port);
             }
         }
         Ok(())
@@ -226,7 +226,9 @@ where
                             }
                             ElabViewDirection::Unsupported => EirSignalActivity::Optional,
                         },
-                        origin: env.origin(spec.span),
+                        origin: env
+                            .origin(spec.span)
+                            .with_field(format!("{}.{}", spec.binding, field.name)),
                     });
                     env.insert(&signal_name, EirExpr::ident(&signal_name), field_ty.clone());
                     env.insert(

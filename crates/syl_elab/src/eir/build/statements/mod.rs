@@ -246,7 +246,7 @@ where
             width,
             name: physical_name.clone(),
             activity: EirSignalActivity::Required,
-            origin: env.origin(request.span),
+            origin: env.origin(request.span).with_field(request.name),
         });
         env.insert(request.name, EirExpr::ident(&physical_name), ty);
         if let Some(value) = request.value {
@@ -329,7 +329,7 @@ where
             EirItem::Storage {
                 width,
                 name: physical_name.clone(),
-                origin: env.origin(request.span),
+                origin: env.origin(request.span).with_field(request.name),
             },
             EirItem::ClockedStorage {
                 clock,

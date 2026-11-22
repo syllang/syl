@@ -71,6 +71,7 @@ impl ParametricHwDesign {
 #[derive(Debug)]
 #[non_exhaustive]
 pub struct ParametricHwModule {
+    is_extern: bool,
     canonical_path: Vec<String>,
     origin: Option<HwOrigin>,
     doc: Option<String>,
@@ -89,6 +90,7 @@ impl ParametricHwModule {
     ) -> Self {
         Self {
             canonical_path: Vec::new(),
+            is_extern: false,
             origin: None,
             doc: None,
             name: name.into(),
@@ -96,6 +98,15 @@ impl ParametricHwModule {
             ports,
             items,
         }
+    }
+
+    pub fn with_extern(mut self, is_extern: bool) -> Self {
+        self.is_extern = is_extern;
+        self
+    }
+
+    pub fn is_extern(&self) -> bool {
+        self.is_extern
     }
 
     pub fn with_doc(mut self, doc: Option<String>) -> Self {

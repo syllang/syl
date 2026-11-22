@@ -24,6 +24,7 @@ use syl_span::Span;
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub(crate) struct EirOrigin {
+    pub(crate) field: Option<String>,
     span: Span,
     expansion_stack: Vec<EirExpansion>,
 }
@@ -32,8 +33,14 @@ impl EirOrigin {
     pub(crate) fn new(span: Span, expansion_stack: Vec<EirExpansion>) -> Self {
         Self {
             span,
+            field: None,
             expansion_stack,
         }
+    }
+
+    pub(crate) fn with_field(mut self, field: impl Into<String>) -> Self {
+        self.field = Some(field.into());
+        self
     }
 
     pub(crate) fn span(&self) -> Span {

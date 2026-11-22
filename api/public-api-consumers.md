@@ -872,6 +872,7 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_hw|enum|syl_hw::parametric::ParametricHwItem|public` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|enum|syl_hw::place::HwPlaceExpr|public` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|enum|syl_hw::place::HwPlace|public` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|enum|syl_hw::reset::HwPortDomain|public` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|enum|syl_hw::reset::HwResetMode|public` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|enum|syl_hw::reset::HwResetPolarity|public` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|enum|syl_hw::validate::diagnostic::HwBindingKind|public` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
@@ -899,7 +900,9 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_hw|method|syl_hw::design::HwInstance::name|fn(self: &Self) -> &str` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwInstance::new|fn(module: impl Into<String>, params: Vec<HwParamBind>, name: impl Into<String>, connections: Vec<HwConnection>) -> Self` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwInstance::params|fn(self: &Self) -> &[HwParamBind]` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|method|syl_hw::design::HwInstance::source_name|fn(self: &Self) -> &str` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwInstance::target_canonical_path|fn(self: &Self) -> &[String]` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|method|syl_hw::design::HwInstance::with_source_name|fn(self: Self, name: impl Into<String>) -> Self` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwInstance::with_target_canonical_path|fn(self: Self, path: Vec<String>) -> Self` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwModule::doc|fn(self: &Self) -> Option<&str>` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwModule::items|fn(self: &Self) -> &[HwItem]` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
@@ -910,24 +913,34 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_hw|method|syl_hw::design::HwModule::with_doc|fn(self: Self, doc: Option<String>) -> Self` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwOrigin::expansion_stack|fn(self: &Self) -> &[HwExpansion]` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwOrigin::new|fn(source: SourceId, span_start: usize, span_end: usize, expansion_stack: Vec<HwExpansion>) -> Self` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|method|syl_hw::design::HwOrigin::source_field|fn(self: &Self) -> Option<&str>` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwOrigin::source_index|fn(self: &Self) -> usize` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwOrigin::source|fn(self: &Self) -> SourceId` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwOrigin::span_end|fn(self: &Self) -> usize` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwOrigin::span_start|fn(self: &Self) -> usize` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|method|syl_hw::design::HwOrigin::with_source_field|fn(self: Self, field: Option<String>) -> Self` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|method|syl_hw::design::HwParam::default_expr|fn(self: &Self) -> Option<&HwExpr>` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwParam::default|fn(self: &Self) -> &str` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwParam::doc|fn(self: &Self) -> Option<&str>` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|method|syl_hw::design::HwParam::is_bool|fn(self: &Self) -> bool` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwParam::name|fn(self: &Self) -> &str` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwParam::new|fn(name: impl Into<String>, default: impl Into<String>) -> Self` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|method|syl_hw::design::HwParam::with_bool|fn(self: Self, is_bool: bool) -> Self` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|method|syl_hw::design::HwParam::with_default_expr|fn(self: Self, expr: Option<HwExpr>) -> Self` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwParam::with_doc|fn(self: Self, doc: Option<String>) -> Self` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwParamBind::name|fn(self: &Self) -> &str` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwParamBind::new|fn(name: impl Into<String>, value: impl Into<String>) -> Self` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwParamBind::value|fn(self: &Self) -> &str` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwPort::direction|fn(self: &Self) -> HwDirection` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwPort::doc|fn(self: &Self) -> Option<&str>` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|method|syl_hw::design::HwPort::domain|fn(self: &Self) -> &crate::HwPortDomain` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwPort::name|fn(self: &Self) -> &str` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwPort::new|fn(direction: HwDirection, width: impl Into<String>, name: impl Into<String>) -> Self` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|method|syl_hw::design::HwPort::origin|fn(self: &Self) -> Option<&HwOrigin>` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|method|syl_hw::design::HwPort::source_name|fn(self: &Self) -> &str` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwPort::width|fn(self: &Self) -> &str` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwPort::with_doc|fn(self: Self, doc: Option<String>) -> Self` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|method|syl_hw::design::HwPort::with_source|fn(self: Self, name: impl Into<String>, origin: HwOrigin, domain: crate::HwPortDomain) -> Self` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwReset::condition|fn(self: &Self) -> &HwExpr` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwReset::mode|fn(self: &Self) -> crate::HwResetMode` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::design::HwReset::new|fn(condition: HwExpr, value: HwExpr) -> Self` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
@@ -948,6 +961,7 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_hw|method|syl_hw::parametric::ParametricHwItem::origin|fn(self: &Self) -> &HwOrigin` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::parametric::ParametricHwModule::canonical_path|fn(self: &Self) -> &[String]` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::parametric::ParametricHwModule::doc|fn(self: &Self) -> Option<&str>` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|method|syl_hw::parametric::ParametricHwModule::is_extern|fn(self: &Self) -> bool` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::parametric::ParametricHwModule::items|fn(self: &Self) -> &[ParametricHwItem]` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::parametric::ParametricHwModule::name|fn(self: &Self) -> &str` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::parametric::ParametricHwModule::new|fn(name: impl Into<String>, params: Vec<HwParam>, ports: Vec<HwPort>, items: Vec<ParametricHwItem>) -> Self` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
@@ -956,6 +970,7 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_hw|method|syl_hw::parametric::ParametricHwModule::ports|fn(self: &Self) -> &[HwPort]` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::parametric::ParametricHwModule::with_canonical_path|fn(self: Self, path: Vec<String>) -> Self` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::parametric::ParametricHwModule::with_doc|fn(self: Self, doc: Option<String>) -> Self` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|method|syl_hw::parametric::ParametricHwModule::with_extern|fn(self: Self, is_extern: bool) -> Self` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::parametric::ParametricHwModule::with_origin|fn(self: Self, origin: Option<HwOrigin>) -> Self` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::place::HwPlace::display|fn(self: &Self) -> String` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::place::HwPlaceExpr::display|fn(self: &Self) -> String` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
@@ -1007,6 +1022,7 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_hw|use|HwParam|named|source=design::HwParam` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|use|HwPlaceExpr|named|source=place::HwPlaceExpr` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|use|HwPlace|named|source=place::HwPlace` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|use|HwPortDomain|named|source=reset::HwPortDomain` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|use|HwPort|named|source=design::HwPort` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|use|HwResetMode|named|source=reset::HwResetMode` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|use|HwResetPolarity|named|source=reset::HwResetPolarity` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
@@ -1094,6 +1110,9 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_hw|variant|syl_hw::place::HwPlaceExpr::Op|{ name: String, args: Vec<HwPlaceExpr> }` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|variant|syl_hw::place::HwPlaceExpr::Str|(String)` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|variant|syl_hw::place::HwPlaceExpr::Zero|unit` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|variant|syl_hw::reset::HwPortDomain::Clock|{ name: Option<String> }` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|variant|syl_hw::reset::HwPortDomain::Data|unit` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|variant|syl_hw::reset::HwPortDomain::Reset|{ name: Option<String>, mode: HwResetMode, polarity: HwResetPolarity }` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|variant|syl_hw::reset::HwResetMode::Async|unit` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|variant|syl_hw::reset::HwResetMode::Sync|unit` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|variant|syl_hw::reset::HwResetPolarity::ActiveHigh|unit` - Elaboration, emission, and backend validation code that consumes the hardware graph model.

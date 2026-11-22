@@ -42,7 +42,7 @@ impl<'a> HwLowerer<'a> {
                 .params()
                 .iter()
                 .map(|param| self.lower_param(param))
-                .collect(),
+                .collect::<Result<Vec<_>, _>>()?,
             module
                 .ports()
                 .iter()
@@ -50,20 +50,57 @@ impl<'a> HwLowerer<'a> {
                 .collect::<Result<Vec<_>, _>>()?,
             self.lower_items(module.items())?,
         )
+        .with_extern(module.is_extern())
         .with_canonical_path(module.canonical_path().to_vec())
         .with_origin(module.origin().map(|origin| self.lower_origin(origin)))
         .with_doc(module.doc().map(ToOwned::to_owned)))
     }
 
-    fn lower_param(&self, param: &EirParam) -> HwParam {
-        HwParam::new(param.name(), param.default()).with_doc(param.doc().map(ToOwned::to_owned))
+    fn lower_param(&self, param: &EirParam) -> Result<HwParam, CompileError> {
+        let default_expr = param
+            .default_expr
+            .as_ref()
+            .map(|(e, span)| self.lower_expr(e, *span))
+            .transpose()?;
+        Ok(HwParam::new(param.name(), param.default())
+            .with_default_expr(default_expr)
+            .with_bool(param.is_bool)
+            .with_doc(param.doc().map(ToOwned::to_owned)))
     }
 
     fn lower_port(&self, port: &EirPort) -> Result<HwPort, CompileError> {
+        use crate::eir::{EirPortDomain, EirResetMode, EirResetPolarity};
+        use syl_hw::{HwPortDomain, HwResetMode, HwResetPolarity};
+        let domain = match port.domain() {
+            EirPortDomain::Data => HwPortDomain::Data,
+            EirPortDomain::Clock { domain } => HwPortDomain::Clock {
+                name: domain.clone(),
+            },
+            EirPortDomain::Reset {
+                domain,
+                mode,
+                polarity,
+            } => HwPortDomain::Reset {
+                name: domain.clone(),
+                mode: match mode {
+                    EirResetMode::Sync => HwResetMode::Sync,
+                    EirResetMode::Async => HwResetMode::Async,
+                },
+                polarity: match polarity {
+                    EirResetPolarity::ActiveHigh => HwResetPolarity::ActiveHigh,
+                    EirResetPolarity::ActiveLow => HwResetPolarity::ActiveLow,
+                },
+            },
+        };
         Ok(HwPort::new(
             self.lower_direction(port.direction())?,
             port.width(),
             port.name(),
+        )
+        .with_source(
+            port.source_name.as_deref().unwrap_or(port.name()),
+            self.lower_origin(port.origin()),
+            domain,
         )
         .with_doc(port.doc().map(ToOwned::to_owned)))
     }
@@ -272,6 +309,7 @@ impl<'a> HwLowerer<'a> {
                 .map(|connection| self.lower_connection(connection, origin.span()))
                 .collect::<Result<Vec<_>, _>>()?,
         )
+        .with_source_name(instance.source_name())
         .with_target_canonical_path(instance.target_canonical_path().to_vec()))
     }
 
@@ -460,6 +498,7 @@ impl<'a> HwLowerer<'a> {
                 .map(|expansion| self.lower_expansion(expansion))
                 .collect(),
         )
+        .with_source_field(origin.field.clone())
     }
 
     fn lower_expansion(&self, expansion: &EirExpansion) -> HwExpansion {

@@ -62,12 +62,24 @@ where
                 env.unique_label(&format!("gen_{}", request.name), request.span),
                 value
             ));
-            items.extend(self.emit_for_iteration_body(
-                request.body,
-                &mut loop_env,
-                request.name,
-                value,
-            )?);
+            let mut body =
+                self.emit_for_iteration_body(request.body, &mut loop_env, request.name, value)?;
+            // A bound for-expression has a Syl element name even when this
+            // pass has already unrolled it into uniquely named physical cells.
+            if let Some(binding) = &env.prefix
+                && binding.ends_with(&format!("[{}]", request.name))
+                && let Some(EirItem::Instance(instance)) = body.last_mut()
+                && request
+                    .body
+                    .tail
+                    .as_ref()
+                    .is_some_and(|tail| matches!(tail.node, ElabExprNode::Place { .. }))
+            {
+                instance.set_source_name(
+                    binding.replace(&format!("[{}]", request.name), &format!("[{value}]")),
+                );
+            }
+            items.extend(body);
         }
         self.sync_visible_software_locals(&loop_env, env);
         Ok(items)

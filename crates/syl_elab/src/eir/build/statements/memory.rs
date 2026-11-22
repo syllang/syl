@@ -24,7 +24,7 @@ impl<C: crate::const_eval::ConstValueElaborator + ?Sized> EirBuilder<'_, C> {
             name: name_physical.clone(),
             elem_width: self.width_bound(env.owner, elem),
             depth: EirBound::new(self.array_len_key(len), self.array_len_expr(len)),
-            origin: env.origin(span),
+            origin: env.origin(span).with_field(name),
         };
         env.insert(name, EirExpr::ident(name_physical), ty);
         env.vars
