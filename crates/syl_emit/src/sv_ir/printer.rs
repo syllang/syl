@@ -258,7 +258,8 @@ impl<'a> SvPrinter<'a> {
                 trigger,
                 message,
             } => {
-                self.out.push_str(&format!("{pad}always @(posedge "));
+                self.out
+                    .push_str(&format!("{pad}`ifndef SYNTHESIS\n{pad}always @(posedge "));
                 self.expr(clock);
                 self.out.push_str(") begin\n");
                 self.out.push_str(&format!("{pad}  if ("));
@@ -266,7 +267,7 @@ impl<'a> SvPrinter<'a> {
                 self.out.push_str(") $error(");
                 self.expr(message);
                 self.out.push_str(");\n");
-                self.out.push_str(&format!("{pad}end\n"));
+                self.out.push_str(&format!("{pad}end\n{pad}`endif\n"));
             }
             SvItem::Instance(instance) => self.instance(instance, indent),
             SvItem::GenerateIf {

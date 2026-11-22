@@ -1,10 +1,13 @@
 use std::{
-    env, fs,
+    fs,
     io::ErrorKind,
-    path::{Path, PathBuf},
+    path::Path,
     process::{Command, Output},
-    time::{SystemTime, UNIX_EPOCH},
 };
+
+#[path = "support/simulation_dir.rs"]
+mod simulation_dir;
+use simulation_dir::{SimulationDir, run};
 
 #[test]
 fn verilator_alu_matches_wrapping_arithmetic_and_bundle_layout() {
@@ -197,40 +200,6 @@ fn tool_available(tool: &str) -> bool {
         }
         Err(error) if error.kind() == ErrorKind::NotFound => false,
         Err(error) => panic!("could not probe {tool}: {error}"),
-    }
-}
-
-fn run(command: &mut Command, stage: &str) -> Output {
-    let output = command
-        .output()
-        .unwrap_or_else(|error| panic!("{stage}: could not launch {command:?}: {error}"));
-    assert!(
-        output.status.success(),
-        "{stage} failed ({command:?}, {})\nstdout:\n{}\nstderr:\n{}",
-        output.status,
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr)
-    );
-    output
-}
-
-struct SimulationDir(PathBuf);
-
-impl SimulationDir {
-    fn new(top: &str) -> Self {
-        let nonce = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("system clock must follow Unix epoch")
-            .as_nanos();
-        let path = env::temp_dir().join(format!("syl-sim-{top}-{}-{nonce}", std::process::id()));
-        fs::create_dir(&path).expect("simulation scratch directory must be creatable");
-        Self(path)
-    }
-}
-
-impl Drop for SimulationDir {
-    fn drop(&mut self) {
-        let _ = fs::remove_dir_all(&self.0);
     }
 }
 

@@ -242,9 +242,15 @@ cell Top(clk: in Clock, x: in Bit, y: out Bit) {
         )
         .expect("assert statement must lower into clocked SystemVerilog");
 
-    assert!(verilog.contains("always @(posedge clk) begin"));
-    assert!(verilog.contains("if ((!x)) $error(\"assert failed\");"));
-    assert!(verilog.contains("assign y = x;"));
+    let (guarded, hardware) = verilog
+        .split_once("`ifndef SYNTHESIS")
+        .unwrap()
+        .1
+        .split_once("`endif")
+        .unwrap();
+    assert!(guarded.contains("always @(posedge clk) begin"));
+    assert!(guarded.contains("if ((!x)) $error(\"assert failed\");"));
+    assert!(hardware.contains("assign y = x;"));
 }
 
 #[test]

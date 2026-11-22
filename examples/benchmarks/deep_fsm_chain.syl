@@ -1,0 +1,57 @@
+// Each stage transforms the preceding token combinationally, using its own
+// registered mode. All stages must settle before the last token is known.
+cell ControlStage<D: Domain>(
+    clk: in Clock<D>, rst: in Reset<D>, token: in UInt<2>,
+) -> code: UInt<2> {
+    reg mode: UInt<2> reset(rst, 0)
+    next mode := select priority {
+        token eq 3 => 0,
+        mode eq 2 => 1,
+        token eq mode => mode + 1,
+        default => mode,
+    }
+    assert(not (mode eq 3))
+    code := select priority {
+        mode eq 2 => token xor 3,
+        token eq mode => 0,
+        token eq 0 => mode,
+        default => token + 1,
+    }
+}
+
+cell ControlQuartet<D: Domain>(
+    clk: in Clock<D>, rst: in Reset<D>, token: in UInt<2>,
+) -> code: UInt<2> {
+    let a = place ControlStage<D>(clk: clk, rst: rst, token: token)
+    let b = place ControlStage<D>(clk: clk, rst: rst, token: a)
+    let c = place ControlStage<D>(clk: clk, rst: rst, token: b)
+    let d = place ControlStage<D>(clk: clk, rst: rst, token: c)
+    code := d
+}
+
+cell ControlBlock<D: Domain>(
+    clk: in Clock<D>, rst: in Reset<D>, token: in UInt<2>,
+) -> code: UInt<2> {
+    let a = place ControlQuartet<D>(clk: clk, rst: rst, token: token)
+    let b = place ControlQuartet<D>(clk: clk, rst: rst, token: a)
+    let c = place ControlQuartet<D>(clk: clk, rst: rst, token: b)
+    let d = place ControlQuartet<D>(clk: clk, rst: rst, token: c)
+    let e = place ControlQuartet<D>(clk: clk, rst: rst, token: d)
+    let f = place ControlQuartet<D>(clk: clk, rst: rst, token: e)
+    let g = place ControlQuartet<D>(clk: clk, rst: rst, token: f)
+    let h = place ControlQuartet<D>(clk: clk, rst: rst, token: g)
+    code := h
+}
+
+// LONG selects 64 cascaded FSMs or 32.
+cell DeepFsmChain<LONG: bool = true, D: Domain>(
+    clk: in Clock<D>, rst: in Reset<D>, command: in UInt<2>,
+) -> result: UInt<2> {
+    let head = place ControlBlock<D>(clk: clk, rst: rst, token: command)
+    if LONG {
+        let tail = place ControlBlock<D>(clk: clk, rst: rst, token: head)
+        result := tail
+    } else {
+        result := head
+    }
+}

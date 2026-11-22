@@ -1,0 +1,28 @@
+// One input word and opcode per lane per clock. Each accumulator consumes
+// the previous pipeline result, so independent lanes can run in parallel.
+cell WideAluPE<D: Domain>(
+    clk: in Clock<D>, rst: in Reset<D>, word: in UInt<32>, op: in UInt<2>,
+    result: out UInt<32>,
+) {
+    reg stage: UInt<32> reset(rst, 0)
+    reg acc: UInt<32> reset(rst, 0)
+    next stage := select priority {
+        op eq 0 => word,
+        op eq 1 => word xor acc,
+        op eq 2 => acc and word,
+        default => word or acc,
+    }
+    next acc := stage + acc
+    result := acc
+}
+
+cell WideAluArray<N: nat = 4, D: Domain>(
+    clk: in Clock<D>, rst: in Reset<D>, words: in [N] UInt<32>,
+    ops: in [N] UInt<2>, results: out [N] UInt<32>,
+) {
+    if N == 0 { compile_error("WideAluArray needs at least one PE") }
+    let lanes = for lane in 0..N {
+        place WideAluPE<D>(clk: clk, rst: rst, word: words[lane],
+                           op: ops[lane], result: results[lane])
+    }
+}

@@ -1,0 +1,35 @@
+// Two independent ready/valid request ports. A contested edge services the
+// port that did not win last. Read data is valid for the winning port after
+// that edge. Writes and idle cycles clear both response-valid bits.
+cell SharedRamArbiter<W: nat = 32, DEPTH: nat = 16, ADDR_W: nat = 4, D: Domain>(
+    clk: in Clock<D>, rst: in Reset<D>,
+    req_a: in Bit, we_a: in Bit, addr_a: in UInt<ADDR_W>, data_a: in UInt<W>,
+    req_b: in Bit, we_b: in Bit, addr_b: in UInt<ADDR_W>, data_b: in UInt<W>,
+    grant_a: out Bit, grant_b: out Bit,
+    valid_a: out Bit, valid_b: out Bit, rsp_a: out UInt<W>, rsp_b: out UInt<W>,
+) {
+    reg prefer_b: Bit reset(rst, 0)
+    signal take_a: Bit := not rst and req_a and not (req_b and prefer_b)
+    signal take_b: Bit := not rst and req_b and not take_a
+    next prefer_b := select priority { take_a => 1, take_b => 0, default => prefer_b, }
+    grant_a := take_a
+    grant_b := take_b
+
+    signal addr: UInt<ADDR_W> := select priority { take_b => addr_b, default => addr_a, }
+    signal data: UInt<W> := select priority { take_b => data_b, default => data_a, }
+    signal read_a: Bit := take_a and not we_a
+    signal read_b: Bit := take_b and not we_b
+    mem storage: [DEPTH] UInt<W>
+    signal rdata: UInt<W>
+    mem_write(storage, clk, (take_a and we_a) or (take_b and we_b), addr, data)
+    mem_read_sync(storage, clk, read_a or read_b, addr, rdata)
+
+    reg owner_a: Bit reset(rst, 0)
+    reg owner_b: Bit reset(rst, 0)
+    next owner_a := read_a
+    next owner_b := read_b
+    valid_a := owner_a
+    valid_b := owner_b
+    rsp_a := select priority { owner_a => rdata, default => 0, }
+    rsp_b := select priority { owner_b => rdata, default => 0, }
+}
