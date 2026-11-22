@@ -5,6 +5,7 @@ use std::{
     fs::{self, File},
     io,
     path::Path,
+    process::Command,
 };
 use tempfile::TempDir;
 
@@ -17,6 +18,29 @@ fn directory_lock(cache: &Path) -> io::Result<File> {
         .open(cache.join(".staging.lock"))?;
     FileExt::lock_exclusive(&lock)?;
     Ok(lock)
+}
+
+/// Let the compiler and its descendants keep the build directory alive if
+/// the launching process exits. Wrappers may freely redirect standard I/O.
+fn inherit_owner(compiler: &mut Command, owner: &File) -> io::Result<()> {
+    #[cfg(unix)]
+    {
+        use std::os::{fd::AsRawFd, unix::process::CommandExt};
+        let owner = owner.try_clone()?;
+        // SAFETY: the closure owns the file and only calls async-signal-safe
+        // fcntl in the child. F_DUPFD allocates an unused, non-CLOEXEC fd >= 3.
+        unsafe {
+            compiler.pre_exec(move || {
+                if libc::fcntl(owner.as_raw_fd(), libc::F_DUPFD, 3) == -1 {
+                    return Err(io::Error::last_os_error());
+                }
+                Ok(())
+            });
+        }
+    }
+    #[cfg(not(unix))]
+    compiler.stdin(owner.try_clone()?);
+    Ok(())
 }
 
 pub(super) struct BuildDir {
@@ -41,8 +65,10 @@ impl BuildDir {
     pub(super) fn path(&self) -> &Path {
         self.dir.path()
     }
-    pub(super) fn owner(&self) -> &File {
-        &self.owner
+    pub(super) fn compiler(&self, nvcc: &Path) -> io::Result<Command> {
+        let mut compiler = Command::new(nvcc);
+        inherit_owner(&mut compiler, &self.owner)?;
+        Ok(compiler)
     }
 }
 

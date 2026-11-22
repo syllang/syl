@@ -180,7 +180,7 @@ fn replay_drift_stops_at_the_end_of_the_claimed_stimulus_step() {
     let error = replay_failure(&d, o, expected, Some(&mut wave)).unwrap_err();
     assert!(error.to_string().contains("replay missed assertion"));
     let wave = String::from_utf8(wave).unwrap();
-    assert_eq!(wave.lines().rfind(|s| s.starts_with('#')), Some("#5"));
+    assert_eq!(wave.lines().rfind(|s| s.starts_with('#')), Some("#6"));
 }
 
 #[test]
@@ -233,7 +233,7 @@ fn falling_phase_replay_samples_the_selected_assertion_in_a_step() {
     let wave = String::from_utf8(v).unwrap();
     let last = wave.rsplit_once('#').unwrap().1;
     assert!(
-        last.starts_with("2\n") && last.lines().any(|s| s == "0s0"),
+        last.starts_with("3\n") && last.lines().any(|s| s == "0s0"),
         "{last}"
     );
 }

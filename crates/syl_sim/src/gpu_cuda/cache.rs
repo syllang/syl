@@ -129,6 +129,7 @@ struct Executable {
 }
 
 pub(crate) struct Toolchain {
+    nvcc: PathBuf,
     arch: String,
     version: Vec<u8>,
     native_device: Option<String>,
@@ -150,8 +151,10 @@ impl Toolchain {
         build_dir::reclaim(&directory)
             .map_err(|e| format!("inspect CUDA cache staging directories: {e}"))?;
         let arch = target_arch()?;
-        let version = compiler_version()?;
+        let nvcc = compiler_path()?;
+        let version = compiler_version(&nvcc)?;
         let mut toolchain = Self {
+            nvcc,
             native_device: None,
             arch,
             version,
@@ -217,7 +220,8 @@ impl Toolchain {
         let temp = BuildDir::create(&self.directory).map_err(|e| e.to_string())?;
         let binary = temp.path().join("runner");
         let start = Instant::now();
-        compile_for(source, &binary, false, arch, Some(temp.owner()))?;
+        let compiler = temp.compiler(&self.nvcc).map_err(|e| e.to_string())?;
+        compile_for(compiler, source, &binary, false, arch)?;
         let (path, build_dir) = if self.temporary.is_some() {
             (binary, Some(temp))
         } else {
@@ -256,19 +260,37 @@ fn capability(arch: &str) -> u16 {
         .expect("validated CUDA capability")
 }
 
-fn compiler_version() -> Result<Vec<u8>, String> {
-    // Use the same PATH search and executable-permission checks as compilation.
-    // A stable wrapper can select a different underlying compiler on each run.
-    let result = Command::new("nvcc")
-        .arg("--version")
-        .output()
-        .map_err(|e| {
-            if e.kind() == io::ErrorKind::NotFound {
-                "nvcc is unavailable".to_string()
-            } else {
-                format!("run nvcc: {e}")
+pub(super) fn compiler_path() -> Result<PathBuf, String> {
+    let name = format!("nvcc{}", env::consts::EXE_SUFFIX);
+    let path = env::var_os("PATH").ok_or("nvcc is unavailable")?;
+    env::split_paths(&path)
+        .map(|dir| dir.join(&name))
+        .find_map(|candidate| {
+            let meta = candidate.metadata().ok()?;
+            if !meta.is_file() {
+                return None;
             }
-        })?;
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                if meta.permissions().mode() & 0o111 == 0 {
+                    return None;
+                }
+            }
+            candidate.canonicalize().ok()
+        })
+        .ok_or_else(|| "nvcc is unavailable".into())
+}
+
+pub(super) fn compiler_version(nvcc: &Path) -> Result<Vec<u8>, String> {
+    // A stable wrapper can select a different underlying compiler on each run.
+    let result = Command::new(nvcc).arg("--version").output().map_err(|e| {
+        if e.kind() == io::ErrorKind::NotFound {
+            "nvcc is unavailable".to_string()
+        } else {
+            format!("run nvcc: {e}")
+        }
+    })?;
     if !result.status.success() {
         return Err("nvcc --version failed".into());
     }

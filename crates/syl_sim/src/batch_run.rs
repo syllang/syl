@@ -233,6 +233,18 @@ fn simd(
     Ok(summary.into_inner().unwrap())
 }
 
+fn initial_sim(d: &SimDesign, mode: StateMode) -> Result<Simulator<'_>, RuntimeError> {
+    let mut sim = Simulator::with_mode(d, mode);
+    for p in d
+        .top_ports()
+        .iter()
+        .filter(|p| p.direction != HwDirection::Out)
+    {
+        sim.drive(p.signal, Value::zero(d.signal(p.signal).width))?;
+    }
+    Ok(sim)
+}
+
 fn trajectory<'a>(
     mut sim: Simulator<'a>,
     o: BatchOptions,
@@ -242,13 +254,6 @@ fn trajectory<'a>(
 ) -> Result<Simulator<'a>, RuntimeError> {
     let d = sim.design();
     sim.strict_unique = o.strict_unique;
-    for p in d
-        .top_ports()
-        .iter()
-        .filter(|p| p.direction != HwDirection::Out)
-    {
-        sim.drive(p.signal, Value::zero(d.signal(p.signal).width))?;
-    }
     // A zero-edge run still settles and observes the initial inputs at step zero.
     let first_step = u64::from(o.cycles != 0);
     for cycle in first_step..=o.cycles {
@@ -285,7 +290,7 @@ fn trajectory<'a>(
 fn reference(d: &SimDesign, o: BatchOptions, ports: &Ports) -> Result<Reduction, RuntimeError> {
     let mut result = Reduction::default();
     for lane in 0..o.batch {
-        let mut sim = Simulator::with_mode(d, o.state_mode);
+        let mut sim = initial_sim(d, o.state_mode)?;
         sim.assertions = AssertionMode::Record(None);
         let sim = trajectory(sim, o, ports, lane, |_| Ok(()))?;
         if let AssertionMode::Record(Some((cycle, assert_id))) = sim.assertions {
@@ -308,8 +313,8 @@ fn reference(d: &SimDesign, o: BatchOptions, ports: &Ports) -> Result<Reduction,
     Ok(result)
 }
 
-/// Replay a captured edge, checking both cycle and assertion identity. Sample
-/// the failing rising edge before propagating its diagnostic.
+/// Replay a captured edge, checking both cycle and assertion identity. The
+/// waveform includes the settled initial pin values and the failing transition.
 pub fn replay_failure(
     d: &SimDesign,
     o: BatchOptions,
@@ -322,7 +327,17 @@ pub fn replay_failure(
         .transpose()
         .map_err(io_error)?;
     let mut time = 0;
-    let mut sim = Simulator::with_mode(d, o.state_mode);
+    if let Some(w) = &mut wave
+        && expected.cycle.min(o.cycles) > 0
+    {
+        // Observing the undriven baseline must not commit a generated edge or
+        // evaluate strict-unique checks outside the requested stimulus steps.
+        let mut initial = initial_sim(d, o.state_mode)?;
+        initial.settle_initial_pins()?;
+        w.sample(time, &initial).map_err(io_error)?;
+        time += 1;
+    }
+    let mut sim = initial_sim(d, o.state_mode)?;
     sim.assertions = AssertionMode::Replay {
         step: expected.cycle,
         id: expected.assert_id,

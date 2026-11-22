@@ -24,6 +24,31 @@ fn diagnostic(out: &Output) -> String {
 }
 
 #[test]
+fn each_explicit_batch_option_selects_deterministic_inputs_on_its_own() {
+    let p = TestProject::new();
+    p.write("top.syl", FALSE_PASS);
+    success(&sim(&p, &["--cycles", "5"]));
+    for flag in [
+        &["--backend", "auto"][..],
+        &["--backend", "cpu-ref"],
+        &["--batch", "1"],
+        &["--seed", "0"],
+        &["--threads", "1"],
+        &["--gpu-mode", "auto"],
+        &["--gpu-cache-dir", "cache"],
+        &["--no-gpu-cache"],
+        &["--replay-vcd", "out.vcd"],
+    ] {
+        let out = sim(&p, &[&["--cycles", "5"], flag].concat());
+        assert_eq!(out.status.code(), Some(1), "{flag:?}");
+        assert!(
+            diagnostic(&out).contains("batch 0, cycle 1, T.assert[0]"),
+            "{flag:?}"
+        );
+    }
+}
+
+#[test]
 fn seeded_single_lane_keeps_debug_checks_and_verified_replay() {
     let p = TestProject::new();
     p.write("top.syl", FALSE_PASS);
@@ -47,7 +72,7 @@ fn seeded_single_lane_keeps_debug_checks_and_verified_replay() {
         ));
         assert!(err.contains("batch 0, cycle 1, T.assert[0]"), "{err}");
         let wave = fs::read_to_string(p.0.join("out.vcd")).unwrap();
-        assert!(wave.contains("#1\n1s0"));
+        assert!(wave.contains("#2\n1s0"));
         fs::remove_file(p.0.join("out.vcd")).unwrap();
     }
     p.write(
@@ -74,9 +99,44 @@ fn replay_rejects_direct_trace_flags_before_writing() {
 }
 
 #[test]
+fn replay_baseline_settles_combinational_outputs_before_checking_stimulus() {
+    let p = TestProject::new();
+    p.write(
+        "top.syl",
+        "cell T(clk:in Clock,i:in Bit)->q:Bit{
+        assert(not i) q:=select unique { not i=>1,not i=>1,default=>0,} }",
+    );
+    let err = diagnostic(&sim(
+        &p,
+        &[
+            "--cycles",
+            "1",
+            "--strict-unique",
+            "--replay-vcd",
+            "out.vcd",
+        ],
+    ));
+    assert!(err.contains("batch 0, cycle 1, T.assert[0]"), "{err}");
+    let wave = fs::read_to_string(p.0.join("out.vcd")).unwrap();
+    let q = wave
+        .lines()
+        .find(|line| line.ends_with(" q $end"))
+        .unwrap()
+        .split_whitespace()
+        .nth(3)
+        .unwrap();
+    let frames = wave.split_once("#0\n").unwrap().1;
+    let (baseline, rest) = frames.split_once("#1\n").unwrap();
+    let (driven, _) = rest.split_once("#2\n").unwrap();
+    assert!(baseline.lines().any(|s| s == format!("1{q}")), "{baseline}");
+    assert!(driven.lines().any(|s| s == format!("0{q}")), "{driven}");
+}
+
+#[test]
 fn global_step_orders_derived_edges_and_records_the_failing_settle() {
     let p = TestProject::new();
     p.write("top.syl", DERIVED);
+    let mut first = None;
     for (cycles, batch, expected) in [
         ("1", "4", "batch 3, cycle 1"),
         ("8", "4", "batch 3, cycle 1"),
@@ -110,7 +170,22 @@ fn global_step_orders_derived_edges_and_records_the_failing_settle() {
         let last = wave.rsplit_once('#').unwrap().1;
         assert!(last.lines().any(|line| line == format!("1{clk}")), "{last}");
         if batch == "4" {
-            assert!(last.starts_with("0\n"), "{last}");
+            let (baseline, failed) = wave
+                .split_once("#0\n")
+                .unwrap()
+                .1
+                .split_once("#1\n")
+                .unwrap();
+            assert!(
+                baseline.lines().any(|line| line == format!("0{clk}")),
+                "{baseline}"
+            );
+            assert!(
+                failed.lines().any(|line| line == format!("1{clk}")),
+                "{failed}"
+            );
+            assert_eq!(last, format!("1\n{failed}"));
+            assert_eq!(first.get_or_insert_with(|| wave.clone()), &wave);
         }
     }
 }

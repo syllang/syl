@@ -10,6 +10,7 @@ use std::{
 // independently of the CI host.
 const COMPILER: &str = r#"#!/bin/sh
 set -eu
+exec </dev/null
 if [ "$1" = --version ]; then
     echo version >> calls
     cat version
@@ -77,6 +78,47 @@ fn command(p: &TestProject, backend: &str) -> Command {
 
 fn calls(p: &TestProject) -> String {
     fs::read_to_string(p.0.join("calls")).unwrap()
+}
+
+#[test]
+fn cold_real_nvcc_resolves_cuda_headers_behind_a_nonexecutable_shadow() {
+    match syl_sim::gpu_cuda::probe_cuda() {
+        Ok(()) => {}
+        Err(e) if e.contains("nvcc is unavailable") || e.contains("no usable CUDA device") => {
+            return;
+        }
+        Err(e) => panic!("CUDA probe failed: {e}"),
+    }
+    let p = TestProject::new();
+    p.write("top.syl", "cell T(i:in UInt<8>)->o:UInt<8>{o:=i}");
+    let shadow = p.write("shadow/nvcc", "");
+    fs::set_permissions(&shadow, fs::Permissions::from_mode(0o644)).unwrap();
+    let path = std::env::join_paths(
+        std::iter::once(p.0.join("shadow"))
+            .chain(std::env::split_paths(&std::env::var_os("PATH").unwrap())),
+    )
+    .unwrap();
+    let out = Command::new(env!("CARGO_BIN_EXE_sylc"))
+        .current_dir(&p.0)
+        .env("PATH", path)
+        .args([
+            "sim",
+            "top.syl",
+            "--top",
+            "T",
+            "--backend",
+            "gpu-cuda",
+            "--batch",
+            "4",
+            "--cycles",
+            "7",
+            "--gpu-cache-dir",
+            "cold",
+        ])
+        .output()
+        .unwrap();
+    success(&out);
+    assert!(String::from_utf8_lossy(&out.stdout).contains("digest=1412 cache=miss"));
 }
 
 #[test]

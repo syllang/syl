@@ -97,9 +97,9 @@ pub enum CudaAvailability {
 
 /// Return whether `nvcc` is present and can report its version.
 pub fn cuda_availability() -> CudaAvailability {
-    match Command::new("nvcc").arg("--version").output() {
-        Ok(output) if output.status.success() => CudaAvailability::Available,
-        _ => CudaAvailability::Unavailable,
+    match cache::compiler_path().and_then(|p| cache::compiler_version(&p)) {
+        Ok(_) => CudaAvailability::Available,
+        Err(_) => CudaAvailability::Unavailable,
     }
 }
 
@@ -109,23 +109,24 @@ pub fn compile_cuda(source: &str, output: impl AsRef<Path>) -> Result<PathBuf, S
 }
 
 fn compile(source: &str, output: &Path, object: bool) -> Result<PathBuf, String> {
-    compile_for(source, output, object, Some(&cache::target_arch()?), None)
+    compile_for(
+        Command::new(cache::compiler_path()?),
+        source,
+        output,
+        object,
+        Some(&cache::target_arch()?),
+    )
 }
 fn compile_for(
+    mut compiler: Command,
     source: &str,
     output: &Path,
     object: bool,
     arch: Option<&str>,
-    owner: Option<&std::fs::File>,
 ) -> Result<PathBuf, String> {
     let source_path = output.with_extension("cu");
     std::fs::write(&source_path, source)
         .map_err(|e| format!("write {}: {e}", source_path.display()))?;
-    let mut compiler = Command::new("nvcc");
-    if let Some(owner) = owner {
-        // Keep the staging lock alive in the compiler if its parent exits.
-        compiler.stdin(owner.try_clone().map_err(|e| e.to_string())?);
-    }
     compiler.arg("-O3");
     if let Some(arch) = arch {
         compiler.arg(format!("-arch={arch}"));

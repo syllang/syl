@@ -109,11 +109,15 @@ or `--backend gpu-cuda --gpu-mode batch|family` to select a CUDA kernel.
 `SYL_CUDA_ARCH` selects an nvcc target such as `sm_86` or `native`.
 
 An invocation using only the original single-trace options retains four-state
-simulation and its cycle-count/output display. Direct stimulus and VCD tracing
-require a single reference trajectory. Seeded runs and failure replay use deterministic
-batch inputs, including with `--strict-unique` or `--fail-on-x`. A failed batch reports
+simulation and its cycle-count/output display. Explicitly selecting a backend
+uses deterministic inputs even for a single lane. Direct stimulus and VCD tracing
+use a single reference trajectory and accept `--backend auto` or `--backend cpu-ref`.
+Batch size, seed, thread count, GPU mode, GPU cache controls and failure replay
+each select batch inputs and conflict with direct tracing. Deterministic reference
+runs also support `--strict-unique` and `--fail-on-x`. A failed batch reports
 the failing lane, global stimulus step, hierarchy and assertion source span. With
-`--replay-vcd` it also writes that trajectory's waveform.
+`--replay-vcd` it also writes that trajectory's waveform, starting with the
+settled inputs and signals before the first stimulus step.
 
 ## Project manifests
 

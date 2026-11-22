@@ -473,6 +473,10 @@ impl<'d> Simulator<'d> {
             (_, level) => level,
         }
     }
+    /// Resolve combinational nets for the replay baseline before any clock event.
+    pub(crate) fn settle_initial_pins(&mut self) -> Result<()> {
+        self.propagate().map(|_| ())
+    }
     pub fn eval_comb(&mut self) -> Result<()> {
         // A sequential commit may itself change a generated clock or reset.
         // Finish each delta's sampling before propagating the next delta.

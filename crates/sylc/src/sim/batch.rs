@@ -9,13 +9,19 @@ pub(super) fn run(design: &SimDesign, args: &SimArgs, protected: &[&Path]) -> Re
         return Err(error("--gpu-cache-dir conflicts with --no-gpu-cache"));
     }
     let trace = args.stimulus.is_some() || args.vcd.is_some();
-    if trace && args.replay_vcd.is_some() {
-        return Err(error("--replay-vcd conflicts with --stimulus and --vcd"));
-    }
-    if trace && args.seed.is_some() {
-        return Err(error(
-            "--seed selects deterministic inputs and conflicts with --stimulus and --vcd",
-        ));
+    let batch_option = [
+        (args.replay_vcd.is_some(), "--replay-vcd"),
+        (args.seed.is_some(), "--seed"),
+        (args.batch.is_some(), "--batch"),
+        (args.threads.is_some(), "--threads"),
+        (args.gpu_mode.is_some(), "--gpu-mode"),
+        (args.gpu_cache_dir.is_some(), "--gpu-cache-dir"),
+        (args.no_gpu_cache, "--no-gpu-cache"),
+    ]
+    .into_iter()
+    .find_map(|(present, name)| present.then_some(name));
+    if trace && let Some(flag) = batch_option {
+        return Err(error(format!("{flag} conflicts with --stimulus and --vcd")));
     }
     if let Some(path) = &args.replay_vcd {
         match same_file::Handle::from_path(path) {
@@ -26,10 +32,7 @@ pub(super) fn run(design: &SimDesign, args: &SimArgs, protected: &[&Path]) -> Re
     }
 
     let batch = args.batch.unwrap_or(1);
-    let accelerated = matches!(args.backend.as_deref(), Some("cpu-simd" | "gpu-cuda"));
-    let deterministic =
-        args.batch.is_some() || args.seed.is_some() || args.replay_vcd.is_some() || accelerated;
-    let reference_trace = trace || !deterministic;
+    let reference_trace = trace || (args.backend.is_none() && batch_option.is_none());
     let state_mode = if reference_trace || args.fail_on_x || args.strict_unique {
         StateMode::FourState
     } else {

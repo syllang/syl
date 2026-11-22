@@ -21,6 +21,9 @@ syl_span.workspace = true
 tempfile = "3"
 thiserror.workspace = true
 
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
 [dev-dependencies]
 syl_emit.workspace = true
 syl_sema.workspace = true
