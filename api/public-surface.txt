@@ -2930,6 +2930,7 @@ syl_sim|function|syl_sim::gpu_cuda::cuda_availability|fn() -> CudaAvailability
 syl_sim|function|syl_sim::gpu_cuda::kernel::generate_cuda|fn(design: &crate::SimDesign, options: super::CodegenOptions) -> super::GeneratedCuda
 syl_sim|function|syl_sim::gpu_cuda::kernel::try_generate_cuda|fn(d: &crate::SimDesign, options: super::CodegenOptions) -> Result<super::GeneratedCuda, String>
 syl_sim|function|syl_sim::gpu_cuda::run_cuda|fn(design: &crate::SimDesign, codegen: CodegenOptions, options: RunnerOptions, executable: impl AsRef<std::path::Path>) -> Result<RunnerResult, String>
+syl_sim|method|syl_sim::backend::LocalBackend::run_with_replay|fn(self: &Self, seed: u64, threads: usize, open: impl FnOnce) -> Result<BatchResult, RuntimeError>
 syl_sim|method|syl_sim::backend::LocalBackend::run|fn(self: &Self, seed: u64, threads: usize) -> Result<BatchResult, RuntimeError>
 syl_sim|method|syl_sim::batch_cpu::BatchCpuSimulator::batch_size|fn(self: &Self) -> usize
 syl_sim|method|syl_sim::batch_cpu::BatchCpuSimulator::batch_stride|fn(self: &Self) -> usize

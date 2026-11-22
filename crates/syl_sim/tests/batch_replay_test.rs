@@ -162,3 +162,27 @@ fn concurrent_compilers_publish_one_complete_runner_and_uncached_plans_stay_cold
         assert_eq!(result.digest, hot.digest);
     }
 }
+
+#[test]
+fn replay_drift_stops_at_the_claimed_rising_edge() {
+    let src = "cell T<D:Domain>(clk:in Clock<D>,rst:in Reset<D>,i:in Bit)->q:Bit {reg v:Bit reset(rst,0) next v:=i assert(v eq v) q:=v}";
+    let d = design("T", src);
+    let o = BatchOptions {
+        cycles: 1000,
+        ..Default::default()
+    };
+    let mut wave = Vec::new();
+    let expected = FailureCoordinate {
+        cycle: 2,
+        batch: 0,
+        assert_id: AssertId(0),
+    };
+    let error = replay_failure(&d, o, expected, Some(&mut wave)).unwrap_err();
+    assert!(
+        error
+            .to_string()
+            .contains("expected assertion edge committed")
+    );
+    let wave = String::from_utf8(wave).unwrap();
+    assert_eq!(wave.lines().rfind(|s| s.starts_with('#')), Some("#4"));
+}

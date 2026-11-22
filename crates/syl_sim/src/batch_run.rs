@@ -327,6 +327,11 @@ pub fn replay_failure(
                 w.sample(time, sim).map_err(io_error)?;
                 time += 1;
             }
+            if sim.cycle() >= expected.cycle {
+                return Err(RuntimeError::Invalid(
+                    "expected assertion edge committed".into(),
+                ));
+            }
             Ok(())
         },
     );
@@ -385,6 +390,17 @@ pub fn run_batch(
 impl LocalBackend<'_> {
     /// Execute a deterministic batch with this plan's dimensions and semantics.
     pub fn run(&self, seed: u64, threads: usize) -> Result<BatchResult, RuntimeError> {
+        self.run_with_replay(seed, threads, || Ok(None::<std::io::Sink>))
+    }
+
+    /// Open the optional VCD destination only after a failure is captured, and
+    /// record the same reference execution that verifies its coordinates.
+    pub fn run_with_replay<W: Write>(
+        &self,
+        seed: u64,
+        threads: usize,
+        open: impl FnOnce() -> Result<Option<W>, RuntimeError>,
+    ) -> Result<BatchResult, RuntimeError> {
         if threads == 0 {
             return Err(RuntimeError::Invalid("threads must be positive".into()));
         }
@@ -439,7 +455,11 @@ impl LocalBackend<'_> {
         result.digest = summary.digest;
         result.failure = summary
             .failure
-            .map(|c| replay_failure(d, o, c, None).map(|f| (c, f)))
+            .map(|c| {
+                let mut writer = open()?;
+                replay_failure(d, o, c, writer.as_mut().map(|w| w as &mut dyn Write))
+                    .map(|f| (c, f))
+            })
             .transpose()?;
         Ok(result)
     }

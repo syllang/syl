@@ -68,25 +68,20 @@ pub(super) fn run(design: &SimDesign, args: &SimArgs, protected: &[&Path]) -> Re
     if reference_trace {
         return Ok(false);
     }
-    let options = BatchOptions {
-        batch,
-        cycles: args.cycles,
-        seed: args.seed.unwrap_or(0),
-        threads: args
-            .threads
-            .unwrap_or_else(|| std::thread::available_parallelism().map_or(1, usize::from)),
-        cache,
-        state_mode,
-        strict_unique: args.strict_unique,
-        fail_on_x: args.fail_on_x,
-    };
-    let result = plan.run(options.seed, options.threads).map_err(runtime)?;
+    let seed = args.seed.unwrap_or(0);
+    let threads = args
+        .threads
+        .unwrap_or_else(|| std::thread::available_parallelism().map_or(1, usize::from));
+    let result = plan
+        .run_with_replay(seed, threads, || {
+            args.replay_vcd
+                .as_deref()
+                .map(|path| wave_file(path, protected).map(BufWriter::new))
+                .transpose()
+                .map_err(|e| RuntimeError::Invalid(e.message))
+        })
+        .map_err(runtime)?;
     if let Some((coordinate, failure)) = result.failure {
-        if let Some(path) = &args.replay_vcd {
-            let file = wave_file(path, protected)?;
-            replay_failure(design, options, coordinate, Some(&mut BufWriter::new(file)))
-                .map_err(runtime)?;
-        }
         return Err(located(
             failure.span,
             format!(
@@ -107,8 +102,8 @@ pub(super) fn run(design: &SimDesign, args: &SimArgs, protected: &[&Path]) -> Re
         None => "",
     };
     println!(
-        "{} backend={backend} batch={batch} cycles={} seed={} digest={}{cache}",
-        args.top, args.cycles, options.seed, result.digest
+        "{} backend={backend} batch={batch} cycles={} seed={seed} digest={}{cache}",
+        args.top, args.cycles, result.digest
     );
     Ok(true)
 }
