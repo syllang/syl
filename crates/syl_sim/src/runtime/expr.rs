@@ -2,12 +2,6 @@ use super::*;
 use HwBinaryOp as Op;
 use SimExpr as E;
 
-fn width(selector: &Selector) -> u32 {
-    match selector {
-        Selector::Slice { high, low } => high - low + 1,
-        Selector::Index { width, .. } => *width,
-    }
-}
 fn predicate(op: Op) -> bool {
     matches!(
         op,
@@ -47,7 +41,7 @@ impl Simulator<'_> {
     pub(super) fn target_width(&self, t: &SimTarget) -> u32 {
         t.selectors
             .last()
-            .map_or(self.design.signal(t.signal).width, width)
+            .map_or(self.design.signal(t.signal).width, Selector::width)
     }
     // SV propagates context back through arithmetic and the arms of a
     // conditional. Concatenation, predicates and shift distances are self-sized.
@@ -87,7 +81,7 @@ impl Simulator<'_> {
                 }
                 w
             }
-            E::Project { selector, .. } => width(selector),
+            E::Project { selector, .. } => selector.width(),
             E::MemoryRead { memory, .. } => self.design.memories[memory.0].width,
         })
     }
@@ -100,32 +94,28 @@ impl Simulator<'_> {
                 .and_then(|n| u32::try_from(n).ok())
                 .and_then(|n| n.checked_mul(*width)),
         };
-        Ok(low.filter(|n| n.checked_add(width(s)).is_some_and(|end| end <= parent)))
+        Ok(low.filter(|n| n.checked_add(s.width()).is_some_and(|end| end <= parent)))
     }
     pub(super) fn target(&mut self, t: &SimTarget, site: Site) -> Result<Option<(SignalId, u32)>> {
         let s = self.design.signal(t.signal);
-        let (id, mut low) = if let Some(alias) = &s.alias {
-            let Some(base) = self.target(alias, site)? else {
-                return Ok(None);
-            };
-            base
-        } else {
-            (t.signal, 0)
-        };
+        let mut low = 0;
         let mut parent = s.width;
         for sel in &t.selectors {
             let Some(offset) = self.offset(sel, parent, site)? else {
                 return Ok(None);
             };
             low += offset;
-            parent = width(sel);
+            parent = sel.width();
         }
-        Ok(Some((id, low)))
+        Ok(Some((t.signal, low)))
     }
     pub(super) fn read_target(&mut self, t: &SimTarget, site: Site) -> Result<Value> {
         let w = self.target_width(t);
         Ok(match self.target(t, site)? {
-            Some((id, low)) => self.values[id.0].slice(low, w),
+            Some((id, low)) if self.design.signal(id).alias.is_none() => {
+                self.read(id).slice(low, w)
+            }
+            Some((id, low)) => self.net_value(id, site)?.slice(low, w),
             None => Value::x(w),
         })
     }
@@ -285,7 +275,7 @@ impl Simulator<'_> {
             }
             E::Project { value, selector } => {
                 let v = self.eval_as(value, 0, site, mode)?;
-                let sw = width(selector);
+                let sw = selector.width();
                 match self.offset(selector, v.width(), site)? {
                     Some(low) => v.slice(low, sw),
                     None => Value::x(sw),

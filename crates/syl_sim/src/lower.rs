@@ -148,7 +148,7 @@ impl Scope {
 }
 
 impl SimTarget {
-    fn whole(signal: SignalId) -> Self {
+    pub(crate) fn whole(signal: SignalId) -> Self {
         Self {
             signal,
             selectors: Vec::new(),
@@ -287,7 +287,6 @@ impl<'a> Lower<'a> {
                     }),
                     HwDirection::InOut => {
                         let target = actual.as_target()?.clone();
-                        scope.signals.insert(p.name().into(), target.clone());
                         self.design.signals[signal.0].alias = Some(target);
                     }
                     _ => return invalid("unsupported port direction"),

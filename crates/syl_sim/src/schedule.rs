@@ -16,69 +16,56 @@ pub(crate) fn order(design: &mut SimDesign) -> Result<Vec<CombId>> {
 
 fn schedule(design: &mut SimDesign) -> Result<Vec<CombId>> {
     let mut writers = BTreeMap::<SignalId, Vec<(usize, (u32, u32))>>::new();
+    let mut add_writer = |id, target: &SimTarget| {
+        for (net, bits) in connected_ranges(target, design) {
+            writers.entry(net).or_default().push((id, bits));
+        }
+    };
     for (id, assign) in design.comb.iter().enumerate() {
-        writers
-            .entry(assign.target.signal)
-            .or_default()
-            .push((id, range(&assign.target, design)));
+        add_writer(id, &assign.target);
     }
-    // Model each callback as one combinational producer with all input
-    // ports as dependencies. This also detects cycles through a black box.
     for (i, external) in design.externs.iter().enumerate() {
         for port in &design.instances[external.instance.0].ports {
             if port.direction != syl_hw::HwDirection::In {
-                let signal = design.signal(port.signal);
-                let (id, bits) = signal
-                    .alias
-                    .as_ref()
-                    .map_or((port.signal, (0, signal.width - 1)), |t| {
-                        (t.signal, range(t, design))
-                    });
-                writers
-                    .entry(id)
-                    .or_default()
-                    .push((design.comb.len() + i, bits));
+                add_writer(design.comb.len() + i, &SimTarget::whole(port.signal));
             }
         }
     }
-    let mut graph = Vec::new();
-    for assign in &design.comb {
-        let mut reads = Vec::new();
-        collect(&assign.value, design, &mut reads);
-        indices(&assign.target.selectors, design, &mut reads);
+    let dependencies = |reads: Vec<&SimTarget>| {
         let mut deps = BTreeSet::new();
         for r in reads {
-            let (low, high) = range(r, design);
-            if let Some(nodes) = writers.get(&r.signal) {
-                deps.extend(
-                    nodes
-                        .iter()
-                        .filter(|(_, (l, h))| low <= *h && *l <= high)
-                        .map(|(id, _)| *id),
-                );
-            }
-        }
-        graph.push(deps.into_iter().collect::<Vec<_>>());
-    }
-    for external in &design.externs {
-        let mut deps = BTreeSet::new();
-        for port in &design.instances[external.instance.0].ports {
-            if port.direction != syl_hw::HwDirection::Out {
-                let signal = design
-                    .signal(port.signal)
-                    .alias
-                    .as_ref()
-                    .map_or(port.signal, |t| t.signal);
+            for (signal, (low, high)) in connected_ranges(r, design) {
                 if let Some(nodes) = writers.get(&signal) {
                     deps.extend(
                         nodes
                             .iter()
-                            .map(|(node, _)| *node)
-                            .filter(|n| *n != graph.len()),
+                            .filter(|(_, (l, h))| low <= *h && *l <= high)
+                            .map(|(id, _)| *id),
                     );
                 }
             }
         }
+        deps
+    };
+    let mut graph = Vec::new();
+    for assign in &design.comb {
+        let mut reads = Vec::new();
+        collect(&assign.value, design, &mut reads);
+        target_indices(&assign.target, design, &mut reads);
+        graph.push(dependencies(reads).into_iter().collect::<Vec<_>>());
+    }
+    for external in &design.externs {
+        let mut deps = BTreeSet::new();
+        for port in &design.instances[external.instance.0].ports {
+            let formal = SimTarget::whole(port.signal);
+            let mut reads = Vec::new();
+            target_indices(&formal, design, &mut reads);
+            if port.direction != syl_hw::HwDirection::Out {
+                reads.push(&formal);
+            }
+            deps.extend(dependencies(reads));
+        }
+        deps.remove(&graph.len()); // A bidirectional model also drives its input net.
         graph.push(deps.into_iter().collect());
     }
     let mut order = Vec::new();
@@ -93,6 +80,50 @@ fn schedule(design: &mut SimDesign) -> Result<Vec<CombId>> {
         }
     }
     Ok(order)
+}
+
+// Map a selected interval through each inout port. Only overlapping low bits
+// share the parent's net. A wider formal owns its remaining high bits.
+fn connected_ranges(t: &SimTarget, design: &SimDesign) -> Vec<(SignalId, (u32, u32))> {
+    let mut result = Vec::new();
+    let mut signal = t.signal;
+    let (mut low, mut high) = range(t, design);
+    while let Some(parent) = &design.signal(signal).alias {
+        let (base, end) = range(parent, design);
+        let width = parent
+            .selectors
+            .last()
+            .map_or(design.signal(parent.signal).width, Selector::width);
+        if high >= width {
+            result.push((signal, (low.max(width), high)));
+            if low >= width {
+                return result;
+            }
+            high = width - 1;
+        }
+        if parent
+            .selectors
+            .iter()
+            .any(|s| matches!(s, Selector::Index { .. }))
+        {
+            low = base;
+            high = end;
+        } else {
+            low += base;
+            high += base;
+        }
+        signal = parent.signal;
+    }
+    result.push((signal, (low, high)));
+    result
+}
+fn target_indices<'a>(t: &'a SimTarget, design: &'a SimDesign, reads: &mut Vec<&'a SimTarget>) {
+    indices(&t.selectors, design, reads);
+    let mut sig = t.signal;
+    while let Some(parent) = &design.signal(sig).alias {
+        indices(&parent.selectors, design, reads);
+        sig = parent.signal;
+    }
 }
 
 fn range(target: &SimTarget, design: &SimDesign) -> (u32, u32) {
@@ -121,7 +152,7 @@ fn collect<'a>(expr: &'a SimExpr, design: &'a SimDesign, reads: &mut Vec<&'a Sim
     match expr {
         SimExpr::Read(target) => {
             reads.push(target);
-            indices(&target.selectors, design, reads);
+            target_indices(target, design, reads);
         }
         SimExpr::MemoryRead { memory, port } => collect(
             &design.memories[memory.0].comb_reads[*port].address,

@@ -285,6 +285,12 @@ impl<'a> SvPrinter<'a> {
     fn expr(&mut self, expr: &SvExpr) {
         match expr {
             SvExpr::Ident(name) => self.out.push_str(name),
+            // Syl decimal literals are positive signed values with at least
+            // 32 bits. Explicitly size values that need an extra sign bit.
+            SvExpr::Int(value) if *value > i32::MAX as u64 => {
+                let width = 65 - value.leading_zeros();
+                self.out.push_str(&format!("{width}'sd{value}"));
+            }
             SvExpr::Int(value) => self.out.push_str(&value.to_string()),
             SvExpr::Bool(value) => {
                 if *value {

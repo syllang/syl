@@ -100,6 +100,14 @@ impl<'a> From<&'a SourceLocation> for Site<'a> {
     }
 }
 
+// truth() normalizes a high-impedance bit to X.
+fn posedge(old: Logic, new: Logic) -> bool {
+    matches!(
+        (old, new),
+        (Logic::Zero, Logic::One | Logic::X) | (Logic::X, Logic::One)
+    )
+}
+
 impl<'d> Simulator<'d> {
     pub fn new(design: &'d SimDesign) -> Self {
         Self::with_mode(design, StateMode::FourState)
@@ -158,22 +166,19 @@ impl<'d> Simulator<'d> {
                 .iter()
                 .flat_map(|i| &i.ports)
                 .filter(|p| p.direction == HwDirection::InOut)
-                .map(|p| {
-                    let signal = design
-                        .signal(p.signal)
-                        .alias
-                        .as_ref()
-                        .map_or(p.signal, |t| t.signal);
-                    {
-                        let released = Value::z(design.signal(signal).width);
-                        (
-                            signal,
-                            InoutNet {
-                                pin: released.clone(),
-                                resolved: released,
-                            },
-                        )
-                    }
+                .flat_map(|p| {
+                    std::iter::once(p.signal)
+                        .chain(design.signal(p.signal).alias.as_ref().map(|a| a.signal))
+                })
+                .map(|id| {
+                    let released = Value::z(design.signal(id).width);
+                    (
+                        id,
+                        InoutNet {
+                            pin: released.clone(),
+                            resolved: released,
+                        },
+                    )
                 })
                 .collect(),
             models: BTreeMap::new(),
@@ -267,35 +272,45 @@ impl<'d> Simulator<'d> {
         );
         Ok(())
     }
-    fn alias_input(&mut self, id: SignalId, t: &SimTarget, site: Site) -> Result<Value> {
-        let actual = self.read_target(t, site)?;
-        let width = self.design.signal(id).width;
-        let mut formal = Value::z(width);
-        formal.insert(0, &actual.resized(actual.width().min(width)));
-        Ok(formal)
+    // The low overlapping bits are electrically connected. Unconnected
+    // formal bits resolve locally, including the formal's own drivers.
+    fn net_value(&mut self, id: SignalId, site: Site) -> Result<Value> {
+        let mut value = self.values[id.0].clone();
+        if let Some(actual) = &self.design.signal(id).alias {
+            let parent = self.read_target(actual, site)?;
+            let width = parent.width().min(value.width());
+            value.insert(0, &parent.resized(width));
+        }
+        Ok(value)
     }
     fn external(
         &mut self,
         id: InstanceId,
         deferred: &mut Vec<(InstanceId, PortValues)>,
-    ) -> Result<()> {
+    ) -> Result<bool> {
         let inst = &self.design.instances[id.0];
+        let bidirectional = inst.ports.iter().any(|p| p.direction == HwDirection::InOut);
+        let entry = self.models.get(&id).ok_or_else(|| {
+            RuntimeError::Invalid(format!("unregistered extern cell {}", inst.source.path))
+        })?;
+        // A bidirectional callback samples the resolved pins, including its own
+        // standing drives. If it changes those drives, settle again before
+        // visiting consumers or sampling any sequential process.
+        if bidirectional {
+            for (net, v) in entry.outputs.clone() {
+                self.drive_net(net, 0, &v, (&inst.source).into())?;
+            }
+        }
         let mut inputs = BTreeMap::new();
         for p in inst
             .ports
             .iter()
             .filter(|p| p.direction != HwDirection::Out)
         {
-            let value = if let Some(t) = &self.design.signal(p.signal).alias {
-                self.alias_input(p.signal, t, (&inst.source).into())?
-            } else {
-                self.read(p.signal).clone()
-            };
+            let value = self.net_value(p.signal, (&inst.source).into())?;
             inputs.insert(p.name.clone(), value);
         }
-        let entry = self.models.get(&id).ok_or_else(|| {
-            RuntimeError::Invalid(format!("unregistered extern cell {}", inst.source.path))
-        })?;
+        let entry = &self.models[&id];
         if entry.previous.as_ref() != Some(&inputs) {
             let edge = entry.previous.as_ref().is_some_and(|previous| {
                 entry
@@ -305,23 +320,18 @@ impl<'d> Simulator<'d> {
             });
             if edge {
                 deferred.push((id, inputs));
-            } else {
-                self.evaluate_model(id, inputs)?;
+            } else if self.evaluate_model(id, inputs)? && bidirectional {
+                return Ok(false);
             }
         }
-        for (net, v) in self.models[&id].outputs.clone() {
-            if let Some(t) = &self.design.signal(net).alias {
-                if let Some((id, low)) = self.target(t, (&inst.source).into())? {
-                    let connected = self.target_width(t).min(v.width());
-                    self.assign(id, low, &v.resized(connected));
-                }
-            } else {
-                self.assign(net, 0, &v)
+        if !bidirectional {
+            for (net, v) in self.models[&id].outputs.clone() {
+                self.drive_net(net, 0, &v, (&inst.source).into())?;
             }
         }
-        Ok(())
+        Ok(true)
     }
-    fn evaluate_model(&mut self, id: InstanceId, inputs: PortValues) -> Result<()> {
+    fn evaluate_model(&mut self, id: InstanceId, inputs: PortValues) -> Result<bool> {
         let inst = &self.design.instances[id.0];
         let path = &inst.source.path;
         let entry = self.models.get_mut(&id).expect("registered model");
@@ -341,8 +351,22 @@ impl<'d> Simulator<'d> {
                 "unknown extern output {path}.{n}"
             )));
         }
+        let changed = entry.outputs != drives;
         entry.outputs = drives;
         entry.previous = Some(inputs);
+        Ok(changed)
+    }
+    fn drive_net(&mut self, id: SignalId, low: u32, v: &Value, site: Site) -> Result<()> {
+        self.assign(id, low, v);
+        if let Some(actual) = &self.design.signal(id).alias {
+            let connected = self.target_width(actual).min(self.design.signal(id).width);
+            if low < connected
+                && let Some((parent, offset)) = self.target(actual, site)?
+            {
+                let width = v.width().min(connected - low);
+                self.drive_net(parent, offset + low, &v.resized(width), site)?;
+            }
+        }
         Ok(())
     }
     fn assign(&mut self, id: SignalId, low: u32, v: &Value) {
@@ -355,7 +379,7 @@ impl<'d> Simulator<'d> {
             self.values[id.0].insert(low, &v)
         }
     }
-    fn propagate(&mut self) -> Result<Vec<(InstanceId, PortValues)>> {
+    fn propagate(&mut self) -> Result<Option<Vec<(InstanceId, PortValues)>>> {
         let mut deferred = Vec::new();
         for (id, net) in &mut self.inout_drives {
             net.resolved.clone_from(&net.pin);
@@ -368,7 +392,9 @@ impl<'d> Simulator<'d> {
         let mut slots = self.design.extern_slots.iter().peekable();
         for pos in 0..=self.design.comb_eval_order.len() {
             while let Some(&&(_, id)) = slots.peek().filter(|s| s.0 == pos) {
-                self.external(id, &mut deferred)?;
+                if !self.external(id, &mut deferred)? {
+                    return Ok(None);
+                }
                 slots.next();
             }
             if let Some(id) = self.design.comb_eval_order.get(pos) {
@@ -386,17 +412,17 @@ impl<'d> Simulator<'d> {
                         self.mode
                     };
                     let v = self.eval_as(&a.value, w, site, mode)?.resized(w);
-                    self.assign(id, low, &v);
+                    self.drive_net(id, low, &v, site)?;
                 }
             }
         }
         for (i, s) in self.design.signals.iter().enumerate() {
-            if let Some(t) = &s.alias {
-                let v = self.alias_input(SignalId(i), t, (&s.source).into())?;
+            if s.alias.is_some() {
+                let v = self.net_value(SignalId(i), (&s.source).into())?;
                 self.values[i] = self.project(v);
             }
         }
-        Ok(deferred)
+        Ok(Some(deferred))
     }
     fn reset_level(&self, id: ResetId) -> Logic {
         let r = &self.design.resets[id.0];
@@ -412,7 +438,9 @@ impl<'d> Simulator<'d> {
         let limit = 2
             * (self.design.clocks.len() + self.design.resets.len() + self.design.externs.len() + 1);
         for _ in 0..limit {
-            let deferred = self.propagate()?;
+            let Some(deferred) = self.propagate()? else {
+                continue;
+            };
             let clocks: Vec<_> = self
                 .design
                 .clocks
@@ -427,38 +455,30 @@ impl<'d> Simulator<'d> {
                 .iter()
                 .zip(&clocks)
                 .enumerate()
-                .filter_map(|(i, (&old, &new))| {
-                    matches!(
-                        (old, new),
-                        (Logic::Zero, Logic::One | Logic::X) | (Logic::X, Logic::One)
-                    )
-                    .then_some(DomainId(i))
-                })
+                .filter_map(|(i, (&old, &new))| posedge(old, new).then_some(DomainId(i)))
                 .collect();
-            let asserted: BTreeSet<_> = self
+            let reset_edges: BTreeSet<_> = self
                 .last_resets
                 .iter()
                 .zip(&resets)
                 .enumerate()
                 .filter_map(|(i, (&old, &new))| {
-                    (old != Logic::One
-                        && new == Logic::One
-                        && self.design.resets[i].mode == HwResetMode::Async)
+                    (posedge(old, new) && self.design.resets[i].mode == HwResetMode::Async)
                         .then_some(ResetId(i))
                 })
                 .collect();
-            if rising.is_empty() && asserted.is_empty() && deferred.is_empty() {
+            if rising.is_empty() && reset_edges.is_empty() && deferred.is_empty() {
                 self.last_clocks = clocks;
                 self.last_resets = resets;
                 return Ok(());
             }
-            self.commit_group(&rising, &asserted, deferred)?;
+            self.commit_group(&rising, &reset_edges, deferred)?;
             self.last_clocks = clocks;
             self.last_resets = resets;
             self.cycle += u64::from(!rising.is_empty());
         }
         Err(RuntimeError::Invalid(
-            "clock/reset event propagation did not settle".into(),
+            "clock/reset or extern propagation did not settle".into(),
         ))
     }
     pub fn tick(&mut self, clock: &str) -> Result<()> {
@@ -492,7 +512,7 @@ impl<'d> Simulator<'d> {
     fn commit_group(
         &mut self,
         rising: &BTreeSet<DomainId>,
-        asserted: &BTreeSet<ResetId>,
+        reset_edges: &BTreeSet<ResetId>,
         deferred: Vec<(InstanceId, PortValues)>,
     ) -> Result<()> {
         let mut nets = Vec::new();
@@ -501,7 +521,7 @@ impl<'d> Simulator<'d> {
             rising.contains(&r.clock)
                 || r.reset
                     .as_ref()
-                    .is_some_and(|(id, _)| asserted.contains(id))
+                    .is_some_and(|(id, _)| reset_edges.contains(id))
         }) {
             let e = r
                 .reset

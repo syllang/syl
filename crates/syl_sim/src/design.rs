@@ -93,6 +93,15 @@ pub enum Selector {
     Index { index: Box<SimExpr>, width: u32 },
 }
 
+impl Selector {
+    pub(crate) fn width(&self) -> u32 {
+        match self {
+            Self::Slice { high, low } => high - low + 1,
+            Self::Index { width, .. } => *width,
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SimTarget {
     pub signal: SignalId,

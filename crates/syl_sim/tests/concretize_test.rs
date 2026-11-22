@@ -450,7 +450,7 @@ fn high_impedance_driver_uses_the_shared_inout_net() {
     assert_eq!(d.signal(child).alias.as_ref().unwrap().signal, port.signal);
     assert_eq!(d.comb.len(), 1);
     assert_eq!(d.comb[0].value, SimExpr::HighZ);
-    assert_eq!(d.comb[0].target.signal, port.signal);
+    assert_eq!(d.comb[0].target.signal, child);
 }
 
 #[test]

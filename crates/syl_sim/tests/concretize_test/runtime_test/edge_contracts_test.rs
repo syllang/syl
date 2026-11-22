@@ -4,17 +4,15 @@ use super::*;
 fn extern_inout_formal_maps_only_its_connected_slice() {
     struct Pad {
         formal_width: u32,
-        connected: u32,
+        driven: bool,
     }
     impl ExternModel for Pad {
         fn eval(&mut self, i: &BTreeMap<String, Value>) -> Result<BTreeMap<String, Value>, String> {
             let p = &i["p"];
             assert_eq!(p.width(), self.formal_width);
-            assert_eq!(p.slice(0, self.connected), Value::z(self.connected));
-            assert_eq!(
-                p.slice(self.connected, self.formal_width - self.connected),
-                Value::z(self.formal_width - self.connected)
-            );
+            let expected = if self.driven { Logic::One } else { Logic::Z };
+            assert!((0..p.width()).all(|bit| p.bit(bit) == expected));
+            self.driven = true;
             Ok(BTreeMap::from([(
                 "p".into(),
                 "1".repeat(self.formal_width as usize).parse().unwrap(),
@@ -40,7 +38,7 @@ fn extern_inout_formal_maps_only_its_connected_slice() {
             d.externs[0].instance,
             Pad {
                 formal_width: formal,
-                connected,
+                driven: false,
             },
         )
         .unwrap();
