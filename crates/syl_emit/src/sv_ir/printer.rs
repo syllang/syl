@@ -17,6 +17,22 @@ pub(crate) fn text(modules: &[SvModule], header: bool) -> String {
     out
 }
 
+pub(crate) fn expression(expr: &SvExpr) -> String {
+    let mut out = String::new();
+    SvPrinter { out: &mut out }.expr(expr);
+    out
+}
+
+// Syl decimals are positive signed values with at least 32 bits.
+pub(crate) fn decimal_literal(value: u64) -> String {
+    if value > i32::MAX as u64 {
+        let width = 65 - value.leading_zeros();
+        format!("{width}'sd{value}")
+    } else {
+        value.to_string()
+    }
+}
+
 impl<'a> SvPrinter<'a> {
     fn design(&mut self, modules: &[SvModule], header: bool) {
         if header {
@@ -285,13 +301,7 @@ impl<'a> SvPrinter<'a> {
     fn expr(&mut self, expr: &SvExpr) {
         match expr {
             SvExpr::Ident(name) => self.out.push_str(name),
-            // Syl decimal literals are positive signed values with at least
-            // 32 bits. Explicitly size values that need an extra sign bit.
-            SvExpr::Int(value) if *value > i32::MAX as u64 => {
-                let width = 65 - value.leading_zeros();
-                self.out.push_str(&format!("{width}'sd{value}"));
-            }
-            SvExpr::Int(value) => self.out.push_str(&value.to_string()),
+            SvExpr::Int(value) => self.out.push_str(&decimal_literal(*value)),
             SvExpr::Bool(value) => {
                 if *value {
                     self.out.push_str("1'b1");

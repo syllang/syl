@@ -335,7 +335,7 @@ where
                 _ => name.to_string(),
             };
         }
-        self.type_value(owner, ty)
+        self.generic_arg_value(owner, ty)
     }
 
     pub(in crate::eir::build) fn callable_result_for(

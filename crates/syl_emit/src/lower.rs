@@ -38,7 +38,7 @@ impl<'a> SvEmitter<'a> {
             .params()
             .iter()
             .map(|param| self.lower_param(param))
-            .collect();
+            .collect::<Result<Vec<_>, _>>()?;
         let ports = module
             .ports()
             .iter()
@@ -60,9 +60,12 @@ impl<'a> SvEmitter<'a> {
         Ok(SvModule::new(module.name(), params, ports, items).with_doc(doc))
     }
 
-    fn lower_param(&self, param: &HwParam) -> SvParam {
-        SvParam::new(param.name(), Self::normalize_param_value(param.default()))
-            .with_doc(param.doc().map(ToOwned::to_owned))
+    fn lower_param(&self, param: &HwParam) -> Result<SvParam, CompileError> {
+        let default = match param.default_expr() {
+            Some(expr) => printer::expression(&self.lower_expr(expr)?),
+            None => Self::normalize_param_value(param.default()),
+        };
+        Ok(SvParam::new(param.name(), default).with_doc(param.doc().map(ToOwned::to_owned)))
     }
 
     fn lower_port(&self, port: &HwPort) -> Result<SvPort, CompileError> {
@@ -288,7 +291,10 @@ impl<'a> SvEmitter<'a> {
         match value.trim() {
             "true" => "1'b1".to_string(),
             "false" => "1'b0".to_string(),
-            _ => value.to_string(),
+            text => text
+                .parse::<u64>()
+                .map(printer::decimal_literal)
+                .unwrap_or_else(|_| value.to_owned()),
         }
     }
 
