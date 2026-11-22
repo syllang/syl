@@ -618,6 +618,40 @@ cell Top(clk: in Clock,i: in Bit) -> o: Bit {{
 }
 
 #[test]
+fn inline_parent_prefix_in_bound_array_names_survives_lowering() {
+    let source = "
+cell L(clk: in Clock, i: in Bit) -> o: Bit { reg q: Bit next q := i o := q }
+cell W(clk: in Clock, i: in Bit) -> o: Bit {
+    let row = for j in 0..2 { place L(clk: clk, i: i) }
+    let a_row = for j in 0..2 { place L(clk: clk, i: i) }
+    o := i
+}
+cell Top(clk: in Clock, i: in Bit) -> o: Bit { let a = inplace W(clk: clk, i: i) o := a }";
+    let design =
+        SimDesign::lower(&compile(&[("arrays", source)]), "Top", &BTreeMap::new()).unwrap();
+    assert_eq!(design.instances.len(), 5);
+    assert_eq!(design.regs.len(), 4);
+    let mut ids = BTreeSet::new();
+    for name in ["row[0]", "row[1]", "a_row[0]", "a_row[1]"] {
+        let path = format!("Top.a.{name}");
+        let child = design
+            .instances
+            .iter()
+            .find(|i| i.source.path == path)
+            .unwrap();
+        assert!(ids.insert(child.source.instance));
+        assert_eq!(child.source.name, name);
+        let reg = design
+            .regs
+            .iter()
+            .find(|r| r.source.instance == child.source.instance)
+            .unwrap();
+        assert_eq!(reg.source.path, format!("{path}.q"));
+        assert_eq!(design.signal(reg.signal).source.path, reg.source.path);
+    }
+}
+
+#[test]
 fn empty_design_has_no_top_ports() {
     assert!(SimDesign::default().top_ports().is_empty());
 }

@@ -329,6 +329,8 @@ where
             )?;
         }
         let target = self.canonical_path(callable_def, &callable_name);
+        let mut origin = request.env.origin(request.span);
+        origin.field = request.source_name.map(str::to_owned);
         Ok(vec![EirItem::Instance(
             EirInstance::new(
                 callable_name,
@@ -336,7 +338,7 @@ where
                 safe_name,
                 request.source_name.unwrap_or(request.inst_name),
                 conns,
-                request.env.origin(request.span),
+                origin,
             )
             .with_target_canonical_path(target),
         )])

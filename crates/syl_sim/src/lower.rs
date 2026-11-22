@@ -81,7 +81,25 @@ struct Generate {
 }
 
 impl Scope {
-    fn source(&self, name: &str, origin: &HwOrigin) -> SourceLocation {
+    fn source(&self, physical: &str, origin: &HwOrigin) -> SourceLocation {
+        let local = origin
+            .expansion_stack()
+            .last()
+            .and_then(|frame| physical.strip_prefix(frame.instance()))
+            .and_then(|suffix| suffix.strip_prefix('_'))
+            .unwrap_or(physical);
+        let field = origin.source_field().unwrap_or(local);
+        // A pre-expanded generate can add a unique prefix outside the in-place
+        // stack. Keep that prefix in the path while exposing the Syl field.
+        let leaf = if local.ends_with(field) && local != field {
+            local
+        } else {
+            field
+        };
+        self.location(leaf, field, origin)
+    }
+
+    fn location(&self, leaf: &str, field: &str, origin: &HwOrigin) -> SourceLocation {
         let mut relative = String::new();
         let mut prefix = String::new();
         for frame in origin.expansion_stack() {
@@ -94,15 +112,6 @@ impl Scope {
             );
             prefix = format!("{instance}_");
         }
-        let local = name.strip_prefix(&prefix).unwrap_or(name);
-        let field = origin.source_field().unwrap_or(local);
-        // A pre-expanded generate can add a unique prefix outside the in-place
-        // stack. Keep that prefix in the path while exposing the Syl field.
-        let leaf = if local.ends_with(field) && local != field {
-            local
-        } else {
-            field
-        };
         relative.push('.');
         relative.push_str(leaf);
         let mut field = field.to_owned();
@@ -382,7 +391,10 @@ impl<'a> Lower<'a> {
                     instance.target_canonical_path()
                 ))
             })?;
-        let source = scope.source(instance.source_name(), origin);
+        let source = match origin.source_field() {
+            Some(binding) => scope.location(binding, binding, origin),
+            None => scope.source(instance.source_name(), origin),
+        };
         let path = source.path;
         let name = source.name;
         let mut params = Bindings::new();
