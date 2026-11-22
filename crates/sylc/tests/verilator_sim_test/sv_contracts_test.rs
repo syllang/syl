@@ -47,6 +47,14 @@ fn compare_icarus(work: &SimulationDir, bench: &str, native: &[String]) {
     }
 }
 
+fn implement_pad(work: &SimulationDir, body: &str) {
+    let path = work.0.join("top.sv");
+    let sv = fs::read_to_string(&path).unwrap();
+    let (header, rest) = sv.split_once("endmodule").unwrap();
+    assert!(header.contains("module Pad ("));
+    fs::write(path, format!("{header}  {body}\nendmodule{rest}")).unwrap();
+}
+
 struct Pad;
 impl ExternModel for Pad {
     fn eval(
@@ -112,15 +120,7 @@ fn inout_width_changes_resolve_actual_formal_and_downstream_reader() {
             }
             native.push(format!("{p} {y} {formal} {echo}"));
         }
-        let path = work.0.join("top.sv");
-        let sv = fs::read_to_string(&path).unwrap();
-        let (header, rest) = sv.split_once("endmodule").unwrap();
-        assert!(header.contains("module Pad ("));
-        fs::write(
-            path,
-            format!("{header}  assign p = '1; assign echo = p;\nendmodule{rest}"),
-        )
-        .unwrap();
+        implement_pad(&work, "assign p = '1; assign echo = p;");
         let bench = format!(
             "module tb; wire [{msb}:0] p,y; reg [{msb}:0] driver; assign p=driver; wire [64:0] echo;
              Top dut(.*); task sample; #1; $display(\"sample %b %b %b %b\",p,y,dut.{instance}.p,echo); endtask
@@ -223,6 +223,10 @@ fn decimal_arithmetic_matches_icarus_and_verilator_at_four_widths() {
     )
     .unwrap();
     compare_icarus(&work, &bench, &native);
+    compare_verilator(&work, &bench, &native);
+}
+
+fn compare_verilator(work: &SimulationDir, bench: &str, native: &[String]) {
     if tool_available("verilator") {
         fs::write(work.0.join("tb.sv"), bench).unwrap();
         run(
@@ -243,4 +247,95 @@ fn decimal_arithmetic_matches_icarus_and_verilator_at_four_widths() {
         );
         assert_eq!(samples(output), native);
     }
+}
+
+#[test]
+fn large_generic_defaults_and_bindings_match_icarus_and_verilator() {
+    for top in [
+        "cell Top<N:nat=2147483648,>(i:in Bit)->y:UInt<32> {
+            y:=select priority {i=>N/2,default=>0,} }",
+        "cell Child<N:nat=2,>(i:in Bit)->y:UInt<32> {y:=select priority {i=>N/2,default=>0,}}
+         cell Top(i:in Bit)->y:UInt<32> {let c=place Child<2147483648>(i:i) y:=c}",
+        "cell Top<N:nat=2147483648/2,>(i:in Bit)->y:UInt<32> {
+            y:=select priority {i=>N,default=>0,} }",
+        "const K:nat=2147483648/2
+         cell Child<N:nat=2,>(i:in Bit)->y:UInt<32> {y:=select priority {i=>N,default=>0,}}
+         cell Top(i:in Bit)->y:UInt<32> {let c=place Child<K>(i:i) y:=c}",
+    ] {
+        let work = SimulationDir::new("generic");
+        let design = design(&work, top);
+        let mut sim = Simulator::new(&design);
+        sim.drive_named("i", Value::from_u64(1, 1)).unwrap();
+        sim.eval_comb().unwrap();
+        let y = sim.read_named("y").unwrap();
+        assert_eq!(y.as_u64(), Some(0x4000_0000));
+        let native = [y.to_binary()];
+        let bench = r#"module tb; reg i; wire [31:0] y; Top dut(.*);
+            initial begin i=1; #1; $display("sample %b",y); $finish; end endmodule"#;
+        compare_icarus(&work, bench, &native);
+        compare_verilator(&work, bench, &native);
+    }
+}
+
+#[test]
+fn inout_ripple_settles_through_all_65_formal_bits_like_icarus() {
+    struct Ripple;
+    impl ExternModel for Ripple {
+        fn eval(
+            &mut self,
+            inputs: &BTreeMap<String, Value>,
+        ) -> Result<BTreeMap<String, Value>, String> {
+            let drive = Value::concat(&[inputs["p"].slice(0, 64), Value::from_u64(1, 1)]).unwrap();
+            Ok(BTreeMap::from([("p".into(), drive)]))
+        }
+    }
+    let work = SimulationDir::new("ripple");
+    let d = design(
+        &work,
+        "extern cell Pad(p:inout UInt<65>)
+        cell Wrap(p:inout Bit) {let e=place Pad(p:p)}
+        cell Top(p:inout UInt<65>){let w=place Wrap(p:p)}",
+    );
+    let id = d.externs[0].instance;
+    let mut sim = Simulator::new(&d);
+    sim.register_extern(id, Ripple).unwrap();
+    sim.eval_comb().unwrap();
+    let top = sim.read_named("p").unwrap();
+    let formal = sim.read(d.instances[id.0].ports[0].signal);
+    assert_eq!(top.to_binary(), format!("{}1", "z".repeat(64)));
+    assert_eq!(formal.to_binary(), "1".repeat(65));
+    implement_pad(&work, "assign p[0] = 1'b1; assign p[64:1] = p[63:0];");
+    compare_icarus(
+        &work,
+        r#"module tb; wire [64:0] p; Top dut(.*);
+        initial begin #1; $display("sample %b %b",p,dut.w_inst.e_inst.p); end endmodule"#,
+        &[format!("{top} {formal}")],
+    );
+}
+
+#[test]
+fn oscillating_inout_drive_reports_the_extern_instance() {
+    struct Toggle;
+    impl ExternModel for Toggle {
+        fn eval(
+            &mut self,
+            inputs: &BTreeMap<String, Value>,
+        ) -> Result<BTreeMap<String, Value>, String> {
+            let drive = Value::from_u64(1, u64::from(inputs["p"].as_u64() != Some(1)));
+            Ok(BTreeMap::from([("p".into(), drive)]))
+        }
+    }
+    let work = SimulationDir::new("oscillator");
+    let d = design(
+        &work,
+        "extern cell Pad(p:inout Bit) cell Top(p:inout Bit){let pad=place Pad(p:p)}",
+    );
+    let id = d.externs[0].instance;
+    let mut sim = Simulator::new(&d);
+    sim.register_extern(id, Toggle).unwrap();
+    let error = sim.eval_comb().unwrap_err().to_string();
+    assert!(
+        error.contains(&d.instances[id.0].source.path) && error.contains("did not settle"),
+        "{error}"
+    );
 }
