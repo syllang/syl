@@ -11,7 +11,7 @@ fn predicate(op: Op) -> bool {
 
 // Unsized decimal constants are signed. A packed signal, part-select,
 // concatenation or unsigned arm makes its enclosing operation unsigned.
-fn signed(e: &E) -> bool {
+pub(crate) fn signed(e: &E) -> bool {
     match e {
         E::Int(_) => true,
         E::Unary {
@@ -123,7 +123,7 @@ impl Simulator<'_> {
         let address = self.eval(addr, 0, site)?.as_u64();
         Ok(address
             .and_then(|n| usize::try_from(n).ok())
-            .and_then(|n| self.memories[id.0].get(n))
+            .and_then(|n| self.trajectory.memories[id.0].get(n))
             .cloned()
             .unwrap_or_else(|| Value::x(self.design.memories[id.0].width)))
     }
@@ -238,7 +238,7 @@ impl Simulator<'_> {
                     let warning = UniqueOverlapViolation {
                         path: site.path.into(),
                         span: site.span,
-                        cycle: self.cycle,
+                        cycle: self.trajectory.cycle,
                     };
                     if self.strict_unique {
                         return Err(warning.into());

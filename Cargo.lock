@@ -1093,6 +1093,7 @@ dependencies = [
  "serde_json",
  "smallvec",
  "syl_elab",
+ "syl_emit",
  "syl_hw",
  "syl_sema",
  "syl_span",

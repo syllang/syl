@@ -1,6 +1,9 @@
 //! Event-driven reference execution of a concrete design.
+mod trajectory;
+pub(crate) use trajectory::TrajectoryState;
 mod expr;
 use crate::*;
+pub(crate) use expr::signed;
 use std::collections::{BTreeMap, BTreeSet};
 use std::ops::ControlFlow;
 use syl_span::Span;
@@ -51,6 +54,7 @@ pub trait ExternModel {
     ) -> std::result::Result<BTreeMap<String, Value>, String>;
 }
 type PortValues = BTreeMap<String, Value>;
+#[derive(Clone)]
 struct InoutNet {
     pin: Value,
     resolved: Value,
@@ -75,14 +79,9 @@ pub enum StateMode {
 pub struct Simulator<'d> {
     design: &'d SimDesign,
     mode: StateMode,
-    clock_sources: Vec<SignalId>,
-    last_clocks: Vec<Logic>,
-    last_resets: Vec<Logic>,
+    trajectory: TrajectoryState,
     values: Vec<Value>,
-    memories: Vec<Vec<Value>>,
-    inout_drives: BTreeMap<SignalId, InoutNet>,
     models: BTreeMap<InstanceId, External>,
-    cycle: u64,
     pub strict_unique: bool,
     pub unique_violations: Vec<UniqueOverlapViolation>,
 }
@@ -153,37 +152,39 @@ impl<'d> Simulator<'d> {
         Self {
             design,
             mode,
-            clock_sources,
-            last_clocks: vec![Logic::X; design.clocks.len()],
-            last_resets: vec![Logic::X; design.resets.len()],
             values: design.signals.iter().map(|s| initial(s.width)).collect(),
-            memories: design
-                .memories
-                .iter()
-                .map(|m| vec![initial(m.width); m.depth as usize])
-                .collect(),
-            inout_drives: design
-                .instances
-                .iter()
-                .flat_map(|i| &i.ports)
-                .filter(|p| p.direction == HwDirection::InOut)
-                .flat_map(|p| {
-                    std::iter::once(p.signal)
-                        .chain(design.signal(p.signal).alias.as_ref().map(|a| a.signal))
-                })
-                .map(|id| {
-                    let released = Value::z(design.signal(id).width);
-                    (
-                        id,
-                        InoutNet {
-                            pin: released.clone(),
-                            resolved: released,
-                        },
-                    )
-                })
-                .collect(),
             models: BTreeMap::new(),
-            cycle: 0,
+            trajectory: TrajectoryState {
+                clock_sources,
+                last_clocks: vec![Logic::X; design.clocks.len()],
+                last_resets: vec![Logic::X; design.resets.len()],
+                memories: design
+                    .memories
+                    .iter()
+                    .map(|m| vec![initial(m.width); m.depth as usize])
+                    .collect(),
+                inout_drives: design
+                    .instances
+                    .iter()
+                    .flat_map(|i| &i.ports)
+                    .filter(|p| p.direction == HwDirection::InOut)
+                    .flat_map(|p| {
+                        std::iter::once(p.signal)
+                            .chain(design.signal(p.signal).alias.as_ref().map(|a| a.signal))
+                    })
+                    .map(|id| {
+                        let released = Value::z(design.signal(id).width);
+                        (
+                            id,
+                            InoutNet {
+                                pin: released.clone(),
+                                resolved: released,
+                            },
+                        )
+                    })
+                    .collect(),
+                cycle: 0,
+            },
             strict_unique: false,
             unique_violations: Vec::new(),
         }
@@ -200,7 +201,7 @@ impl<'d> Simulator<'d> {
     }
     /// Number of committed groups containing at least one rising edge.
     pub fn cycle(&self) -> u64 {
-        self.cycle
+        self.trajectory.cycle
     }
     pub fn port(&self, name: &str) -> Result<SignalId> {
         self.design
@@ -212,7 +213,8 @@ impl<'d> Simulator<'d> {
     }
     pub fn clock(&self, name: &str) -> Result<DomainId> {
         let signal = self.port(name)?;
-        self.clock_sources
+        self.trajectory
+            .clock_sources
             .iter()
             .position(|s| *s == signal)
             .map(DomainId)
@@ -220,19 +222,7 @@ impl<'d> Simulator<'d> {
     }
     /// Drive one input. Call eval_comb after a batch of simultaneous drives.
     pub fn drive(&mut self, id: SignalId, value: Value) -> Result<()> {
-        if !self
-            .design
-            .top_ports()
-            .iter()
-            .any(|p| p.signal == id && p.direction != HwDirection::Out)
-        {
-            return Err(RuntimeError::Invalid(format!("{id:?} is not a top input")));
-        }
-        let v = value.resized(self.design.signal(id).width);
-        if let Some(driver) = self.inout_drives.get_mut(&id) {
-            driver.pin.clone_from(&v);
-        }
-        self.values[id.0] = self.project(v);
+        self.values[id.0] = self.trajectory.drive(self.design, self.mode, id, value)?;
         Ok(())
     }
     pub fn drive_named(&mut self, name: &str, value: Value) -> Result<()> {
@@ -245,7 +235,7 @@ impl<'d> Simulator<'d> {
         Ok(self.read(self.port(name)?))
     }
     pub fn memory(&self, id: MemId, address: u32) -> Option<&Value> {
-        self.memories.get(id.0)?.get(address as usize)
+        self.trajectory.memory(id, address)
     }
     pub fn register_extern(
         &mut self,
@@ -371,7 +361,7 @@ impl<'d> Simulator<'d> {
         Ok(())
     }
     fn assign(&mut self, id: SignalId, low: u32, v: &Value) {
-        if let Some(net) = self.inout_drives.get_mut(&id) {
+        if let Some(net) = self.trajectory.inout_drives.get_mut(&id) {
             net.resolved.resolve(low, v);
             let resolved = net.resolved.clone();
             self.values[id.0] = self.project(resolved);
@@ -382,7 +372,7 @@ impl<'d> Simulator<'d> {
     }
     fn propagate_once(&mut self) -> Result<ControlFlow<InstanceId, Vec<(InstanceId, PortValues)>>> {
         let mut deferred = Vec::new();
-        for (id, net) in &mut self.inout_drives {
+        for (id, net) in &mut self.trajectory.inout_drives {
             net.resolved.clone_from(&net.pin);
             self.values[id.0] = if self.mode == StateMode::TwoState {
                 net.pin.clone().into_two_state()
@@ -407,7 +397,7 @@ impl<'d> Simulator<'d> {
                 };
                 if let Some((id, low)) = self.target(&a.target, site)? {
                     let w = self.target_width(&a.target);
-                    let mode = if self.inout_drives.contains_key(&id) {
+                    let mode = if self.trajectory.inout_drives.contains_key(&id) {
                         StateMode::FourState
                     } else {
                         self.mode
@@ -485,6 +475,7 @@ impl<'d> Simulator<'d> {
                 .map(|i| self.reset_level(ResetId(i)))
                 .collect();
             let rising: BTreeSet<_> = self
+                .trajectory
                 .last_clocks
                 .iter()
                 .zip(&clocks)
@@ -492,6 +483,7 @@ impl<'d> Simulator<'d> {
                 .filter_map(|(i, (&old, &new))| posedge(old, new).then_some(DomainId(i)))
                 .collect();
             let reset_edges: BTreeSet<_> = self
+                .trajectory
                 .last_resets
                 .iter()
                 .zip(&resets)
@@ -502,14 +494,14 @@ impl<'d> Simulator<'d> {
                 })
                 .collect();
             if rising.is_empty() && reset_edges.is_empty() && deferred.is_empty() {
-                self.last_clocks = clocks;
-                self.last_resets = resets;
+                self.trajectory.last_clocks = clocks;
+                self.trajectory.last_resets = resets;
                 return Ok(());
             }
             self.commit_group(&rising, &reset_edges, deferred)?;
-            self.last_clocks = clocks;
-            self.last_resets = resets;
-            self.cycle += u64::from(!rising.is_empty());
+            self.trajectory.last_clocks = clocks;
+            self.trajectory.last_resets = resets;
+            self.trajectory.cycle += u64::from(!rising.is_empty());
         }
         Err(RuntimeError::Invalid(
             "clock/reset or extern propagation did not settle".into(),
@@ -517,7 +509,7 @@ impl<'d> Simulator<'d> {
     }
     pub fn tick(&mut self, clock: &str) -> Result<()> {
         let id = self.clock(clock)?;
-        let source = self.clock_sources[id.0];
+        let source = self.trajectory.clock_sources[id.0];
         if self.read(source).truth() != Logic::Zero {
             self.step_clocks(&[ClockEvent::Falling(id)])?;
         }
@@ -529,7 +521,9 @@ impl<'d> Simulator<'d> {
         let mut seen = BTreeSet::new();
         for &event in events {
             let id = event.domain();
-            if id.0 >= self.clock_sources.len() || !seen.insert(self.clock_sources[id.0]) {
+            if id.0 >= self.trajectory.clock_sources.len()
+                || !seen.insert(self.trajectory.clock_sources[id.0])
+            {
                 return Err(RuntimeError::Invalid(format!(
                     "invalid or repeated clock event for {id:?}"
                 )));
@@ -537,7 +531,7 @@ impl<'d> Simulator<'d> {
         }
         self.eval_comb()?;
         for &event in events {
-            let signal = self.clock_sources[event.domain().0];
+            let signal = self.trajectory.clock_sources[event.domain().0];
             self.values[signal.0] =
                 Value::from_u64(1, matches!(event, ClockEvent::Rising(_)).into());
         }
@@ -610,7 +604,7 @@ impl<'d> Simulator<'d> {
                 return Err(AssertionFailure {
                     path: a.source.path.clone(),
                     span: a.source.span(),
-                    cycle: self.cycle + 1,
+                    cycle: self.trajectory.cycle + 1,
                     message: a.message.clone(),
                 }
                 .into());
@@ -623,7 +617,7 @@ impl<'d> Simulator<'d> {
             self.values[id.0].insert(low, &v)
         }
         for (id, addr, v) in writes {
-            self.memories[id][addr] = v
+            self.trajectory.memories[id][addr] = v
         }
         Ok(())
     }
