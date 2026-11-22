@@ -8,6 +8,7 @@ members = [
     "crates/syl_hw",
     "crates/syl_elab",
     "crates/syl_emit",
+    "crates/syl_sim",
     "crates/syl_session",
     "crates/syl_query",
     "crates/syl_lsp",
@@ -37,6 +38,7 @@ syl_hw = { path = "crates/syl_hw", version = "0.1.0" }
 syl_query = { path = "crates/syl_query", version = "0.1.0" }
 syl_sema = { path = "crates/syl_sema", version = "0.1.0" }
 syl_session = { path = "crates/syl_session", version = "0.1.0" }
+syl_sim = { path = "crates/syl_sim", version = "0.1.0" }
 syl_span = { path = "crates/syl_span", version = "0.1.0" }
 syl_syntax = { path = "crates/syl_syntax", version = "0.1.0" }
 thiserror = "1"

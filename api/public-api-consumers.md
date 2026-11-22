@@ -51,6 +51,10 @@ opaque summary contracts.
 CLI, facade, query, and LSP consumers that need project loading, VFS, package snapshots, and
 workspace-scoped analysis.
 
+## syl_sim
+
+Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+
 ## syl_span
 
 All compiler layers, CLI, LSP, and embedding consumers that need source identity, ranges, and
@@ -2826,6 +2830,172 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_session|variant|syl_session::error::ProjectError::ReadDir|{ path: std::path::PathBuf, source: std::io::Error }` - CLI, facade, query, and LSP consumers that need project loading, VFS, package snapshots, and workspace-scoped analysis.
 - `syl_session|variant|syl_session::error::ProjectError::Read|{ path: std::path::PathBuf, source: std::io::Error }` - CLI, facade, query, and LSP consumers that need project loading, VFS, package snapshots, and workspace-scoped analysis.
 - `syl_session|variant|syl_session::error::ProjectError::StaleDocumentVersion|{ uri: String, requested: u64, current: u64 }` - CLI, facade, query, and LSP consumers that need project loading, VFS, package snapshots, and workspace-scoped analysis.
+- `syl_sim|enum|syl_sim::design::ParamValue|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|enum|syl_sim::design::Selector|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|enum|syl_sim::design::SimError|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|enum|syl_sim::design::SimExpr|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::AssertId::0|usize` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::ClockDomain::name|Option<String>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::ClockDomain::signal|SignalId` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::CombAssign::target|SimTarget` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::CombAssign::value|SimExpr` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::CombId::0|usize` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::DomainId::0|usize` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::InstanceFamily::members|Vec<InstanceId>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::InstanceFamily::module|Vec<String>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::InstanceFamily::parameters|std::collections::BTreeMap<String, ParamValue>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::InstanceId::0|usize` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::MemCombReadPort::address|SimExpr` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::MemId::0|usize` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::MemSyncReadPort::address|SimExpr` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::MemSyncReadPort::clock|DomainId` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::MemSyncReadPort::enable|SimExpr` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::MemSyncReadPort::target|SimTarget` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::MemWritePort::address|SimExpr` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::MemWritePort::clock|DomainId` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::MemWritePort::data|SimExpr` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::MemWritePort::enable|SimExpr` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::RegId::0|usize` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::ResetDomain::mode|syl_hw::HwResetMode` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::ResetDomain::name|Option<String>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::ResetDomain::polarity|syl_hw::HwResetPolarity` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::ResetDomain::signal|SignalId` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::ResetId::0|usize` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SignalId::0|usize` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimAssert::clock|DomainId` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimAssert::condition|SimExpr` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimAssert::message|String` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimAssert::reset_mask|Option<ResetId>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimAssert::source|SourceLocation` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimDesign::assertions|Vec<SimAssert>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimDesign::clocks|Vec<ClockDomain>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimDesign::comb_eval_order|Vec<CombId>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimDesign::comb|Vec<CombAssign>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimDesign::externs|Vec<SimExternInstance>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimDesign::families|Vec<InstanceFamily>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimDesign::instances|Vec<SimInstance>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimDesign::memories|Vec<SimMem>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimDesign::regs|Vec<SimReg>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimDesign::resets|Vec<ResetDomain>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimDesign::signals|Vec<SimSignal>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimExternInstance::connections|Vec<(SignalId, SimExpr)>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimExternInstance::instance|InstanceId` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimInstance::parent|Option<InstanceId>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimInstance::ports|Vec<SimPort>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimInstance::source|SourceLocation` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimInstance::template|TemplateId` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimMem::comb_reads|Vec<MemCombReadPort>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimMem::depth|u32` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimMem::source|SourceLocation` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimMem::sync_reads|Vec<MemSyncReadPort>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimMem::width|u32` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimMem::writes|Vec<MemWritePort>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimPort::direction|syl_hw::HwDirection` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimPort::name|String` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimPort::signal|SignalId` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimReg::clock|DomainId` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimReg::next|SimExpr` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimReg::reset|Option<(ResetId, SimExpr)>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimReg::signal|SignalId` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimReg::source|SourceLocation` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimReg::width|u32` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimSignal::alias|Option<SimTarget>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimSignal::source|SourceLocation` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimSignal::width|u32` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimTarget::selectors|Vec<Selector>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimTarget::signal|SignalId` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SourceLocation::instance|InstanceId` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SourceLocation::name|String` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SourceLocation::origin|syl_hw::HwOrigin` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SourceLocation::path|String` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::TemplateId::0|usize` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|method|syl_sim::design::SimDesign::assertion|fn(self: &Self, id: AssertId) -> &SimAssert` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|method|syl_sim::design::SimDesign::lower|fn(output: &ElaborationOutput, top: &str, parameters: &BTreeMap<String, ParamValue>) -> Result<Self, SimError>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|method|syl_sim::design::SimDesign::register|fn(self: &Self, id: RegId) -> &SimReg` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|method|syl_sim::design::SimDesign::signal|fn(self: &Self, id: SignalId) -> &SimSignal` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|method|syl_sim::design::SimDesign::top_ports|fn(self: &Self) -> &[SimPort]` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|method|syl_sim::design::SourceLocation::span|fn(self: &Self) -> Span` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|struct|syl_sim::design::AssertId|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|struct|syl_sim::design::ClockDomain|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|struct|syl_sim::design::CombAssign|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|struct|syl_sim::design::CombId|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|struct|syl_sim::design::DomainId|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|struct|syl_sim::design::InstanceFamily|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|struct|syl_sim::design::InstanceId|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|struct|syl_sim::design::MemCombReadPort|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|struct|syl_sim::design::MemId|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|struct|syl_sim::design::MemSyncReadPort|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|struct|syl_sim::design::MemWritePort|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|struct|syl_sim::design::RegId|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|struct|syl_sim::design::ResetDomain|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|struct|syl_sim::design::ResetId|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|struct|syl_sim::design::SignalId|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|struct|syl_sim::design::SimAssert|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|struct|syl_sim::design::SimDesign|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|struct|syl_sim::design::SimExternInstance|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|struct|syl_sim::design::SimInstance|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|struct|syl_sim::design::SimMem|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|struct|syl_sim::design::SimPort|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|struct|syl_sim::design::SimReg|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|struct|syl_sim::design::SimSignal|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|struct|syl_sim::design::SimTarget|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|struct|syl_sim::design::SourceLocation|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|struct|syl_sim::design::TemplateId|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|AssertId|named|source=design::AssertId` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|ClockDomain|named|source=design::ClockDomain` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|CombAssign|named|source=design::CombAssign` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|CombId|named|source=design::CombId` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|DomainId|named|source=design::DomainId` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|HwBinaryOp|named|source=syl_hw::HwBinaryOp` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|HwDirection|named|source=syl_hw::HwDirection` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|HwResetMode|named|source=syl_hw::HwResetMode` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|HwResetPolarity|named|source=syl_hw::HwResetPolarity` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|HwSelectMode|named|source=syl_hw::HwSelectMode` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|HwUnaryOp|named|source=syl_hw::HwUnaryOp` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|InstanceFamily|named|source=design::InstanceFamily` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|InstanceId|named|source=design::InstanceId` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|MemCombReadPort|named|source=design::MemCombReadPort` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|MemId|named|source=design::MemId` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|MemSyncReadPort|named|source=design::MemSyncReadPort` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|MemWritePort|named|source=design::MemWritePort` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|ParamValue|named|source=design::ParamValue` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|RegId|named|source=design::RegId` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|ResetDomain|named|source=design::ResetDomain` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|ResetId|named|source=design::ResetId` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|Selector|named|source=design::Selector` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|SignalId|named|source=design::SignalId` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|SimAssert|named|source=design::SimAssert` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|SimDesign|named|source=design::SimDesign` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|SimError|named|source=design::SimError` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|SimExpr|named|source=design::SimExpr` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|SimExternInstance|named|source=design::SimExternInstance` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|SimInstance|named|source=design::SimInstance` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|SimMem|named|source=design::SimMem` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|SimPort|named|source=design::SimPort` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|SimReg|named|source=design::SimReg` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|SimSignal|named|source=design::SimSignal` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|SimTarget|named|source=design::SimTarget` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|SourceLocation|named|source=design::SourceLocation` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|TemplateId|named|source=design::TemplateId` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|variant|syl_sim::design::ParamValue::Bool|(bool)` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|variant|syl_sim::design::ParamValue::Nat|(u64)` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|variant|syl_sim::design::Selector::Index|{ index: Box<SimExpr>, width: u32 }` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|variant|syl_sim::design::Selector::Slice|{ high: u32, low: u32 }` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|variant|syl_sim::design::SimError::CombinationalCycle|{ chain: Vec<String>, members: Vec<String> }` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|variant|syl_sim::design::SimError::Elaboration|(String)` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|variant|syl_sim::design::SimError::Invalid|(String)` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|variant|syl_sim::design::SimExpr::Binary|{ op: syl_hw::HwBinaryOp, left: Box<SimExpr>, right: Box<SimExpr> }` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|variant|syl_sim::design::SimExpr::Bool|(bool)` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|variant|syl_sim::design::SimExpr::Concat|(Vec<SimExpr>)` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|variant|syl_sim::design::SimExpr::HighZ|unit` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|variant|syl_sim::design::SimExpr::Int|(u64)` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|variant|syl_sim::design::SimExpr::MemoryRead|{ memory: MemId, port: usize }` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|variant|syl_sim::design::SimExpr::Mux|{ cond: Box<SimExpr>, then_value: Box<SimExpr>, else_value: Box<SimExpr> }` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|variant|syl_sim::design::SimExpr::Project|{ value: Box<SimExpr>, selector: Selector }` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|variant|syl_sim::design::SimExpr::Read|(SimTarget)` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|variant|syl_sim::design::SimExpr::Select|{ mode: syl_hw::HwSelectMode, arms: Vec<(SimExpr, SimExpr)>, default: Box<SimExpr> }` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|variant|syl_sim::design::SimExpr::Unary|{ op: syl_hw::HwUnaryOp, expr: Box<SimExpr> }` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|variant|syl_sim::design::SimExpr::Zero|unit` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_span|assoc_const|syl_span::SourceId::UNKNOWN|public` - All compiler layers, CLI, LSP, and embedding consumers that need source identity, ranges, and diagnostics.
 - `syl_span|enum|syl_span::DiagnosticSeverity|public` - All compiler layers, CLI, LSP, and embedding consumers that need source identity, ranges, and diagnostics.
 - `syl_span|field|syl_span::Diagnostic::code|Option<String>` - All compiler layers, CLI, LSP, and embedding consumers that need source identity, ranges, and diagnostics.

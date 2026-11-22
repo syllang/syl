@@ -1043,6 +1043,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "syl_sim"
+version = "0.1.0"
+dependencies = [
+ "syl_elab",
+ "syl_hw",
+ "syl_sema",
+ "syl_span",
+ "syl_syntax",
+ "thiserror",
+]
+
+[[package]]
 name = "syl_span"
 version = "0.1.0"
 

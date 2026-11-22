@@ -2756,6 +2756,172 @@ syl_session|variant|syl_session::error::ProjectError::ReadDirEntry|{ path: std::
 syl_session|variant|syl_session::error::ProjectError::ReadDir|{ path: std::path::PathBuf, source: std::io::Error }
 syl_session|variant|syl_session::error::ProjectError::Read|{ path: std::path::PathBuf, source: std::io::Error }
 syl_session|variant|syl_session::error::ProjectError::StaleDocumentVersion|{ uri: String, requested: u64, current: u64 }
+syl_sim|enum|syl_sim::design::ParamValue|public
+syl_sim|enum|syl_sim::design::Selector|public
+syl_sim|enum|syl_sim::design::SimError|public
+syl_sim|enum|syl_sim::design::SimExpr|public
+syl_sim|field|syl_sim::design::AssertId::0|usize
+syl_sim|field|syl_sim::design::ClockDomain::name|Option<String>
+syl_sim|field|syl_sim::design::ClockDomain::signal|SignalId
+syl_sim|field|syl_sim::design::CombAssign::target|SimTarget
+syl_sim|field|syl_sim::design::CombAssign::value|SimExpr
+syl_sim|field|syl_sim::design::CombId::0|usize
+syl_sim|field|syl_sim::design::DomainId::0|usize
+syl_sim|field|syl_sim::design::InstanceFamily::members|Vec<InstanceId>
+syl_sim|field|syl_sim::design::InstanceFamily::module|Vec<String>
+syl_sim|field|syl_sim::design::InstanceFamily::parameters|std::collections::BTreeMap<String, ParamValue>
+syl_sim|field|syl_sim::design::InstanceId::0|usize
+syl_sim|field|syl_sim::design::MemCombReadPort::address|SimExpr
+syl_sim|field|syl_sim::design::MemId::0|usize
+syl_sim|field|syl_sim::design::MemSyncReadPort::address|SimExpr
+syl_sim|field|syl_sim::design::MemSyncReadPort::clock|DomainId
+syl_sim|field|syl_sim::design::MemSyncReadPort::enable|SimExpr
+syl_sim|field|syl_sim::design::MemSyncReadPort::target|SimTarget
+syl_sim|field|syl_sim::design::MemWritePort::address|SimExpr
+syl_sim|field|syl_sim::design::MemWritePort::clock|DomainId
+syl_sim|field|syl_sim::design::MemWritePort::data|SimExpr
+syl_sim|field|syl_sim::design::MemWritePort::enable|SimExpr
+syl_sim|field|syl_sim::design::RegId::0|usize
+syl_sim|field|syl_sim::design::ResetDomain::mode|syl_hw::HwResetMode
+syl_sim|field|syl_sim::design::ResetDomain::name|Option<String>
+syl_sim|field|syl_sim::design::ResetDomain::polarity|syl_hw::HwResetPolarity
+syl_sim|field|syl_sim::design::ResetDomain::signal|SignalId
+syl_sim|field|syl_sim::design::ResetId::0|usize
+syl_sim|field|syl_sim::design::SignalId::0|usize
+syl_sim|field|syl_sim::design::SimAssert::clock|DomainId
+syl_sim|field|syl_sim::design::SimAssert::condition|SimExpr
+syl_sim|field|syl_sim::design::SimAssert::message|String
+syl_sim|field|syl_sim::design::SimAssert::reset_mask|Option<ResetId>
+syl_sim|field|syl_sim::design::SimAssert::source|SourceLocation
+syl_sim|field|syl_sim::design::SimDesign::assertions|Vec<SimAssert>
+syl_sim|field|syl_sim::design::SimDesign::clocks|Vec<ClockDomain>
+syl_sim|field|syl_sim::design::SimDesign::comb_eval_order|Vec<CombId>
+syl_sim|field|syl_sim::design::SimDesign::comb|Vec<CombAssign>
+syl_sim|field|syl_sim::design::SimDesign::externs|Vec<SimExternInstance>
+syl_sim|field|syl_sim::design::SimDesign::families|Vec<InstanceFamily>
+syl_sim|field|syl_sim::design::SimDesign::instances|Vec<SimInstance>
+syl_sim|field|syl_sim::design::SimDesign::memories|Vec<SimMem>
+syl_sim|field|syl_sim::design::SimDesign::regs|Vec<SimReg>
+syl_sim|field|syl_sim::design::SimDesign::resets|Vec<ResetDomain>
+syl_sim|field|syl_sim::design::SimDesign::signals|Vec<SimSignal>
+syl_sim|field|syl_sim::design::SimExternInstance::connections|Vec<(SignalId, SimExpr)>
+syl_sim|field|syl_sim::design::SimExternInstance::instance|InstanceId
+syl_sim|field|syl_sim::design::SimInstance::parent|Option<InstanceId>
+syl_sim|field|syl_sim::design::SimInstance::ports|Vec<SimPort>
+syl_sim|field|syl_sim::design::SimInstance::source|SourceLocation
+syl_sim|field|syl_sim::design::SimInstance::template|TemplateId
+syl_sim|field|syl_sim::design::SimMem::comb_reads|Vec<MemCombReadPort>
+syl_sim|field|syl_sim::design::SimMem::depth|u32
+syl_sim|field|syl_sim::design::SimMem::source|SourceLocation
+syl_sim|field|syl_sim::design::SimMem::sync_reads|Vec<MemSyncReadPort>
+syl_sim|field|syl_sim::design::SimMem::width|u32
+syl_sim|field|syl_sim::design::SimMem::writes|Vec<MemWritePort>
+syl_sim|field|syl_sim::design::SimPort::direction|syl_hw::HwDirection
+syl_sim|field|syl_sim::design::SimPort::name|String
+syl_sim|field|syl_sim::design::SimPort::signal|SignalId
+syl_sim|field|syl_sim::design::SimReg::clock|DomainId
+syl_sim|field|syl_sim::design::SimReg::next|SimExpr
+syl_sim|field|syl_sim::design::SimReg::reset|Option<(ResetId, SimExpr)>
+syl_sim|field|syl_sim::design::SimReg::signal|SignalId
+syl_sim|field|syl_sim::design::SimReg::source|SourceLocation
+syl_sim|field|syl_sim::design::SimReg::width|u32
+syl_sim|field|syl_sim::design::SimSignal::alias|Option<SimTarget>
+syl_sim|field|syl_sim::design::SimSignal::source|SourceLocation
+syl_sim|field|syl_sim::design::SimSignal::width|u32
+syl_sim|field|syl_sim::design::SimTarget::selectors|Vec<Selector>
+syl_sim|field|syl_sim::design::SimTarget::signal|SignalId
+syl_sim|field|syl_sim::design::SourceLocation::instance|InstanceId
+syl_sim|field|syl_sim::design::SourceLocation::name|String
+syl_sim|field|syl_sim::design::SourceLocation::origin|syl_hw::HwOrigin
+syl_sim|field|syl_sim::design::SourceLocation::path|String
+syl_sim|field|syl_sim::design::TemplateId::0|usize
+syl_sim|method|syl_sim::design::SimDesign::assertion|fn(self: &Self, id: AssertId) -> &SimAssert
+syl_sim|method|syl_sim::design::SimDesign::lower|fn(output: &ElaborationOutput, top: &str, parameters: &BTreeMap<String, ParamValue>) -> Result<Self, SimError>
+syl_sim|method|syl_sim::design::SimDesign::register|fn(self: &Self, id: RegId) -> &SimReg
+syl_sim|method|syl_sim::design::SimDesign::signal|fn(self: &Self, id: SignalId) -> &SimSignal
+syl_sim|method|syl_sim::design::SimDesign::top_ports|fn(self: &Self) -> &[SimPort]
+syl_sim|method|syl_sim::design::SourceLocation::span|fn(self: &Self) -> Span
+syl_sim|struct|syl_sim::design::AssertId|public
+syl_sim|struct|syl_sim::design::ClockDomain|public
+syl_sim|struct|syl_sim::design::CombAssign|public
+syl_sim|struct|syl_sim::design::CombId|public
+syl_sim|struct|syl_sim::design::DomainId|public
+syl_sim|struct|syl_sim::design::InstanceFamily|public
+syl_sim|struct|syl_sim::design::InstanceId|public
+syl_sim|struct|syl_sim::design::MemCombReadPort|public
+syl_sim|struct|syl_sim::design::MemId|public
+syl_sim|struct|syl_sim::design::MemSyncReadPort|public
+syl_sim|struct|syl_sim::design::MemWritePort|public
+syl_sim|struct|syl_sim::design::RegId|public
+syl_sim|struct|syl_sim::design::ResetDomain|public
+syl_sim|struct|syl_sim::design::ResetId|public
+syl_sim|struct|syl_sim::design::SignalId|public
+syl_sim|struct|syl_sim::design::SimAssert|public
+syl_sim|struct|syl_sim::design::SimDesign|public
+syl_sim|struct|syl_sim::design::SimExternInstance|public
+syl_sim|struct|syl_sim::design::SimInstance|public
+syl_sim|struct|syl_sim::design::SimMem|public
+syl_sim|struct|syl_sim::design::SimPort|public
+syl_sim|struct|syl_sim::design::SimReg|public
+syl_sim|struct|syl_sim::design::SimSignal|public
+syl_sim|struct|syl_sim::design::SimTarget|public
+syl_sim|struct|syl_sim::design::SourceLocation|public
+syl_sim|struct|syl_sim::design::TemplateId|public
+syl_sim|use|AssertId|named|source=design::AssertId
+syl_sim|use|ClockDomain|named|source=design::ClockDomain
+syl_sim|use|CombAssign|named|source=design::CombAssign
+syl_sim|use|CombId|named|source=design::CombId
+syl_sim|use|DomainId|named|source=design::DomainId
+syl_sim|use|HwBinaryOp|named|source=syl_hw::HwBinaryOp
+syl_sim|use|HwDirection|named|source=syl_hw::HwDirection
+syl_sim|use|HwResetMode|named|source=syl_hw::HwResetMode
+syl_sim|use|HwResetPolarity|named|source=syl_hw::HwResetPolarity
+syl_sim|use|HwSelectMode|named|source=syl_hw::HwSelectMode
+syl_sim|use|HwUnaryOp|named|source=syl_hw::HwUnaryOp
+syl_sim|use|InstanceFamily|named|source=design::InstanceFamily
+syl_sim|use|InstanceId|named|source=design::InstanceId
+syl_sim|use|MemCombReadPort|named|source=design::MemCombReadPort
+syl_sim|use|MemId|named|source=design::MemId
+syl_sim|use|MemSyncReadPort|named|source=design::MemSyncReadPort
+syl_sim|use|MemWritePort|named|source=design::MemWritePort
+syl_sim|use|ParamValue|named|source=design::ParamValue
+syl_sim|use|RegId|named|source=design::RegId
+syl_sim|use|ResetDomain|named|source=design::ResetDomain
+syl_sim|use|ResetId|named|source=design::ResetId
+syl_sim|use|Selector|named|source=design::Selector
+syl_sim|use|SignalId|named|source=design::SignalId
+syl_sim|use|SimAssert|named|source=design::SimAssert
+syl_sim|use|SimDesign|named|source=design::SimDesign
+syl_sim|use|SimError|named|source=design::SimError
+syl_sim|use|SimExpr|named|source=design::SimExpr
+syl_sim|use|SimExternInstance|named|source=design::SimExternInstance
+syl_sim|use|SimInstance|named|source=design::SimInstance
+syl_sim|use|SimMem|named|source=design::SimMem
+syl_sim|use|SimPort|named|source=design::SimPort
+syl_sim|use|SimReg|named|source=design::SimReg
+syl_sim|use|SimSignal|named|source=design::SimSignal
+syl_sim|use|SimTarget|named|source=design::SimTarget
+syl_sim|use|SourceLocation|named|source=design::SourceLocation
+syl_sim|use|TemplateId|named|source=design::TemplateId
+syl_sim|variant|syl_sim::design::ParamValue::Bool|(bool)
+syl_sim|variant|syl_sim::design::ParamValue::Nat|(u64)
+syl_sim|variant|syl_sim::design::Selector::Index|{ index: Box<SimExpr>, width: u32 }
+syl_sim|variant|syl_sim::design::Selector::Slice|{ high: u32, low: u32 }
+syl_sim|variant|syl_sim::design::SimError::CombinationalCycle|{ chain: Vec<String>, members: Vec<String> }
+syl_sim|variant|syl_sim::design::SimError::Elaboration|(String)
+syl_sim|variant|syl_sim::design::SimError::Invalid|(String)
+syl_sim|variant|syl_sim::design::SimExpr::Binary|{ op: syl_hw::HwBinaryOp, left: Box<SimExpr>, right: Box<SimExpr> }
+syl_sim|variant|syl_sim::design::SimExpr::Bool|(bool)
+syl_sim|variant|syl_sim::design::SimExpr::Concat|(Vec<SimExpr>)
+syl_sim|variant|syl_sim::design::SimExpr::HighZ|unit
+syl_sim|variant|syl_sim::design::SimExpr::Int|(u64)
+syl_sim|variant|syl_sim::design::SimExpr::MemoryRead|{ memory: MemId, port: usize }
+syl_sim|variant|syl_sim::design::SimExpr::Mux|{ cond: Box<SimExpr>, then_value: Box<SimExpr>, else_value: Box<SimExpr> }
+syl_sim|variant|syl_sim::design::SimExpr::Project|{ value: Box<SimExpr>, selector: Selector }
+syl_sim|variant|syl_sim::design::SimExpr::Read|(SimTarget)
+syl_sim|variant|syl_sim::design::SimExpr::Select|{ mode: syl_hw::HwSelectMode, arms: Vec<(SimExpr, SimExpr)>, default: Box<SimExpr> }
+syl_sim|variant|syl_sim::design::SimExpr::Unary|{ op: syl_hw::HwUnaryOp, expr: Box<SimExpr> }
+syl_sim|variant|syl_sim::design::SimExpr::Zero|unit
 syl_span|assoc_const|syl_span::SourceId::UNKNOWN|public
 syl_span|enum|syl_span::DiagnosticSeverity|public
 syl_span|field|syl_span::Diagnostic::code|Option<String>

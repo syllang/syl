@@ -175,6 +175,12 @@
         "release-plz.toml",
         "rust-toolchain.toml"
       ]
+    },
+    "syl_sim": {
+      "kind": "crate",
+      "paths": [
+        "crates/syl_sim"
+      ]
     }
   },
   "composite_scopes": {
@@ -194,7 +200,8 @@
       "tier": "tight",
       "members": [
         "syl_hw",
-        "syl_emit"
+        "syl_emit",
+        "syl_sim"
       ]
     },
     "ide": {
