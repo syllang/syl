@@ -1,5 +1,6 @@
 use super::{
-    SvExpr, SvInstance, SvItem, SvModule, SvParam, SvResetMode, SvResetPolarity, SvSelectArm,
+    SvBinaryOp, SvExpr, SvInstance, SvItem, SvModule, SvParam, SvParamDefault, SvResetMode,
+    SvResetPolarity, SvSelectArm,
 };
 
 /// Owns the output buffer while rendering backend IR.
@@ -9,12 +10,37 @@ use super::{
 /// textual spelling of nested expressions.
 struct SvPrinter<'a> {
     out: &'a mut String,
+    parameter_default: bool,
 }
 
 pub(crate) fn text(modules: &[SvModule], header: bool) -> String {
     let mut out = String::new();
-    SvPrinter { out: &mut out }.design(modules, header);
+    SvPrinter {
+        out: &mut out,
+        parameter_default: false,
+    }
+    .design(modules, header);
     out
+}
+
+pub(crate) fn parameter_expression(expr: &SvExpr) -> String {
+    let mut out = String::new();
+    SvPrinter {
+        out: &mut out,
+        parameter_default: true,
+    }
+    .expr(expr);
+    out
+}
+
+// Syl decimals are positive signed values with at least 32 bits.
+pub(crate) fn decimal_literal(value: u64) -> String {
+    if value > i32::MAX as u64 {
+        let width = 65 - value.leading_zeros();
+        format!("{width}'sd{value}")
+    } else {
+        value.to_string()
+    }
 }
 
 impl<'a> SvPrinter<'a> {
@@ -74,10 +100,24 @@ impl<'a> SvPrinter<'a> {
     }
 
     fn param(&mut self, param: &SvParam, comma: &str) {
+        let default = match &param.default {
+            SvParamDefault::Text(text) => text.clone(),
+            SvParamDefault::ComputedNat(expr) => {
+                // Evaluate the full u64 domain with a positive sign bit. Once
+                // computed, a nat used in hardware has a signed decimal's
+                // natural width (at least 32 bits), just like a literal.
+                let value = format!("{}$nat", param.name);
+                self.out
+                    .push_str(&format!("    localparam signed [64:0] {value} = {expr},\n"));
+                format!(
+                    "(({value} <= 65'sd2147483647) ? 32 : 1 + $clog2({value} + 65'd1))'({value})"
+                )
+            }
+        };
         self.doc(4, param.doc.as_deref());
         self.out.push_str(&format!(
-            "    parameter {} = {}{}\n",
-            param.name, param.default, comma
+            "    parameter {} = {default}{comma}\n",
+            param.name
         ));
     }
 
@@ -285,7 +325,7 @@ impl<'a> SvPrinter<'a> {
     fn expr(&mut self, expr: &SvExpr) {
         match expr {
             SvExpr::Ident(name) => self.out.push_str(name),
-            SvExpr::Int(value) => self.out.push_str(&value.to_string()),
+            SvExpr::Int(value) => self.out.push_str(&decimal_literal(*value)),
             SvExpr::Bool(value) => {
                 if *value {
                     self.out.push_str("1'b1");
@@ -307,7 +347,20 @@ impl<'a> SvPrinter<'a> {
                 self.out.push(')');
             }
             SvExpr::Binary { op, left, right } => {
-                self.out.push('(');
+                // Comparisons, shift distances and function arguments have
+                // self-determined operands in SV. Supply a 65-bit context at
+                // the arithmetic itself even when nested under one of them.
+                let wide = self.parameter_default
+                    && matches!(
+                        op,
+                        SvBinaryOp::Add
+                            | SvBinaryOp::Sub
+                            | SvBinaryOp::Mul
+                            | SvBinaryOp::Div
+                            | SvBinaryOp::Rem
+                            | SvBinaryOp::Shl
+                    );
+                self.out.push_str(if wide { "65'(" } else { "(" });
                 self.expr(left);
                 self.out.push(' ');
                 self.out.push_str(<&'static str>::from(*op));

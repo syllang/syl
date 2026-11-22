@@ -219,6 +219,22 @@ where
         })
     }
 
+    pub(super) fn generic_arg_value(&self, owner: Option<DefId>, ty: &MirTypeRef) -> String {
+        if let Some(def) =
+            owner.and_then(|id| ElabTypeDefinitionResolver::new(self.program).def_id(id, ty))
+            && let Some(item) = self.program.const_by_def(def)
+        {
+            // A named constant used as an instance argument is evaluated in
+            // its own package, independently of the instantiating cell.
+            match self.elab_const_value(&item.value, &self.type_env(Some(def))) {
+                Ok(crate::const_eval::ConstValue::Nat(n)) => return n.to_string(),
+                Ok(crate::const_eval::ConstValue::Bool(b)) => return b.to_string(),
+                _ => {}
+            }
+        }
+        self.type_value(owner, ty)
+    }
+
     pub(super) fn type_value(&self, owner: Option<DefId>, ty: &MirTypeRef) -> String {
         if let Some(path) = ty.path() {
             return path

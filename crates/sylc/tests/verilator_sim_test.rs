@@ -182,11 +182,16 @@ fn simulate(example: &str, top: &str, parameters: &[&str], testbench: &str) {
 }
 
 fn tool_available(tool: &str) -> bool {
-    match Command::new(tool).arg("--version").output() {
+    let version = if tool == "iverilog" {
+        "-V"
+    } else {
+        "--version"
+    };
+    match Command::new(tool).arg(version).output() {
         Ok(output) => {
             assert!(
                 output.status.success(),
-                "{tool} --version failed: {output:?}"
+                "{tool} {version} failed: {output:?}"
             );
             true
         }
@@ -228,3 +233,9 @@ impl Drop for SimulationDir {
         let _ = fs::remove_dir_all(&self.0);
     }
 }
+
+#[path = "verilator_sim_test/native_diff_test.rs"]
+mod native_diff_test;
+
+#[path = "verilator_sim_test/sv_contracts_test.rs"]
+mod sv_contracts_test;

@@ -148,7 +148,7 @@ impl Scope {
 }
 
 impl SimTarget {
-    fn whole(signal: SignalId) -> Self {
+    pub(crate) fn whole(signal: SignalId) -> Self {
         Self {
             signal,
             selectors: Vec::new(),
@@ -276,16 +276,17 @@ impl<'a> Lower<'a> {
                 let local = SimTarget::whole(signal);
                 match p.direction() {
                     HwDirection::In => self.design.comb.push(CombAssign {
+                        span: self.design.signal(signal).source.span(),
                         target: local,
                         value: actual.clone(),
                     }),
                     HwDirection::Out => self.design.comb.push(CombAssign {
+                        span: self.design.signal(signal).source.span(),
                         target: actual.as_target()?.clone(),
                         value: SimExpr::Read(local),
                     }),
                     HwDirection::InOut => {
                         let target = actual.as_target()?.clone();
-                        scope.signals.insert(p.name().into(), target.clone());
                         self.design.signals[signal.0].alias = Some(target);
                     }
                     _ => return invalid("unsupported port direction"),
@@ -298,6 +299,12 @@ impl<'a> Lower<'a> {
         }
         if module.is_extern() {
             self.design.externs.push(SimExternInstance {
+                clocks: self.design.instances[id.0]
+                    .ports
+                    .iter()
+                    .filter(|p| self.clocks.contains_key(&p.signal))
+                    .map(|p| p.signal)
+                    .collect(),
                 instance: id,
                 connections: extern_ports,
             });

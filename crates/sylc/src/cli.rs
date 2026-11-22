@@ -41,8 +41,31 @@ pub(crate) struct SylcApp {
 pub(crate) enum SylcCommand {
     /// Type-check and run elaboration DRC without emitting SystemVerilog.
     Check(CheckArgs),
+    /// Run the native four-state simulator.
+    Sim(SimArgs),
     /// Check and emit SystemVerilog to stdout or --out.
     Emit(EmitArgs),
+}
+#[derive(Debug, PartialEq, Eq, Args)]
+pub(crate) struct SimArgs {
+    pub input: PathBuf,
+    #[arg(long)]
+    pub top: String,
+    /// Number of automatic clock cycles, including the reset cycle.
+    #[arg(long, conflicts_with = "stimulus", default_value_t = 1)]
+    pub cycles: u64,
+    #[arg(long = "param", value_name = "K=V")]
+    pub params: Vec<String>,
+    /// JSON array of steps with drive, clocks and expect fields.
+    #[arg(long)]
+    pub stimulus: Option<PathBuf>,
+    #[arg(long)]
+    pub vcd: Option<PathBuf>,
+    #[arg(long)]
+    pub strict_unique: bool,
+    /// Reject X or Z on a top output after a stimulus step or automatic cycle.
+    #[arg(long)]
+    pub fail_on_x: bool,
 }
 #[derive(Debug, Args)]
 pub(crate) struct CheckArgs {
@@ -65,7 +88,7 @@ pub(crate) struct OutputArgs {
     /// Write one SystemVerilog file per module and a dependency-ordered filelist.
     #[arg(long, value_name = "DIR")]
     pub out_dir: Option<PathBuf>,
-    /// Set the filelist path (defaults to <out-dir>/filelist.f).
+    /// Set the filelist path (defaults to `<out-dir>/filelist.f`).
     #[arg(long, value_name = "PATH")]
     pub filelist: Option<PathBuf>,
     /// Include Syl source locations in the SystemVerilog.
@@ -105,6 +128,7 @@ impl OutputArgs {
 pub(crate) enum RunMode {
     Check,
     Emit(OutputArgs),
+    Sim(SimArgs),
 }
 #[derive(Debug)]
 pub(crate) struct CliInvocation {
@@ -136,6 +160,13 @@ impl SylcApp {
 
     pub(crate) fn into_invocation(self) -> Result<CliInvocation, String> {
         let (mode, inputs) = match self.command {
+            Some(SylcCommand::Sim(args)) => {
+                if self.legacy.output != OutputArgs::default() || !self.legacy.inputs.is_empty() {
+                    return Err("unexpected emit arguments before sim".into());
+                }
+                let inputs = vec![args.input.clone()];
+                (RunMode::Sim(args), inputs)
+            }
             Some(SylcCommand::Check(args)) => {
                 if self.legacy.output != OutputArgs::default() {
                     return Err("output options are only valid for `emit`".into());

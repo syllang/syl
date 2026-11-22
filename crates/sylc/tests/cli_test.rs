@@ -490,3 +490,185 @@ fn custom_filelist_rejects_symlinks_to_module_outputs() {
         }
     }
 }
+
+#[test]
+fn sim_runs_json_drives_edges_async_reset_and_vcd() {
+    let project = TestProject::new();
+    project.write(
+        "top.syl",
+        "cell Top<W: nat = 4,>(clk:in Clock,rst:in Reset<Async,ActiveLow>,i:in UInt<W>)-> q:UInt<W> {
+        reg stored:UInt<W> reset(rst,0)
+        next stored := i
+        q := stored
+    }",
+    );
+    project.write(
+        "steps.json",
+        r#"[{"drive":{"rst":0,"i":7},"expect":{"q":0}},
+        {"drive":{"rst":1},"expect":{"q":0}},{"clocks":["clk"],"expect":{"q":7}},
+        {"drive":{"i":"zzx10"},"clocks":["clk"],"expect":{"q":"zzx10"}},
+        {"drive":{"rst":0},"expect":{"q":0}}]"#,
+    );
+    let out = project.run(
+        "",
+        &[
+            "sim",
+            "top.syl",
+            "--top",
+            "Top",
+            "--param",
+            "W=5",
+            "--stimulus",
+            "steps.json",
+            "--vcd",
+            "wave.vcd",
+        ],
+    );
+    success(&out);
+    assert!(String::from_utf8(out.stdout).unwrap().contains("q=00000"));
+    let wave = fs::read_to_string(project.0.join("wave.vcd")).unwrap();
+    assert!(
+        wave.contains("$scope module Top $end") && wave.contains("bzzx10 ") && wave.contains("#8")
+    );
+    success(&project.run(
+        "",
+        &[
+            "sim",
+            "top.syl",
+            "--top",
+            "Top",
+            "--cycles",
+            "2",
+            "--fail-on-x",
+        ],
+    ));
+    let out = project.run(
+        "",
+        &[
+            "sim",
+            "top.syl",
+            "--top",
+            "Top",
+            "--stimulus",
+            "steps.json",
+            "--param",
+            "W=5",
+            "--fail-on-x",
+        ],
+    );
+    failure(&out);
+    assert!(
+        String::from_utf8(out.stderr)
+            .unwrap()
+            .contains("unknown output q")
+    );
+}
+
+#[test]
+fn sim_errors_report_assertion_unique_and_cycle_source_lines() {
+    let p = TestProject::new();
+    p.write(
+        "guard.syl",
+        "cell Top(clk:in Clock,i:in Bit)-> y:Bit {\n    assert(i)\n    y:=i\n}",
+    );
+    p.write("steps.json", r#"[{"drive":{"i":0},"clocks":["clk"]}]"#);
+    let args = [
+        "sim",
+        "guard.syl",
+        "--top",
+        "Top",
+        "--stimulus",
+        "steps.json",
+        "--diagnostics-format",
+        "json",
+    ];
+    let out = p.run("", &args);
+    failure(&out);
+    let json = report(&out);
+    let e = &json["diagnostics"][0];
+    assert_eq!(e["location"]["start_line"], 2);
+    assert_eq!(e["location"]["start_column"], 5);
+    assert_eq!(e["location"]["file"], "guard.syl");
+    assert!(
+        e["message"]
+            .as_str()
+            .unwrap()
+            .contains("Top.assert[0]: assert failed")
+    );
+    p.write(
+        "unique.syl",
+        "cell Top(i:in Bit)->y:Bit {\n y:= select unique { i=>1,i=>0, default=>0,}\n}",
+    );
+    p.write("steps.json", r#"[{"drive":{"i":1},"expect":{"y":1}}]"#);
+    let out = p.run(
+        "",
+        &[
+            "sim",
+            "unique.syl",
+            "--top",
+            "Top",
+            "--stimulus",
+            "steps.json",
+            "--strict-unique",
+        ],
+    );
+    failure(&out);
+    assert!(
+        String::from_utf8(out.stderr)
+            .unwrap()
+            .contains("unique.syl:2:")
+    );
+    p.write("cycle.syl","cell Child(i:in Bit)->o:Bit{o:=i}\ncell Top()->y:Bit{signal a:Bit\n let c=place Child(i:a)\n a:=c\n y:=a\n}");
+    let out = p.run(
+        "",
+        &[
+            "sim",
+            "cycle.syl",
+            "--top",
+            "Top",
+            "--diagnostics-format",
+            "json",
+        ],
+    );
+    failure(&out);
+    let json = report(&out);
+    let e = &json["diagnostics"][0];
+    assert_eq!(e["location"]["file"], "cycle.syl");
+    assert!(e["location"]["start_line"].as_u64().unwrap() > 0);
+    assert!(e["message"].as_str().unwrap().contains("cycle"));
+}
+
+#[test]
+fn sim_samples_combinationally_derived_clock_transitions() {
+    let p = TestProject::new();
+    p.write(
+        "top.syl",
+        "cell Top(en:in Bit,pin:in Bit,i:in Bit)->y:Bit {
+      signal clk:Clock:=pin and en
+      reg q:Bit
+      next q:=i
+      y:=q }",
+    );
+    p.write(
+        "s.json",
+        r#"[{"drive":{"pin":0,"en":1,"i":1}},{"drive":{"pin":1},"expect":{"y":1}},
+        {"drive":{"i":0},"expect":{"y":1}},{"drive":{"en":0},"expect":{"y":1}},
+        {"drive":{"en":1},"expect":{"y":0}}]"#,
+    );
+    let auto = p.run("", &["sim", "top.syl", "--top", "Top"]);
+    failure(&auto);
+    assert!(
+        String::from_utf8(auto.stderr)
+            .unwrap()
+            .contains("use --stimulus to drive the derived clock inputs")
+    );
+    let out = p.run(
+        "",
+        &["sim", "top.syl", "--top", "Top", "--stimulus", "s.json"],
+    );
+    success(&out);
+    assert!(String::from_utf8(out.stdout).unwrap().contains("cycles=2"));
+}
+
+#[path = "cli_test/vcd_inputs_test.rs"]
+mod vcd_inputs_test;

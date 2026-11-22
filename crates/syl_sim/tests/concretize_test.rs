@@ -271,7 +271,7 @@ fn tarjan_reports_a_closed_signal_chain_through_both_cells() {
     let output = compile(&[("cross", CROSS)]);
     SimDesign::lower(&output, "Relay", &BTreeMap::new()).unwrap();
     let err = SimDesign::lower(&output, "Cross", &BTreeMap::new()).unwrap_err();
-    let SimError::CombinationalCycle { chain, members } = err else {
+    let SimError::CombinationalCycle { chain, members, .. } = err else {
         panic!("{err}")
     };
     assert_eq!(chain.first(), chain.last());
@@ -450,7 +450,7 @@ fn high_impedance_driver_uses_the_shared_inout_net() {
     assert_eq!(d.signal(child).alias.as_ref().unwrap().signal, port.signal);
     assert_eq!(d.comb.len(), 1);
     assert_eq!(d.comb[0].value, SimExpr::HighZ);
-    assert_eq!(d.comb[0].target.signal, port.signal);
+    assert_eq!(d.comb[0].target.signal, child);
 }
 
 #[test]
@@ -674,3 +674,6 @@ fn local_clock_and_reset_drive_sequential_sampling_and_assertions() {
     assert_eq!(d.assertions[0].reset_mask, Some(id));
     assert_eq!(d.assertions[0].clock, r.clock);
 }
+
+#[path = "concretize_test/runtime_test.rs"]
+mod runtime_test;

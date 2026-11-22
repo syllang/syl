@@ -64,15 +64,21 @@ impl SvModule {
 pub(super) struct SvParam {
     pub(super) doc: Option<String>,
     pub(super) name: String,
-    pub(super) default: String,
+    pub(super) default: SvParamDefault,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) enum SvParamDefault {
+    Text(String),
+    ComputedNat(String),
 }
 
 impl SvParam {
-    pub(super) fn new(name: impl Into<String>, default: impl Into<String>) -> Self {
+    pub(super) fn new(name: impl Into<String>, default: SvParamDefault) -> Self {
         Self {
             doc: None,
             name: name.into(),
-            default: default.into(),
+            default,
         }
     }
 

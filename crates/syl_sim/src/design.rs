@@ -93,6 +93,15 @@ pub enum Selector {
     Index { index: Box<SimExpr>, width: u32 },
 }
 
+impl Selector {
+    pub(crate) fn width(&self) -> u32 {
+        match self {
+            Self::Slice { high, low } => high - low + 1,
+            Self::Index { width, .. } => *width,
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SimTarget {
     pub signal: SignalId,
@@ -138,6 +147,7 @@ pub enum SimExpr {
 
 #[derive(Clone, Debug)]
 pub struct CombAssign {
+    pub span: Span,
     pub target: SimTarget,
     pub value: SimExpr,
 }
@@ -150,6 +160,7 @@ pub struct SimReg {
     pub clock: DomainId,
     pub reset: Option<(ResetId, SimExpr)>,
     pub next: SimExpr,
+    pub next_span: Span,
 }
 
 #[derive(Clone, Debug)]
@@ -192,6 +203,8 @@ pub struct SimAssert {
 
 #[derive(Clone, Debug)]
 pub struct SimExternInstance {
+    /// Formal clock ports whose transitions sample model inputs as a group.
+    pub clocks: Vec<SignalId>,
     pub instance: InstanceId,
     /// Concrete external formal signals and their parent-side expressions.
     pub connections: Vec<(SignalId, SimExpr)>,
@@ -207,6 +220,7 @@ pub enum SimError {
     CombinationalCycle {
         /// Closed dependency walk in signal path order.
         chain: Vec<String>,
+        span: Span,
         /// Every assignment target in the strongly connected component.
         members: Vec<String>,
     },
@@ -226,6 +240,8 @@ pub struct SimDesign {
     pub externs: Vec<SimExternInstance>,
     pub comb: Vec<CombAssign>,
     pub comb_eval_order: Vec<CombId>,
+    /// Extern evaluations inserted before the given index in comb_eval_order.
+    pub extern_slots: Vec<(usize, InstanceId)>,
 }
 
 impl SimDesign {
@@ -237,6 +253,14 @@ impl SimDesign {
         let hw = output
             .hwir()
             .ok_or_else(|| SimError::Elaboration(format!("{:?}", output.diagnostics())))?;
+        crate::lower::concretize(hw, top, parameters)
+    }
+
+    pub fn from_hwir(
+        hw: &syl_hw::ParametricHwDesign,
+        top: &str,
+        parameters: &BTreeMap<String, ParamValue>,
+    ) -> Result<Self, SimError> {
         crate::lower::concretize(hw, top, parameters)
     }
 

@@ -19,7 +19,7 @@
 
 ## Allowed Dependencies
 
-- normal dependencies: `syl_session`, `syl_emit`, `syl_span`, `syl_syntax`
+- normal dependencies: `syl_session`, `syl_sim`, `syl_emit`, `syl_span`, `syl_syntax`
 - CLI parsing and serialization: `clap`, `serde`, `serde_json`
 - test-only white-box dependencies: `syl_elab`, `syl_hw`, `syl_sema`
 
@@ -71,6 +71,25 @@ The shared `--manifest`, repeatable `--std-root` and `--package-root`, and
 Root flags retain their declaration order even when repeated on both sides of
 the subcommand. CLI roots precede manifest roots of the same kind, and duplicate
 roots are removed while preserving the first occurrence.
+
+## Native simulation
+
+```sh
+sylc sim examples/std/cdc.syl --top Sync2FFAsyncLow --cycles 4
+sylc sim examples/std/cdc.syl --top Sync2FFAsyncLow --stimulus steps.json --vcd trace.vcd
+```
+
+Each JSON array entry drives a simultaneous group of inputs, settles asynchronous resets and combinational logic, pulses every clock in `clocks` together, then checks `expect`. All three fields are optional. Use flattened top port names, unsigned integers, booleans or binary strings containing 0, 1, X and Z.
+
+```json
+[
+  {"drive":{"dst_rst_n":0,"async_in":1},"expect":{"sync_out":0}},
+  {"drive":{"dst_rst_n":1},"clocks":["dst_clk"],"expect":{"sync_out":0}},
+  {"clocks":["dst_clk"],"expect":{"sync_out":1}}
+]
+```
+
+Automatic runs initialize inputs to zero, assert top resets according to polarity on the first cycle and pulse all top clocks together. `--cycles` includes the reset cycle and defaults to one. A repeated `--param K=V` binds a natural number or boolean. `--strict-unique` fails on overlapping true guards. `--fail-on-x` fails when a top output contains X or Z at the end of a step. The command prints the cycle count and final output bits.
 
 ## Project manifests
 

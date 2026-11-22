@@ -117,10 +117,10 @@ impl Lower<'_> {
             let width = target
                 .selectors
                 .last()
-                .map(selector_width)
+                .map(Selector::width)
                 .unwrap_or(self.design.signal(target.signal).width);
             if matches!(&selector,Selector::Slice {high,..} if *high >= width)
-                || selector_width(&selector) > width
+                || selector.width() > width
             {
                 return invalid(format!(
                     "projection {selector:?} outside {width}-bit signal {}",
@@ -135,13 +135,6 @@ impl Lower<'_> {
                 selector,
             })
         }
-    }
-}
-
-fn selector_width(selector: &Selector) -> u32 {
-    match selector {
-        Selector::Slice { high, low } => high - low + 1,
-        Selector::Index { width, .. } => *width,
     }
 }
 

@@ -3,7 +3,10 @@
 mod constant;
 mod design;
 mod lower;
+pub mod runtime;
 mod schedule;
+pub mod value;
+pub mod vcd;
 
 pub use design::{
     AssertId, ClockDomain, CombAssign, CombId, DomainId, InstanceFamily, InstanceId,
@@ -12,3 +15,10 @@ pub use design::{
     SimMem, SimPort, SimReg, SimSignal, SimTarget, SourceLocation, TemplateId,
 };
 pub use syl_hw::{HwBinaryOp, HwDirection, HwResetMode, HwResetPolarity, HwSelectMode, HwUnaryOp};
+
+pub use runtime::{
+    AssertionFailure, ClockEvent, ExternModel, RuntimeError, Simulator, StateMode,
+    UniqueOverlapViolation,
+};
+pub use value::{Logic, Value};
+pub use vcd::VcdWriter;
