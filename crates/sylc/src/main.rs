@@ -109,7 +109,14 @@ fn run(invocation: CliInvocation, cwd: &Path, report: &mut Report) -> Result<(),
         let params = sim::parameters(&args.params)?;
         let design =
             syl_sim::SimDesign::from_hwir(hwir, &args.top, &params).map_err(sim::design_error)?;
-        return sim::run(&design, &args, &mut report.diagnostics);
+        let protected = snapshot
+            .files()
+            .iter()
+            .filter_map(|f| f.path())
+            .chain(inputs.iter().map(PathBuf::as_path))
+            .chain(args.stimulus.as_deref())
+            .chain(manifest.iter().map(ProjectManifest::manifest_path));
+        return sim::run(&design, &args, protected, &mut report.diagnostics);
     }
     let RunMode::Emit(output) = invocation.mode else {
         return Ok(());

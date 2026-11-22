@@ -15,6 +15,7 @@ name = "sylc"
 path = "src/main.rs"
 
 [dependencies]
+same-file = "1"
 syl_sim.workspace = true
 clap.workspace = true
 serde.workspace = true

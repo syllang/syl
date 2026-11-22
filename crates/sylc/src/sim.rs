@@ -4,6 +4,7 @@ use std::{
     collections::BTreeMap,
     fs::{self, File},
     io::BufWriter,
+    path::Path,
 };
 use syl_sim::*;
 use syl_span::{Diagnostic, Span};
@@ -102,9 +103,10 @@ impl Waves {
     }
 }
 
-pub(super) fn run(
+pub(super) fn run<'a>(
     design: &SimDesign,
     args: &SimArgs,
+    protected: impl Iterator<Item = &'a Path>,
     diagnostics: &mut Vec<Diagnostic>,
 ) -> Result<()> {
     let mut sim = Simulator::new(design);
@@ -123,9 +125,11 @@ pub(super) fn run(
         writer: args
             .vcd
             .as_ref()
-            .map(|path| File::create(path).and_then(|f| VcdWriter::new(BufWriter::new(f), design)))
-            .transpose()
-            .map_err(error)?,
+            .map(|path| {
+                let f = wave_file(path, protected)?;
+                VcdWriter::new(BufWriter::new(f), design).map_err(error)
+            })
+            .transpose()?,
     };
     let top_input = |id| {
         design
@@ -143,6 +147,16 @@ pub(super) fn run(
             sim.drive(p.signal, Value::zero(1)).map_err(runtime)?;
             clocks.push(id);
         }
+    }
+    if steps.is_none()
+        && args.cycles > 0
+        && clocks.is_empty()
+        && let Some(c) = design.clocks.first()
+    {
+        return Err(located(
+            design.signal(c.signal).source.span(),
+            "automatic stepping requires a top clock input; use --stimulus to drive the derived clock inputs",
+        ));
     }
     let check = |sim: &Simulator| -> Result<()> {
         if args.fail_on_x
@@ -245,4 +259,28 @@ pub(super) fn run(
         println!("{}={}", p.name, sim.read(p.signal))
     }
     Ok(())
+}
+
+fn wave_file<'a>(path: &Path, protected: impl Iterator<Item = &'a Path>) -> Result<File> {
+    // Compare the identity of the open destination before truncating it.
+    // This includes hard links and keeps writes tied to the checked handle.
+    let file = File::options()
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(path)
+        .map_err(error)?;
+    let destination =
+        same_file::Handle::from_file(file.try_clone().map_err(error)?).map_err(error)?;
+    for input in protected {
+        if same_file::Handle::from_path(input).map_err(error)? == destination {
+            return Err(error(format!(
+                "VCD destination {} refers to input {}",
+                path.display(),
+                input.display()
+            )));
+        }
+    }
+    file.set_len(0).map_err(error)?;
+    Ok(file)
 }
