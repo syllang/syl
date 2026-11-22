@@ -258,6 +258,11 @@ fn large_generic_defaults_and_bindings_match_icarus_and_verilator() {
          cell Top(i:in Bit)->y:UInt<32> {let c=place Child<2147483648>(i:i) y:=c}",
         "cell Top<N:nat=2147483648/2,>(i:in Bit)->y:UInt<32> {
             y:=select priority {i=>N,default=>0,} }",
+        "cell Top<N:nat=(2147483648+2147483648)/4,>(i:in Bit)->y:UInt<32> {
+            y:=select priority {i=>N,default=>0,} }",
+        "cell Child<A:nat=8,N:nat=(A+A)/4,>(i:in Bit)->y:UInt<32> {
+            y:=select priority {i=>N,default=>0,} }
+         cell Top(i:in Bit)->y:UInt<32> {let c=place Child<2147483648>(i:i) y:=c}",
         "const K:nat=2147483648/2
          cell Child<N:nat=2,>(i:in Bit)->y:UInt<32> {y:=select priority {i=>N,default=>0,}}
          cell Top(i:in Bit)->y:UInt<32> {let c=place Child<K>(i:i) y:=c}",
@@ -275,6 +280,41 @@ fn large_generic_defaults_and_bindings_match_icarus_and_verilator() {
         compare_icarus(&work, bench, &native);
         compare_verilator(&work, bench, &native);
     }
+}
+
+#[test]
+fn nat_intermediates_and_final_parameter_width_match_both_sv_tools() {
+    let work = SimulationDir::new("nat_width");
+    let d = design(
+        &work,
+        "cell Top<A:nat=4294967295,
+        Large:nat=A*A, Log:nat=clog2(A*A), Small:nat=(A+1)/2147483648,>(
+        u:in UInt<8>, wide:out UInt<64>, bits:out UInt<8>, mixed:out UInt<32>) {
+            wide:=Large
+            bits:=Log
+            mixed:=((-3)/Small)+u
+        }",
+    );
+    let mut sim = Simulator::new(&d);
+    sim.drive_named("u", Value::zero(8)).unwrap();
+    sim.eval_comb().unwrap();
+    let native: Vec<_> = [
+        ("wide", 0xffff_fffe_0000_0001),
+        ("bits", 64),
+        ("mixed", 0x7fff_fffe),
+    ]
+    .into_iter()
+    .map(|(name, expected)| {
+        let value = sim.read_named(name).unwrap();
+        assert_eq!(value.as_u64(), Some(expected), "{name}");
+        value.to_binary()
+    })
+    .collect();
+    let bench = r#"module tb; reg [7:0] u; wire [63:0] wide; wire [7:0] bits; wire [31:0] mixed;
+        Top dut(.*); initial begin u=0; #1; $display("sample %b", wide);
+        $display("sample %b", bits); $display("sample %b", mixed); $finish; end endmodule"#;
+    compare_icarus(&work, bench, &native);
+    compare_verilator(&work, bench, &native);
 }
 
 #[test]

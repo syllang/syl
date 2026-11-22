@@ -62,8 +62,17 @@ impl<'a> SvEmitter<'a> {
 
     fn lower_param(&self, param: &HwParam) -> Result<SvParam, CompileError> {
         let default = match param.default_expr() {
-            Some(expr) => printer::expression(&self.lower_expr(expr)?),
-            None => Self::normalize_param_value(param.default()),
+            Some(expr) => {
+                let text = printer::parameter_expression(&self.lower_expr(expr)?);
+                if param.is_bool()
+                    || matches!(expr, HwExpr::Int(_) | HwExpr::Ident(_) | HwExpr::Bool(_))
+                {
+                    SvParamDefault::Text(text)
+                } else {
+                    SvParamDefault::ComputedNat(text)
+                }
+            }
+            None => SvParamDefault::Text(Self::normalize_param_value(param.default())),
         };
         Ok(SvParam::new(param.name(), default).with_doc(param.doc().map(ToOwned::to_owned)))
     }
