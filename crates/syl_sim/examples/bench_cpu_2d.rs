@@ -1,160 +1,209 @@
-//! Reproducible two-dimensional CPU batch benchmark.
-//! Run with `cargo run -p syl_sim --release --example bench_cpu_2d`.
-use std::collections::BTreeMap;
-use std::hint::black_box;
-use std::time::Instant;
-use syl_elab::{ElaborationOutput, HardwareCompiler};
-use syl_sema::{SemanticSession, SemanticSourceFile};
-use syl_sim::{BatchCpuSimulator, ParamValue, SimDesign, Simulator, Value};
-use syl_span::SourceId;
-use syl_syntax::SourceParser;
+//! Native driver for run.py. All engines consume the same counter-based SplitMix64 stream.
+#[path = "bench_cpu_2d/workload.rs"]
+mod workload;
 
-fn compile(files: &[(&str, &str)]) -> ElaborationOutput {
-    let ast: Vec<_> = files
-        .iter()
-        .enumerate()
-        .map(|(i, (_, s))| {
-            SourceParser::new_in(s, SourceId::new(i))
-                .parse_file()
-                .unwrap()
-        })
-        .collect();
-    let files = files
-        .iter()
-        .zip(&ast)
-        .map(|((path, _), ast)| {
-            SemanticSourceFile::new(path.split('.').map(str::to_owned).collect(), ast)
-        })
-        .collect();
-    let hir = SemanticSession::new_sources(files).resolve_hir().unwrap();
-    let tir = hir.check_tir().unwrap();
-    HardwareCompiler::new().output_for_tir(&tir)
-}
-fn splitmix(state: &mut u64) -> u64 {
-    *state = state.wrapping_add(0x9e3779b97f4a7c15);
-    let mut z = *state;
-    z = (z ^ (z >> 30)).wrapping_mul(0xbf58476d1ce4e5b9);
-    z = (z ^ (z >> 27)).wrapping_mul(0x94d049bb133111eb);
-    z ^ (z >> 31)
-}
-fn value(width: u32, n: u64) -> Value {
-    Value::from_u64(width.min(64), n).resized(width)
-}
-fn drive_batch(batch: &mut BatchCpuSimulator<'_>, cycle: u64) {
-    for lane in 0..batch.batch_size() {
-        let mut seed = cycle ^ (lane as u64).wrapping_mul(0x517cc1b727220a95);
-        for port in batch.design().top_ports() {
-            if port.direction == syl_sim::HwDirection::Out || port.name == "clk" {
-                continue;
-            }
-            let n = splitmix(&mut seed);
-            let _ = batch.drive(
-                lane,
-                port.signal,
-                value(batch.design().signal(port.signal).width, n),
-            );
-        }
-    }
-}
-fn drive_scalar(sim: &mut Simulator<'_>, cycle: u64, lane: usize) {
-    let mut seed = cycle ^ (lane as u64).wrapping_mul(0x517cc1b727220a95);
-    for port in sim.design().top_ports() {
-        if port.direction == syl_sim::HwDirection::Out || port.name == "clk" {
-            continue;
-        }
-        let n = splitmix(&mut seed);
-        let _ = sim.drive(
-            port.signal,
-            value(sim.design().signal(port.signal).width, n),
-        );
-    }
-}
-fn run(design: &SimDesign, batch_size: usize, cycles: u64) -> (f64, f64) {
-    let mut batch = BatchCpuSimulator::new(design, batch_size);
-    let start = Instant::now();
-    for cycle in 0..cycles {
-        drive_batch(&mut batch, cycle);
-        let _ = batch.eval_comb();
-        if !design.clocks.is_empty() {
-            let _ = batch.tick("clk");
-        }
-    }
-    let elapsed = start.elapsed().as_secs_f64();
-    black_box(
-        batch.read_batch(
-            design
-                .top_ports()
-                .first()
-                .map_or(syl_sim::SignalId(0), |p| p.signal),
-        ),
-    );
-    (elapsed, batch_size as f64 * cycles as f64 / elapsed)
-}
-fn run_scalar(design: &SimDesign, batch_size: usize, cycles: u64) -> (f64, f64) {
-    let mut sims: Vec<_> = (0..batch_size)
-        .map(|_| Simulator::with_mode(design, syl_sim::StateMode::TwoState))
-        .collect();
-    let start = Instant::now();
-    for cycle in 0..cycles {
-        for (lane, sim) in sims.iter_mut().enumerate() {
-            drive_scalar(sim, cycle, lane);
-            let _ = sim.eval_comb();
-            if !design.clocks.is_empty() {
-                let _ = sim.tick("clk");
+use std::{
+    fmt::Write,
+    fs,
+    path::Path,
+    sync::atomic::{AtomicU64, Ordering::Relaxed},
+    time::Instant,
+};
+use syl_sim::{
+    FastBatchCpuSimulator, FastProgram, HwDirection, ParamValue, RuntimeError, SimDesign,
+    Simulator, StateMode,
+};
+use workload::{fixture, mix, ports, scalar_value, stimulus};
+
+fn emit(dir: &Path, case: &str) {
+    let (ir, top, params) = fixture(case);
+    let sv = syl_emit::SystemVerilogBackend::new()
+        .emit(ir.hwir().unwrap())
+        .unwrap();
+    fs::write(dir.join("design.sv"), sv).unwrap();
+    let design = SimDesign::lower(&ir, top, &params).unwrap();
+    let mut drive = String::new();
+    let mut digest = String::new();
+    for p in ports(&design, HwDirection::In) {
+        let name = &design.top_ports()[p.key as usize].name;
+        for w in 0..p.width.div_ceil(64) {
+            let bits = (p.width - 64 * w).min(64);
+            let expr = if p.reset {
+                "(cycle == 1)".into()
+            } else if p.inject {
+                "(lane == 3073 && cycle == 500)".into()
+            } else {
+                format!(
+                    "(random_word(lane, cycle, {}, {w}) & {}ULL)",
+                    p.key,
+                    u64::MAX >> (64 - bits)
+                )
+            };
+            if p.width <= 64 {
+                writeln!(drive, "d.{name} = {expr};").unwrap();
+            } else {
+                writeln!(
+                    drive,
+                    "{{ const uint64_t v = {expr}; d.{name}[{}] = uint32_t(v);",
+                    w * 2
+                )
+                .unwrap();
+                if bits > 32 {
+                    writeln!(drive, "d.{name}[{}] = uint32_t(v >> 32);", w * 2 + 1).unwrap();
+                }
+                drive.push_str("}\n");
             }
         }
     }
-    let elapsed = start.elapsed().as_secs_f64();
-    black_box(sims.len());
-    (elapsed, batch_size as f64 * cycles as f64 / elapsed)
-}
-fn main() {
-    let stream = include_str!("../../../examples/std/stream.syl");
-    let arbiter = compile(&[(
-        "std.arbiter",
-        include_str!("../../../examples/std/arbiter.syl"),
-    )]);
-    let fifo = compile(&[
-        ("std.stream", stream),
-        ("std.fifo", include_str!("../../../examples/std/fifo.syl")),
-    ]);
-    let ram = compile(&[("std.mem", include_str!("../../../examples/std/mem.syl"))]);
-    let lanes = compile(&[
-        ("std.stream", stream),
-        ("lane", include_str!("../../../examples/mvp/lane_array.syl")),
-    ]);
-    let mut designs = vec![
-        (
-            "RoundRobinArbiter4",
-            SimDesign::lower(&arbiter, "RoundRobinArbiter4", &BTreeMap::new()).unwrap(),
-        ),
-        (
-            "SyncFifo-D8",
-            SimDesign::lower(&fifo, "SyncFifo", &BTreeMap::new()).unwrap(),
-        ),
-        (
-            "SimpleDualPortRam",
-            SimDesign::lower(&ram, "SimpleDualPortRam", &BTreeMap::new()).unwrap(),
-        ),
-    ];
-    for n in [1, 4, 16, 64] {
-        designs.push((
-            "LaneArray",
-            SimDesign::lower(
-                &lanes,
-                "LaneArray",
-                &BTreeMap::from([("N".into(), ParamValue::Nat(n))]),
+    for p in ports(&design, HwDirection::Out) {
+        let name = &design.top_ports()[p.key as usize].name;
+        for w in 0..p.width.div_ceil(64) {
+            let expr = if p.width <= 64 {
+                format!("uint64_t(d.{name})")
+            } else if p.width - w * 64 > 32 {
+                format!(
+                    "(uint64_t(d.{name}[{}]) | uint64_t(d.{name}[{}]) << 32)",
+                    w * 2,
+                    w * 2 + 1
+                )
+            } else {
+                format!("uint64_t(d.{name}[{}])", w * 2)
+            };
+            writeln!(
+                digest,
+                "sum += mix({expr} ^ (uint64_t(lane) << 32) ^ {}ULL);",
+                (p.key << 16) + u64::from(w)
             )
-            .unwrap(),
-        ));
-    }
-    println!("design,batch,cycles,scalar_s,scalar_aggregate_cycles_s,soa_s,soa_aggregate_cycles_s");
-    for (name, design) in &designs {
-        for batch in [1usize, 16, 64, 256, 1024, 4096] {
-            let cycles = 4;
-            let (scalar_s, scalar_t) = run_scalar(design, batch, cycles);
-            let (soa_s, soa_t) = run(design, batch, cycles);
-            println!("{name},{batch},{cycles},{scalar_s:.6},{scalar_t:.1},{soa_s:.6},{soa_t:.1}");
+            .unwrap();
         }
     }
+    fs::write(
+        dir.join("harness.cpp"),
+        include_str!("bench_cpu_2d/harness.cpp")
+            .replace("@DRIVE@", &drive)
+            .replace("@DIGEST@", &digest)
+            .replace("@FAULT@", if case == "Fault" { "true" } else { "false" }),
+    )
+    .unwrap();
+    println!(
+        "{top} {}",
+        params
+            .iter()
+            .map(|(k, v)| {
+                let ParamValue::Nat(n) = v else { panic!() };
+                format!("-G{k}={n}")
+            })
+            .collect::<Vec<_>>()
+            .join(" ")
+    );
+}
+
+fn main() {
+    let args: Vec<_> = std::env::args().skip(1).collect();
+    let mode = &args[0];
+    let case = &args[1];
+    if mode == "emit" {
+        emit(Path::new(&args[2]), case);
+        return;
+    }
+    let batch: usize = args[2].parse().unwrap();
+    let cycles: u64 = args[3].parse().unwrap();
+    let threads: usize = args[4].parse().unwrap();
+    let cold = Instant::now();
+    let (ir, top, params) = fixture(case);
+    let design = SimDesign::lower(&ir, top, &params).unwrap();
+    let inputs = ports(&design, HwDirection::In);
+    let outputs = ports(&design, HwDirection::Out);
+    let failure = AtomicU64::new(u64::MAX);
+    let digest = AtomicU64::new(0);
+    let setup;
+    let elapsed;
+    if mode == "scalar" {
+        let mut sims: Vec<_> = (0..batch)
+            .map(|_| Simulator::with_mode(&design, StateMode::TwoState))
+            .collect();
+        let hot = Instant::now();
+        setup = hot.duration_since(cold).as_secs_f64();
+        'cycles: for cycle in 1..=cycles {
+            for (lane, s) in sims.iter_mut().enumerate() {
+                for &p in &inputs {
+                    s.drive(p.id, scalar_value(p, lane, cycle)).unwrap();
+                }
+                if let Err(e) = s.tick("clk") {
+                    let RuntimeError::Assertion(f) = e else {
+                        panic!("{e}")
+                    };
+                    failure.store((f.cycle << 32) + lane as u64, Relaxed);
+                    break 'cycles;
+                }
+            }
+        }
+        for (lane, s) in sims.iter().enumerate() {
+            for p in &outputs {
+                for w in 0..p.width.div_ceil(64) {
+                    let val = s
+                        .read(p.id)
+                        .slice(w * 64, (p.width - w * 64).min(64))
+                        .as_u64()
+                        .unwrap();
+                    digest.fetch_add(
+                        mix(val ^ ((lane as u64) << 32) ^ ((p.key << 16) + u64::from(w))),
+                        Relaxed,
+                    );
+                }
+            }
+        }
+        elapsed = hot.elapsed().as_secs_f64();
+    } else {
+        assert_eq!(mode, "soa");
+        let program = FastProgram::new(&design).unwrap();
+        let tile_size = 64.min(batch.div_ceil(threads));
+        let mut sim = FastBatchCpuSimulator::new(&program, batch, tile_size);
+        let first_start = AtomicU64::new(u64::MAX);
+        let last_end = AtomicU64::new(0);
+        sim.for_each_tile(threads, |first, tile| {
+            let start = cold.elapsed().as_nanos() as u64;
+            for cycle in 1..=cycles {
+                for &p in &inputs {
+                    for w in 0..p.width.div_ceil(64) {
+                        for (i, dst) in tile
+                            .input_word(&program, p.id, w as usize)
+                            .iter_mut()
+                            .enumerate()
+                        {
+                            *dst = stimulus(p, w, first + i, cycle);
+                        }
+                    }
+                }
+                if let Err((i, c)) = tile.tick(&program) {
+                    failure.fetch_min((c << 32) + (first + i) as u64, Relaxed);
+                    break;
+                }
+            }
+            let mut sum = 0u64;
+            for p in &outputs {
+                for w in 0..p.width.div_ceil(64) {
+                    for (i, &val) in tile.word(&program, p.id, w as usize).iter().enumerate() {
+                        sum = sum.wrapping_add(mix(val
+                            ^ (((first + i) as u64) << 32)
+                            ^ ((p.key << 16) + u64::from(w))));
+                    }
+                }
+            }
+            digest.fetch_add(sum, Relaxed);
+            let end = cold.elapsed().as_nanos() as u64;
+            first_start.fetch_min(start, Relaxed);
+            last_end.fetch_max(end, Relaxed);
+        });
+        let start = first_start.load(Relaxed);
+        setup = start as f64 * 1e-9;
+        elapsed = (last_end.load(Relaxed) - start) as f64 * 1e-9;
+    }
+    println!(
+        "{:.9} {:.9} {} {}",
+        setup,
+        elapsed,
+        digest.load(Relaxed),
+        failure.load(Relaxed)
+    );
 }
