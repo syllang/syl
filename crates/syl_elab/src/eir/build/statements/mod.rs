@@ -323,9 +323,9 @@ where
         let physical_name = env.local_name(request.name);
         let width = self.width_bound(env.owner, &ty);
         env.insert(request.name, EirExpr::ident(&physical_name), ty);
-        let next = self
+        let (next, next_span) = self
             .next_expr(request.name, request.body, env)?
-            .unwrap_or_else(|| EirExpr::ident(&physical_name));
+            .unwrap_or_else(|| (EirExpr::ident(&physical_name), request.span));
         let mut reads = self.next_reads(request.name, request.body, env)?;
         let (clock, reset) =
             self.register_clock_reset(request.reset, request.span, env, &mut reads)?;
@@ -341,7 +341,7 @@ where
                 reset: reset.map(Box::new),
                 next,
                 reads,
-                origin: env.origin(request.span),
+                origin: env.origin(next_span),
             },
         ])
     }

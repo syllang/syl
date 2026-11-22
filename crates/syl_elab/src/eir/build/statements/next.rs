@@ -36,7 +36,7 @@ where
         name: &str,
         body: &ElabBlock,
         env: &Env,
-    ) -> Result<Option<EirExpr>, CompileError> {
+    ) -> Result<Option<(EirExpr, Span)>, CompileError> {
         let direct = self.next_map(body)?;
         let mut found: Option<(EirExpr, Span)> = None;
         if let Some((expr, span)) = direct.get(name) {
@@ -71,19 +71,18 @@ where
                                 .get(name)
                                 .map(|var| var.code.clone())
                                 .unwrap_or_else(|| EirExpr::ident(name));
-                            let then_code = then_next.unwrap_or_else(|| hold.clone());
-                            let else_code = else_next.unwrap_or(hold);
-                            Some(EirExpr::mux(
-                                self.elab_expr(cond, env),
-                                then_code,
-                                else_code,
+                            let then_code = then_next.map_or_else(|| hold.clone(), |(e, _)| e);
+                            let else_code = else_next.map_or(hold, |(e, _)| e);
+                            Some((
+                                EirExpr::mux(self.elab_expr(cond, env), then_code, else_code),
+                                *span,
                             ))
                         } else {
                             None
                         }
                     }
                 };
-                if let Some(code) = conditional {
+                if let Some(driver) = conditional {
                     if found.is_some() {
                         return Err(CompileError::lowering_at(
                             DriverError::DuplicateNextDriver {
@@ -92,11 +91,11 @@ where
                             *span,
                         ));
                     }
-                    found = Some((code, *span));
+                    found = Some(driver);
                 }
             }
         }
-        Ok(found.map(|(expr, _)| expr))
+        Ok(found)
     }
 
     pub(super) fn next_reads(
