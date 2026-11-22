@@ -2769,6 +2769,9 @@ syl_sim|enum|syl_sim::runtime::ClockEvent|public
 syl_sim|enum|syl_sim::runtime::RuntimeError|public
 syl_sim|enum|syl_sim::runtime::StateMode|public
 syl_sim|enum|syl_sim::value::Logic|public
+syl_sim|field|syl_sim::batch_cpu::BatchFailure::batch_idx|usize
+syl_sim|field|syl_sim::batch_cpu::BatchFailure::cycle|u64
+syl_sim|field|syl_sim::batch_cpu::BatchFailure::error|crate::RuntimeError
 syl_sim|field|syl_sim::design::AssertId::0|usize
 syl_sim|field|syl_sim::design::ClockDomain::name|Option<String>
 syl_sim|field|syl_sim::design::ClockDomain::signal|SignalId
@@ -2883,6 +2886,26 @@ syl_sim|function|syl_sim::gpu_cuda::cuda_availability|fn() -> CudaAvailability
 syl_sim|function|syl_sim::gpu_cuda::kernel::generate_cuda|fn(design: &crate::SimDesign, options: super::CodegenOptions) -> super::GeneratedCuda
 syl_sim|function|syl_sim::gpu_cuda::kernel::try_generate_cuda|fn(d: &crate::SimDesign, options: super::CodegenOptions) -> Result<super::GeneratedCuda, String>
 syl_sim|function|syl_sim::gpu_cuda::run_cuda|fn(design: &crate::SimDesign, codegen: CodegenOptions, options: RunnerOptions, executable: impl AsRef<std::path::Path>) -> Result<RunnerResult, String>
+syl_sim|method|syl_sim::batch_cpu::BatchCpuSimulator::batch_size|fn(self: &Self) -> usize
+syl_sim|method|syl_sim::batch_cpu::BatchCpuSimulator::batch_stride|fn(self: &Self) -> usize
+syl_sim|method|syl_sim::batch_cpu::BatchCpuSimulator::broadcast_named|fn(self: &mut Self, name: &str, value: Value) -> Result<(), RuntimeError>
+syl_sim|method|syl_sim::batch_cpu::BatchCpuSimulator::broadcast|fn(self: &mut Self, signal: SignalId, value: Value) -> Result<(), RuntimeError>
+syl_sim|method|syl_sim::batch_cpu::BatchCpuSimulator::cycle|fn(self: &Self) -> u64
+syl_sim|method|syl_sim::batch_cpu::BatchCpuSimulator::design|fn(self: &Self) -> &SimDesign
+syl_sim|method|syl_sim::batch_cpu::BatchCpuSimulator::drive_batch|fn(self: &mut Self, signal: SignalId, values: &[Value]) -> Result<(), RuntimeError>
+syl_sim|method|syl_sim::batch_cpu::BatchCpuSimulator::drive_named|fn(self: &mut Self, lane: usize, name: &str, value: Value) -> Result<(), RuntimeError>
+syl_sim|method|syl_sim::batch_cpu::BatchCpuSimulator::drive|fn(self: &mut Self, lane: usize, signal: SignalId, value: Value) -> Result<(), RuntimeError>
+syl_sim|method|syl_sim::batch_cpu::BatchCpuSimulator::eval_comb|fn(self: &mut Self) -> Result<(), BatchFailure>
+syl_sim|method|syl_sim::batch_cpu::BatchCpuSimulator::memory|fn(self: &Self, lane: usize, memory: MemId, address: u32) -> Option<&Value>
+syl_sim|method|syl_sim::batch_cpu::BatchCpuSimulator::new|fn(design: &SimDesign, batch_size: usize) -> Self
+syl_sim|method|syl_sim::batch_cpu::BatchCpuSimulator::read_batch|fn(self: &Self, signal: SignalId) -> Vec<Value>
+syl_sim|method|syl_sim::batch_cpu::BatchCpuSimulator::read_named|fn(self: &Self, lane: usize, name: &str) -> Result<&Value, RuntimeError>
+syl_sim|method|syl_sim::batch_cpu::BatchCpuSimulator::read|fn(self: &Self, lane: usize, signal: SignalId) -> Option<&Value>
+syl_sim|method|syl_sim::batch_cpu::BatchCpuSimulator::signal_state|fn(self: &Self, signal: SignalId, lane: usize) -> Option<&Value>
+syl_sim|method|syl_sim::batch_cpu::BatchCpuSimulator::slot_count|fn(self: &Self) -> usize
+syl_sim|method|syl_sim::batch_cpu::BatchCpuSimulator::step_clocks|fn(self: &mut Self, events: &[ClockEvent]) -> Result<(), BatchFailure>
+syl_sim|method|syl_sim::batch_cpu::BatchCpuSimulator::tick|fn(self: &mut Self, clock: &str) -> Result<(), BatchFailure>
+syl_sim|method|syl_sim::batch_cpu::BatchCpuSimulator::with_mode|fn(design: &SimDesign, batch_size: usize, mode: StateMode) -> Self
 syl_sim|method|syl_sim::design::SimDesign::assertion|fn(self: &Self, id: AssertId) -> &SimAssert
 syl_sim|method|syl_sim::design::SimDesign::from_hwir|fn(hw: &syl_hw::ParametricHwDesign, top: &str, parameters: &BTreeMap<String, ParamValue>) -> Result<Self, SimError>
 syl_sim|method|syl_sim::design::SimDesign::instance_families|fn(self: &Self) -> &[InstanceFamily]
@@ -2891,6 +2914,14 @@ syl_sim|method|syl_sim::design::SimDesign::register|fn(self: &Self, id: RegId) -
 syl_sim|method|syl_sim::design::SimDesign::signal|fn(self: &Self, id: SignalId) -> &SimSignal
 syl_sim|method|syl_sim::design::SimDesign::top_ports|fn(self: &Self) -> &[SimPort]
 syl_sim|method|syl_sim::design::SourceLocation::span|fn(self: &Self) -> Span
+syl_sim|method|syl_sim::fast_cpu::FastBatchCpuSimulator::for_each_tile|fn(self: &mut Self, threads: usize, run: impl Fn + Sync)
+syl_sim|method|syl_sim::fast_cpu::FastBatchCpuSimulator::new|fn(program: &FastProgram, batch: usize, tile_size: usize) -> Self
+syl_sim|method|syl_sim::fast_cpu::FastProgram::new|fn(design: &SimDesign) -> Result<Self, RuntimeError>
+syl_sim|method|syl_sim::fast_cpu::FastTile::eval_comb|fn(self: &mut Self, program: &FastProgram)
+syl_sim|method|syl_sim::fast_cpu::FastTile::input_word|fn(self: &mut Self, program: &FastProgram, signal: SignalId, word: usize) -> &mut [u64]
+syl_sim|method|syl_sim::fast_cpu::FastTile::lanes|fn(self: &Self) -> usize
+syl_sim|method|syl_sim::fast_cpu::FastTile::tick|fn(self: &mut Self, program: &FastProgram) -> Result<(), (usize, u64)>
+syl_sim|method|syl_sim::fast_cpu::FastTile::word|fn(self: &Self, program: &FastProgram, signal: SignalId, word: usize) -> &[u64]
 syl_sim|method|syl_sim::runtime::Simulator::clock|fn(self: &Self, name: &str) -> std::result::Result<DomainId, RuntimeError>
 syl_sim|method|syl_sim::runtime::Simulator::cycle|fn(self: &Self) -> u64
 syl_sim|method|syl_sim::runtime::Simulator::design|fn(self: &Self) -> &SimDesign
@@ -2929,6 +2960,8 @@ syl_sim|method|syl_sim::vcd::VcdWriter::filtered|fn(out: W, design: &SimDesign, 
 syl_sim|method|syl_sim::vcd::VcdWriter::finish|fn(self: Self) -> io::Result<W>
 syl_sim|method|syl_sim::vcd::VcdWriter::new|fn(out: W, design: &SimDesign) -> io::Result<Self>
 syl_sim|method|syl_sim::vcd::VcdWriter::sample|fn(self: &mut Self, time: u64, sim: &Simulator<'_>) -> io::Result<()>
+syl_sim|struct|syl_sim::batch_cpu::BatchCpuSimulator|public
+syl_sim|struct|syl_sim::batch_cpu::BatchFailure|public
 syl_sim|struct|syl_sim::design::AssertId|public
 syl_sim|struct|syl_sim::design::ClockDomain|public
 syl_sim|struct|syl_sim::design::CombAssign|public
@@ -2955,6 +2988,9 @@ syl_sim|struct|syl_sim::design::SimSignal|public
 syl_sim|struct|syl_sim::design::SimTarget|public
 syl_sim|struct|syl_sim::design::SourceLocation|public
 syl_sim|struct|syl_sim::design::TemplateId|public
+syl_sim|struct|syl_sim::fast_cpu::FastBatchCpuSimulator|public
+syl_sim|struct|syl_sim::fast_cpu::FastProgram|public
+syl_sim|struct|syl_sim::fast_cpu::FastTile|public
 syl_sim|struct|syl_sim::gpu_cuda::CodegenOptions|public
 syl_sim|struct|syl_sim::gpu_cuda::GeneratedCuda|public
 syl_sim|struct|syl_sim::gpu_cuda::RunnerOptions|public
@@ -2968,12 +3004,17 @@ syl_sim|trait_method|syl_sim::runtime::ExternModel::eval|fn(self: &mut Self, inp
 syl_sim|trait|syl_sim::runtime::ExternModel|public
 syl_sim|use|AssertId|named|source=design::AssertId
 syl_sim|use|AssertionFailure|named|source=runtime::AssertionFailure
+syl_sim|use|BatchCpuSimulator|named|source=batch_cpu::BatchCpuSimulator
+syl_sim|use|BatchFailure|named|source=batch_cpu::BatchFailure
 syl_sim|use|ClockDomain|named|source=design::ClockDomain
 syl_sim|use|ClockEvent|named|source=runtime::ClockEvent
 syl_sim|use|CombAssign|named|source=design::CombAssign
 syl_sim|use|CombId|named|source=design::CombId
 syl_sim|use|DomainId|named|source=design::DomainId
 syl_sim|use|ExternModel|named|source=runtime::ExternModel
+syl_sim|use|FastBatchCpuSimulator|named|source=fast_cpu::FastBatchCpuSimulator
+syl_sim|use|FastProgram|named|source=fast_cpu::FastProgram
+syl_sim|use|FastTile|named|source=fast_cpu::FastTile
 syl_sim|use|HwBinaryOp|named|source=syl_hw::HwBinaryOp
 syl_sim|use|HwDirection|named|source=syl_hw::HwDirection
 syl_sim|use|HwResetMode|named|source=syl_hw::HwResetMode

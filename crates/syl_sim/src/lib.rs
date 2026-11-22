@@ -3,6 +3,7 @@
 mod batch_cpu;
 mod constant;
 mod design;
+mod fast_cpu;
 pub mod gpu_cuda;
 mod lower;
 pub mod runtime;
@@ -19,6 +20,7 @@ pub use design::{
 pub use syl_hw::{HwBinaryOp, HwDirection, HwResetMode, HwResetPolarity, HwSelectMode, HwUnaryOp};
 
 pub use batch_cpu::{BatchCpuSimulator, BatchFailure};
+pub use fast_cpu::{FastBatchCpuSimulator, FastProgram, FastTile};
 pub use runtime::{
     AssertionFailure, ClockEvent, ExternModel, RuntimeError, Simulator, StateMode,
     UniqueOverlapViolation,

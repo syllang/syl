@@ -53,3 +53,22 @@ Create a `Simulator::new(&design)`, drive the top inputs, then call `eval_comb()
 Register an `ExternModel` for each external instance before evaluation. Models receive their named inputs on input changes and return all output values. An unregistered instance produces a runtime error naming its Syl path. A failed clocked assertion aborts the edge before sequential writes commit. Set `strict_unique` to turn a unique-overlap diagnostic into an error.
 
 `VcdWriter::sample(time, &sim)` writes changes at the supplied nanosecond timestamp. `VcdWriter::filtered` accepts a predicate over signal IDs and full Syl paths.
+
+## Running independent two-state trajectories
+
+Compile a `FastProgram` from the specialized `SimDesign` and use it to create a
+`FastBatchCpuSimulator`. Its `for_each_tile` callback receives a global lane
+offset and exclusive access to a `FastTile`. Use the same program throughout.
+Fill each input limb with `input_word`, masking unused high bits. Call `tick`
+for a rising edge followed by a low settle, then read output limbs with `word`.
+`eval_comb` settles input changes without advancing the clock. Each row holds
+one little-endian 64-bit limb across all trajectories in the tile.
+
+The fast path initializes storage to zero and projects X/Z values to zero.
+It supports a single external clock, synchronous resets, register updates,
+RAM words up to 64 bits, fixed packed slices and clocked assertions. Wider
+packed buses use multiple limbs. Compilation returns an error for unsupported
+operations such as wide arithmetic, dynamic packed indexing or external cells.
+On an assertion failure, `tick` returns the tile-local lane and one-based edge
+before committing the sequential updates. Add the tile offset to recover the
+global trajectory index.
