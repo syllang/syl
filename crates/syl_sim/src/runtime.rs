@@ -2,6 +2,7 @@
 mod expr;
 use crate::*;
 use std::collections::{BTreeMap, BTreeSet};
+use std::ops::ControlFlow;
 use syl_span::Span;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -379,7 +380,7 @@ impl<'d> Simulator<'d> {
             self.values[id.0].insert(low, &v)
         }
     }
-    fn propagate(&mut self) -> Result<Option<Vec<(InstanceId, PortValues)>>> {
+    fn propagate_once(&mut self) -> Result<ControlFlow<InstanceId, Vec<(InstanceId, PortValues)>>> {
         let mut deferred = Vec::new();
         for (id, net) in &mut self.inout_drives {
             net.resolved.clone_from(&net.pin);
@@ -393,7 +394,7 @@ impl<'d> Simulator<'d> {
         for pos in 0..=self.design.comb_eval_order.len() {
             while let Some(&&(_, id)) = slots.peek().filter(|s| s.0 == pos) {
                 if !self.external(id, &mut deferred)? {
-                    return Ok(None);
+                    return Ok(ControlFlow::Break(id));
                 }
                 slots.next();
             }
@@ -422,7 +423,42 @@ impl<'d> Simulator<'d> {
                 self.values[i] = self.project(v);
             }
         }
-        Ok(Some(deferred))
+        Ok(ControlFlow::Continue(deferred))
+    }
+    fn propagate(&mut self) -> Result<Vec<(InstanceId, PortValues)>> {
+        // The scheduler visits producers first. Until the current inout model
+        // settles, its upstream drives and all clocked state stay fixed.
+        // Brent's cycle detection retains one set of drives, even for a ripple
+        // across a wide bus, and invokes the model just once per delta.
+        let mut checkpoint = None;
+        let mut interval = 1usize;
+        let mut remaining = 0;
+        loop {
+            let id = match self.propagate_once()? {
+                ControlFlow::Continue(deferred) => return Ok(deferred),
+                ControlFlow::Break(id) => id,
+            };
+            let drives = &self.models[&id].outputs;
+            if let Some((prior, saved)) = &checkpoint
+                && *prior == id
+            {
+                if drives == saved {
+                    let path = &self.design.instances[id.0].source.path;
+                    return Err(RuntimeError::Invalid(format!(
+                        "extern {path} did not settle: its combinational drives repeat"
+                    )));
+                }
+                remaining -= 1;
+                if remaining > 0 {
+                    continue;
+                }
+                interval = interval.saturating_mul(2);
+            } else {
+                interval = 1;
+            }
+            checkpoint = Some((id, drives.clone()));
+            remaining = interval;
+        }
     }
     fn reset_level(&self, id: ResetId) -> Logic {
         let r = &self.design.resets[id.0];
@@ -438,9 +474,7 @@ impl<'d> Simulator<'d> {
         let limit = 2
             * (self.design.clocks.len() + self.design.resets.len() + self.design.externs.len() + 1);
         for _ in 0..limit {
-            let Some(deferred) = self.propagate()? else {
-                continue;
-            };
+            let deferred = self.propagate()?;
             let clocks: Vec<_> = self
                 .design
                 .clocks
