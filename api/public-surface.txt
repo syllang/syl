@@ -2763,6 +2763,8 @@ syl_sim|enum|syl_sim::design::ParamValue|public
 syl_sim|enum|syl_sim::design::Selector|public
 syl_sim|enum|syl_sim::design::SimError|public
 syl_sim|enum|syl_sim::design::SimExpr|public
+syl_sim|enum|syl_sim::gpu_cuda::CudaAvailability|public
+syl_sim|enum|syl_sim::gpu_cuda::KernelMode|public
 syl_sim|enum|syl_sim::runtime::ClockEvent|public
 syl_sim|enum|syl_sim::runtime::RuntimeError|public
 syl_sim|enum|syl_sim::runtime::StateMode|public
@@ -2846,6 +2848,26 @@ syl_sim|field|syl_sim::design::SourceLocation::name|String
 syl_sim|field|syl_sim::design::SourceLocation::origin|syl_hw::HwOrigin
 syl_sim|field|syl_sim::design::SourceLocation::path|String
 syl_sim|field|syl_sim::design::TemplateId::0|usize
+syl_sim|field|syl_sim::gpu_cuda::CodegenOptions::family_index|Option<usize>
+syl_sim|field|syl_sim::gpu_cuda::CodegenOptions::mode|KernelMode
+syl_sim|field|syl_sim::gpu_cuda::GeneratedCuda::family_size|usize
+syl_sim|field|syl_sim::gpu_cuda::GeneratedCuda::memory_words|usize
+syl_sim|field|syl_sim::gpu_cuda::GeneratedCuda::mode|KernelMode
+syl_sim|field|syl_sim::gpu_cuda::GeneratedCuda::signal_slots|usize
+syl_sim|field|syl_sim::gpu_cuda::GeneratedCuda::source|String
+syl_sim|field|syl_sim::gpu_cuda::RunnerOptions::batch|usize
+syl_sim|field|syl_sim::gpu_cuda::RunnerOptions::block_size|usize
+syl_sim|field|syl_sim::gpu_cuda::RunnerOptions::cycles|u64
+syl_sim|field|syl_sim::gpu_cuda::RunnerResult::batch|usize
+syl_sim|field|syl_sim::gpu_cuda::RunnerResult::cycles|u64
+syl_sim|field|syl_sim::gpu_cuda::RunnerResult::d2h_ms|f64
+syl_sim|field|syl_sim::gpu_cuda::RunnerResult::elapsed_ms|f64
+syl_sim|field|syl_sim::gpu_cuda::RunnerResult::fail_assert|Option<usize>
+syl_sim|field|syl_sim::gpu_cuda::RunnerResult::fail_batch|Option<usize>
+syl_sim|field|syl_sim::gpu_cuda::RunnerResult::fail_cycle|Option<u64>
+syl_sim|field|syl_sim::gpu_cuda::RunnerResult::h2d_ms|f64
+syl_sim|field|syl_sim::gpu_cuda::RunnerResult::output|String
+syl_sim|field|syl_sim::gpu_cuda::RunnerResult::peak_vram_mib|usize
 syl_sim|field|syl_sim::runtime::AssertionFailure::cycle|u64
 syl_sim|field|syl_sim::runtime::AssertionFailure::message|String
 syl_sim|field|syl_sim::runtime::AssertionFailure::path|String
@@ -2855,8 +2877,15 @@ syl_sim|field|syl_sim::runtime::Simulator::unique_violations|Vec<UniqueOverlapVi
 syl_sim|field|syl_sim::runtime::UniqueOverlapViolation::cycle|u64
 syl_sim|field|syl_sim::runtime::UniqueOverlapViolation::path|String
 syl_sim|field|syl_sim::runtime::UniqueOverlapViolation::span|syl_span::Span
+syl_sim|function|syl_sim::gpu_cuda::compile_cuda_executable|fn(source: &str, output: impl AsRef<std::path::Path>) -> Result<std::path::PathBuf, String>
+syl_sim|function|syl_sim::gpu_cuda::compile_cuda|fn(source: &str, output: impl AsRef<std::path::Path>) -> Result<std::path::PathBuf, String>
+syl_sim|function|syl_sim::gpu_cuda::cuda_availability|fn() -> CudaAvailability
+syl_sim|function|syl_sim::gpu_cuda::kernel::generate_cuda|fn(design: &crate::SimDesign, options: super::CodegenOptions) -> super::GeneratedCuda
+syl_sim|function|syl_sim::gpu_cuda::kernel::try_generate_cuda|fn(d: &crate::SimDesign, options: super::CodegenOptions) -> Result<super::GeneratedCuda, String>
+syl_sim|function|syl_sim::gpu_cuda::run_cuda|fn(design: &crate::SimDesign, codegen: CodegenOptions, options: RunnerOptions, executable: impl AsRef<std::path::Path>) -> Result<RunnerResult, String>
 syl_sim|method|syl_sim::design::SimDesign::assertion|fn(self: &Self, id: AssertId) -> &SimAssert
 syl_sim|method|syl_sim::design::SimDesign::from_hwir|fn(hw: &syl_hw::ParametricHwDesign, top: &str, parameters: &BTreeMap<String, ParamValue>) -> Result<Self, SimError>
+syl_sim|method|syl_sim::design::SimDesign::instance_families|fn(self: &Self) -> &[InstanceFamily]
 syl_sim|method|syl_sim::design::SimDesign::lower|fn(output: &ElaborationOutput, top: &str, parameters: &BTreeMap<String, ParamValue>) -> Result<Self, SimError>
 syl_sim|method|syl_sim::design::SimDesign::register|fn(self: &Self, id: RegId) -> &SimReg
 syl_sim|method|syl_sim::design::SimDesign::signal|fn(self: &Self, id: SignalId) -> &SimSignal
@@ -2926,6 +2955,10 @@ syl_sim|struct|syl_sim::design::SimSignal|public
 syl_sim|struct|syl_sim::design::SimTarget|public
 syl_sim|struct|syl_sim::design::SourceLocation|public
 syl_sim|struct|syl_sim::design::TemplateId|public
+syl_sim|struct|syl_sim::gpu_cuda::CodegenOptions|public
+syl_sim|struct|syl_sim::gpu_cuda::GeneratedCuda|public
+syl_sim|struct|syl_sim::gpu_cuda::RunnerOptions|public
+syl_sim|struct|syl_sim::gpu_cuda::RunnerResult|public
 syl_sim|struct|syl_sim::runtime::AssertionFailure|public
 syl_sim|struct|syl_sim::runtime::Simulator|public
 syl_sim|struct|syl_sim::runtime::UniqueOverlapViolation|public
@@ -2979,6 +3012,8 @@ syl_sim|use|TemplateId|named|source=design::TemplateId
 syl_sim|use|UniqueOverlapViolation|named|source=runtime::UniqueOverlapViolation
 syl_sim|use|Value|named|source=value::Value
 syl_sim|use|VcdWriter|named|source=vcd::VcdWriter
+syl_sim|use|generate_cuda|named|source=kernel::generate_cuda
+syl_sim|use|try_generate_cuda|named|source=kernel::try_generate_cuda
 syl_sim|variant|syl_sim::design::ParamValue::Bool|(bool)
 syl_sim|variant|syl_sim::design::ParamValue::Nat|(u64)
 syl_sim|variant|syl_sim::design::Selector::Index|{ index: Box<SimExpr>, width: u32 }
@@ -2998,6 +3033,10 @@ syl_sim|variant|syl_sim::design::SimExpr::Read|(SimTarget)
 syl_sim|variant|syl_sim::design::SimExpr::Select|{ mode: syl_hw::HwSelectMode, arms: Vec<(SimExpr, SimExpr)>, default: Box<SimExpr> }
 syl_sim|variant|syl_sim::design::SimExpr::Unary|{ op: syl_hw::HwUnaryOp, expr: Box<SimExpr> }
 syl_sim|variant|syl_sim::design::SimExpr::Zero|unit
+syl_sim|variant|syl_sim::gpu_cuda::CudaAvailability::Available|unit
+syl_sim|variant|syl_sim::gpu_cuda::CudaAvailability::Unavailable|unit
+syl_sim|variant|syl_sim::gpu_cuda::KernelMode::BatchPerThread|unit
+syl_sim|variant|syl_sim::gpu_cuda::KernelMode::InstanceFamilyParallel|unit
 syl_sim|variant|syl_sim::runtime::ClockEvent::Falling|(DomainId)
 syl_sim|variant|syl_sim::runtime::ClockEvent::Rising|(DomainId)
 syl_sim|variant|syl_sim::runtime::RuntimeError::Assertion|(AssertionFailure)

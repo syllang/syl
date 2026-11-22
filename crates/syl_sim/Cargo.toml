@@ -21,3 +21,4 @@ thiserror.workspace = true
 [dev-dependencies]
 syl_sema.workspace = true
 syl_syntax.workspace = true
+serde_json.workspace = true

@@ -1,0 +1,12 @@
+cell Guard<D: Domain>(clk: in Clock<D>, rst: in Reset<D>, data: in UInt<48>, observed: out UInt<48>) {
+    reg delayed: UInt<48> reset(rst, 0)
+    next delayed := data
+    assert(not (delayed eq 89223500896668))
+    observed := delayed
+}
+cell Stage<D: Domain>(clk: in Clock<D>, rst: in Reset<D>, data: in UInt<48>, observed: out UInt<48>) {
+    let guard = place Guard<D>(clk: clk, rst: rst, data: data, observed: observed)
+}
+cell FaultProbe<D: Domain>(clk: in Clock<D>, rst: in Reset<D>, data: in UInt<48>, observed: out UInt<48>) {
+    let stage = place Stage<D>(clk: clk, rst: rst, data: data, observed: observed)
+}

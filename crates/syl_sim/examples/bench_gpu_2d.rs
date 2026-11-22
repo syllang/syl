@@ -1,99 +1,75 @@
-use std::collections::BTreeMap;
+//! Emit one JSON record per measurement. Pass a VCD filename to keep the replay.
+#[path = "bench_gpu_2d/support.rs"]
+mod support;
+use serde_json::json;
 use std::time::Instant;
-use syl_elab::{ElaborationOutput, HardwareCompiler};
-use syl_sema::{SemanticSession, SemanticSourceFile};
-use syl_sim::gpu_cuda::{CodegenOptions, KernelMode, RunnerOptions, cuda_availability, run_cuda};
-use syl_sim::{ParamValue, SimDesign};
-use syl_span::SourceId;
-use syl_syntax::SourceParser;
-
-fn compile(files: &[(&str, &str)]) -> ElaborationOutput {
-    let ast = files
-        .iter()
-        .enumerate()
-        .map(|(index, (_, source))| {
-            SourceParser::new_in(source, SourceId::new(index))
-                .parse_file()
-                .unwrap()
-        })
-        .collect::<Vec<_>>();
-    let sources = files
-        .iter()
-        .zip(&ast)
-        .map(|((path, _), ast)| {
-            SemanticSourceFile::new(path.split('.').map(str::to_owned).collect(), ast)
-        })
-        .collect();
-    let hir = SemanticSession::new_sources(sources).resolve_hir().unwrap();
-    let tir = hir.check_tir().unwrap();
-    HardwareCompiler::new().output_for_tir(&tir)
-}
+use support::*;
+use syl_sim::gpu_cuda::{CudaAvailability, KernelMode, cuda_availability};
 
 fn main() {
-    if cuda_availability() != syl_sim::gpu_cuda::CudaAvailability::Available {
-        eprintln!("nvcc unavailable, benchmark skipped");
+    if cuda_availability() == CudaAvailability::Unavailable {
+        eprintln!("nvcc unavailable");
         return;
     }
-    let output = compile(&[
-        (
-            "std.stream",
-            include_str!("../../../examples/std/stream.syl"),
-        ),
-        (
-            "lane_array",
-            include_str!("../../../examples/mvp/lane_array.syl"),
-        ),
-    ]);
-    println!("{{\"gpu\":\"RTX 2080 Ti\",\"cycles\":1000,\"results\":[");
-    let mut first = true;
-    for n in [1u64, 4, 16, 64] {
-        let design = SimDesign::lower(
-            &output,
-            "LaneArray",
-            &BTreeMap::from([
-                ("N".into(), ParamValue::Nat(n)),
-                ("W".into(), ParamValue::Nat(32)),
-            ]),
-        )
-        .unwrap();
-        let family_index = design
-            .families
-            .iter()
-            .position(|family| family.module.last().is_some_and(|name| name == "Lane"));
-        for batch in [1usize, 16, 64, 256, 1024, 4096, 16384] {
-            for mode in [
-                KernelMode::BatchPerThread,
-                KernelMode::InstanceFamilyParallel,
-            ] {
-                let path = std::env::temp_dir().join(format!("syl_bench_{n}_{batch}_{mode:?}"));
-                let started = Instant::now();
-                let result = run_cuda(
-                    &design,
-                    CodegenOptions { mode, family_index },
-                    RunnerOptions {
-                        batch,
-                        cycles: 1_000,
-                        block_size: 256,
-                    },
-                    &path,
-                )
-                .unwrap();
-                if !first {
-                    println!(",");
+    let ir = sources();
+    let dir = Temp::new();
+    let modes = [
+        KernelMode::BatchPerThread,
+        KernelMode::InstanceFamilyParallel,
+    ];
+    for (top, size) in [
+        ("LaneArray", 1),
+        ("LaneArray", 4),
+        ("LaneArray", 16),
+        ("LaneArray", 64),
+        ("SyncFifo", 8),
+        ("SyncFifo", 64),
+        ("SimpleDualPortRam", 16),
+        ("SimpleDualPortRam", 256),
+        ("SimpleDualPortRam", 4096),
+        ("RoundRobinArbiter4", 1),
+    ] {
+        let start = Instant::now();
+        let design = lower(&ir, top, size);
+        let lower_ms = ms(start.elapsed());
+        let mut digests = Vec::new();
+        for (index, mode) in modes.iter().enumerate() {
+            // Scalar standard-library tops have a singleton family. Use the batch mapping for throughput.
+            if index == 1 && top != "LaneArray" {
+                continue;
+            }
+            let bin = build(&dir.0, &design, *mode);
+            for (i, b) in [1, 16, 64, 256, 1024, 4096, 16384].into_iter().enumerate() {
+                let r = run(&bin, b, 1000, "summary");
+                assert!(r["fail_cycle"].is_null());
+                if index == 0 {
+                    digests.push(r["digest"].clone());
+                } else {
+                    assert_eq!(r["digest"], digests[i]);
                 }
-                first = false;
-                print!(
-                    "{{\"n\":{n},\"batch\":{batch},\"mode\":\"{mode:?}\",\"elapsed_ms\":{:.6},\"h2d_ms\":{:.6},\"d2h_ms\":{:.6},\"peak_vram_mib\":{},\"wall_ms\":{:.3}}}",
-                    result.elapsed_ms,
-                    result.h2d_ms,
-                    result.d2h_ms,
-                    result.peak_vram_mib,
-                    started.elapsed().as_secs_f64() * 1000.0,
+                println!(
+                    "{}",
+                    json!({"case":top,"size":size,"mode":index+1,"lower_ms":lower_ms,"gen_ms":bin.gen_ms,"cold_ms":bin.compile_ms,"run":r})
                 );
-                let _ = std::fs::remove_file(path.with_extension("cu"));
-                let _ = std::fs::remove_file(path);
+            }
+            if top == "LaneArray" && size == 16 && index == 0 {
+                let mut digest = None;
+                for observation in ["summary", "each"] {
+                    let r = run(&bin, 16384, 128, observation);
+                    if let Some(previous) = digest {
+                        assert_eq!(r["digest"], previous);
+                    }
+                    digest = Some(r["digest"].clone());
+                    println!(
+                        "{}",
+                        json!({"case":"Observation","size":size,"mode":observation,"run":r})
+                    );
+                }
             }
         }
     }
-    println!("]}}\n");
+    println!("{}", fault(&ir, &dir.0));
+    if let Some(path) = std::env::args_os().nth(1) {
+        std::fs::copy(dir.0.join("failure.vcd"), path).unwrap();
+    }
 }
