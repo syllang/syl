@@ -115,7 +115,13 @@ fn run(invocation: CliInvocation, cwd: &Path, report: &mut Report) -> Result<(),
             .filter_map(|f| f.path())
             .chain(inputs.iter().map(PathBuf::as_path))
             .chain(args.stimulus.as_deref())
-            .chain(manifest.iter().map(ProjectManifest::manifest_path));
+            .chain(manifest.iter().map(ProjectManifest::manifest_path))
+            .chain(
+                manifest
+                    .iter()
+                    .flat_map(|m| m.opaque_summary_paths())
+                    .map(PathBuf::as_path),
+            );
         return sim::run(&design, &args, protected, &mut report.diagnostics);
     }
     let RunMode::Emit(output) = invocation.mode else {

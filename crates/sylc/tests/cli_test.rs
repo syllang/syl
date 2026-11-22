@@ -670,45 +670,5 @@ fn sim_samples_combinationally_derived_clock_transitions() {
     assert!(String::from_utf8(out.stdout).unwrap().contains("cycles=2"));
 }
 
-#[test]
-fn sim_vcd_cannot_overwrite_loaded_sources_or_stimulus_through_aliases() {
-    let p = TestProject::new();
-    p.write("syl.toml", "[paths]\nworkspace_roots=['src']\n");
-    let top = p.write(
-        "src/top.syl",
-        "use helper.Child\ncell Top(i:in Bit)->y:Bit {let child=place Child(i:i) y:=child}",
-    );
-    let dep = p.write("src/helper.syl", "cell Child(i:in Bit)->y:Bit {y:=i}");
-    let stimulus = p.write("s.json", r#"[{"drive":{"i":0},"expect":{"y":0}}]"#);
-    fs::hard_link(&dep, p.0.join("hard.vcd")).unwrap();
-    #[cfg(unix)]
-    std::os::unix::fs::symlink("s.json", p.0.join("sym.vcd")).unwrap();
-    let files = [&top, &dep, &stimulus];
-    let originals = files.map(|p| fs::read(p).unwrap());
-    for name in [
-        "src/./top.syl",
-        "src/helper.syl",
-        "s.json",
-        "hard.vcd",
-        #[cfg(unix)]
-        "sym.vcd",
-    ] {
-        let out = p.run(
-            "",
-            &[
-                "sim",
-                "src/top.syl",
-                "--top",
-                "Top",
-                "--stimulus",
-                "s.json",
-                "--vcd",
-                name,
-            ],
-        );
-        failure(&out);
-        let err = String::from_utf8(out.stderr).unwrap();
-        assert!(err.contains("refers to input"), "{err}");
-        assert_eq!(files.map(|p| fs::read(p).unwrap()), originals);
-    }
-}
+#[path = "cli_test/vcd_inputs_test.rs"]
+mod vcd_inputs_test;
