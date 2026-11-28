@@ -30,6 +30,22 @@ pub fn fixture(
             "RoundRobinArbiter4",
             include_str!("../../../../examples/std/arbiter.syl"),
         ),
+        "WideAluArray" => (
+            "WideAluArray",
+            include_str!("../../../../examples/benchmarks/wide_alu_array.syl"),
+        ),
+        "DeepFsmChain" => (
+            "DeepFsmChain",
+            include_str!("../../../../examples/benchmarks/deep_fsm_chain.syl"),
+        ),
+        "SharedRamArbiter" => (
+            "SharedRamArbiter",
+            include_str!("../../../../examples/benchmarks/shared_ram_arbiter.syl"),
+        ),
+        "FaultHuntPipeline" => (
+            "FaultHuntPipeline",
+            include_str!("../../../../examples/benchmarks/fault_hunt_pipeline.syl"),
+        ),
         "Fault" => ("Fault", FAULT),
         _ => panic!("unknown fixture {case}"),
     };
