@@ -2,6 +2,7 @@
 mod trajectory;
 pub(crate) use trajectory::TrajectoryState;
 mod expr;
+mod format;
 use crate::*;
 pub(crate) use expr::signed;
 use std::collections::{BTreeMap, BTreeSet};
@@ -83,7 +84,11 @@ pub(crate) enum AssertionMode {
     Replay { step: u64, id: AssertId },
 }
 
+type LogSink<'d> = Box<dyn FnMut(&str) + 'd>;
+
 pub struct Simulator<'d> {
+    log_sink: Option<LogSink<'d>>,
+    pub log_lines: Vec<String>,
     design: &'d SimDesign,
     mode: StateMode,
     trajectory: TrajectoryState,
@@ -198,11 +203,17 @@ impl<'d> Simulator<'d> {
                     .collect(),
                 cycle: 0,
             },
+            log_sink: None,
+            log_lines: Vec::new(),
             assertions: AssertionMode::Stop,
             stimulus_step: None,
             strict_unique: false,
             unique_violations: Vec::new(),
         }
+    }
+    /// Stream each sampled line to the callback instead of collecting it in log_lines.
+    pub fn set_log_sink(&mut self, sink: impl FnMut(&str) + 'd) {
+        self.log_sink = Some(Box::new(sink));
     }
     pub fn design(&self) -> &'d SimDesign {
         self.design
@@ -610,6 +621,9 @@ impl<'d> Simulator<'d> {
                 }
             }
         }
+        if !matches!(self.assertions, AssertionMode::Record(_)) {
+            self.sample_logs(rising)?;
+        }
         for (id, a) in self
             .design
             .assertions
@@ -642,7 +656,7 @@ impl<'d> Simulator<'d> {
                     path: a.source.path.clone(),
                     span: a.source.span(),
                     cycle,
-                    message: a.message.clone(),
+                    message: self.format_message(&a.message, (&a.source).into())?,
                 }
                 .into());
             }

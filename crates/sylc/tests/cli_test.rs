@@ -682,3 +682,6 @@ mod batch_steps_test;
 #[cfg(unix)]
 #[path = "cli_test/cuda_cache_test.rs"]
 mod cuda_cache_test;
+
+#[path = "cli_test/format_test.rs"]
+mod format_test;

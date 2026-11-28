@@ -1,3 +1,4 @@
+mod format;
 use super::{
     SvBinaryOp, SvExpr, SvInstance, SvItem, SvModule, SvParam, SvParamDefault, SvResetMode,
     SvResetPolarity, SvSelectArm,
@@ -253,20 +254,22 @@ impl<'a> SvPrinter<'a> {
                 }
                 self.out.push_str(&format!("{pad}end\n"));
             }
-            SvItem::AlwaysAssert {
+            SvItem::ClockedMessage {
+                log,
                 clock,
                 trigger,
                 message,
             } => {
-                self.out
-                    .push_str(&format!("{pad}`ifndef SYNTHESIS\n{pad}always @(posedge "));
+                let process = if *log { "always_ff" } else { "always" };
+                self.out.push_str(&format!(
+                    "{pad}`ifndef SYNTHESIS\n{pad}{process} @(posedge "
+                ));
                 self.expr(clock);
                 self.out.push_str(") begin\n");
                 self.out.push_str(&format!("{pad}  if ("));
                 self.expr(trigger);
-                self.out.push_str(") $error(");
-                self.expr(message);
-                self.out.push_str(");\n");
+                self.out.push_str(") ");
+                self.message(*log, message, &pad);
                 self.out.push_str(&format!("{pad}end\n{pad}`endif\n"));
             }
             SvItem::Instance(instance) => self.instance(instance, indent),
@@ -403,8 +406,16 @@ impl<'a> SvPrinter<'a> {
                 self.out.push('}');
             }
             SvExpr::Slice { value, high, low } => {
-                self.expr(value);
-                self.out.push_str(&format!("[{high}:{low}]"));
+                if matches!(value.as_ref(), SvExpr::Ident(_)) {
+                    self.expr(value);
+                    self.out.push_str(&format!("[{high}:{low}]"));
+                } else {
+                    // A packed expression (including another part-select) cannot
+                    // be followed by a Verilog part-select in all backends.
+                    self.out.push_str(&format!("(({high})-({low})+1)'(("));
+                    self.expr(value);
+                    self.out.push_str(&format!(") >> ({low}))"));
+                }
             }
             SvExpr::IndexedPartSelect {
                 value,

@@ -313,6 +313,13 @@ impl<'a> AstNodeIndexBuilder<'a> {
             ),
         };
         self.visit_expr(&item.value, id);
+        if let Some(Ok(parts)) = &item.format {
+            for part in parts {
+                if let crate::parser::FormatPart::Capture { expr, .. } = part {
+                    self.visit_expr(expr, id);
+                }
+            }
+        }
     }
 
     pub(super) fn visit_select_arm(&mut self, item: &SelectArm, parent: NodeHandle) {

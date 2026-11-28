@@ -21,6 +21,16 @@ impl TypePhaseChecker {
         errors: &mut Vec<CompileError>,
     ) -> Result<TirType, CompileError> {
         let owner = self.current_owner()?;
+        if matches!(
+            crate::tir::BuiltinResolver::new(&self.hir, Some(owner)).resolve_call_callee(callee),
+            Some(crate::tir::BuiltinIntrinsic::Log)
+        ) {
+            errors.push(CompileError::lowering_at(
+                crate::EirError::LogStatementOnly,
+                callee.span(),
+            ));
+            return Ok(TirType::Unknown);
+        }
         let root = root(callee);
         let mut actuals = Vec::new();
         let def = if let HirExprNode::Field { base, .. } = &root.node {

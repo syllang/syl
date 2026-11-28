@@ -159,6 +159,7 @@ impl<'a> Validator<'a> {
             HwItem::ContinuousDrive { .. }
             | HwItem::ClockedStorage { .. }
             | HwItem::ClockedAssert { .. }
+            | HwItem::ClockedLog { .. }
             | HwItem::InitialError { .. }
             | HwItem::MemoryWrite { .. }
             | HwItem::MemorySyncRead { .. } => {}
@@ -265,10 +266,19 @@ impl<'a> Validator<'a> {
                 clock,
                 trigger,
                 message,
+            }
+            | HwItem::ClockedLog {
+                clock,
+                trigger,
+                message,
             } => {
                 self.validate_expr(module, clock, scope);
                 self.validate_expr(module, trigger, scope);
-                self.validate_expr(module, message, scope);
+                for piece in message {
+                    if let crate::FormatPiece::Value { expr, .. } = piece {
+                        self.validate_expr(module, expr, scope);
+                    }
+                }
             }
             HwItem::Instance(instance) => self.validate_instance(module, instance, scope),
             HwItem::StaticIf {

@@ -160,10 +160,11 @@ pub(super) enum SvItem {
         reset: Option<SvReset>,
         next: SvExpr,
     },
-    AlwaysAssert {
+    ClockedMessage {
+        log: bool,
         clock: SvExpr,
         trigger: SvExpr,
-        message: SvExpr,
+        message: Vec<syl_hw::FormatPiece<SvExpr>>,
     },
     Instance(SvInstance),
     GenerateIf {

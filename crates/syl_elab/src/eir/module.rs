@@ -295,7 +295,14 @@ pub(crate) enum EirItem {
         clock: EirExpr,
         trigger: EirExpr,
         reads: Vec<EirExpr>,
-        message: EirExpr,
+        message: Vec<syl_hw::FormatPiece<EirExpr>>,
+        origin: EirOrigin,
+    },
+    ClockedLog {
+        clock: EirExpr,
+        trigger: EirExpr,
+        reads: Vec<EirExpr>,
+        message: Vec<syl_hw::FormatPiece<EirExpr>>,
         origin: EirOrigin,
     },
     InitialError {

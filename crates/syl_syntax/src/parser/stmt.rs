@@ -132,7 +132,12 @@ impl Parser {
                 .parse_contextual_assignment_stmt(expr, context)
                 .map(|stmt| BlockEntry::Stmt(Box::new(stmt)));
         }
-        if self.consume(&TokenKind::Semi).is_some() || !self.check(&TokenKind::RBrace) {
+        let clocked_statement = context == BlockContext::Hardware
+            && matches!(&expr, Expr::Call {callee,..} if matches!(callee.as_ref(), Expr::Ident(name,_) if matches!(name.as_str(),"assert"|"log")));
+        if self.consume(&TokenKind::Semi).is_some()
+            || !self.check(&TokenKind::RBrace)
+            || clocked_statement
+        {
             Ok(BlockEntry::Stmt(Box::new(Stmt::Expr(expr))))
         } else {
             Ok(BlockEntry::Tail(expr))

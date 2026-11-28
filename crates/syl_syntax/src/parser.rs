@@ -5,6 +5,8 @@ use syl_span::{Diagnostic, SourceId, Span};
 
 mod doc;
 mod expr;
+mod format;
+pub use format::{FormatPart, FormatSpec, FormatTemplate};
 mod item;
 mod lossless_tree;
 mod output;
@@ -131,7 +133,9 @@ impl<'a> SourceParser<'a> {
     /// Useful for REPL, test helpers, or incremental compilation.
     pub fn parse_expr(&self) -> Result<Expr, Vec<Diagnostic>> {
         let tokens = Lexer::new_in(self.source, self.source_id).lex_all()?;
-        Parser::new_at_end(tokens, self.source_id, self.source.len()).parse_expr(0)
+        let mut parser = Parser::new_at_end(tokens, self.source_id, self.source.len());
+        parser.index_string_escapes(self.source);
+        parser.parse_expr(0)
     }
 }
 
@@ -155,6 +159,7 @@ impl<'a> SourceParser<'a> {
 #[non_exhaustive]
 pub struct Parser {
     tokens: Vec<Token>,
+    string_escapes: HashMap<usize, Vec<usize>>,
     pos: usize,
     eof_span: Span,
     block_context: BlockContext,
@@ -205,6 +210,7 @@ impl Parser {
     ) -> Self {
         Self {
             tokens,
+            string_escapes: HashMap::new(),
             pos: 0,
             eof_span,
             block_context: BlockContext::Function,
@@ -225,6 +231,7 @@ impl Parser {
     }
 
     pub(crate) fn parse_file_partial_with_source(mut self, source: &str) -> ParseOutput {
+        self.index_string_escapes(source);
         let (file, diagnostics) = self.parse_file_parts();
         let node_index = file.build_node_index(source);
         ParseOutput::with_node_index(file, diagnostics, node_index)

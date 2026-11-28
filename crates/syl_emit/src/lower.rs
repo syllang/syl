@@ -203,10 +203,21 @@ impl<'a> SvEmitter<'a> {
                 clock,
                 trigger,
                 message,
-            } => Ok(SvItem::AlwaysAssert {
+            }
+            | HwItem::ClockedLog {
+                clock,
+                trigger,
+                message,
+            } => Ok(SvItem::ClockedMessage {
+                log: matches!(item, HwItem::ClockedLog { .. }),
                 clock: self.lower_expr(clock)?,
                 trigger: self.lower_expr(trigger)?,
-                message: self.lower_expr(message)?,
+                message: message
+                    .iter()
+                    .map(|piece| {
+                        piece.try_map(|expr| self.lower_expr(expr), |width| Ok(width.clone()))
+                    })
+                    .collect::<Result<_, _>>()?,
             }),
             HwItem::Instance(instance) => Ok(SvItem::Instance(self.lower_instance(instance)?)),
             HwItem::InitialError { message } => Ok(SvItem::InitialError {

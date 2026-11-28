@@ -270,6 +270,7 @@ impl EirBuildStage {
                     | EirItem::Drive { .. }
                     | EirItem::ClockedStorage { .. }
                     | EirItem::ClockedAssert { .. }
+                    | EirItem::ClockedLog { .. }
                     | EirItem::Instance(_)
                     | EirItem::InitialError { .. } => {}
                 }

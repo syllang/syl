@@ -302,14 +302,25 @@ impl<'a> CdcChecker<'a> {
                         origin: origin.clone(),
                     });
                 }
-                EirItem::ClockedAssert {
+                EirItem::ClockedLog {
+                    clock,
+                    reads,
+                    origin,
+                    ..
+                }
+                | EirItem::ClockedAssert {
                     clock,
                     reads,
                     origin,
                     ..
                 } => samples.push(Sample {
                     clock: clock_key(clock),
-                    target: "assert".into(),
+                    target: if matches!(item, EirItem::ClockedLog { .. }) {
+                        "log"
+                    } else {
+                        "assert"
+                    }
+                    .into(),
                     reads: reads
                         .iter()
                         .filter(|r| {

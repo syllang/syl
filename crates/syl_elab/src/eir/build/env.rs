@@ -253,18 +253,17 @@ impl Env {
         }
     }
 
-    pub(crate) fn reset_for_unique_clock<C>(
+    pub(crate) fn reset_for_clock<C>(
         &self,
+        selected: &EirExpr,
         emitter: &crate::eir::build::EirBuilder<'_, C>,
     ) -> Option<EirExpr>
     where
         C: crate::const_eval::ConstValueElaborator + ?Sized,
     {
-        let clocks = self.vars_by_static_type.get("Clock")?;
-        if clocks.len() != 1 {
-            return None;
-        }
-        let clock = self.vars.get(&clocks[0])?;
+        let clock = self.vars.values().find(|var| {
+            &var.code == selected && emitter.static_type_name(&var.ty) == Some("Clock")
+        })?;
         let clock_domain = emitter.first_type_arg(&clock.ty).and_then(MirTypeRef::path);
         let mut matches = self
             .vars_by_static_type

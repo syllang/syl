@@ -171,6 +171,14 @@ impl Value {
         }
         Some(v)
     }
+    pub(crate) fn unsigned_integer(&self) -> BigUint {
+        BigUint::new(
+            self.words
+                .iter()
+                .flat_map(|w| [w.data as u32, (w.data >> 32) as u32])
+                .collect(),
+        )
+    }
     pub fn to_binary(&self) -> String {
         (0..self.width)
             .rev()
@@ -374,16 +382,8 @@ impl Value {
                         },
                     ));
                 }
-                let integer = |v: &Self| {
-                    BigUint::new(
-                        v.words
-                            .iter()
-                            .flat_map(|w| [w.data as u32, (w.data >> 32) as u32])
-                            .collect(),
-                    )
-                };
-                let a = integer(self);
-                let b = integer(rhs);
+                let a = self.unsigned_integer();
+                let b = rhs.unsigned_integer();
                 let n = match op {
                     Add => a + b,
                     Sub if a < b => (BigUint::from(1u8) << width) + a - b,

@@ -325,6 +325,13 @@ fn remap_expr(expr: &mut HirBodyExpr, remap: &Remap) {
             remap_expr(callee, remap);
             for arg in args {
                 remap_expr(&mut arg.value, remap);
+                if let Some(Ok(parts)) = &mut arg.format {
+                    for part in parts {
+                        if let syl_hir::FormatPart::Capture { expr, .. } = part {
+                            remap_expr(expr, remap);
+                        }
+                    }
+                }
             }
         }
         HirExprNode::GenericApp { callee, .. } | HirExprNode::Field { base: callee, .. } => {

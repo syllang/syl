@@ -364,13 +364,16 @@ impl HirExpr {
                 left: Box::new(HirExpr::from_syntax_with_context(left, context)),
                 right: Box::new(HirExpr::from_syntax_with_context(right, context)),
             },
-            Expr::Call { callee, args, .. } => HirExprNode::Call {
-                callee: Box::new(HirExpr::from_syntax_with_context(callee, context)),
-                args: args
+            Expr::Call { callee, args, .. } => {
+                let args = args
                     .iter()
                     .map(|arg| HirCallArg::from_syntax_with_context(arg, context))
-                    .collect(),
-            },
+                    .collect();
+                HirExprNode::Call {
+                    callee: Box::new(HirExpr::from_syntax_with_context(callee, context)),
+                    args,
+                }
+            }
             Expr::GenericApp { callee, args, .. } => HirExprNode::GenericApp {
                 callee: Box::new(HirExpr::from_syntax_with_context(callee, context)),
                 args: args.iter().map(MirTypeRef::from).collect(),
@@ -548,6 +551,7 @@ impl HirNamedExpr {
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct HirCallArg {
+    pub format: Option<syl_syntax::parser::FormatTemplate<HirExpr>>,
     pub name: Option<String>,
     pub value: HirExpr,
     pub(crate) span: Span,
@@ -556,6 +560,16 @@ pub struct HirCallArg {
 impl HirCallArg {
     fn from_syntax_with_context(arg: &CallArg, context: HirBlockContext) -> Self {
         Self {
+            format: arg.format.as_ref().map(|template| {
+                template.as_ref().map_err(Clone::clone).map(|parts| {
+                    parts
+                        .iter()
+                        .map(|part| {
+                            part.map(|capture| HirExpr::from_syntax_with_context(capture, context))
+                        })
+                        .collect()
+                })
+            }),
             name: arg.name.clone(),
             value: HirExpr::from_syntax_with_context(&arg.value, context),
             span: arg.span,

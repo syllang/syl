@@ -685,6 +685,7 @@ pub struct NamedExpr {
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct CallArg {
+    pub format: Option<crate::parser::FormatTemplate<Expr>>,
     pub name: Option<String>,
     pub value: Expr,
     pub span: Span,

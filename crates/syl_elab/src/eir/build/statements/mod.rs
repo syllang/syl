@@ -1,6 +1,7 @@
 mod assertions;
 mod builtin_stmt;
 pub(crate) mod for_emit;
+mod format;
 mod memory;
 mod next;
 pub(crate) mod place_emit;

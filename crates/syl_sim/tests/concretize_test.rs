@@ -326,7 +326,9 @@ cell Top<D: Domain>(clk: in Clock<D>, rst: in Reset<D, Async, ActiveLow>, i: in 
     let assertion = d.assertion(AssertId(0));
     let span = assertion.source.span();
     assert_eq!(&source[span.start..span.end], "assert(i)");
-    assert_eq!(assertion.message, "assert failed");
+    assert!(
+        matches!(assertion.message.as_slice(), [syl_hw::FormatPiece::Literal(text)] if text == "assert failed")
+    );
     assert_eq!(
         d.resets[assertion.reset_mask.unwrap().0].polarity,
         HwResetPolarity::ActiveLow

@@ -1,6 +1,8 @@
 mod ids;
 pub use ids::ObjectId;
 
+mod format;
+pub use format::{FormatPiece, FormatStyle};
 mod design;
 mod reset;
 pub use reset::{HwPortDomain, HwResetMode, HwResetPolarity};

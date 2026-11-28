@@ -353,3 +353,73 @@ fn memory_read_lets_emit_the_same_sv_as_direct_combinational_reads() {
         assert_eq!(actual, direct, "{read}");
     }
 }
+
+#[test]
+fn simulation_messages_run_in_both_sv_simulators_and_synthesize_away() {
+    let scratch = Scratch::new();
+    let sv = emit(
+        r#"
+        enum State {Idle,Busy,Done}
+        bundle Word { flag:Bit, data:UInt<8> }
+        cell Logger(clk:in Clock, state:in State, word:in Word, en:in Bit) {
+            log(when:en, "seen 100% {{ok}} {state:?} {word:#X} {word.data[7:4]:#b}")
+            assert(en,"missing {word.data:#04x}")
+        }"#,
+    );
+    let design = scratch.write("design.sv", &sv);
+    scratch.write(
+        "bench.sv",
+        r#"module bench;
+        bit clk, en=1;
+        logic [1:0] state=1;
+        logic [8:0] word=9'h12a;
+        Logger dut(.*);
+        initial begin #1; clk=1; #1; $finish; end
+        endmodule"#,
+    );
+    let run = |program: &str, args: &[&str]| {
+        let output = Command::new(program)
+            .args(args)
+            .current_dir(&scratch.0)
+            .output()
+            .unwrap();
+        let text = String::from_utf8_lossy(&output.stdout).into_owned();
+        success(output);
+        text
+    };
+    let expected = "seen 100% {ok} State.Busy(2'd1) { flag: 0X1, data: 0X2A } 0b0010";
+    if available("iverilog", "-V") {
+        run(
+            "iverilog",
+            &[
+                "-g2012",
+                "-s",
+                "bench",
+                "-o",
+                "test.vvp",
+                "design.sv",
+                "bench.sv",
+            ],
+        );
+        assert!(run("vvp", &["test.vvp"]).contains(expected));
+    }
+    if available("verilator", "--version") {
+        run(
+            "verilator",
+            &[
+                "--binary",
+                "-j",
+                "2",
+                "--timing",
+                "--top-module",
+                "bench",
+                "design.sv",
+                "bench.sv",
+            ],
+        );
+        assert!(run("./obj_dir/Vbench", &[]).contains(expected));
+    }
+    if available("yosys", "-V") {
+        synth(&design, "Logger");
+    }
+}
