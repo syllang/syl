@@ -205,16 +205,9 @@ impl Env {
     pub(crate) fn record_control_alias<C: crate::const_eval::ConstValueElaborator + ?Sized>(
         &mut self,
         target: &str,
-        value: &ElabExpr,
+        source: &str,
         builder: &super::EirBuilder<'_, C>,
     ) {
-        let mut value = value;
-        while let ElabExprNode::Group(inner) = &value.node {
-            value = inner;
-        }
-        let ElabExprNode::Ident(source) = &value.node else {
-            return;
-        };
         let (Some(target), Some(source)) = (self.var(target), self.var(source)) else {
             return;
         };

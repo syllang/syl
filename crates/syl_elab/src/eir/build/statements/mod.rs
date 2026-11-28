@@ -54,19 +54,33 @@ where
                 }
             }
         }
+        // Let bindings are lexical. Keep their wire sources local to the
+        // prepass so later bindings never leak into ordinary expression lowering.
+        let mut lets = std::collections::HashMap::new();
         for stmt in &body.stmts {
-            match stmt {
-                ElabStmt::Signal {
+            let (name, value) = match stmt {
+                ElabStmt::Let {
                     name,
                     value: Some(value),
                     ..
-                } => env.record_control_alias(name, value, self),
-                ElabStmt::Drive { target, value, .. }
-                    if let ElabExprNode::Ident(name) = &target.node =>
-                {
-                    env.record_control_alias(name, value, self)
                 }
-                _ => {}
+                | ElabStmt::Signal {
+                    name,
+                    value: Some(value),
+                    ..
+                } => (name.as_str(), value),
+                ElabStmt::Drive { target, value, .. } if let Some(name) = target.wire_name() => {
+                    (name, value)
+                }
+                _ => continue,
+            };
+            let source = value
+                .wire_name()
+                .and_then(|name| lets.get(name).copied().unwrap_or(Some(name)));
+            if matches!(stmt, ElabStmt::Let { .. }) {
+                lets.insert(name, source);
+            } else if let Some(source) = source {
+                env.record_control_alias(name, source, self);
             }
         }
     }
@@ -286,7 +300,9 @@ where
         });
         env.insert(request.name, EirExpr::ident(&physical_name), ty);
         if let Some(value) = request.value {
-            env.record_control_alias(request.name, value, self);
+            if let Some(source) = value.wire_name() {
+                env.record_control_alias(request.name, source, self);
+            }
             if let ElabExprNode::Place {
                 callee,
                 args,
@@ -618,8 +634,11 @@ where
         target: &ElabExpr,
         value: &ElabExpr,
         span: Span,
-        env: &Env,
+        env: &mut Env,
     ) -> Result<Vec<EirItem>, CompileError> {
+        if let (Some(target), Some(source)) = (target.wire_name(), value.wire_name()) {
+            env.record_control_alias(target, source, self);
+        }
         match (&target.node, &value.node) {
             (ElabExprNode::Ident(_), ElabExprNode::Aggregate { ty, fields }) => self
                 .emit_aggregate_drive(

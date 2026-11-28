@@ -197,3 +197,26 @@ fn independent_resets_require_an_explicit_choice() {
             .starts_with("[cycle 1] T: B\n[cycle 2] T: A\n")
     );
 }
+
+#[test]
+fn split_emission_preserves_the_sibling_fault_reporter() {
+    let project = TestProject::new();
+    project.write(
+        "t.syl",
+        r#"
+        cell Logger(clk:in Clock) {log("sample")}
+        cell Guard(clk:in Clock,ok:in Bit) {assert(ok,"fault {ok}")}
+        cell Top(clk:in Clock,ok:in Bit) {
+            let logger = place Logger(clk:clk)
+            let guard = place Guard(clk:clk,ok:ok)
+        }"#,
+    );
+    success(&project.run("", &["emit", "t.syl", "--out", "all.sv"]));
+    success(&project.run("", &["emit", "t.syl", "--out-dir", "sv"]));
+    let read = |path: &str| fs::read_to_string(project.0.join(path)).unwrap();
+    let split = read("sv/Guard.sv");
+    let (_, guard) = split.split_once("module Guard").unwrap();
+    assert!(read("all.sv").contains(&format!("module Guard{guard}")));
+    assert!(guard.contains("always @(syl$report0)"));
+    assert!(guard.contains("syl$report0 <= "));
+}

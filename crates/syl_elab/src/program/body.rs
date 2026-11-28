@@ -256,6 +256,14 @@ pub(crate) struct ElabExpr {
 }
 
 impl ElabExpr {
+    pub(crate) fn wire_name(&self) -> Option<&str> {
+        match &self.node {
+            ElabExprNode::Ident(name) => Some(name),
+            ElabExprNode::Group(inner) => inner.wire_name(),
+            _ => None,
+        }
+    }
+
     pub(crate) fn id(&self) -> ExprId {
         self.id
     }

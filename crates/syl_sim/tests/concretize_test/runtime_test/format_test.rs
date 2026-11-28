@@ -109,14 +109,20 @@ fn control_aliases_share_the_root_edge_and_reset_mask() {
     for (reset, active) in [("Sync,ActiveHigh", 1), ("Async,ActiveLow", 0)] {
         let src = format!(
             r#"cell T<D:Domain>(clk:in Clock<D>,rst:in Reset<D,{reset}>,ok:in Bit) {{
-            signal ck:Clock<D> := (clk)
-            signal ck2:Clock<D> := ck
-            signal r:Reset<D,{reset}> := rst
-            signal r2:Reset<D,{reset}>
+            let clock_alias = (clk)
+            signal ck:Clock<D>
+            ck := clock_alias
+            let clock2 = ck
+            signal ck2:Clock<D> := clock2
             log("implicit")
             assert(clk:ck2, ok, "fault")
+            let reset_alias = rst
+            signal r:Reset<D,{reset}> := (reset_alias)
+            let a = r
+            let b = (a)
+            signal r2:Reset<D,{reset}>
             log(clk:ck, rst:r2, "explicit")
-            r2 := r
+            r2 := b
         }}"#
         );
         let design = design("T", &src);

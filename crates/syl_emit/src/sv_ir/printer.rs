@@ -13,7 +13,6 @@ struct SvPrinter<'a> {
     out: &'a mut String,
     parameter_default: bool,
     uses_hex: bool,
-    defer_failures: bool,
     failure_groups: usize,
 }
 
@@ -23,39 +22,10 @@ pub(crate) fn text(modules: &[SvModule], header: bool) -> String {
         out: &mut out,
         uses_hex: false,
         parameter_default: false,
-        defer_failures: has_separate_observers(modules),
         failure_groups: 0,
     }
     .design(modules, header);
     out
-}
-
-// Different generated scopes, instances and clocks have independently scheduled
-// processes. On coincident edges they must all sample before a fatal SV $error.
-fn has_separate_observers(modules: &[SvModule]) -> bool {
-    fn contains_log(item: &SvItem) -> bool {
-        match item {
-            SvItem::ClockedMessages { logs, .. } => !logs.is_empty(),
-            SvItem::GenerateFor { items, .. } => items.iter().any(contains_log),
-            SvItem::GenerateIf {
-                then_items,
-                else_items,
-                ..
-            } => then_items.iter().chain(else_items).any(contains_log),
-            _ => false,
-        }
-    }
-    let items = || modules.iter().flat_map(|module| &module.items);
-    items().any(contains_log)
-        && (items().any(|item| {
-            matches!(
-                item,
-                SvItem::Instance(_) | SvItem::GenerateIf { .. } | SvItem::GenerateFor { .. }
-            )
-        }) || items()
-            .filter(|item| matches!(item, SvItem::ClockedMessages { .. }))
-            .nth(1)
-            .is_some())
 }
 
 pub(crate) fn parameter_expression(expr: &SvExpr) -> String {
@@ -64,7 +34,6 @@ pub(crate) fn parameter_expression(expr: &SvExpr) -> String {
         out: &mut out,
         uses_hex: false,
         parameter_default: true,
-        defer_failures: false,
         failure_groups: 0,
     }
     .expr(expr);
@@ -96,6 +65,7 @@ impl<'a> SvPrinter<'a> {
     }
 
     fn module(&mut self, module: &SvModule) {
+        self.failure_groups = 0;
         self.doc(0, module.doc.as_deref());
         self.out.push_str(&format!("module {}", module.name));
         if !module.params.is_empty() {

@@ -28,16 +28,15 @@ impl SvPrinter<'_> {
     ) {
         let pad = " ".repeat(indent);
         writeln!(self.out, "{pad}`ifndef SYNTHESIS").unwrap();
-        let pending = (self.defer_failures && !assertions.is_empty()).then(|| {
-            let id = self.failure_groups;
+        let id = self.failure_groups;
+        let message = format!("syl$failure{id}");
+        let event = format!("syl$report{id}");
+        if !assertions.is_empty() {
             self.failure_groups += 1;
             // The valid bit suppresses sensitivity-list initialization at time
             // zero. The low bit toggles on every failure, including repeats.
-            let message = format!("syl$failure{id}");
-            let event = format!("syl$report{id}");
             writeln!(self.out,"{pad}string {message};\n{pad}bit [1:0] {event};\n{pad}always @({event}) if ({event}[1]) $error(\"%s\", {message});").unwrap();
-            (message,event)
-        });
+        }
         write!(self.out, "{pad}always_ff @(posedge ").unwrap();
         self.expr(clock);
         self.out.push_str(") begin\n");
@@ -53,25 +52,20 @@ impl SvPrinter<'_> {
             let branch = if i == 0 { "if" } else { "else if" };
             write!(self.out, "{pad}  {branch} (").unwrap();
             self.expr(&assertion.trigger);
-            self.out.push_str(") ");
-            if let Some((message, event)) = &pending {
-                // Capture old values here; notify the reporter in the NBA region
-                // after every clocked observer has printed its sampled logs.
-                writeln!(self.out, "begin").unwrap();
-                write!(self.out, "{pad}    ").unwrap();
-                self.message(
-                    &format!("{message} = $sformatf"),
-                    &assertion.pieces,
-                    &format!("{pad}  "),
-                );
-                writeln!(
-                    self.out,
-                    "{pad}    {event} <= {{1'b1, ~{event}[0]}};\n{pad}  end"
-                )
-                .unwrap();
-            } else {
-                self.message("$error", &assertion.pieces, &pad);
-            }
+            self.out.push_str(") begin\n");
+            // Capture old values here; notify the reporter in the NBA region
+            // after every clocked observer has printed its sampled logs.
+            write!(self.out, "{pad}    ").unwrap();
+            self.message(
+                &format!("{message} = $sformatf"),
+                &assertion.pieces,
+                &format!("{pad}  "),
+            );
+            writeln!(
+                self.out,
+                "{pad}    {event} <= {{1'b1, ~{event}[0]}};\n{pad}  end"
+            )
+            .unwrap();
         }
         writeln!(self.out, "{pad}end\n{pad}`endif").unwrap();
     }
