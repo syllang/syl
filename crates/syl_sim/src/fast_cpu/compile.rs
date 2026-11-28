@@ -1,3 +1,4 @@
+mod order;
 use super::{FastOp as Op, FastProgram, mask};
 use crate::runtime::signed;
 use crate::{
@@ -34,6 +35,13 @@ impl View {
             width,
         }
     }
+    fn limb(self, low: u32, width: u32, zero: View) -> View {
+        if low < self.width {
+            self.slice(low, (self.width - low).min(width))
+        } else {
+            zero
+        }
+    }
 }
 
 struct Builder<'a> {
@@ -58,10 +66,17 @@ impl Builder<'_> {
         }
         let v = self.alloc(w);
         self.ops.push(Op::Const(v.slot, x));
+        if w > 64 {
+            // A u64 decimal literal with bit 63 set has a 65th, positive sign bit.
+            self.ops.push(Op::Const(v.slot + 1, 0));
+        }
         v
     }
     fn target(&self, t: &SimTarget) -> Result<View> {
         let mut v = self.signals[t.signal.0];
+        if v.width == 0 {
+            return Err(invalid("cross-family signal dependency"));
+        }
         for s in &t.selectors {
             v = self.select(v, s)?;
         }
@@ -143,19 +158,15 @@ impl Builder<'_> {
     // equality reductions stay lane-local, including a partially occupied high limb.
     fn wide_binary(&mut self, op: B, a: View, b: View, width: u32) -> Result<View> {
         let bits = a.width.max(b.width).max(width);
+        if matches!(op, B::Lt | B::LtEq | B::Gt | B::GtEq) {
+            return self.wide_order(op, (a, b), bits, false);
+        }
         let out = self.alloc(width);
         let mut carry = self.zero;
         let mut equal = self.const_word(1, 1);
         for low in (0..bits).step_by(64) {
             let w = (bits - low).min(64);
-            let limb = |v: View| {
-                if low < v.width {
-                    v.slice(low, (v.width - low).min(w))
-                } else {
-                    self.zero
-                }
-            };
-            let (x, y) = (limb(a), limb(b));
+            let (x, y) = (a.limb(low, w, self.zero), b.limb(low, w, self.zero));
             let chunk = match op {
                 B::BitAnd | B::BitXor | B::BitOr => self.binary(op, x, y, w)?,
                 B::Add => {
@@ -164,6 +175,16 @@ impl Builder<'_> {
                     let c1 = self.binary(B::Lt, sum, x, 1)?;
                     let c2 = self.binary(B::Lt, value, sum, 1)?;
                     carry = self.binary(B::BitOr, c1, c2, 1)?;
+                    value
+                }
+                B::Sub => {
+                    let diff = self.binary(B::Sub, x, y, w)?;
+                    let value = self.binary(B::Sub, diff, carry, w)?;
+                    if bits - low > 64 {
+                        let borrowed = self.binary(B::Lt, x, y, 1)?;
+                        let propagated = self.binary(B::Lt, diff, carry, 1)?;
+                        carry = self.binary(B::BitOr, borrowed, propagated, 1)?;
+                    }
                     value
                 }
                 B::Eq | B::NotEq => {
@@ -204,6 +225,41 @@ impl Builder<'_> {
         }
         Ok(out)
     }
+    fn assigned_expr(&mut self, e: &E, width: u32) -> Result<View> {
+        let start = self.ops.len();
+        let next = self.next;
+        let result = self.expr(e, width)?;
+        if !matches!(e, E::Select{arms,..} if arms.len()>=3) || width > 4 || result.low != 0 {
+            return Ok(result);
+        }
+        let mut reads = Vec::new();
+        crate::schedule::collect(e, self.d, &mut reads);
+        let mut ids = reads.into_iter().map(|r| r.signal.0).collect::<Vec<_>>();
+        ids.sort_unstable();
+        ids.dedup();
+        let [a, b] = ids.as_slice() else {
+            return Ok(result);
+        };
+        let (a, b) = (self.signals[*a], self.signals[*b]);
+        if let Some(table) = super::table::compile(
+            &self.ops[start..],
+            [(a.slot, a.width), (b.slot, b.width)],
+            result.slot,
+            width,
+        ) {
+            self.ops.truncate(start);
+            self.next = next;
+            let dst = self.alloc(width);
+            self.ops.push(Op::Lookup {
+                dst: dst.slot,
+                a: a.slot,
+                b: b.slot,
+                table,
+            });
+            return Ok(dst);
+        }
+        Ok(result)
+    }
     fn expr(&mut self, e: &E, context: u32) -> Result<View> {
         self.expr_typed(e, context, signed(e))
     }
@@ -212,9 +268,6 @@ impl Builder<'_> {
             E::Read(t) => self.target(t),
             E::Int(x) => {
                 let w = (65 - x.leading_zeros()).max(32);
-                if w > 64 {
-                    return Err(invalid("65-bit decimal literal"));
-                }
                 Ok(self.const_word(*x, w))
             }
             E::Bool(x) => Ok(self.const_word(u64::from(*x), 1)),
@@ -273,6 +326,17 @@ impl Builder<'_> {
                 } else {
                     context.max(natural)
                 };
+                if ctx > 64
+                    && matches!(op, B::Lt | B::LtEq | B::Gt | B::GtEq)
+                    && let (Some(x), Some(y)) = (
+                        self.sign_flipped_operand(left, ctx),
+                        self.sign_flipped_operand(right, ctx),
+                    )
+                {
+                    let a = self.expr(x, 0)?;
+                    let b = self.expr(y, 0)?;
+                    return self.wide_order(*op, (a, b), ctx, true);
+                }
                 let signed_operands = if pred {
                     signed(left) && signed(right)
                 } else {
@@ -315,19 +379,12 @@ impl Builder<'_> {
                     && matches!(op, B::Lt | B::LtEq | B::Gt | B::GtEq | B::Div | B::Rem)
                 {
                     if ctx > 64 {
+                        if pred {
+                            return self.wide_order(*op, (a, b), ctx, true);
+                        }
                         return Err(invalid("wide signed arithmetic operand"));
                     }
-                    let a = self.word(a)?;
-                    let b = self.word(b)?;
-                    let dst = self.alloc(if pred { 1 } else { ctx });
-                    self.ops.push(Op::SignedBinary {
-                        dst: dst.slot,
-                        a,
-                        b,
-                        op: *op,
-                        width: ctx,
-                    });
-                    return Ok(dst);
+                    return self.signed_word_binary(*op, a, b, ctx);
                 }
                 let w = if pred {
                     1
@@ -405,6 +462,9 @@ impl Builder<'_> {
     fn gather(&mut self, m: usize, address: View) -> Result<View> {
         let address = self.word(address)?;
         let mem = &self.d.memories[m];
+        if self.mem[m] == usize::MAX {
+            return Err(invalid("cross-family RAM dependency"));
+        }
         let dst = self.alloc(mem.width);
         self.ops.push(Op::Gather {
             dst: dst.slot,
@@ -422,6 +482,9 @@ impl Builder<'_> {
     fn reset(&mut self, id: usize) -> Result<View> {
         let r = &self.d.resets[id];
         let v = self.signals[r.signal.0];
+        if v.width == 0 {
+            return Err(invalid("cross-family reset dependency"));
+        }
         if r.polarity == HwResetPolarity::ActiveLow {
             self.binary(B::Eq, v, self.zero, 1)
         } else {
@@ -443,6 +506,38 @@ pub(super) fn compile(d: &SimDesign) -> Result<FastProgram> {
             "requires a single synchronous clock, two-state nets and native cells",
         ));
     }
+    compile_flat(d, &d.comb_eval_order, |_| true)
+}
+
+pub(super) fn compile_flat(
+    d: &SimDesign,
+    order: &[crate::CombId],
+    owns: impl Fn(crate::InstanceId) -> bool,
+) -> Result<FastProgram> {
+    let mut members = BTreeMap::new();
+    for (i, s) in d.signals.iter().enumerate() {
+        members
+            .entry(s.source.instance)
+            .or_insert_with(Vec::new)
+            .push(i);
+    }
+    let signals = d
+        .families
+        .iter()
+        .flat_map(|f| &f.members)
+        .flat_map(|id| members.get(id).into_iter().flatten().copied());
+    compile_scope(d, order, signals, owns, true)
+}
+
+/// Subtrees use identical local slot numbers even when their concrete arena
+/// IDs differ. Unmapped signal and RAM references reject dependent members.
+pub(super) fn compile_scope(
+    d: &SimDesign,
+    order: &[crate::CombId],
+    signals: impl Iterator<Item = usize>,
+    owns: impl Fn(crate::InstanceId) -> bool,
+    whole: bool,
+) -> Result<FastProgram> {
     let mut b = Builder {
         d,
         signals: vec![View::new(0, 0); d.signals.len()],
@@ -452,23 +547,22 @@ pub(super) fn compile(d: &SimDesign) -> Result<FastProgram> {
         ops: vec![],
         zero: View::new(0, 64),
     };
-    let mut members = BTreeMap::new();
-    for (i, s) in d.signals.iter().enumerate() {
-        members
-            .entry(s.source.instance)
-            .or_insert_with(Vec::new)
-            .push((i, s.width));
+    for i in signals {
+        let v = b.alloc(d.signals[i].width);
+        b.signals[i] = v;
     }
-    for id in d.families.iter().flat_map(|f| &f.members) {
-        for &(i, w) in members.get(id).into_iter().flatten() {
-            let v = b.alloc(w);
-            b.signals[i] = v;
-        }
-    }
-    if b.signals.iter().any(|v| v.width == 0) {
+    if whole && b.signals.iter().any(|v| v.width == 0) {
         return Err(invalid("missing instance family or zero-width signal"));
     }
     for m in &d.memories {
+        if !owns(m.source.instance) {
+            // Keep the scalar parent RAM offsets identical to the flat layout.
+            if whole {
+                b.next += m.depth as usize;
+            }
+            b.mem.push(usize::MAX);
+            continue;
+        }
         if m.width > 64 {
             return Err(invalid("requires <=64-bit memory words"));
         }
@@ -477,10 +571,11 @@ pub(super) fn compile(d: &SimDesign) -> Result<FastProgram> {
     }
     b.zero = b.alloc(64);
     let fixed = b.next;
-    for id in &d.comb_eval_order {
+    let mut comb_ends = Vec::with_capacity(order.len());
+    for id in order {
         let a = &d.comb[id.0];
         let dst = b.target(&a.target)?;
-        let src = b.expr(&a.value, dst.width)?;
+        let src = b.assigned_expr(&a.value, dst.width)?;
         // Stage overlapping slices before modifying their common backing signal.
         let src = if a.target.selectors.is_empty() || src.slot >= fixed {
             src
@@ -489,11 +584,12 @@ pub(super) fn compile(d: &SimDesign) -> Result<FastProgram> {
         };
         b.copy(dst, src);
         b.next = fixed;
+        comb_ends.push(b.ops.len());
     }
     let comb = std::mem::take(&mut b.ops);
     let mut commit = Vec::new();
-    for reg in &d.regs {
-        let next = b.expr(&reg.next, reg.width)?;
+    for reg in d.regs.iter().filter(|r| owns(r.source.instance)) {
+        let next = b.assigned_expr(&reg.next, reg.width)?;
         let next = if let Some((id, e)) = &reg.reset {
             let cond = b.reset(id.0)?;
             let value = b.expr(e, reg.width)?;
@@ -505,7 +601,12 @@ pub(super) fn compile(d: &SimDesign) -> Result<FastProgram> {
         commit.push((b.signals[reg.signal.0], saved));
     }
     let mut writes = Vec::new();
-    for (i, m) in d.memories.iter().enumerate() {
+    for (i, m) in d
+        .memories
+        .iter()
+        .enumerate()
+        .filter(|(_, m)| owns(m.source.instance))
+    {
         for p in &m.sync_reads {
             let dst = b.target(&p.target)?;
             let en = b.expr(&p.enable, 0)?;
@@ -527,7 +628,12 @@ pub(super) fn compile(d: &SimDesign) -> Result<FastProgram> {
             });
         }
     }
-    for (id, a) in d.assertions.iter().enumerate() {
+    for (id, a) in d
+        .assertions
+        .iter()
+        .filter(|a| owns(a.source.instance))
+        .enumerate()
+    {
         let mut v = b.expr(&a.condition, 0)?;
         if let Some(id) = a.reset_mask {
             let r = b.reset(id.0)?;
@@ -536,7 +642,7 @@ pub(super) fn compile(d: &SimDesign) -> Result<FastProgram> {
         let s = b.word(v)?;
         b.ops.push(Op::Check(s, id));
     }
-    if !d.assertions.is_empty() {
+    if d.assertions.iter().any(|a| owns(a.source.instance)) {
         b.ops.push(Op::Stop);
     }
     b.ops.extend(writes);
@@ -552,6 +658,8 @@ pub(super) fn compile(d: &SimDesign) -> Result<FastProgram> {
         return Err(invalid("requires an external top clock"));
     }
     Ok(FastProgram {
+        comb_ends,
+        clock_used_in_comb: clock.is_some_and(|clk| comb.iter().any(|op| op.reads(clk))),
         comb,
         edge: b.ops,
         slots: b.peak,

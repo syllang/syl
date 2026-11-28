@@ -330,3 +330,165 @@ fn check_arithmetic(design: &SimDesign, expected: u64) {
         assert!(tile.word(&p, q, 0).iter().all(|&n| n == expected));
     });
 }
+
+// Compare every prefix, including the initialized output, against the same T3 input stream.
+fn check_trace(
+    case: &str,
+    d: &SimDesign,
+    cycles: u64,
+    family: Option<&syl_sim::FastFamilyProgram>,
+) {
+    use syl_sim::{Value, batch_stimulus_word};
+    let fast = FastProgram::new(d).unwrap();
+    let mut sim = FastBatchCpuSimulator::new(&fast, 1, 1);
+    sim.for_each_tile(1, |_, tile| {
+        let mut reference = Simulator::with_mode(d, StateMode::TwoState);
+        for cycle in 0..=cycles {
+            let mut base = 0;
+            for p in d.top_ports() {
+                let w = d.signal(p.signal).width;
+                if p.direction == HwDirection::In && p.name != "clk" {
+                    let mut parts = Vec::new();
+                    for j in (0..w.div_ceil(64)).rev() {
+                        let bits = (w - j * 64).min(64);
+                        let v = if cycle == 0 {
+                            0
+                        } else if p.name == "rst" {
+                            u64::from(cycle == 1)
+                        } else {
+                            batch_stimulus_word(0, 0, cycle, base, j) & (u64::MAX >> (64 - bits))
+                        };
+                        parts.push(Value::from_u64(bits, v));
+                        tile.input_word(&fast, p.signal, j as usize)[0] = v;
+                    }
+                    reference
+                        .drive(p.signal, Value::concat(&parts).unwrap())
+                        .unwrap();
+                }
+                base += u64::from(w.div_ceil(64));
+            }
+            if cycle == 0 {
+                reference.eval_comb().unwrap();
+            } else {
+                reference.tick("clk").unwrap();
+                tile.tick(&fast).unwrap();
+            }
+            let mut expected = Vec::new();
+            for p in d
+                .top_ports()
+                .iter()
+                .filter(|p| p.direction == HwDirection::Out)
+            {
+                let v = reference.read(p.signal);
+                for j in 0..v.width().div_ceil(64) {
+                    let word = v
+                        .slice(j * 64, (v.width() - j * 64).min(64))
+                        .as_u64()
+                        .unwrap();
+                    assert_eq!(
+                        tile.word(&fast, p.signal, j as usize),
+                        [word],
+                        "{case} {} {j} cycle {cycle}",
+                        p.name
+                    );
+                    expected.push(word);
+                }
+            }
+            let oracle = syl_sim::SingleTraceResult {
+                outputs: expected,
+                failure: None,
+            };
+            if let Some(f) = family {
+                assert_eq!(
+                    f.run_trajectory(0, cycle),
+                    oracle,
+                    "{case} family cycle {cycle}"
+                );
+            }
+        }
+    });
+}
+
+#[test]
+fn four_member_wide_subtraction_and_ordering_match_each_reference_limb() {
+    use syl_sim::{HwBinaryOp as Op, HwUnaryOp, Selector, SimExpr as E};
+    for width in [65, 73, 129] {
+        // Ordered comparison of hardware values is available in concrete IR.
+        // Start with the same signal dependencies to retain the compiled schedule.
+        let source = format!("cell Alu<D:Domain>(clk:in Clock<D>,a:in UInt<{width}>,b:in UInt<{width}>,delta:out UInt<{width}>,flags:out [12] Bit){{
+            // At cycle zero, 0 - 1 propagates a borrow through all limbs.
+            signal rhs:UInt<{width}> := select priority {{ b eq 0 => 1, default => b, }}
+            delta := a-rhs
+            {}
+        }}
+        cell Top<D:Domain>(clk:in Clock<D>,a:in [4] UInt<{width}>,b:in [4] UInt<{width}>,delta:out [4] UInt<{width}>,flags:out [4] [12] Bit){{
+            let lanes=for i in 0..4 {{place Alu<D>(clk:clk,a:a[i],b:b[i],delta:delta[i],flags:flags[i])}}
+        }}", (0..12).map(|i|format!("flags[{i}] := a eq b")).collect::<Vec<_>>().join("\n"));
+        let mut d = lower_cell("Top", &source);
+        let binary = |op, x: E, y: E| E::Binary {
+            op,
+            left: Box::new(x),
+            right: Box::new(y),
+        };
+        // Flipping the sign bit maps packed two's-complement order to unsigned order.
+        let flip = |v: E| {
+            let slice = |high, low| E::Project {
+                value: Box::new(v.clone()),
+                selector: Selector::Slice { high, low },
+            };
+            E::Concat(vec![
+                E::Unary {
+                    op: HwUnaryOp::Not,
+                    expr: Box::new(slice(width - 1, width - 1)),
+                },
+                slice(width - 2, 0),
+            ])
+        };
+        // Both mux arms are signed literals. Their natural comparison width is 65.
+        let signed = |cond| E::Mux {
+            cond: Box::new(cond),
+            then_value: Box::new(E::Unary {
+                op: HwUnaryOp::Neg,
+                expr: Box::new(E::Int(1 << 63)),
+            }),
+            else_value: Box::new(E::Int(1 << 63)),
+        };
+        let mut predicates = 0;
+        for assignment in &mut d.comb {
+            let E::Binary {
+                op: Op::Eq,
+                left,
+                right,
+            } = &assignment.value
+            else {
+                continue;
+            };
+            let i = predicates % 12;
+            let op = [Op::Lt, Op::LtEq, Op::Gt, Op::GtEq][i % 4];
+            let (a, b) = (*left.clone(), *right.clone());
+            assignment.value = match i {
+                0..4 => binary(op, a, b),
+                4..8 => binary(op, flip(a), flip(b)),
+                _ => binary(
+                    op,
+                    signed(binary(Op::Lt, a.clone(), b.clone())),
+                    signed(binary(Op::Gt, a, b)),
+                ),
+            };
+            predicates += 1;
+        }
+        assert_eq!(predicates, 4 * 12);
+        let family = syl_sim::FastFamilyProgram::new(&d).unwrap();
+        check_trace(&format!("wide {width}"), &d, 16, Some(&family));
+    }
+}
+
+#[test]
+fn family_matches_each_settled_output_limb_on_lane_arrays() {
+    for case in ["LaneArray-N4", "LaneArray-N16", "LaneArray-N64"] {
+        let (ir, top, params) = fixture(case);
+        let d = SimDesign::lower(&ir, top, &params).unwrap();
+        let family = syl_sim::FastFamilyProgram::new(&d).unwrap();
+        check_trace(case, &d, 8, Some(&family));
+    }
+}

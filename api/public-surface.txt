@@ -2806,6 +2806,8 @@ syl_sim|field|syl_sim::batch_run::BatchResult::kernel_ms|f64
 syl_sim|field|syl_sim::batch_run::FailureCoordinate::assert_id|AssertId
 syl_sim|field|syl_sim::batch_run::FailureCoordinate::batch|usize
 syl_sim|field|syl_sim::batch_run::FailureCoordinate::cycle|u64
+syl_sim|field|syl_sim::batch_run::SingleTraceResult::failure|Option<(u64, AssertId)>
+syl_sim|field|syl_sim::batch_run::SingleTraceResult::outputs|Vec<u64>
 syl_sim|field|syl_sim::design::AssertId::0|usize
 syl_sim|field|syl_sim::design::ClockDomain::name|Option<String>
 syl_sim|field|syl_sim::design::ClockDomain::signal|SignalId
@@ -2885,6 +2887,7 @@ syl_sim|field|syl_sim::design::SourceLocation::name|String
 syl_sim|field|syl_sim::design::SourceLocation::origin|syl_hw::HwOrigin
 syl_sim|field|syl_sim::design::SourceLocation::path|String
 syl_sim|field|syl_sim::design::TemplateId::0|usize
+syl_sim|field|syl_sim::fast_cpu::FastProgram::clock_used_in_comb|bool
 syl_sim|field|syl_sim::gpu_cuda::CodegenOptions::family_index|Option<usize>
 syl_sim|field|syl_sim::gpu_cuda::CodegenOptions::mode|KernelMode
 syl_sim|field|syl_sim::gpu_cuda::GeneratedCuda::family_size|usize
@@ -2968,6 +2971,8 @@ syl_sim|method|syl_sim::fast_cpu::FastTile::input_word|fn(self: &mut Self, progr
 syl_sim|method|syl_sim::fast_cpu::FastTile::lanes|fn(self: &Self) -> usize
 syl_sim|method|syl_sim::fast_cpu::FastTile::tick|fn(self: &mut Self, program: &FastProgram) -> Result<(), (usize, u64)>
 syl_sim|method|syl_sim::fast_cpu::FastTile::word|fn(self: &Self, program: &FastProgram, signal: SignalId, word: usize) -> &[u64]
+syl_sim|method|syl_sim::fast_cpu::family::FastFamilyProgram::new|fn(d: &SimDesign) -> Result<Self, RuntimeError>
+syl_sim|method|syl_sim::fast_cpu::family::FastFamilyProgram::run_trajectory|fn(self: &Self, seed: u64, cycles: u64) -> crate::SingleTraceResult
 syl_sim|method|syl_sim::runtime::Simulator::clock|fn(self: &Self, name: &str) -> std::result::Result<DomainId, RuntimeError>
 syl_sim|method|syl_sim::runtime::Simulator::cycle|fn(self: &Self) -> u64
 syl_sim|method|syl_sim::runtime::Simulator::design|fn(self: &Self) -> &SimDesign
@@ -3014,6 +3019,7 @@ syl_sim|struct|syl_sim::batch_cpu::BatchFailure|public
 syl_sim|struct|syl_sim::batch_run::BatchOptions|public
 syl_sim|struct|syl_sim::batch_run::BatchResult|public
 syl_sim|struct|syl_sim::batch_run::FailureCoordinate|public
+syl_sim|struct|syl_sim::batch_run::SingleTraceResult|public
 syl_sim|struct|syl_sim::design::AssertId|public
 syl_sim|struct|syl_sim::design::ClockDomain|public
 syl_sim|struct|syl_sim::design::CombAssign|public
@@ -3043,6 +3049,7 @@ syl_sim|struct|syl_sim::design::TemplateId|public
 syl_sim|struct|syl_sim::fast_cpu::FastBatchCpuSimulator|public
 syl_sim|struct|syl_sim::fast_cpu::FastProgram|public
 syl_sim|struct|syl_sim::fast_cpu::FastTile|public
+syl_sim|struct|syl_sim::fast_cpu::family::FastFamilyProgram|public
 syl_sim|struct|syl_sim::gpu_cuda::CodegenOptions|public
 syl_sim|struct|syl_sim::gpu_cuda::GeneratedCuda|public
 syl_sim|struct|syl_sim::gpu_cuda::RunnerOptions|public
@@ -3071,6 +3078,8 @@ syl_sim|use|DomainId|named|source=design::DomainId
 syl_sim|use|ExternModel|named|source=runtime::ExternModel
 syl_sim|use|FailureCoordinate|named|source=batch_run::FailureCoordinate
 syl_sim|use|FastBatchCpuSimulator|named|source=fast_cpu::FastBatchCpuSimulator
+syl_sim|use|FastFamilyProgram|named|source=family::FastFamilyProgram
+syl_sim|use|FastFamilyProgram|named|source=fast_cpu::FastFamilyProgram
 syl_sim|use|FastProgram|named|source=fast_cpu::FastProgram
 syl_sim|use|FastTile|named|source=fast_cpu::FastTile
 syl_sim|use|GpuKernelMode|named|source=backend::GpuKernelMode
@@ -3109,6 +3118,7 @@ syl_sim|use|SimReg|named|source=design::SimReg
 syl_sim|use|SimSignal|named|source=design::SimSignal
 syl_sim|use|SimTarget|named|source=design::SimTarget
 syl_sim|use|Simulator|named|source=runtime::Simulator
+syl_sim|use|SingleTraceResult|named|source=batch_run::SingleTraceResult
 syl_sim|use|SourceLocation|named|source=design::SourceLocation
 syl_sim|use|StateMode|named|source=runtime::StateMode
 syl_sim|use|TemplateId|named|source=design::TemplateId

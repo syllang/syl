@@ -1,6 +1,10 @@
 //! Word-plane execution for single-clock, synchronous, known two-state designs.
 mod compile;
-mod kernel;
+mod family;
+mod table;
+pub use family::FastFamilyProgram;
+pub(crate) mod kernel;
+use std::sync::{Mutex, OnceLock};
 
 use crate::{RuntimeError, SignalId, SimDesign};
 use kernel::FastOp;
@@ -11,12 +15,15 @@ fn mask(width: u32) -> u64 {
 
 /// A compiled program can be shared by any number of independent batches.
 pub struct FastProgram {
-    comb: Vec<FastOp>,
-    edge: Vec<FastOp>,
-    slots: usize,
-    clock: Option<usize>,
-    signals: Vec<(usize, u32)>,
+    comb_ends: Vec<usize>,
+    pub(crate) comb: Vec<FastOp>,
+    pub(crate) edge: Vec<FastOp>,
+    pub(crate) slots: usize,
+    pub(crate) clock: Option<usize>,
+    pub(crate) signals: Vec<(usize, u32)>,
     inputs: Vec<bool>,
+    /// A change in clock level can change a combinational assignment.
+    pub clock_used_in_comb: bool,
 }
 
 impl FastProgram {
@@ -35,14 +42,22 @@ impl FastProgram {
 
 /// A cache tile owns one contiguous slot-major plane and its preallocated scratch row.
 pub struct FastTile {
+    lanes: usize,
+    // Exactly one of these owns the plane. A shared observer can settle it
+    // once and borrow the result; the next mutable operation takes it back.
+    working: Mutex<Buffers>,
+    observation: OnceLock<Vec<u64>>,
+    cycle: u64,
+    settled: bool,
+}
+struct Buffers {
     plane: Vec<u64>,
     scratch: Vec<u64>,
-    cycle: u64,
 }
 
 impl FastTile {
     pub fn lanes(&self) -> usize {
-        self.scratch.len()
+        self.lanes
     }
 
     /// Access one 64-bit limb of an input. Mask unused high bits before evaluation.
@@ -52,12 +67,14 @@ impl FastTile {
         signal: SignalId,
         word: usize,
     ) -> &mut [u64] {
+        self.adopt_observation();
+        self.settled = false;
         assert!(program.inputs[signal.0]);
         let (base, width) = program.signals[signal.0];
         assert!(word < width.div_ceil(64) as usize);
         let stride = self.lanes();
         let start = (base + word) * stride;
-        &mut self.plane[start..start + stride]
+        &mut self.working.get_mut().unwrap().plane[start..start + stride]
     }
 
     pub fn word(&self, program: &FastProgram, signal: SignalId, word: usize) -> &[u64] {
@@ -65,11 +82,29 @@ impl FastTile {
         assert!(word < width.div_ceil(64) as usize);
         let stride = self.lanes();
         let start = (base + word) * stride;
-        &self.plane[start..start + stride]
+        let plane = self.observation.get_or_init(|| {
+            let mut buffers = self.working.lock().unwrap();
+            let Buffers { plane, scratch } = &mut *buffers;
+            if !self.settled {
+                kernel::execute(&program.comb, plane, scratch, false);
+            }
+            std::mem::take(plane)
+        });
+        &plane[start..start + stride]
+    }
+
+    fn adopt_observation(&mut self) {
+        if let Some(plane) = self.observation.take() {
+            self.working.get_mut().unwrap().plane = plane;
+            self.settled = true;
+        }
     }
 
     pub fn eval_comb(&mut self, program: &FastProgram) {
-        kernel::execute(&program.comb, &mut self.plane, &mut self.scratch, false);
+        self.adopt_observation();
+        self.settled = true;
+        let Buffers { plane, scratch } = self.working.get_mut().unwrap();
+        kernel::execute(&program.comb, plane, scratch, false);
     }
 
     /// Sample the rising edge, check every assertion on old state, then settle low.
@@ -84,20 +119,24 @@ impl FastTile {
         program: &FastProgram,
         stop: bool,
     ) -> Option<(usize, u64, usize)> {
+        self.adopt_observation();
         let stride = self.lanes();
         if let Some(clk) = program.clock {
-            self.plane[clk * stride..(clk + 1) * stride].fill(1);
+            self.working.get_mut().unwrap().plane[clk * stride..(clk + 1) * stride].fill(1);
         }
-        self.eval_comb(program);
-        let failure = kernel::execute(&program.edge, &mut self.plane, &mut self.scratch, stop)
+        if program.clock_used_in_comb || !self.settled {
+            self.eval_comb(program);
+        }
+        let Buffers { plane, scratch } = self.working.get_mut().unwrap();
+        let failure = kernel::execute(&program.edge, plane, scratch, stop)
             .map(|(lane, id)| (lane, self.cycle + 1, id));
         if stop && failure.is_some() {
             return failure;
         }
         if let Some(clk) = program.clock {
-            self.plane[clk * stride..(clk + 1) * stride].fill(0);
+            self.working.get_mut().unwrap().plane[clk * stride..(clk + 1) * stride].fill(0);
         }
-        self.eval_comb(program);
+        self.settled = false;
         self.cycle += 1;
         failure
     }
@@ -117,9 +156,14 @@ impl FastBatchCpuSimulator {
             .map(|start| {
                 let lanes = tile_size.min(batch - start);
                 FastTile {
-                    plane: vec![0; program.slots * lanes],
-                    scratch: vec![0; lanes],
+                    lanes,
+                    working: Mutex::new(Buffers {
+                        plane: vec![0; program.slots * lanes],
+                        scratch: vec![0; lanes],
+                    }),
                     cycle: 0,
+                    settled: false,
+                    observation: OnceLock::new(),
                 }
             })
             .collect();

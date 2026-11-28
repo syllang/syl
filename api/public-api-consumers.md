@@ -2880,6 +2880,8 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_sim|field|syl_sim::batch_run::FailureCoordinate::assert_id|AssertId` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|field|syl_sim::batch_run::FailureCoordinate::batch|usize` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|field|syl_sim::batch_run::FailureCoordinate::cycle|u64` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::batch_run::SingleTraceResult::failure|Option<(u64, AssertId)>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::batch_run::SingleTraceResult::outputs|Vec<u64>` - The deterministic batch reducer and per-cycle differential tests consume output limbs and the first failing edge.
 - `syl_sim|field|syl_sim::design::AssertId::0|usize` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|field|syl_sim::design::ClockDomain::name|Option<String>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|field|syl_sim::design::ClockDomain::signal|SignalId` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
@@ -2959,6 +2961,7 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_sim|field|syl_sim::design::SourceLocation::origin|syl_hw::HwOrigin` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|field|syl_sim::design::SourceLocation::path|String` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|field|syl_sim::design::TemplateId::0|usize` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::fast_cpu::FastProgram::clock_used_in_comb|bool` - FastTile and clock-as-data tests check whether a rising clock invalidates settled combinational values.
 - `syl_sim|field|syl_sim::gpu_cuda::CodegenOptions::family_index|Option<usize>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|field|syl_sim::gpu_cuda::CodegenOptions::mode|KernelMode` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|field|syl_sim::gpu_cuda::GeneratedCuda::family_size|usize` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
@@ -3042,6 +3045,8 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_sim|method|syl_sim::fast_cpu::FastTile::lanes|fn(self: &Self) -> usize` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|method|syl_sim::fast_cpu::FastTile::tick|fn(self: &mut Self, program: &FastProgram) -> Result<(), (usize, u64)>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|method|syl_sim::fast_cpu::FastTile::word|fn(self: &Self, program: &FastProgram, signal: SignalId, word: usize) -> &[u64]` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|method|syl_sim::fast_cpu::family::FastFamilyProgram::new|fn(d: &SimDesign) -> Result<Self, RuntimeError>` - The CPU SIMD router and differential tests compile and execute verified sibling subtrees.
+- `syl_sim|method|syl_sim::fast_cpu::family::FastFamilyProgram::run_trajectory|fn(self: &Self, seed: u64, cycles: u64) -> crate::SingleTraceResult` - The CPU SIMD router and differential tests compile and execute verified sibling subtrees.
 - `syl_sim|method|syl_sim::runtime::Simulator::clock|fn(self: &Self, name: &str) -> std::result::Result<DomainId, RuntimeError>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|method|syl_sim::runtime::Simulator::cycle|fn(self: &Self) -> u64` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|method|syl_sim::runtime::Simulator::design|fn(self: &Self) -> &SimDesign` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
@@ -3088,6 +3093,7 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_sim|struct|syl_sim::batch_run::BatchOptions|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|struct|syl_sim::batch_run::BatchResult|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|struct|syl_sim::batch_run::FailureCoordinate|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|struct|syl_sim::batch_run::SingleTraceResult|public` - The deterministic batch reducer and per-cycle differential tests consume output limbs and the first failing edge.
 - `syl_sim|struct|syl_sim::design::AssertId|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|struct|syl_sim::design::ClockDomain|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|struct|syl_sim::design::CombAssign|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
@@ -3117,6 +3123,7 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_sim|struct|syl_sim::fast_cpu::FastBatchCpuSimulator|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|struct|syl_sim::fast_cpu::FastProgram|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|struct|syl_sim::fast_cpu::FastTile|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|struct|syl_sim::fast_cpu::family::FastFamilyProgram|public` - The CPU SIMD router and differential tests compile and execute verified sibling subtrees.
 - `syl_sim|struct|syl_sim::gpu_cuda::CodegenOptions|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|struct|syl_sim::gpu_cuda::GeneratedCuda|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|struct|syl_sim::gpu_cuda::RunnerOptions|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
@@ -3145,6 +3152,8 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_sim|use|ExternModel|named|source=runtime::ExternModel` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|use|FailureCoordinate|named|source=batch_run::FailureCoordinate` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|use|FastBatchCpuSimulator|named|source=fast_cpu::FastBatchCpuSimulator` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|FastFamilyProgram|named|source=family::FastFamilyProgram` - The CPU SIMD router and differential tests compile and execute verified sibling subtrees.
+- `syl_sim|use|FastFamilyProgram|named|source=fast_cpu::FastFamilyProgram` - The CPU SIMD router and differential tests compile and execute verified sibling subtrees.
 - `syl_sim|use|FastProgram|named|source=fast_cpu::FastProgram` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|use|FastTile|named|source=fast_cpu::FastTile` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|use|GpuKernelMode|named|source=backend::GpuKernelMode` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
@@ -3183,6 +3192,7 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_sim|use|SimSignal|named|source=design::SimSignal` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|use|SimTarget|named|source=design::SimTarget` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|use|Simulator|named|source=runtime::Simulator` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|SingleTraceResult|named|source=batch_run::SingleTraceResult` - The deterministic batch reducer and per-cycle differential tests consume output limbs and the first failing edge.
 - `syl_sim|use|SourceLocation|named|source=design::SourceLocation` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|use|StateMode|named|source=runtime::StateMode` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|use|TemplateId|named|source=design::TemplateId` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
