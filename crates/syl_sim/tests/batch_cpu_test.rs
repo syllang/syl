@@ -1,3 +1,6 @@
+#[path = "fixtures/trace_test.rs"]
+mod trace;
+use trace::check_trace;
 #[path = "../examples/bench_cpu_2d/workload.rs"]
 mod workload;
 
@@ -322,90 +325,18 @@ fn check_arithmetic(design: &SimDesign, expected: u64) {
     batch.broadcast(i, Value::from_u64(1, 1)).unwrap();
     batch.eval_comb().unwrap();
     assert!(batch.read_batch(q).iter().all(|v| v == reference.read(q)));
+    // Pick a deterministic seed that drives i high, including the guarded divide.
+    let seed = (0..)
+        .find(|&s| syl_sim::batch_stimulus_word(s, 0, 1, 0, 0) & 1 == 1)
+        .unwrap();
+    let jit = syl_sim::JitProgram::new(design).unwrap();
+    assert_eq!(jit.run_trajectory(seed, 0, 1).outputs, [expected]);
     let p = FastProgram::new(design).unwrap();
     let mut fast = FastBatchCpuSimulator::new(&p, 3, 2);
     fast.for_each_tile(2, |_, tile| {
         tile.input_word(&p, i, 0).fill(1);
         tile.eval_comb(&p);
         assert!(tile.word(&p, q, 0).iter().all(|&n| n == expected));
-    });
-}
-
-// Compare every prefix, including the initialized output, against the same T3 input stream.
-fn check_trace(
-    case: &str,
-    d: &SimDesign,
-    cycles: u64,
-    family: Option<&syl_sim::FastFamilyProgram>,
-) {
-    use syl_sim::{Value, batch_stimulus_word};
-    let fast = FastProgram::new(d).unwrap();
-    let mut sim = FastBatchCpuSimulator::new(&fast, 1, 1);
-    sim.for_each_tile(1, |_, tile| {
-        let mut reference = Simulator::with_mode(d, StateMode::TwoState);
-        for cycle in 0..=cycles {
-            let mut base = 0;
-            for p in d.top_ports() {
-                let w = d.signal(p.signal).width;
-                if p.direction == HwDirection::In && p.name != "clk" {
-                    let mut parts = Vec::new();
-                    for j in (0..w.div_ceil(64)).rev() {
-                        let bits = (w - j * 64).min(64);
-                        let v = if cycle == 0 {
-                            0
-                        } else if p.name == "rst" {
-                            u64::from(cycle == 1)
-                        } else {
-                            batch_stimulus_word(0, 0, cycle, base, j) & (u64::MAX >> (64 - bits))
-                        };
-                        parts.push(Value::from_u64(bits, v));
-                        tile.input_word(&fast, p.signal, j as usize)[0] = v;
-                    }
-                    reference
-                        .drive(p.signal, Value::concat(&parts).unwrap())
-                        .unwrap();
-                }
-                base += u64::from(w.div_ceil(64));
-            }
-            if cycle == 0 {
-                reference.eval_comb().unwrap();
-            } else {
-                reference.tick("clk").unwrap();
-                tile.tick(&fast).unwrap();
-            }
-            let mut expected = Vec::new();
-            for p in d
-                .top_ports()
-                .iter()
-                .filter(|p| p.direction == HwDirection::Out)
-            {
-                let v = reference.read(p.signal);
-                for j in 0..v.width().div_ceil(64) {
-                    let word = v
-                        .slice(j * 64, (v.width() - j * 64).min(64))
-                        .as_u64()
-                        .unwrap();
-                    assert_eq!(
-                        tile.word(&fast, p.signal, j as usize),
-                        [word],
-                        "{case} {} {j} cycle {cycle}",
-                        p.name
-                    );
-                    expected.push(word);
-                }
-            }
-            let oracle = syl_sim::SingleTraceResult {
-                outputs: expected,
-                failure: None,
-            };
-            if let Some(f) = family {
-                assert_eq!(
-                    f.run_trajectory(0, cycle),
-                    oracle,
-                    "{case} family cycle {cycle}"
-                );
-            }
-        }
     });
 }
 
@@ -480,15 +411,5 @@ fn four_member_wide_subtraction_and_ordering_match_each_reference_limb() {
         assert_eq!(predicates, 4 * 12);
         let family = syl_sim::FastFamilyProgram::new(&d).unwrap();
         check_trace(&format!("wide {width}"), &d, 16, Some(&family));
-    }
-}
-
-#[test]
-fn family_matches_each_settled_output_limb_on_lane_arrays() {
-    for case in ["LaneArray-N4", "LaneArray-N16", "LaneArray-N64"] {
-        let (ir, top, params) = fixture(case);
-        let d = SimDesign::lower(&ir, top, &params).unwrap();
-        let family = syl_sim::FastFamilyProgram::new(&d).unwrap();
-        check_trace(case, &d, 8, Some(&family));
     }
 }

@@ -2759,6 +2759,7 @@ syl_session|variant|syl_session::error::ProjectError::ReadDirEntry|{ path: std::
 syl_session|variant|syl_session::error::ProjectError::ReadDir|{ path: std::path::PathBuf, source: std::io::Error }
 syl_session|variant|syl_session::error::ProjectError::Read|{ path: std::path::PathBuf, source: std::io::Error }
 syl_session|variant|syl_session::error::ProjectError::StaleDocumentVersion|{ uri: String, requested: u64, current: u64 }
+syl_sim|enum|syl_sim::backend::CpuSimdMode|public
 syl_sim|enum|syl_sim::backend::GpuKernelMode|public
 syl_sim|enum|syl_sim::backend::ResolvedBackend|public
 syl_sim|enum|syl_sim::backend::SimBackendChoice|public
@@ -2775,6 +2776,7 @@ syl_sim|enum|syl_sim::runtime::StateMode|public
 syl_sim|enum|syl_sim::value::Logic|public
 syl_sim|field|syl_sim::backend::BackendRequest::batch|usize
 syl_sim|field|syl_sim::backend::BackendRequest::choice|SimBackendChoice
+syl_sim|field|syl_sim::backend::BackendRequest::cpu_mode|CpuSimdMode
 syl_sim|field|syl_sim::backend::BackendRequest::cycles|u64
 syl_sim|field|syl_sim::backend::BackendRequest::direct_vcd|bool
 syl_sim|field|syl_sim::backend::BackendRequest::fail_on_x|bool
@@ -2973,6 +2975,10 @@ syl_sim|method|syl_sim::fast_cpu::FastTile::tick|fn(self: &mut Self, program: &F
 syl_sim|method|syl_sim::fast_cpu::FastTile::word|fn(self: &Self, program: &FastProgram, signal: SignalId, word: usize) -> &[u64]
 syl_sim|method|syl_sim::fast_cpu::family::FastFamilyProgram::new|fn(d: &SimDesign) -> Result<Self, RuntimeError>
 syl_sim|method|syl_sim::fast_cpu::family::FastFamilyProgram::run_trajectory|fn(self: &Self, seed: u64, cycles: u64) -> crate::SingleTraceResult
+syl_sim|method|syl_sim::jit_cpu::JitCpuSimulator::run_trajectory|fn(self: &mut Self, seed: u64, lane: usize, cycles: u64) -> SingleTraceResult
+syl_sim|method|syl_sim::jit_cpu::JitProgram::new|fn(design: &SimDesign) -> Result<Self, RuntimeError>
+syl_sim|method|syl_sim::jit_cpu::JitProgram::run_trajectory|fn(self: &Self, seed: u64, lane: usize, cycles: u64) -> SingleTraceResult
+syl_sim|method|syl_sim::jit_cpu::JitProgram::simulator|fn(self: &Self) -> JitCpuSimulator<'_>
 syl_sim|method|syl_sim::runtime::Simulator::clock|fn(self: &Self, name: &str) -> std::result::Result<DomainId, RuntimeError>
 syl_sim|method|syl_sim::runtime::Simulator::cycle|fn(self: &Self) -> u64
 syl_sim|method|syl_sim::runtime::Simulator::design|fn(self: &Self) -> &SimDesign
@@ -3054,6 +3060,8 @@ syl_sim|struct|syl_sim::gpu_cuda::CodegenOptions|public
 syl_sim|struct|syl_sim::gpu_cuda::GeneratedCuda|public
 syl_sim|struct|syl_sim::gpu_cuda::RunnerOptions|public
 syl_sim|struct|syl_sim::gpu_cuda::RunnerResult|public
+syl_sim|struct|syl_sim::jit_cpu::JitCpuSimulator|public
+syl_sim|struct|syl_sim::jit_cpu::JitProgram|public
 syl_sim|struct|syl_sim::runtime::AssertionFailure|public
 syl_sim|struct|syl_sim::runtime::Simulator|public
 syl_sim|struct|syl_sim::runtime::UniqueOverlapViolation|public
@@ -3073,6 +3081,7 @@ syl_sim|use|ClockDomain|named|source=design::ClockDomain
 syl_sim|use|ClockEvent|named|source=runtime::ClockEvent
 syl_sim|use|CombAssign|named|source=design::CombAssign
 syl_sim|use|CombId|named|source=design::CombId
+syl_sim|use|CpuSimdMode|named|source=backend::CpuSimdMode
 syl_sim|use|CudaCache|named|source=cache::CudaCache
 syl_sim|use|DomainId|named|source=design::DomainId
 syl_sim|use|ExternModel|named|source=runtime::ExternModel
@@ -3091,6 +3100,8 @@ syl_sim|use|HwSelectMode|named|source=syl_hw::HwSelectMode
 syl_sim|use|HwUnaryOp|named|source=syl_hw::HwUnaryOp
 syl_sim|use|InstanceFamily|named|source=design::InstanceFamily
 syl_sim|use|InstanceId|named|source=design::InstanceId
+syl_sim|use|JitCpuSimulator|named|source=jit_cpu::JitCpuSimulator
+syl_sim|use|JitProgram|named|source=jit_cpu::JitProgram
 syl_sim|use|LocalBackend|named|source=backend::LocalBackend
 syl_sim|use|Logic|named|source=value::Logic
 syl_sim|use|MemCombReadPort|named|source=design::MemCombReadPort
@@ -3133,13 +3144,18 @@ syl_sim|use|run_batch|named|source=batch_run::run_batch
 syl_sim|use|select_backend|named|source=backend::select_backend
 syl_sim|use|select_local_backend|named|source=backend::select_local_backend
 syl_sim|use|try_generate_cuda|named|source=kernel::try_generate_cuda
+syl_sim|variant|syl_sim::backend::CpuSimdMode::Auto|unit
+syl_sim|variant|syl_sim::backend::CpuSimdMode::Batch|unit
+syl_sim|variant|syl_sim::backend::CpuSimdMode::Family|unit
 syl_sim|variant|syl_sim::backend::GpuKernelMode::Auto|unit
 syl_sim|variant|syl_sim::backend::GpuKernelMode::Batch|unit
 syl_sim|variant|syl_sim::backend::GpuKernelMode::Family|unit
+syl_sim|variant|syl_sim::backend::ResolvedBackend::CpuJit|unit
 syl_sim|variant|syl_sim::backend::ResolvedBackend::CpuRef|unit
 syl_sim|variant|syl_sim::backend::ResolvedBackend::CpuSimd|unit
 syl_sim|variant|syl_sim::backend::ResolvedBackend::GpuCuda|(crate::gpu_cuda::KernelMode)
 syl_sim|variant|syl_sim::backend::SimBackendChoice::Auto|unit
+syl_sim|variant|syl_sim::backend::SimBackendChoice::CpuJit|unit
 syl_sim|variant|syl_sim::backend::SimBackendChoice::CpuRef|unit
 syl_sim|variant|syl_sim::backend::SimBackendChoice::CpuSimd|unit
 syl_sim|variant|syl_sim::backend::SimBackendChoice::GpuCuda|unit

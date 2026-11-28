@@ -11,6 +11,11 @@ homepage.workspace = true
 readme = "README.md"
 
 [dependencies]
+cranelift-codegen = "0.121.2"
+cranelift-frontend = "0.121.2"
+cranelift-jit = "0.121.2"
+cranelift-module = "0.121.2"
+cranelift-native = "0.121.2"
 fs2 = "0.4.3"
 num-bigint = "0.4"
 sha2 = "0.10"

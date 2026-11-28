@@ -2833,6 +2833,7 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_session|variant|syl_session::error::ProjectError::ReadDir|{ path: std::path::PathBuf, source: std::io::Error }` - CLI, facade, query, and LSP consumers that need project loading, VFS, package snapshots, and workspace-scoped analysis.
 - `syl_session|variant|syl_session::error::ProjectError::Read|{ path: std::path::PathBuf, source: std::io::Error }` - CLI, facade, query, and LSP consumers that need project loading, VFS, package snapshots, and workspace-scoped analysis.
 - `syl_session|variant|syl_session::error::ProjectError::StaleDocumentVersion|{ uri: String, requested: u64, current: u64 }` - CLI, facade, query, and LSP consumers that need project loading, VFS, package snapshots, and workspace-scoped analysis.
+- `syl_sim|enum|syl_sim::backend::CpuSimdMode|public` - The sylc sim command, CPU router tests and benchmarks select a deterministic execution plan.
 - `syl_sim|enum|syl_sim::backend::GpuKernelMode|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|enum|syl_sim::backend::ResolvedBackend|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|enum|syl_sim::backend::SimBackendChoice|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
@@ -2849,6 +2850,7 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_sim|enum|syl_sim::value::Logic|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|field|syl_sim::backend::BackendRequest::batch|usize` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|field|syl_sim::backend::BackendRequest::choice|SimBackendChoice` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::backend::BackendRequest::cpu_mode|CpuSimdMode` - The sylc sim command, CPU router tests and benchmarks select a deterministic execution plan.
 - `syl_sim|field|syl_sim::backend::BackendRequest::cycles|u64` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|field|syl_sim::backend::BackendRequest::direct_vcd|bool` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|field|syl_sim::backend::BackendRequest::fail_on_x|bool` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
@@ -3047,6 +3049,10 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_sim|method|syl_sim::fast_cpu::FastTile::word|fn(self: &Self, program: &FastProgram, signal: SignalId, word: usize) -> &[u64]` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|method|syl_sim::fast_cpu::family::FastFamilyProgram::new|fn(d: &SimDesign) -> Result<Self, RuntimeError>` - The CPU SIMD router and differential tests compile and execute verified sibling subtrees.
 - `syl_sim|method|syl_sim::fast_cpu::family::FastFamilyProgram::run_trajectory|fn(self: &Self, seed: u64, cycles: u64) -> crate::SingleTraceResult` - The CPU SIMD router and differential tests compile and execute verified sibling subtrees.
+- `syl_sim|method|syl_sim::jit_cpu::JitCpuSimulator::run_trajectory|fn(self: &mut Self, seed: u64, lane: usize, cycles: u64) -> SingleTraceResult` - The deterministic batch reducer and per-cycle differential tests consume output limbs and the first failing edge.
+- `syl_sim|method|syl_sim::jit_cpu::JitProgram::new|fn(design: &SimDesign) -> Result<Self, RuntimeError>` - The native CPU backend and single-trajectory tests reuse machine code and per-trajectory storage.
+- `syl_sim|method|syl_sim::jit_cpu::JitProgram::run_trajectory|fn(self: &Self, seed: u64, lane: usize, cycles: u64) -> SingleTraceResult` - The deterministic batch reducer and per-cycle differential tests consume output limbs and the first failing edge.
+- `syl_sim|method|syl_sim::jit_cpu::JitProgram::simulator|fn(self: &Self) -> JitCpuSimulator<'_>` - The native CPU backend and single-trajectory tests reuse machine code and per-trajectory storage.
 - `syl_sim|method|syl_sim::runtime::Simulator::clock|fn(self: &Self, name: &str) -> std::result::Result<DomainId, RuntimeError>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|method|syl_sim::runtime::Simulator::cycle|fn(self: &Self) -> u64` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|method|syl_sim::runtime::Simulator::design|fn(self: &Self) -> &SimDesign` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
@@ -3128,6 +3134,8 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_sim|struct|syl_sim::gpu_cuda::GeneratedCuda|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|struct|syl_sim::gpu_cuda::RunnerOptions|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|struct|syl_sim::gpu_cuda::RunnerResult|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|struct|syl_sim::jit_cpu::JitCpuSimulator|public` - The native CPU backend and single-trajectory tests reuse machine code and per-trajectory storage.
+- `syl_sim|struct|syl_sim::jit_cpu::JitProgram|public` - The native CPU backend and single-trajectory tests reuse machine code and per-trajectory storage.
 - `syl_sim|struct|syl_sim::runtime::AssertionFailure|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|struct|syl_sim::runtime::Simulator|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|struct|syl_sim::runtime::UniqueOverlapViolation|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
@@ -3147,6 +3155,7 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_sim|use|ClockEvent|named|source=runtime::ClockEvent` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|use|CombAssign|named|source=design::CombAssign` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|use|CombId|named|source=design::CombId` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|CpuSimdMode|named|source=backend::CpuSimdMode` - The sylc sim command, CPU router tests and benchmarks select a deterministic execution plan.
 - `syl_sim|use|CudaCache|named|source=cache::CudaCache` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|use|DomainId|named|source=design::DomainId` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|use|ExternModel|named|source=runtime::ExternModel` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
@@ -3165,6 +3174,8 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_sim|use|HwUnaryOp|named|source=syl_hw::HwUnaryOp` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|use|InstanceFamily|named|source=design::InstanceFamily` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|use|InstanceId|named|source=design::InstanceId` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|JitCpuSimulator|named|source=jit_cpu::JitCpuSimulator` - The native CPU backend and single-trajectory tests reuse machine code and per-trajectory storage.
+- `syl_sim|use|JitProgram|named|source=jit_cpu::JitProgram` - The native CPU backend and single-trajectory tests reuse machine code and per-trajectory storage.
 - `syl_sim|use|LocalBackend|named|source=backend::LocalBackend` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|use|Logic|named|source=value::Logic` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|use|MemCombReadPort|named|source=design::MemCombReadPort` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
@@ -3207,13 +3218,18 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_sim|use|select_backend|named|source=backend::select_backend` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|use|select_local_backend|named|source=backend::select_local_backend` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|use|try_generate_cuda|named|source=kernel::try_generate_cuda` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|variant|syl_sim::backend::CpuSimdMode::Auto|unit` - The sylc sim command, CPU router tests and benchmarks select a deterministic execution plan.
+- `syl_sim|variant|syl_sim::backend::CpuSimdMode::Batch|unit` - The sylc sim command, CPU router tests and benchmarks select a deterministic execution plan.
+- `syl_sim|variant|syl_sim::backend::CpuSimdMode::Family|unit` - The sylc sim command, CPU router tests and benchmarks select a deterministic execution plan.
 - `syl_sim|variant|syl_sim::backend::GpuKernelMode::Auto|unit` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|variant|syl_sim::backend::GpuKernelMode::Batch|unit` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|variant|syl_sim::backend::GpuKernelMode::Family|unit` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|variant|syl_sim::backend::ResolvedBackend::CpuJit|unit` - The sylc sim command, CPU router tests and benchmarks select a deterministic execution plan.
 - `syl_sim|variant|syl_sim::backend::ResolvedBackend::CpuRef|unit` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|variant|syl_sim::backend::ResolvedBackend::CpuSimd|unit` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|variant|syl_sim::backend::ResolvedBackend::GpuCuda|(crate::gpu_cuda::KernelMode)` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|variant|syl_sim::backend::SimBackendChoice::Auto|unit` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|variant|syl_sim::backend::SimBackendChoice::CpuJit|unit` - The sylc sim command, CPU router tests and benchmarks select a deterministic execution plan.
 - `syl_sim|variant|syl_sim::backend::SimBackendChoice::CpuRef|unit` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|variant|syl_sim::backend::SimBackendChoice::CpuSimd|unit` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|variant|syl_sim::backend::SimBackendChoice::GpuCuda|unit` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.

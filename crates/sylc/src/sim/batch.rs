@@ -14,6 +14,7 @@ pub(super) fn run(design: &SimDesign, args: &SimArgs, protected: &[&Path]) -> Re
         (args.seed.is_some(), "--seed"),
         (args.batch.is_some(), "--batch"),
         (args.threads.is_some(), "--threads"),
+        (args.cpu_mode.is_some(), "--cpu-mode"),
         (args.gpu_mode.is_some(), "--gpu-mode"),
         (args.gpu_cache_dir.is_some(), "--gpu-cache-dir"),
         (args.no_gpu_cache, "--no-gpu-cache"),
@@ -47,6 +48,7 @@ pub(super) fn run(design: &SimDesign, args: &SimArgs, protected: &[&Path]) -> Re
     };
     let choice = match args.backend.as_deref() {
         Some("cpu-ref") => SimBackendChoice::CpuRef,
+        Some("cpu-jit") => SimBackendChoice::CpuJit,
         Some("cpu-simd") => SimBackendChoice::CpuSimd,
         Some("gpu-cuda") => SimBackendChoice::GpuCuda,
         _ => SimBackendChoice::Auto,
@@ -58,6 +60,7 @@ pub(super) fn run(design: &SimDesign, args: &SimArgs, protected: &[&Path]) -> Re
     };
     let request = BackendRequest {
         choice,
+        cpu_mode: args.cpu_mode.unwrap_or_default(),
         gpu_mode,
         batch,
         cycles: args.cycles,
@@ -96,6 +99,7 @@ pub(super) fn run(design: &SimDesign, args: &SimArgs, protected: &[&Path]) -> Re
     }
     let backend = match plan.selection.backend {
         ResolvedBackend::CpuRef => "cpu-ref",
+        ResolvedBackend::CpuJit => "cpu-jit",
         ResolvedBackend::CpuSimd => "cpu-simd",
         ResolvedBackend::GpuCuda(KernelMode::BatchPerThread) => "gpu-cuda/batch",
         ResolvedBackend::GpuCuda(KernelMode::InstanceFamilyParallel) => "gpu-cuda/family",

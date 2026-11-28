@@ -390,6 +390,7 @@ pub fn run_batch(
 ) -> Result<BatchResult, RuntimeError> {
     let (choice, gpu_mode) = match backend {
         ResolvedBackend::CpuRef => (SimBackendChoice::CpuRef, GpuKernelMode::Auto),
+        ResolvedBackend::CpuJit => (SimBackendChoice::CpuJit, GpuKernelMode::Auto),
         ResolvedBackend::CpuSimd => (SimBackendChoice::CpuSimd, GpuKernelMode::Auto),
         ResolvedBackend::GpuCuda(KernelMode::BatchPerThread) => {
             (SimBackendChoice::GpuCuda, GpuKernelMode::Batch)
@@ -454,6 +455,39 @@ impl LocalBackend<'_> {
         let summary = match &self.program {
             Program::Reference => reference(d, o, &Ports::new(d))?,
             Program::Simd(program) => simd(d, o, &Ports::new(d), program)?,
+            Program::Family(family) => {
+                let trace = family.run_trajectory(seed, o.cycles);
+                Reduction {
+                    digest: trace
+                        .outputs
+                        .into_iter()
+                        .enumerate()
+                        .fold(0u64, |sum, (i, v)| sum.wrapping_add(weighted(v, i, 1, 0))),
+                    failure: trace.failure.map(|(cycle, assert_id)| FailureCoordinate {
+                        cycle,
+                        batch: 0,
+                        assert_id,
+                    }),
+                }
+            }
+            Program::Jit(jit) => {
+                let mut simulator = jit.simulator();
+                let mut total = Reduction::default();
+                for lane in 0..o.batch {
+                    let sim = simulator.run_trajectory(o.seed, lane, o.cycles);
+                    for (i, word) in sim.outputs.into_iter().enumerate() {
+                        total.digest = total.digest.wrapping_add(weighted(word, i, o.batch, lane));
+                    }
+                    if let Some((cycle, assert_id)) = sim.failure {
+                        total.record(FailureCoordinate {
+                            cycle,
+                            batch: lane,
+                            assert_id,
+                        });
+                    }
+                }
+                total
+            }
             Program::Cuda(program) => {
                 let options = RunnerOptions {
                     batch: o.batch,

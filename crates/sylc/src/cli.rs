@@ -1,3 +1,4 @@
+use clap::builder::{PossibleValuesParser, TypedValueParser};
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use std::ffi::OsString;
 use std::path::PathBuf;
@@ -46,6 +47,14 @@ pub(crate) enum SylcCommand {
     /// Check and emit SystemVerilog to stdout or --out.
     Emit(EmitArgs),
 }
+fn cpu_mode_parser() -> impl TypedValueParser<Value = syl_sim::CpuSimdMode> {
+    PossibleValuesParser::new(["auto", "batch", "family"]).map(|name| match name.as_str() {
+        "batch" => syl_sim::CpuSimdMode::Batch,
+        "family" => syl_sim::CpuSimdMode::Family,
+        _ => syl_sim::CpuSimdMode::Auto,
+    })
+}
+
 #[derive(Debug, PartialEq, Eq, Args)]
 pub(crate) struct SimArgs {
     pub input: PathBuf,
@@ -67,7 +76,7 @@ pub(crate) struct SimArgs {
     #[arg(long)]
     pub fail_on_x: bool,
     /// Simulation backend (default auto).
-    #[arg(long,value_parser=["auto","cpu-ref","cpu-simd","gpu-cuda"])]
+    #[arg(long,value_parser=["auto","cpu-ref","cpu-simd","cpu-jit","gpu-cuda"])]
     pub backend: Option<String>,
     /// Number of independent deterministic trajectories (default 1).
     #[arg(long)]
@@ -78,6 +87,9 @@ pub(crate) struct SimArgs {
     /// Number of CPU SIMD host workers.
     #[arg(long)]
     pub threads: Option<usize>,
+    /// CPU SIMD mapping for deterministic stimuli.
+    #[arg(long, value_parser = cpu_mode_parser())]
+    pub cpu_mode: Option<syl_sim::CpuSimdMode>,
     /// CUDA parallel mapping (default auto).
     #[arg(long,value_parser=["auto","batch","family"])]
     pub gpu_mode: Option<String>,

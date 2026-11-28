@@ -101,7 +101,11 @@ sylc sim examples/benchmarks/fault_hunt_pipeline.syl --top FaultHuntPipeline --b
 Batch runs print the selected backend, batch size, cycle count, seed and final
 64-bit digest. The default `--backend auto` routes deterministic runs using
 the measured CPU/GPU crossover, available device, instance-family shape and
-compiler cache. Use `--backend cpu-ref` for a two-state reference comparison,
+compiler cache. A compatible single trajectory of 1,000 cycles or more selects
+`cpu-jit`. Use `--backend cpu-jit` to force native compilation. For a single
+trajectory, `--backend cpu-simd` selects family SIMD when at least four
+compatible sibling subtrees can share a program. `--cpu-mode batch` forces the
+ordinary tile and `--cpu-mode family` requires that subtree mapping. Use `--backend cpu-ref` for a two-state reference comparison,
 or `--backend gpu-cuda --gpu-mode batch|family` to select a CUDA kernel.
 `--gpu-cache-dir` overrides `SYL_CUDA_CACHE_DIR`. The cache defaults to
 `$XDG_CACHE_HOME/syl/cuda` or the system temporary directory's
