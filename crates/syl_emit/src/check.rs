@@ -67,17 +67,18 @@ impl<'a> SvBackendValidator<'a> {
                 }
                 Self::check_expr(&module.name, next)
             }
-            SvItem::ClockedMessage {
+            SvItem::ClockedMessages {
                 clock,
-                trigger,
-                message,
-                ..
+                logs,
+                assertions,
             } => {
                 Self::check_expr(&module.name, clock)?;
-                Self::check_expr(&module.name, trigger)?;
-                for piece in message {
-                    if let syl_hw::FormatPiece::Value { expr, .. } = piece {
-                        Self::check_expr(&module.name, expr)?;
+                for message in logs.iter().chain(assertions) {
+                    Self::check_expr(&module.name, &message.trigger)?;
+                    for piece in &message.pieces {
+                        if let syl_hw::FormatPiece::Value { expr, .. } = piece {
+                            Self::check_expr(&module.name, expr)?;
+                        }
                     }
                 }
                 Ok(())

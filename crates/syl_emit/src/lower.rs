@@ -199,26 +199,6 @@ impl<'a> SvEmitter<'a> {
                     .transpose()?,
                 next: self.lower_expr(next)?,
             }),
-            HwItem::ClockedAssert {
-                clock,
-                trigger,
-                message,
-            }
-            | HwItem::ClockedLog {
-                clock,
-                trigger,
-                message,
-            } => Ok(SvItem::ClockedMessage {
-                log: matches!(item, HwItem::ClockedLog { .. }),
-                clock: self.lower_expr(clock)?,
-                trigger: self.lower_expr(trigger)?,
-                message: message
-                    .iter()
-                    .map(|piece| {
-                        piece.try_map(|expr| self.lower_expr(expr), |width| Ok(width.clone()))
-                    })
-                    .collect::<Result<_, _>>()?,
-            }),
             HwItem::Instance(instance) => Ok(SvItem::Instance(self.lower_instance(instance)?)),
             HwItem::InitialError { message } => Ok(SvItem::InitialError {
                 message: self.lower_expr(message)?,
@@ -230,7 +210,57 @@ impl<'a> SvEmitter<'a> {
     fn lower_items(&self, items: &[ParametricHwItem]) -> Result<Vec<SvItem>, CompileError> {
         let mut out = Vec::new();
         let mut last = None;
+        let mut groups = Vec::<(SvExpr, usize)>::new();
         for item in items {
+            if let ParametricHwItem::Core { item: core, .. } = item
+                && let HwItem::ClockedAssert {
+                    clock,
+                    trigger,
+                    message,
+                }
+                | HwItem::ClockedLog {
+                    clock,
+                    trigger,
+                    message,
+                } = core
+            {
+                let clock = self.lower_expr(clock)?;
+                let index = match groups.iter().find(|(domain, _)| *domain == clock) {
+                    Some((_, index)) => *index,
+                    None => {
+                        let index = out.len();
+                        groups.push((clock.clone(), index));
+                        out.push(SvItem::ClockedMessages {
+                            clock,
+                            logs: vec![],
+                            assertions: vec![],
+                        });
+                        index
+                    }
+                };
+                let SvItem::ClockedMessages {
+                    logs, assertions, ..
+                } = &mut out[index]
+                else {
+                    unreachable!("index of clock group")
+                };
+                let entries = if matches!(core, HwItem::ClockedLog { .. }) {
+                    logs
+                } else {
+                    assertions
+                };
+                entries.push(SvMessage {
+                    source: self.source_comments.then(|| self.source(item.origin())),
+                    trigger: self.lower_expr(trigger)?,
+                    pieces: message
+                        .iter()
+                        .map(|piece| {
+                            piece.try_map(|expr| self.lower_expr(expr), |width| Ok(width.clone()))
+                        })
+                        .collect::<Result<_, _>>()?,
+                });
+                continue;
+            }
             let lowered = self.lower_item(item)?;
             if self.source_comments
                 && !matches!(

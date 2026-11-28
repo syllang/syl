@@ -12,23 +12,60 @@ use super::{
 struct SvPrinter<'a> {
     out: &'a mut String,
     parameter_default: bool,
+    uses_hex: bool,
+    defer_failures: bool,
+    failure_groups: usize,
 }
 
 pub(crate) fn text(modules: &[SvModule], header: bool) -> String {
     let mut out = String::new();
     SvPrinter {
         out: &mut out,
+        uses_hex: false,
         parameter_default: false,
+        defer_failures: has_separate_observers(modules),
+        failure_groups: 0,
     }
     .design(modules, header);
     out
+}
+
+// Different generated scopes, instances and clocks have independently scheduled
+// processes. On coincident edges they must all sample before a fatal SV $error.
+fn has_separate_observers(modules: &[SvModule]) -> bool {
+    fn contains_log(item: &SvItem) -> bool {
+        match item {
+            SvItem::ClockedMessages { logs, .. } => !logs.is_empty(),
+            SvItem::GenerateFor { items, .. } => items.iter().any(contains_log),
+            SvItem::GenerateIf {
+                then_items,
+                else_items,
+                ..
+            } => then_items.iter().chain(else_items).any(contains_log),
+            _ => false,
+        }
+    }
+    let items = || modules.iter().flat_map(|module| &module.items);
+    items().any(contains_log)
+        && (items().any(|item| {
+            matches!(
+                item,
+                SvItem::Instance(_) | SvItem::GenerateIf { .. } | SvItem::GenerateFor { .. }
+            )
+        }) || items()
+            .filter(|item| matches!(item, SvItem::ClockedMessages { .. }))
+            .nth(1)
+            .is_some())
 }
 
 pub(crate) fn parameter_expression(expr: &SvExpr) -> String {
     let mut out = String::new();
     SvPrinter {
         out: &mut out,
+        uses_hex: false,
         parameter_default: true,
+        defer_failures: false,
+        failure_groups: 0,
     }
     .expr(expr);
     out
@@ -96,6 +133,10 @@ impl<'a> SvPrinter<'a> {
         }
         for item in &module.items {
             self.item(item, 2);
+        }
+        if self.uses_hex {
+            self.out.push_str(include_str!("hex.sv"));
+            self.uses_hex = false;
         }
         self.out.push_str("endmodule\n");
     }
@@ -254,23 +295,12 @@ impl<'a> SvPrinter<'a> {
                 }
                 self.out.push_str(&format!("{pad}end\n"));
             }
-            SvItem::ClockedMessage {
-                log,
+            SvItem::ClockedMessages {
                 clock,
-                trigger,
-                message,
+                logs,
+                assertions,
             } => {
-                let process = if *log { "always_ff" } else { "always" };
-                self.out.push_str(&format!(
-                    "{pad}`ifndef SYNTHESIS\n{pad}{process} @(posedge "
-                ));
-                self.expr(clock);
-                self.out.push_str(") begin\n");
-                self.out.push_str(&format!("{pad}  if ("));
-                self.expr(trigger);
-                self.out.push_str(") ");
-                self.message(*log, message, &pad);
-                self.out.push_str(&format!("{pad}end\n{pad}`endif\n"));
+                self.clocked_messages(clock, logs, assertions, indent);
             }
             SvItem::Instance(instance) => self.instance(instance, indent),
             SvItem::GenerateIf {

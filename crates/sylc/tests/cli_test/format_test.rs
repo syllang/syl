@@ -165,3 +165,35 @@ fn fast_backends_print_only_the_replayed_lane_with_or_without_vcd() {
         }
     }
 }
+
+#[test]
+fn independent_resets_require_an_explicit_choice() {
+    let p = TestProject::new();
+    let source = |stmt: &str| {
+        format!(
+            "cell T<D:Domain>(clk:in Clock<D>,a:in Reset<D>,b:in Reset<D>,ok:in Bit) {{signal aa:Reset<D> := a {stmt};}}"
+        )
+    };
+    for stmt in [r#"log("sample")"#, "assert(ok)"] {
+        p.write("t.syl", &source(stmt));
+        let output = p.run("", &["check", "t.syl"]);
+        failure(&output);
+        let text = String::from_utf8(output.stderr).unwrap();
+        assert!(
+            text.contains("ambiguous reset") && text.contains("specify rst:"),
+            "{text}"
+        );
+    }
+    p.write(
+        "t.syl",
+        &source(r#"assert(rst:b,ok) log(rst:aa,"A") log(rst:b,"B")"#),
+    );
+    p.write("s.json", r#"[{"drive":{"a":1,"b":0,"ok":1},"clocks":["clk"]},{"drive":{"a":0,"b":1,"ok":0},"clocks":["clk"]}]"#);
+    let output = p.run("", &["sim", "t.syl", "--top", "T", "--stimulus", "s.json"]);
+    success(&output);
+    assert!(
+        String::from_utf8(output.stdout)
+            .unwrap()
+            .starts_with("[cycle 1] T: B\n[cycle 2] T: A\n")
+    );
+}

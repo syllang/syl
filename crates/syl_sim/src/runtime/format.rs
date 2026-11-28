@@ -70,16 +70,7 @@ fn format_value(v: &Value, style: &FormatStyle) -> String {
         } => {
             let mut hex = v.to_hex();
             if *upper {
-                hex = hex
-                    .chars()
-                    .map(|c| {
-                        if c.is_ascii_hexdigit() {
-                            c.to_ascii_uppercase()
-                        } else {
-                            c
-                        }
-                    })
-                    .collect();
+                hex.make_ascii_uppercase();
             }
             let prefix = match (prefix, upper) {
                 (true, true) => "0X",

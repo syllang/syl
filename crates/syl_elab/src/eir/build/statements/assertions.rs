@@ -39,8 +39,8 @@ impl<C: crate::const_eval::ConstValueElaborator + ?Sized> EirBuilder<'_, C> {
                 .map(|arg| &arg.value)
         };
         let clock = named("clk")
-            .map(|clk| self.elab_expr(clk, env))
-            .or_else(|| env.single_by_type("Clock", self))
+            .map(|clk| env.control_root(&self.elab_expr(clk, env)))
+            .or_else(|| env.single_by_type("Clock"))
             .ok_or_else(|| {
                 CompileError::lowering_at(
                     if log {
@@ -74,9 +74,10 @@ impl<C: crate::const_eval::ConstValueElaborator + ?Sized> EirBuilder<'_, C> {
             reads.extend(self.elab_read_places(cond, env));
             EirExpr::unary(EirUnaryOp::Not, self.elab_expr(cond, env))
         };
-        let reset = named("rst")
-            .map(|r| self.elab_expr(r, env))
-            .or_else(|| env.reset_for_clock(&clock, self));
+        let reset = match named("rst") {
+            Some(r) => Some(env.control_root(&self.elab_expr(r, env))),
+            None => env.reset_for_clock(&clock, self, expr.span())?,
+        };
         if let Some(reset) = reset {
             let typed = |code: &EirExpr, kind| {
                 env.vars

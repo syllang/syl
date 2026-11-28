@@ -1,4 +1,5 @@
 use super::{SvExpr, SvPrinter};
+use crate::sv_ir::SvMessage;
 use std::fmt::Write;
 use syl_hw::{FormatPiece, FormatStyle};
 
@@ -18,8 +19,64 @@ fn quoted(text: &str) -> String {
 }
 
 impl SvPrinter<'_> {
-    pub(super) fn message(&mut self, log: bool, pieces: &[FormatPiece<SvExpr>], pad: &str) {
-        let task = if log { "$display" } else { "$error" };
+    pub(super) fn clocked_messages(
+        &mut self,
+        clock: &SvExpr,
+        logs: &[SvMessage],
+        assertions: &[SvMessage],
+        indent: usize,
+    ) {
+        let pad = " ".repeat(indent);
+        writeln!(self.out, "{pad}`ifndef SYNTHESIS").unwrap();
+        let pending = (self.defer_failures && !assertions.is_empty()).then(|| {
+            let id = self.failure_groups;
+            self.failure_groups += 1;
+            // The valid bit suppresses sensitivity-list initialization at time
+            // zero. The low bit toggles on every failure, including repeats.
+            let message = format!("syl$failure{id}");
+            let event = format!("syl$report{id}");
+            writeln!(self.out,"{pad}string {message};\n{pad}bit [1:0] {event};\n{pad}always @({event}) if ({event}[1]) $error(\"%s\", {message});").unwrap();
+            (message,event)
+        });
+        write!(self.out, "{pad}always_ff @(posedge ").unwrap();
+        self.expr(clock);
+        self.out.push_str(") begin\n");
+        for log in logs {
+            self.doc(indent + 2, log.source.as_deref());
+            write!(self.out, "{pad}  if (").unwrap();
+            self.expr(&log.trigger);
+            self.out.push_str(") ");
+            self.message("$display", &log.pieces, &pad);
+        }
+        for (i, assertion) in assertions.iter().enumerate() {
+            self.doc(indent + 2, assertion.source.as_deref());
+            let branch = if i == 0 { "if" } else { "else if" };
+            write!(self.out, "{pad}  {branch} (").unwrap();
+            self.expr(&assertion.trigger);
+            self.out.push_str(") ");
+            if let Some((message, event)) = &pending {
+                // Capture old values here; notify the reporter in the NBA region
+                // after every clocked observer has printed its sampled logs.
+                writeln!(self.out, "begin").unwrap();
+                write!(self.out, "{pad}    ").unwrap();
+                self.message(
+                    &format!("{message} = $sformatf"),
+                    &assertion.pieces,
+                    &format!("{pad}  "),
+                );
+                writeln!(
+                    self.out,
+                    "{pad}    {event} <= {{1'b1, ~{event}[0]}};\n{pad}  end"
+                )
+                .unwrap();
+            } else {
+                self.message("$error", &assertion.pieces, &pad);
+            }
+        }
+        writeln!(self.out, "{pad}end\n{pad}`endif").unwrap();
+    }
+
+    fn message(&mut self, task: &str, pieces: &[FormatPiece<SvExpr>], pad: &str) {
         let mut format = String::new();
         let mut fields = Vec::new();
         for piece in pieces {
@@ -61,37 +118,45 @@ impl SvPrinter<'_> {
         writeln!(self.out, ");\n{pad}  end").unwrap();
     }
 
+    fn hex(&mut self, value: &str, field: &str, pad: &str, upper: bool) {
+        self.uses_hex = true;
+        writeln!(
+            self.out,
+            "{pad}{field} = syl$hex($sformatf(\"%b\", {value}), 1'b{});",
+            u8::from(upper)
+        )
+        .unwrap();
+    }
+
     fn field(&mut self, style: &FormatStyle, i: usize, pad: &str) {
         let v = format!("syl$v{i}");
         let f = format!("syl$f{i}");
         match style {
             FormatStyle::Hex { .. } | FormatStyle::Binary { .. } => {
-                let (code, prefix, digits, upper) = match style {
+                let (prefix, digits) = match style {
                     FormatStyle::Hex {
                         upper,
                         prefix,
                         digits,
-                    } => (
-                        "h",
-                        if !prefix {
-                            ""
-                        } else if *upper {
-                            "0X"
-                        } else {
-                            "0x"
-                        },
-                        digits,
-                        *upper,
-                    ),
+                    } => {
+                        self.hex(&v, &f, pad, *upper);
+                        (
+                            if !prefix {
+                                ""
+                            } else if *upper {
+                                "0X"
+                            } else {
+                                "0x"
+                            },
+                            digits,
+                        )
+                    }
                     FormatStyle::Binary { prefix, digits } => {
-                        ("b", if *prefix { "0b" } else { "" }, digits, false)
+                        writeln!(self.out, "{pad}{f} = $sformatf(\"%b\", {v});").unwrap();
+                        (if *prefix { "0b" } else { "" }, digits)
                     }
                     _ => unreachable!(),
                 };
-                writeln!(self.out, "{pad}{f} = $sformatf(\"%{code}\", {v});").unwrap();
-                if upper {
-                    writeln!(self.out,"{pad}for (int syl$j=0; syl$j<{f}.len(); syl$j++) if ({f}[syl$j] >= 8'd97 && {f}[syl$j] <= 8'd102) {f}[syl$j] = {f}[syl$j] - 8'd32;").unwrap();
-                }
                 if *digits > 0 {
                     writeln!(
                         self.out,
@@ -115,7 +180,8 @@ impl SvPrinter<'_> {
                 writeln!(self.out,"{pad}case ({v})\n{pad}  1'b0: {f} = \"false\";\n{pad}  1'b1: {f} = \"true\";\n{pad}  default: {f} = $sformatf(\"%b\", {v});\n{pad}endcase").unwrap();
             }
             FormatStyle::Debug => {
-                writeln!(self.out,"{pad}if ($bits({v}) == 1) {f} = $sformatf(\"1'b%b\", {v}); else {f} = $sformatf(\"%0d'h%h\", $bits({v}), {v});").unwrap();
+                self.hex(&v, &f, pad, false);
+                writeln!(self.out,"{pad}if ($bits({v}) == 1) {f} = $sformatf(\"1'b%b\", {v}); else {f} = $sformatf(\"%0d'h%s\", $bits({v}), {f});").unwrap();
             }
             FormatStyle::Enum {
                 name,

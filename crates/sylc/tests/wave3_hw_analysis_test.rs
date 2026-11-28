@@ -361,20 +361,22 @@ fn simulation_messages_run_in_both_sv_simulators_and_synthesize_away() {
         r#"
         enum State {Idle,Busy,Done}
         bundle Word { flag:Bit, data:UInt<8> }
-        cell Logger(clk:in Clock, state:in State, word:in Word, en:in Bit) {
+        cell Logger(clk:in Clock, state:in State, word:in Word, en:in Bit, ok:in Bit) {
+            assert(ok,"fault {word.data:#x}")
             log(when:en, "seen 100% {{ok}} {state:?} {word:#X} {word.data[7:4]:#b}")
             assert(en,"missing {word.data:#04x}")
+            log("end of edge")
         }"#,
     );
     let design = scratch.write("design.sv", &sv);
     scratch.write(
         "bench.sv",
         r#"module bench;
-        bit clk, en=1;
+        bit clk, en=1, ok=1;
         logic [1:0] state=1;
         logic [8:0] word=9'h12a;
         Logger dut(.*);
-        initial begin #1; clk=1; #1; $finish; end
+        initial begin #1; clk=1; #1; clk=0; ok=0; #1; clk=1; #1; $finish; end
         endmodule"#,
     );
     let run = |program: &str, args: &[&str]| {
@@ -388,6 +390,17 @@ fn simulation_messages_run_in_both_sv_simulators_and_synthesize_away() {
         text
     };
     let expected = "seen 100% {ok} State.Busy(2'd1) { flag: 0X1, data: 0X2A } 0b0010";
+    assert_eq!(sv.matches("always_ff @(posedge clk)").count(), 1);
+    let check_fault = |output: &str| {
+        let (before, _) = output.split_once("fault 0x2a").unwrap();
+        assert_eq!(
+            before
+                .lines()
+                .filter(|s| *s == expected || *s == "end of edge")
+                .collect::<Vec<_>>(),
+            [expected, "end of edge", expected, "end of edge"]
+        );
+    };
     if available("iverilog", "-V") {
         run(
             "iverilog",
@@ -401,7 +414,7 @@ fn simulation_messages_run_in_both_sv_simulators_and_synthesize_away() {
                 "bench.sv",
             ],
         );
-        assert!(run("vvp", &["test.vvp"]).contains(expected));
+        check_fault(&run("vvp", &["test.vvp"]));
     }
     if available("verilator", "--version") {
         run(
@@ -417,9 +430,135 @@ fn simulation_messages_run_in_both_sv_simulators_and_synthesize_away() {
                 "bench.sv",
             ],
         );
-        assert!(run("./obj_dir/Vbench", &[]).contains(expected));
+        let failure = Command::new("./obj_dir/Vbench")
+            .current_dir(&scratch.0)
+            .output()
+            .unwrap();
+        assert!(!failure.status.success());
+        check_fault(&String::from_utf8_lossy(&failure.stdout));
     }
     if available("yosys", "-V") {
         synth(&design, "Logger");
+    }
+}
+
+#[test]
+fn every_five_bit_four_state_value_has_identical_native_and_icarus_hex() {
+    if !available("iverilog", "-V") {
+        return;
+    }
+    let scratch = Scratch::new();
+    let source =
+        r#"cell T(clk:in Clock,d:in UInt<5>) {log("HEX {d:x} {d:X} {d:#x} {d:#X} {d:?}")}"#;
+    scratch.write("top.syl", source);
+    scratch.write("top.sv", &emit(source));
+    let mut bench = String::from("module bench;bit clk=0;logic [4:0] d;T dut(.*);initial begin\n");
+    let mut steps = Vec::new();
+    for n in 0..1024 {
+        let bits = (0..5)
+            .rev()
+            .map(|i| ['0', '1', 'x', 'z'][(n >> (2 * i)) & 3usize])
+            .collect::<String>();
+        bench.push_str(&format!("d=5'b{bits};#1;clk=1;#1;clk=0;\n"));
+        steps.push(serde_json::json!({"drive":{"d":bits},"clocks":["clk"]}));
+    }
+    bench.push_str("$finish;end endmodule");
+    scratch.write("bench.sv", &bench);
+    scratch.write("stim.json", &serde_json::to_string(&steps).unwrap());
+    let run = |cmd: &str, args: &[&str]| {
+        let out = Command::new(cmd)
+            .args(args)
+            .current_dir(&scratch.0)
+            .output()
+            .unwrap();
+        let text = String::from_utf8_lossy(&out.stdout).into_owned();
+        success(out);
+        text
+    };
+    let native = run(
+        env!("CARGO_BIN_EXE_sylc"),
+        &["sim", "top.syl", "--top", "T", "--stimulus", "stim.json"],
+    );
+    run(
+        "iverilog",
+        &[
+            "-g2012", "-s", "bench", "-o", "hex.vvp", "top.sv", "bench.sv",
+        ],
+    );
+    let sv = run("vvp", &["hex.vvp"]);
+    let expected: Vec<_> = native
+        .lines()
+        .filter_map(|s| s.split_once("T: ").map(|(_, msg)| msg))
+        .collect();
+    assert_eq!(expected.len(), 1024);
+    assert!(expected.contains(&"HEX 0x 0X 0x0x 0X0X 5'h0x"));
+    assert!(expected.contains(&"HEX zz ZZ 0xzz 0XZZ 5'hzz"));
+    assert_eq!(
+        sv.lines()
+            .filter(|s| s.starts_with("HEX "))
+            .collect::<Vec<_>>(),
+        expected
+    );
+}
+
+#[test]
+fn a_parent_fault_reports_after_child_and_parent_sample_the_edge() {
+    let scratch = Scratch::new();
+    let sv = emit(
+        r#"cell Child(clk:in Clock, i:in Bit) -> y:Bit { log("child {i}"); y:=i }
+        cell T(clk:in Clock, ok:in Bit) -> y:Bit {
+            assert(ok,"stop {ok}")
+            let x = place Child(clk:clk,i:ok)
+            log("parent")
+            y:=x
+        }"#,
+    );
+    scratch.write("cross.sv", &sv);
+    scratch.write("bench.sv", "module bench; bit clk=0, ok=0; wire y; T dut(.*); initial begin #1;clk=1;#1;$finish;end endmodule");
+    let run = |cmd: &str, args: &[&str]| {
+        Command::new(cmd)
+            .args(args)
+            .current_dir(&scratch.0)
+            .output()
+            .unwrap()
+    };
+    let verify = |out: Output| {
+        let text = String::from_utf8(out.stdout).unwrap();
+        let (before, _) = text
+            .split_once("stop 0")
+            .unwrap_or_else(|| panic!("{text}"));
+        assert_eq!(before.lines().filter(|s| *s == "child 0").count(), 1);
+        assert_eq!(before.lines().filter(|s| *s == "parent").count(), 1);
+    };
+    if available("iverilog", "-V") {
+        success(run(
+            "iverilog",
+            &[
+                "-g2012",
+                "-s",
+                "bench",
+                "-o",
+                "cross.vvp",
+                "cross.sv",
+                "bench.sv",
+            ],
+        ));
+        verify(run("vvp", &["cross.vvp"]));
+    }
+    if available("verilator", "--version") {
+        success(run(
+            "verilator",
+            &[
+                "--binary",
+                "--timing",
+                "-j",
+                "2",
+                "--top-module",
+                "bench",
+                "cross.sv",
+                "bench.sv",
+            ],
+        ));
+        verify(run("./obj_dir/Vbench", &[]));
     }
 }

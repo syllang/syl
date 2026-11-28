@@ -40,12 +40,44 @@ where
         self.emit_body_impl(body, env, false)
     }
 
+    fn index_controls(&self, body: &ElabBlock, env: &mut Env) {
+        // Hardware wires are concurrent. Resolve control aliases even when their
+        // declaration or continuous drive follows the sampling statement.
+        for stmt in &body.stmts {
+            if let ElabStmt::Signal {
+                name, ty: Some(ty), ..
+            } = stmt
+            {
+                let ty = self.subst_type_vars(ty, &env.type_replacements);
+                if matches!(ty.type_name(), Some("Clock" | "Reset")) {
+                    env.insert(name, EirExpr::ident(env.local_name(name)), ty);
+                }
+            }
+        }
+        for stmt in &body.stmts {
+            match stmt {
+                ElabStmt::Signal {
+                    name,
+                    value: Some(value),
+                    ..
+                } => env.record_control_alias(name, value, self),
+                ElabStmt::Drive { target, value, .. }
+                    if let ElabExprNode::Ident(name) = &target.node =>
+                {
+                    env.record_control_alias(name, value, self)
+                }
+                _ => {}
+            }
+        }
+    }
+
     fn emit_body_impl(
         &self,
         body: &ElabBlock,
         env: &mut Env,
         compile_error_as_sv: bool,
     ) -> Result<Vec<EirItem>, CompileError> {
+        self.index_controls(body, env);
         let mut items = Vec::new();
         for stmt in &body.stmts {
             match stmt {
@@ -254,6 +286,7 @@ where
         });
         env.insert(request.name, EirExpr::ident(&physical_name), ty);
         if let Some(value) = request.value {
+            env.record_control_alias(request.name, value, self);
             if let ElabExprNode::Place {
                 callee,
                 args,

@@ -135,6 +135,13 @@ impl From<SvDirection> for &'static str {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct SvMessage {
+    pub(super) source: Option<String>,
+    pub(super) trigger: SvExpr,
+    pub(super) pieces: Vec<syl_hw::FormatPiece<SvExpr>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub(super) enum SvItem {
     Source(String),
@@ -160,11 +167,10 @@ pub(super) enum SvItem {
         reset: Option<SvReset>,
         next: SvExpr,
     },
-    ClockedMessage {
-        log: bool,
+    ClockedMessages {
         clock: SvExpr,
-        trigger: SvExpr,
-        message: Vec<syl_hw::FormatPiece<SvExpr>>,
+        logs: Vec<SvMessage>,
+        assertions: Vec<SvMessage>,
     },
     Instance(SvInstance),
     GenerateIf {

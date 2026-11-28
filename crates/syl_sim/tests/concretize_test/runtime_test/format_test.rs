@@ -103,3 +103,36 @@ fn formatting_nested_software_fields_preserves_generic_values() {
         ["[cycle 1] U: { flag: true, sub: { n: 7 } }"]
     );
 }
+
+#[test]
+fn control_aliases_share_the_root_edge_and_reset_mask() {
+    for (reset, active) in [("Sync,ActiveHigh", 1), ("Async,ActiveLow", 0)] {
+        let src = format!(
+            r#"cell T<D:Domain>(clk:in Clock<D>,rst:in Reset<D,{reset}>,ok:in Bit) {{
+            signal ck:Clock<D> := (clk)
+            signal ck2:Clock<D> := ck
+            signal r:Reset<D,{reset}> := rst
+            signal r2:Reset<D,{reset}>
+            log("implicit")
+            assert(clk:ck2, ok, "fault")
+            log(clk:ck, rst:r2, "explicit")
+            r2 := r
+        }}"#
+        );
+        let design = design("T", &src);
+        let mut sim = Simulator::new(&design);
+        drive(&mut sim, "rst", active);
+        drive(&mut sim, "ok", 0);
+        tick(&mut sim);
+        assert!(sim.log_lines.is_empty());
+        drive(&mut sim, "rst", 1 - active);
+        let Err(RuntimeError::Assertion(failure)) = sim.tick("clk") else {
+            panic!("expected fault after reset")
+        };
+        assert_eq!((failure.cycle, failure.message.as_str()), (2, "fault"));
+        assert_eq!(
+            sim.log_lines,
+            ["[cycle 2] T: implicit", "[cycle 2] T: explicit"]
+        );
+    }
+}

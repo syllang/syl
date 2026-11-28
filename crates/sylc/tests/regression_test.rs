@@ -248,7 +248,7 @@ cell Top(clk: in Clock, x: in Bit, y: out Bit) {
         .1
         .split_once("`endif")
         .unwrap();
-    assert!(guarded.contains("always @(posedge clk) begin"));
+    assert!(guarded.contains("always_ff @(posedge clk) begin"));
     assert!(guarded.contains("if ((!x)) $error(\"assert failed\");"));
     assert!(hardware.contains("assign y = x;"));
 }

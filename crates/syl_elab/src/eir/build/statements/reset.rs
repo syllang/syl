@@ -67,7 +67,7 @@ impl<C: crate::const_eval::ConstValueElaborator + ?Sized> EirBuilder<'_, C> {
         let matching = reset
             .and_then(|r| r.domain.as_ref())
             .and_then(|r| env.clock_for_elab_reset_expr(r, self));
-        let fallback = env.single_by_type("Clock", self);
+        let fallback = env.single_by_type("Clock");
         if matching.is_none()
             && let Some(var) = var
             && let Some(domain) = self.reset_domain(&var.ty)
@@ -101,7 +101,7 @@ impl<C: crate::const_eval::ConstValueElaborator + ?Sized> EirBuilder<'_, C> {
             .domain
             .as_ref()
             .map(|e| self.elab_expr(e, env))
-            .or_else(|| env.single_by_type("Reset", self))
+            .or_else(|| env.single_by_type("Reset"))
             .ok_or_else(|| {
                 CompileError::lowering_at(EirError::RegisterRequiresReset, reset.span)
             })?;
