@@ -148,7 +148,11 @@ fn indices<'a>(selectors: &'a [Selector], design: &'a SimDesign, reads: &mut Vec
     }
 }
 
-fn collect<'a>(expr: &'a SimExpr, design: &'a SimDesign, reads: &mut Vec<&'a SimTarget>) {
+pub(crate) fn collect<'a>(
+    expr: &'a SimExpr,
+    design: &'a SimDesign,
+    reads: &mut Vec<&'a SimTarget>,
+) {
     match expr {
         SimExpr::Read(target) => {
             reads.push(target);

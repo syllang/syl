@@ -67,14 +67,21 @@ pub fn batch_stimulus_word(seed: u64, batch: usize, cycle: u64, port_word: u64, 
     z ^ (z >> 31)
 }
 
-struct Input {
-    id: SignalId,
-    width: u32,
-    base: u64,
-    reset: Option<HwResetPolarity>,
+/// Final output limbs in top port order, and the first failing rising edge and assertion.
+#[derive(Debug, PartialEq, Eq)]
+pub struct SingleTraceResult {
+    pub outputs: Vec<u64>,
+    pub failure: Option<(u64, AssertId)>,
+}
+
+pub(crate) struct Input {
+    pub(crate) id: SignalId,
+    pub(crate) width: u32,
+    pub(crate) base: u64,
+    pub(crate) reset: Option<HwResetPolarity>,
 }
 impl Input {
-    fn word(&self, seed: u64, lane: usize, cycle: u64, limb: u32) -> u64 {
+    pub(crate) fn word(&self, seed: u64, lane: usize, cycle: u64, limb: u32) -> u64 {
         if let Some(p) = self.reset {
             return u64::from((cycle == 1) == (p == HwResetPolarity::ActiveHigh));
         }
@@ -83,14 +90,14 @@ impl Input {
     }
 }
 
-struct Ports {
-    inputs: Vec<Input>,
-    outputs: Vec<(SignalId, u32)>,
+pub(crate) struct Ports {
+    pub(crate) inputs: Vec<Input>,
+    pub(crate) outputs: Vec<(SignalId, u32)>,
     rising: Vec<ClockEvent>,
     falling: Vec<ClockEvent>,
 }
 impl Ports {
-    fn new(d: &SimDesign) -> Self {
+    pub(crate) fn new(d: &SimDesign) -> Self {
         let clocks = runtime::clock_sources(d);
         let mut ports = Self {
             inputs: vec![],
@@ -211,9 +218,7 @@ fn simd(
                 });
             }
         }
-        if o.cycles == 0 {
-            tile.eval_comb(program);
-        }
+        tile.eval_comb(program);
         for (i, &(id, limb)) in ports.outputs.iter().enumerate() {
             for (l, &word) in tile.word(program, id, limb as usize).iter().enumerate() {
                 let width = (d.signal(id).width - limb * 64).min(64);

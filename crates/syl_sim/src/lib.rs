@@ -20,7 +20,7 @@ pub use design::{
 pub use syl_hw::{HwBinaryOp, HwDirection, HwResetMode, HwResetPolarity, HwSelectMode, HwUnaryOp};
 
 pub use batch_cpu::{BatchCpuSimulator, BatchFailure};
-pub use fast_cpu::{FastBatchCpuSimulator, FastProgram, FastTile};
+pub use fast_cpu::{FastBatchCpuSimulator, FastFamilyProgram, FastProgram, FastTile};
 pub use runtime::{
     AssertionFailure, ClockEvent, ExternModel, RuntimeError, Simulator, StateMode,
     UniqueOverlapViolation,
@@ -35,5 +35,6 @@ pub use backend::{
     SimBackendChoice, select_backend, select_local_backend,
 };
 pub use batch_run::{
-    BatchOptions, BatchResult, FailureCoordinate, batch_stimulus_word, replay_failure, run_batch,
+    BatchOptions, BatchResult, FailureCoordinate, SingleTraceResult, batch_stimulus_word,
+    replay_failure, run_batch,
 };
