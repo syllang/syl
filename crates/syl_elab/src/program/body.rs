@@ -256,6 +256,14 @@ pub(crate) struct ElabExpr {
 }
 
 impl ElabExpr {
+    pub(crate) fn wire_name(&self) -> Option<&str> {
+        match &self.node {
+            ElabExprNode::Ident(name) => Some(name),
+            ElabExprNode::Group(inner) => inner.wire_name(),
+            _ => None,
+        }
+    }
+
     pub(crate) fn id(&self) -> ExprId {
         self.id
     }
@@ -432,6 +440,7 @@ impl From<&HirNamedExpr> for ElabNamedExpr {
 #[derive(Clone)]
 #[non_exhaustive]
 pub(crate) struct ElabCallArg {
+    pub(crate) format: Option<Vec<syl_hir::FormatPart<ElabExpr>>>,
     pub(crate) name: Option<String>,
     pub(crate) value: ElabExpr,
     pub(crate) span: Span,
@@ -440,6 +449,16 @@ pub(crate) struct ElabCallArg {
 impl From<&HirCallArg> for ElabCallArg {
     fn from(value: &HirCallArg) -> Self {
         Self {
+            format: value
+                .format
+                .as_ref()
+                .and_then(|r| r.as_ref().ok())
+                .map(|parts| {
+                    parts
+                        .iter()
+                        .map(|part| part.map(|expr| ElabExpr::from(expr)))
+                        .collect()
+                }),
             name: value.name.clone(),
             value: ElabExpr::from(&value.value),
             span: value.span(),

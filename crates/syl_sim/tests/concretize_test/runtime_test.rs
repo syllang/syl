@@ -282,3 +282,6 @@ fn pulse_synchronizer_coincident_edges() {
 
 #[path = "runtime_test/edge_contracts_test.rs"]
 mod edge_contracts_test;
+
+#[path = "runtime_test/format_test.rs"]
+mod format_test;

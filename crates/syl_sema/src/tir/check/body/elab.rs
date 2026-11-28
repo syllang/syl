@@ -206,6 +206,12 @@ impl TypePhaseChecker {
         let Some(def) = struct_def else {
             return Ok(env.clone());
         };
+        if explicit_ty.is_none()
+            && let Some(expr) = stmt.value
+        {
+            let ty = self.infer_expr_type(self.current_owner()?, expr);
+            self.record_decl_local_type(stmt.name, Some(local_id), stmt.span, ty)?;
+        }
         Ok(env.with_mutable_struct_local(
             local_id,
             def,
@@ -394,6 +400,10 @@ impl TypePhaseChecker {
                         );
                         Self::record_recoverable(errors, self.record_expr_type(value, explicit_ty));
                     }
+                    if ty.is_none() {
+                        let inferred = self.infer_expr_type(self.current_owner()?, value);
+                        self.record_decl_local_type(name, *id, *span, inferred)?;
+                    }
                     Self::record_recoverable(errors, self.record_phase(value, Phase::Const));
                     if let Some(kind) = ty.as_ref().and_then(|ty| self.mir_type_kind(ty))
                         && let Some(local_id) = local_id
@@ -429,6 +439,10 @@ impl TypePhaseChecker {
                         );
                     }
                     if let Some(value) = value {
+                        if ty.is_none() {
+                            let inferred = self.infer_expr_type(self.current_owner()?, value);
+                            self.record_decl_local_type(name, *id, *span, inferred)?;
+                        }
                         Self::record_recoverable(errors, self.record_phase(value, Phase::Hardware));
                         self.check_let_binding_expr(name, value, &nested, errors)?;
                     }

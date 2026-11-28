@@ -336,6 +336,19 @@ impl<'a> HirNameResolver<'a> {
             HirExprNode::Call { callee, args } => {
                 self.resolve_call_callee(owner, callee);
                 self.resolve_args(owner, args);
+                if let Some(root) = BuiltinCallCallee::new(callee).root()
+                    && !self.design.expr_resolutions().contains_key(&root.id())
+                {
+                    for arg in args {
+                        if let Some(Ok(parts)) = &arg.format {
+                            for part in parts {
+                                if let syl_hir::FormatPart::Capture { expr, .. } = part {
+                                    self.resolve_expr(owner, expr);
+                                }
+                            }
+                        }
+                    }
+                }
             }
             HirExprNode::Place { callee, args, .. } => {
                 self.resolve_expr(owner, callee);
@@ -586,6 +599,7 @@ enum HirBuiltinIntrinsic {
     Clog2,
     Zero,
     Assert,
+    Log,
     Error,
     Memory,
 }
@@ -610,6 +624,7 @@ impl<'a> BuiltinCallCallee<'a> {
             "z" => Some(HirBuiltinIntrinsic::Zero),
             "zero" => Some(HirBuiltinIntrinsic::Zero),
             "assert" => Some(HirBuiltinIntrinsic::Assert),
+            "log" => Some(HirBuiltinIntrinsic::Log),
             "mem_write" | "mem_read_sync" => Some(HirBuiltinIntrinsic::Memory),
             "error" => Some(HirBuiltinIntrinsic::Error),
             _ => None,

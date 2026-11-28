@@ -364,7 +364,19 @@ impl TypePhaseChecker {
             HirExprNode::Field { base, field } => {
                 self.infer_field_expr_type(expr, owner, base, field)
             }
-            HirExprNode::Index { base, .. } => self.infer_index_type(owner, base),
+            HirExprNode::Index { base, index } => {
+                if let HirExprNode::Range { start, end } = &index.node
+                    && let (HirExprNode::Int(high), HirExprNode::Int(low)) =
+                        (&start.node, &end.node)
+                    && let Some(width) = high.checked_sub(*low).and_then(|n| n.checked_add(1))
+                {
+                    TirType::UInt {
+                        width: TirConstTerm::NatLiteral(width),
+                    }
+                } else {
+                    self.infer_index_type(owner, base)
+                }
+            }
             HirExprNode::Unary { expr, .. } => self.infer_expr_type(owner, expr),
             HirExprNode::Binary { op, left, .. } if self.binary_returns_bool(*op) => {
                 let _left_type = self.infer_expr_type(owner, left);
@@ -375,6 +387,17 @@ impl TypePhaseChecker {
                 TirType::Bit
             }
             HirExprNode::Binary { left, .. } => self.infer_expr_type(owner, left),
+            HirExprNode::Place { callee, .. } => self
+                .callee_root(callee)
+                .and_then(|root| self.hir.expr_resolution(owner, root).ok().flatten())
+                .and_then(|resolution| match resolution {
+                    HirResolution::Def(def) => {
+                        super::return_type::ReturnTypeResolver::new(self, owner, def, callee)
+                            .resolve()
+                    }
+                    _ => None,
+                })
+                .unwrap_or(TirType::Unknown),
             HirExprNode::Call { callee, .. } => self.infer_call_type(owner, callee),
             HirExprNode::Aggregate { ty, .. } => self
                 .type_from_mir_type_ref(owner, ty)
@@ -627,7 +650,7 @@ impl TypePhaseChecker {
         }) else {
             return self.infer_expr_type(owner, callee);
         };
-        super::return_type::MapReturnTypeResolver::new(self, owner, map_def, callee)
+        super::return_type::ReturnTypeResolver::new(self, owner, map_def, callee)
             .resolve()
             .unwrap_or(TirType::Unknown)
     }

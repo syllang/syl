@@ -1,5 +1,6 @@
 mod builtins;
 mod calls;
+pub(super) use calls::SymbolicConstValue;
 
 use crate::{
     CompileError,
@@ -520,6 +521,13 @@ where
 
     pub(super) fn elab_index_expr(&self, base: &ElabExpr, index: &ElabExpr, env: &Env) -> EirExpr {
         let base_code = self.elab_expr(base, env);
+        if let ElabExprNode::Range { start, end } = &index.node {
+            let bound = |e| {
+                let v = self.elab_expr(e, env);
+                EirBound::new(v.fact_key(), v)
+            };
+            return EirExpr::slice(base_code, bound(start), bound(end));
+        }
         if let ElabExprNode::Ident(name) = &base.node
             && env.var(name).is_some_and(|v| v.is_memory)
         {

@@ -19,7 +19,7 @@ use super::{
 
 #[derive(Clone)]
 #[non_exhaustive]
-enum SymbolicConstValue {
+pub(in crate::eir::build) enum SymbolicConstValue {
     Scalar(EirExpr),
     Struct(BTreeMap<String, SymbolicConstValue>),
 }
@@ -49,11 +49,7 @@ where
         expr: &ElabExpr,
         env: &Env,
     ) -> Result<EirExpr, CompileError> {
-        let const_env = self.const_eval_env(env);
-        let lowered = self
-            .const_elaborator
-            .lower_expr(self.program, expr, &const_env)?;
-        self.symbolic_const_value(&lowered, env, &BTreeMap::new())
+        self.symbolic_elab_const_value(expr, env)?
             .and_then(SymbolicConstValue::into_scalar)
             .ok_or_else(|| {
                 CompileError::lowering_at(
@@ -61,6 +57,18 @@ where
                     expr.span(),
                 )
             })
+    }
+
+    pub(in crate::eir::build) fn symbolic_elab_const_value(
+        &self,
+        expr: &ElabExpr,
+        env: &Env,
+    ) -> Result<Option<SymbolicConstValue>, CompileError> {
+        let const_env = self.const_eval_env(env);
+        let lowered = self
+            .const_elaborator
+            .lower_expr(self.program, expr, &const_env)?;
+        Ok(self.symbolic_const_value(&lowered, env, &BTreeMap::new()))
     }
 
     pub(super) fn elab_call_expr(
@@ -472,6 +480,7 @@ where
             .copied()
             .find(|method| self.program.def_kind(*method) == Some(ElabDefKind::Map))?;
         let mut call_args = vec![ElabCallArg {
+            format: None,
             name: None,
             value: receiver.clone(),
             span: receiver.span(),

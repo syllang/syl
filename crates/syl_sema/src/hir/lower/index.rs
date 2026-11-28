@@ -211,6 +211,13 @@ impl<'files> HirResolver<'files> {
                 self.index_expr(owner, callee);
                 for arg in args {
                     self.index_expr(owner, &mut arg.value);
+                    if let Some(Ok(parts)) = &mut arg.format {
+                        for part in parts {
+                            if let syl_hir::FormatPart::Capture { expr, .. } = part {
+                                self.index_expr(owner, expr);
+                            }
+                        }
+                    }
                 }
             }
             HirExprNode::GenericApp { callee, args } => {

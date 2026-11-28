@@ -1,3 +1,4 @@
+mod format;
 use super::{
     SvBinaryOp, SvExpr, SvInstance, SvItem, SvModule, SvParam, SvParamDefault, SvResetMode,
     SvResetPolarity, SvSelectArm,
@@ -11,13 +12,17 @@ use super::{
 struct SvPrinter<'a> {
     out: &'a mut String,
     parameter_default: bool,
+    uses_hex: bool,
+    failure_groups: usize,
 }
 
 pub(crate) fn text(modules: &[SvModule], header: bool) -> String {
     let mut out = String::new();
     SvPrinter {
         out: &mut out,
+        uses_hex: false,
         parameter_default: false,
+        failure_groups: 0,
     }
     .design(modules, header);
     out
@@ -27,7 +32,9 @@ pub(crate) fn parameter_expression(expr: &SvExpr) -> String {
     let mut out = String::new();
     SvPrinter {
         out: &mut out,
+        uses_hex: false,
         parameter_default: true,
+        failure_groups: 0,
     }
     .expr(expr);
     out
@@ -58,6 +65,7 @@ impl<'a> SvPrinter<'a> {
     }
 
     fn module(&mut self, module: &SvModule) {
+        self.failure_groups = 0;
         self.doc(0, module.doc.as_deref());
         self.out.push_str(&format!("module {}", module.name));
         if !module.params.is_empty() {
@@ -95,6 +103,10 @@ impl<'a> SvPrinter<'a> {
         }
         for item in &module.items {
             self.item(item, 2);
+        }
+        if self.uses_hex {
+            self.out.push_str(include_str!("hex.sv"));
+            self.uses_hex = false;
         }
         self.out.push_str("endmodule\n");
     }
@@ -253,21 +265,12 @@ impl<'a> SvPrinter<'a> {
                 }
                 self.out.push_str(&format!("{pad}end\n"));
             }
-            SvItem::AlwaysAssert {
+            SvItem::ClockedMessages {
                 clock,
-                trigger,
-                message,
+                logs,
+                assertions,
             } => {
-                self.out
-                    .push_str(&format!("{pad}`ifndef SYNTHESIS\n{pad}always @(posedge "));
-                self.expr(clock);
-                self.out.push_str(") begin\n");
-                self.out.push_str(&format!("{pad}  if ("));
-                self.expr(trigger);
-                self.out.push_str(") $error(");
-                self.expr(message);
-                self.out.push_str(");\n");
-                self.out.push_str(&format!("{pad}end\n{pad}`endif\n"));
+                self.clocked_messages(clock, logs, assertions, indent);
             }
             SvItem::Instance(instance) => self.instance(instance, indent),
             SvItem::GenerateIf {
@@ -403,8 +406,16 @@ impl<'a> SvPrinter<'a> {
                 self.out.push('}');
             }
             SvExpr::Slice { value, high, low } => {
-                self.expr(value);
-                self.out.push_str(&format!("[{high}:{low}]"));
+                if matches!(value.as_ref(), SvExpr::Ident(_)) {
+                    self.expr(value);
+                    self.out.push_str(&format!("[{high}:{low}]"));
+                } else {
+                    // A packed expression (including another part-select) cannot
+                    // be followed by a Verilog part-select in all backends.
+                    self.out.push_str(&format!("(({high})-({low})+1)'(("));
+                    self.expr(value);
+                    self.out.push_str(&format!(") >> ({low}))"));
+                }
             }
             SvExpr::IndexedPartSelect {
                 value,

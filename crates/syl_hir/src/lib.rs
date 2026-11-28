@@ -1,3 +1,4 @@
+pub use syl_syntax::parser::{FormatPart, FormatSpec};
 mod ids;
 pub use ids::{DefId, ExprId, LocalId, PackageId};
 

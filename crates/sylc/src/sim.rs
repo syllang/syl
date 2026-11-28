@@ -115,6 +115,7 @@ pub(super) fn run<'a>(
         return Ok(());
     }
     let mut sim = Simulator::new(design);
+    sim.set_log_sink(|line| println!("{line}"));
     sim.strict_unique = args.strict_unique;
     let steps = args
         .stimulus

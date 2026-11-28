@@ -445,6 +445,15 @@ impl<'a> CapabilityChecker<'a> {
         let Some(resolved) = resolver.resolve_callee(owner, callee) else {
             for arg in args {
                 self.check_read_expr(owner, &arg.value, context)?;
+                if let Some(Ok(parts)) = &arg.format
+                    && self.ctx.expr_resolution(owner, callee)?.is_none()
+                {
+                    for part in parts {
+                        if let syl_hir::FormatPart::Capture { expr, .. } = part {
+                            self.check_read_expr(owner, expr, context)?;
+                        }
+                    }
+                }
             }
             return Ok(());
         };

@@ -327,6 +327,7 @@ impl Parser {
                 }
                 let end = self.expect(TokenKind::RParen)?.span;
                 let span = lhs.span().join(end);
+                self.attach_format(&lhs, &mut args);
                 lhs = Expr::Call {
                     callee: Box::new(lhs),
                     args,
@@ -348,7 +349,16 @@ impl Parser {
                 continue;
             }
             if self.consume(&TokenKind::LBracket).is_some() {
-                let index = self.parse_expr(0)?;
+                let mut index = self.parse_expr(0)?;
+                if self.consume(&TokenKind::Colon).is_some() {
+                    let low = self.parse_expr(0)?;
+                    let span = index.span().join(low.span());
+                    index = Expr::Range {
+                        start: Box::new(index),
+                        end: Box::new(low),
+                        span,
+                    };
+                }
                 let end = self.expect(TokenKind::RBracket)?.span;
                 let span = lhs.span().join(end);
                 lhs = Expr::Index {

@@ -1,6 +1,7 @@
 mod assertions;
 mod builtin_stmt;
 pub(crate) mod for_emit;
+mod format;
 mod memory;
 mod next;
 pub(crate) mod place_emit;
@@ -39,12 +40,58 @@ where
         self.emit_body_impl(body, env, false)
     }
 
+    fn index_controls(&self, body: &ElabBlock, env: &mut Env) {
+        // Hardware wires are concurrent. Resolve control aliases even when their
+        // declaration or continuous drive follows the sampling statement.
+        for stmt in &body.stmts {
+            if let ElabStmt::Signal {
+                name, ty: Some(ty), ..
+            } = stmt
+            {
+                let ty = self.subst_type_vars(ty, &env.type_replacements);
+                if matches!(ty.type_name(), Some("Clock" | "Reset")) {
+                    env.insert(name, EirExpr::ident(env.local_name(name)), ty);
+                }
+            }
+        }
+        // Let bindings are lexical. Keep their wire sources local to the
+        // prepass so later bindings never leak into ordinary expression lowering.
+        let mut lets = std::collections::HashMap::new();
+        for stmt in &body.stmts {
+            let (name, value) = match stmt {
+                ElabStmt::Let {
+                    name,
+                    value: Some(value),
+                    ..
+                }
+                | ElabStmt::Signal {
+                    name,
+                    value: Some(value),
+                    ..
+                } => (name.as_str(), value),
+                ElabStmt::Drive { target, value, .. } if let Some(name) = target.wire_name() => {
+                    (name, value)
+                }
+                _ => continue,
+            };
+            let source = value
+                .wire_name()
+                .and_then(|name| lets.get(name).copied().unwrap_or(Some(name)));
+            if matches!(stmt, ElabStmt::Let { .. }) {
+                lets.insert(name, source);
+            } else if let Some(source) = source {
+                env.record_control_alias(name, source, self);
+            }
+        }
+    }
+
     fn emit_body_impl(
         &self,
         body: &ElabBlock,
         env: &mut Env,
         compile_error_as_sv: bool,
     ) -> Result<Vec<EirItem>, CompileError> {
+        self.index_controls(body, env);
         let mut items = Vec::new();
         for stmt in &body.stmts {
             match stmt {
@@ -253,6 +300,9 @@ where
         });
         env.insert(request.name, EirExpr::ident(&physical_name), ty);
         if let Some(value) = request.value {
+            if let Some(source) = value.wire_name() {
+                env.record_control_alias(request.name, source, self);
+            }
             if let ElabExprNode::Place {
                 callee,
                 args,
@@ -584,8 +634,11 @@ where
         target: &ElabExpr,
         value: &ElabExpr,
         span: Span,
-        env: &Env,
+        env: &mut Env,
     ) -> Result<Vec<EirItem>, CompileError> {
+        if let (Some(target), Some(source)) = (target.wire_name(), value.wire_name()) {
+            env.record_control_alias(target, source, self);
+        }
         match (&target.node, &value.node) {
             (ElabExprNode::Ident(_), ElabExprNode::Aggregate { ty, fields }) => self
                 .emit_aggregate_drive(

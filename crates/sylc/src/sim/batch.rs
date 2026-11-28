@@ -85,6 +85,9 @@ pub(super) fn run(design: &SimDesign, args: &SimArgs, protected: &[&Path]) -> Re
                 .map_err(|e| RuntimeError::Invalid(e.message))
         })
         .map_err(runtime)?;
+    for line in &result.replay_logs {
+        println!("{line}");
+    }
     if let Some((coordinate, failure)) = result.failure {
         return Err(located(
             failure.span,

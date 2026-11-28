@@ -112,7 +112,22 @@ impl TypePhaseChecker {
             HirExprNode::Field { base, .. } => self.check_hardware_value_expr(base, errors),
             HirExprNode::Index { base, index } => {
                 self.check_hardware_value_expr(base, errors)?;
-                self.check_hardware_value_expr(index, errors)
+                if let HirExprNode::Range { start, end } = &index.node {
+                    if !matches!((&start.node,&end.node), (HirExprNode::Int(h), HirExprNode::Int(l)) if h >= l && *h < u32::MAX as u64)
+                    {
+                        errors.push(CompileError::lowering_at(
+                            EirError::InvalidFormat {
+                                message:
+                                    "slice bounds must be descending nonnegative integer literals"
+                                        .into(),
+                            },
+                            index.span(),
+                        ));
+                    }
+                    Ok(())
+                } else {
+                    self.check_hardware_value_expr(index, errors)
+                }
             }
             HirExprNode::Binary {
                 op, left, right, ..
@@ -218,12 +233,14 @@ impl TypePhaseChecker {
                 && matches!(
                     kind,
                     BuiltinIntrinsic::Assert
+                        | BuiltinIntrinsic::Log
                         | BuiltinIntrinsic::Error
                         | BuiltinIntrinsic::MemWrite
                         | BuiltinIntrinsic::MemReadSync
                 )
             {
                 let error = match kind {
+                    BuiltinIntrinsic::Log => EirError::LogStatementOnly,
                     BuiltinIntrinsic::Assert => EirError::AssertionStatementOnly,
                     BuiltinIntrinsic::Error => EirError::RuntimeErrorStatementOnly,
                     BuiltinIntrinsic::MemWrite | BuiltinIntrinsic::MemReadSync => {
@@ -307,12 +324,14 @@ impl TypePhaseChecker {
                     && matches!(
                         kind,
                         BuiltinIntrinsic::Assert
+                            | BuiltinIntrinsic::Log
                             | BuiltinIntrinsic::Error
                             | BuiltinIntrinsic::MemWrite
                             | BuiltinIntrinsic::MemReadSync
                     )
                 {
                     let error = match kind {
+                        BuiltinIntrinsic::Log => EirError::LogStatementOnly,
                         BuiltinIntrinsic::Assert => EirError::AssertionStatementOnly,
                         BuiltinIntrinsic::Error => EirError::RuntimeErrorStatementOnly,
                         BuiltinIntrinsic::MemWrite | BuiltinIntrinsic::MemReadSync => {
@@ -534,7 +553,10 @@ impl TypePhaseChecker {
         )
     }
 
-    fn callee_root<'b>(&self, callee: &'b HirBodyExpr) -> Option<&'b HirBodyExpr> {
+    pub(in crate::tir) fn callee_root<'b>(
+        &self,
+        callee: &'b HirBodyExpr,
+    ) -> Option<&'b HirBodyExpr> {
         let mut current = callee;
         loop {
             match &current.node {

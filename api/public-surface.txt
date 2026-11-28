@@ -268,6 +268,7 @@ syl_hir|field|syl_hir::model::HirTypeRef::ty|MirTypeRef
 syl_hir|field|syl_hir::model::body::HirBlock::span|syl_span::Span
 syl_hir|field|syl_hir::model::body::HirBlock::stmts|Vec<HirStmt>
 syl_hir|field|syl_hir::model::body::HirBlock::tail|Option<Box<HirExpr>>
+syl_hir|field|syl_hir::model::body::HirCallArg::format|Option<syl_syntax::parser::FormatTemplate<HirExpr>>
 syl_hir|field|syl_hir::model::body::HirCallArg::name|Option<String>
 syl_hir|field|syl_hir::model::body::HirCallArg::value|HirExpr
 syl_hir|field|syl_hir::model::body::HirExpr::id|crate::ExprId
@@ -578,6 +579,8 @@ syl_hir|struct|syl_hir::model::type_ref::MirTypeRef|public
 syl_hir|struct|syl_hir::name::HirPath|public
 syl_hir|use|DefId|named|source=ids::DefId
 syl_hir|use|ExprId|named|source=ids::ExprId
+syl_hir|use|FormatPart|named|source=syl_syntax::parser::FormatPart
+syl_hir|use|FormatSpec|named|source=syl_syntax::parser::FormatSpec
 syl_hir|use|HirAttribute|named|source=item::HirAttribute
 syl_hir|use|HirAttribute|named|source=model::HirAttribute
 syl_hir|use|HirBlock|named|source=body::HirBlock
@@ -799,6 +802,8 @@ syl_hw|enum|syl_hw::expr::HwBinaryOp|public
 syl_hw|enum|syl_hw::expr::HwExpr|public
 syl_hw|enum|syl_hw::expr::HwSelectMode|public
 syl_hw|enum|syl_hw::expr::HwUnaryOp|public
+syl_hw|enum|syl_hw::format::FormatPiece|public
+syl_hw|enum|syl_hw::format::FormatStyle|public
 syl_hw|enum|syl_hw::parametric::ParametricHwItem|public
 syl_hw|enum|syl_hw::place::HwPlaceExpr|public
 syl_hw|enum|syl_hw::place::HwPlace|public
@@ -884,6 +889,7 @@ syl_hw|method|syl_hw::expr::HwSelectArm::guard|fn(self: &Self) -> &HwExpr
 syl_hw|method|syl_hw::expr::HwSelectArm::new|fn(guard: HwExpr, value: HwExpr) -> Self
 syl_hw|method|syl_hw::expr::HwSelectArm::value|fn(self: &Self) -> &HwExpr
 syl_hw|method|syl_hw::expr::HwSelectMode::is_unique|fn(self: &Self) -> bool
+syl_hw|method|syl_hw::format::FormatPiece::try_map|fn(self: &Self, expression: impl FnOnce, width_fn: impl FnOnce) -> Result<FormatPiece<F, V>, Err>
 syl_hw|method|syl_hw::ids::ObjectId::get|fn(self: Self) -> usize
 syl_hw|method|syl_hw::ids::ObjectId::new|fn(value: usize) -> Self
 syl_hw|method|syl_hw::parametric::ParametricHwDesign::debug_dump|fn(self: &Self) -> String
@@ -935,6 +941,8 @@ syl_hw|struct|syl_hw::validate::HwNormalizer|public
 syl_hw|struct|syl_hw::validate::HwValidator|public
 syl_hw|struct|syl_hw::validate::NormalizedParametricHwDesign|public
 syl_hw|struct|syl_hw::validate::diagnostic::HwValidationReport|public
+syl_hw|use|FormatPiece|named|source=format::FormatPiece
+syl_hw|use|FormatStyle|named|source=format::FormatStyle
 syl_hw|use|HwBinaryOp|named|source=expr::HwBinaryOp
 syl_hw|use|HwBindingKind|named|source=diagnostic::HwBindingKind
 syl_hw|use|HwBindingKind|named|source=validate::HwBindingKind
@@ -978,7 +986,8 @@ syl_hw|variant|syl_hw::design::HwDirection::Out|unit
 syl_hw|variant|syl_hw::design::HwGuardFrame::IfElse|{ label: String }
 syl_hw|variant|syl_hw::design::HwGuardFrame::IfThen|{ label: String }
 syl_hw|variant|syl_hw::design::HwGuardFrame::Loop|{ label: String }
-syl_hw|variant|syl_hw::design::HwItem::ClockedAssert|{ clock: crate::HwExpr, trigger: crate::HwExpr, message: crate::HwExpr }
+syl_hw|variant|syl_hw::design::HwItem::ClockedAssert|{ clock: crate::HwExpr, trigger: crate::HwExpr, message: Vec<crate::FormatPiece<crate::HwExpr>> }
+syl_hw|variant|syl_hw::design::HwItem::ClockedLog|{ clock: crate::HwExpr, trigger: crate::HwExpr, message: Vec<crate::FormatPiece<crate::HwExpr>> }
 syl_hw|variant|syl_hw::design::HwItem::ClockedStorage|{ clock: crate::HwExpr, target: crate::HwExpr, reset: Option<HwReset>, next: crate::HwExpr }
 syl_hw|variant|syl_hw::design::HwItem::ContinuousDrive|{ lhs: crate::HwExpr, rhs: crate::HwExpr }
 syl_hw|variant|syl_hw::design::HwItem::ControlSignalDecl|{ width: String, name: String, domain: crate::HwPortDomain }
@@ -1028,6 +1037,15 @@ syl_hw|variant|syl_hw::expr::HwSelectMode::Priority|unit
 syl_hw|variant|syl_hw::expr::HwSelectMode::Unique|unit
 syl_hw|variant|syl_hw::expr::HwUnaryOp::Neg|unit
 syl_hw|variant|syl_hw::expr::HwUnaryOp::Not|unit
+syl_hw|variant|syl_hw::format::FormatPiece::Literal|(String)
+syl_hw|variant|syl_hw::format::FormatPiece::Value|{ expr: E, width: Option<W>, style: FormatStyle }
+syl_hw|variant|syl_hw::format::FormatStyle::Binary|{ prefix: bool, digits: u16 }
+syl_hw|variant|syl_hw::format::FormatStyle::Bool|unit
+syl_hw|variant|syl_hw::format::FormatStyle::Debug|unit
+syl_hw|variant|syl_hw::format::FormatStyle::Enum|{ name: String, variants: Vec<(u64, String)>, debug: bool }
+syl_hw|variant|syl_hw::format::FormatStyle::Hex|{ upper: bool, prefix: bool, digits: u16 }
+syl_hw|variant|syl_hw::format::FormatStyle::Signed|unit
+syl_hw|variant|syl_hw::format::FormatStyle::Unsigned|unit
 syl_hw|variant|syl_hw::parametric::ParametricHwItem::Core|{ item: crate::HwItem, origin: crate::HwOrigin }
 syl_hw|variant|syl_hw::parametric::ParametricHwItem::StaticFor|{ index: String, start: crate::HwExpr, end: crate::HwExpr, label: String, items: Vec<ParametricHwItem>, origin: crate::HwOrigin }
 syl_hw|variant|syl_hw::parametric::ParametricHwItem::StaticIf|{ cond: crate::HwExpr, label: String, then_items: Vec<ParametricHwItem>, else_items: Vec<ParametricHwItem>, origin: crate::HwOrigin }
@@ -2165,8 +2183,10 @@ syl_sema|variant|syl_sema::diagnostic::error::EirError::InplaceOnCdcSyncCell|{ n
 syl_sema|variant|syl_sema::diagnostic::error::EirError::InplaceOnExternCell|{ name: String }
 syl_sema|variant|syl_sema::diagnostic::error::EirError::InstanceCalleeMustBeName|unit
 syl_sema|variant|syl_sema::diagnostic::error::EirError::InvalidElaborationExpression|unit
+syl_sema|variant|syl_sema::diagnostic::error::EirError::InvalidFormat|{ message: String }
 syl_sema|variant|syl_sema::diagnostic::error::EirError::InvalidInterfaceType|unit
 syl_sema|variant|syl_sema::diagnostic::error::EirError::LocalBindingLoweringUnsupported|unit
+syl_sema|variant|syl_sema::diagnostic::error::EirError::LogStatementOnly|unit
 syl_sema|variant|syl_sema::diagnostic::error::EirError::MemoryOpStatementOnly|unit
 syl_sema|variant|syl_sema::diagnostic::error::EirError::MemoryRequiresArrayType|unit
 syl_sema|variant|syl_sema::diagnostic::error::EirError::MemoryTargetMustBeMem|{ name: String }
@@ -2448,6 +2468,7 @@ syl_sema|variant|syl_sema::tir::binding::BindingRef::Local|(syl_hir::LocalId)
 syl_sema|variant|syl_sema::tir::builtin::BuiltinIntrinsic::Assert|unit
 syl_sema|variant|syl_sema::tir::builtin::BuiltinIntrinsic::Error|unit
 syl_sema|variant|syl_sema::tir::builtin::BuiltinIntrinsic::HighZ|unit
+syl_sema|variant|syl_sema::tir::builtin::BuiltinIntrinsic::Log|unit
 syl_sema|variant|syl_sema::tir::builtin::BuiltinIntrinsic::MemReadSync|unit
 syl_sema|variant|syl_sema::tir::builtin::BuiltinIntrinsic::MemWrite|unit
 syl_sema|variant|syl_sema::tir::builtin::BuiltinIntrinsic::Zero|unit
@@ -2803,6 +2824,7 @@ syl_sim|field|syl_sim::batch_run::BatchResult::compile_ms|f64
 syl_sim|field|syl_sim::batch_run::BatchResult::digest|u64
 syl_sim|field|syl_sim::batch_run::BatchResult::failure|Option<(FailureCoordinate, AssertionFailure)>
 syl_sim|field|syl_sim::batch_run::BatchResult::kernel_ms|f64
+syl_sim|field|syl_sim::batch_run::BatchResult::replay_logs|Vec<String>
 syl_sim|field|syl_sim::batch_run::FailureCoordinate::assert_id|AssertId
 syl_sim|field|syl_sim::batch_run::FailureCoordinate::batch|usize
 syl_sim|field|syl_sim::batch_run::FailureCoordinate::cycle|u64
@@ -2837,7 +2859,7 @@ syl_sim|field|syl_sim::design::ResetId::0|usize
 syl_sim|field|syl_sim::design::SignalId::0|usize
 syl_sim|field|syl_sim::design::SimAssert::clock|DomainId
 syl_sim|field|syl_sim::design::SimAssert::condition|SimExpr
-syl_sim|field|syl_sim::design::SimAssert::message|String
+syl_sim|field|syl_sim::design::SimAssert::message|Vec<syl_hw::FormatPiece<SimExpr, u32>>
 syl_sim|field|syl_sim::design::SimAssert::reset_mask|Option<ResetId>
 syl_sim|field|syl_sim::design::SimAssert::source|SourceLocation
 syl_sim|field|syl_sim::design::SimDesign::assertions|Vec<SimAssert>
@@ -2848,6 +2870,7 @@ syl_sim|field|syl_sim::design::SimDesign::extern_slots|Vec<(usize, InstanceId)>
 syl_sim|field|syl_sim::design::SimDesign::externs|Vec<SimExternInstance>
 syl_sim|field|syl_sim::design::SimDesign::families|Vec<InstanceFamily>
 syl_sim|field|syl_sim::design::SimDesign::instances|Vec<SimInstance>
+syl_sim|field|syl_sim::design::SimDesign::logs|Vec<SimLog>
 syl_sim|field|syl_sim::design::SimDesign::memories|Vec<SimMem>
 syl_sim|field|syl_sim::design::SimDesign::regs|Vec<SimReg>
 syl_sim|field|syl_sim::design::SimDesign::resets|Vec<ResetDomain>
@@ -2859,6 +2882,10 @@ syl_sim|field|syl_sim::design::SimInstance::parent|Option<InstanceId>
 syl_sim|field|syl_sim::design::SimInstance::ports|Vec<SimPort>
 syl_sim|field|syl_sim::design::SimInstance::source|SourceLocation
 syl_sim|field|syl_sim::design::SimInstance::template|TemplateId
+syl_sim|field|syl_sim::design::SimLog::clock|DomainId
+syl_sim|field|syl_sim::design::SimLog::message|Vec<syl_hw::FormatPiece<SimExpr, u32>>
+syl_sim|field|syl_sim::design::SimLog::source|SourceLocation
+syl_sim|field|syl_sim::design::SimLog::trigger|SimExpr
 syl_sim|field|syl_sim::design::SimMem::comb_reads|Vec<MemCombReadPort>
 syl_sim|field|syl_sim::design::SimMem::depth|u32
 syl_sim|field|syl_sim::design::SimMem::source|SourceLocation
@@ -2913,6 +2940,7 @@ syl_sim|field|syl_sim::runtime::AssertionFailure::cycle|u64
 syl_sim|field|syl_sim::runtime::AssertionFailure::message|String
 syl_sim|field|syl_sim::runtime::AssertionFailure::path|String
 syl_sim|field|syl_sim::runtime::AssertionFailure::span|syl_span::Span
+syl_sim|field|syl_sim::runtime::Simulator::log_lines|Vec<String>
 syl_sim|field|syl_sim::runtime::Simulator::strict_unique|bool
 syl_sim|field|syl_sim::runtime::Simulator::unique_violations|Vec<UniqueOverlapViolation>
 syl_sim|field|syl_sim::runtime::UniqueOverlapViolation::cycle|u64
@@ -2980,6 +3008,7 @@ syl_sim|method|syl_sim::runtime::Simulator::port|fn(self: &Self, name: &str) -> 
 syl_sim|method|syl_sim::runtime::Simulator::read_named|fn(self: &Self, name: &str) -> std::result::Result<&Value, RuntimeError>
 syl_sim|method|syl_sim::runtime::Simulator::read|fn(self: &Self, id: SignalId) -> &Value
 syl_sim|method|syl_sim::runtime::Simulator::register_extern|fn(self: &mut Self, id: InstanceId, model: impl ExternModel + {"outlives": "'static"}) -> std::result::Result<(), RuntimeError>
+syl_sim|method|syl_sim::runtime::Simulator::set_log_sink|fn(self: &mut Self, sink: impl FnMut + {"outlives": "'d"})
 syl_sim|method|syl_sim::runtime::Simulator::step_clocks|fn(self: &mut Self, events: &[ClockEvent]) -> std::result::Result<(), RuntimeError>
 syl_sim|method|syl_sim::runtime::Simulator::tick|fn(self: &mut Self, clock: &str) -> std::result::Result<(), RuntimeError>
 syl_sim|method|syl_sim::runtime::Simulator::with_mode|fn(design: &SimDesign, mode: StateMode) -> Self
@@ -3033,6 +3062,7 @@ syl_sim|struct|syl_sim::design::SimAssert|public
 syl_sim|struct|syl_sim::design::SimDesign|public
 syl_sim|struct|syl_sim::design::SimExternInstance|public
 syl_sim|struct|syl_sim::design::SimInstance|public
+syl_sim|struct|syl_sim::design::SimLog|public
 syl_sim|struct|syl_sim::design::SimMem|public
 syl_sim|struct|syl_sim::design::SimPort|public
 syl_sim|struct|syl_sim::design::SimReg|public
@@ -3103,6 +3133,7 @@ syl_sim|use|SimError|named|source=design::SimError
 syl_sim|use|SimExpr|named|source=design::SimExpr
 syl_sim|use|SimExternInstance|named|source=design::SimExternInstance
 syl_sim|use|SimInstance|named|source=design::SimInstance
+syl_sim|use|SimLog|named|source=design::SimLog
 syl_sim|use|SimMem|named|source=design::SimMem
 syl_sim|use|SimPort|named|source=design::SimPort
 syl_sim|use|SimReg|named|source=design::SimReg
@@ -3253,6 +3284,8 @@ syl_syntax|enum|syl_syntax::lossless::LosslessNodeKind|public
 syl_syntax|enum|syl_syntax::lossless::LosslessSyntaxElement|public
 syl_syntax|enum|syl_syntax::lossless::LosslessTokenKind|public
 syl_syntax|enum|syl_syntax::node_index::model::AstNodeKind|public
+syl_syntax|enum|syl_syntax::parser::format::FormatPart|public
+syl_syntax|enum|syl_syntax::parser::format::FormatSpec|public
 syl_syntax|enum|syl_syntax::token::TokenKind|public
 syl_syntax|field|syl_syntax::ast::AstFile::doc|Option<String>
 syl_syntax|field|syl_syntax::ast::AstFile::items|Vec<Item>
@@ -3270,6 +3303,7 @@ syl_syntax|field|syl_syntax::ast::BundleItem::fields|Vec<FieldDecl>
 syl_syntax|field|syl_syntax::ast::BundleItem::generics|Vec<GenericParam>
 syl_syntax|field|syl_syntax::ast::BundleItem::name|String
 syl_syntax|field|syl_syntax::ast::BundleItem::span|syl_span::Span
+syl_syntax|field|syl_syntax::ast::CallArg::format|Option<crate::parser::FormatTemplate<Expr>>
 syl_syntax|field|syl_syntax::ast::CallArg::name|Option<String>
 syl_syntax|field|syl_syntax::ast::CallArg::span|syl_span::Span
 syl_syntax|field|syl_syntax::ast::CallArg::value|Expr
@@ -3490,6 +3524,7 @@ syl_syntax|method|syl_syntax::parser::SourceParser::parse_expr|fn(self: &Self) -
 syl_syntax|method|syl_syntax::parser::SourceParser::parse_file_partial|fn(self: &Self) -> ParseOutput
 syl_syntax|method|syl_syntax::parser::SourceParser::parse_file_with_lossless|fn(self: &Self) -> (ParseOutput, LosslessSyntaxFile)
 syl_syntax|method|syl_syntax::parser::SourceParser::parse_file|fn(self: &Self) -> Result<AstFile, Vec<Diagnostic>>
+syl_syntax|method|syl_syntax::parser::format::FormatPart::map|fn(self: &Self, f: impl FnOnce) -> FormatPart<U>
 syl_syntax|method|syl_syntax::parser::output::ParseOutput::into_result|fn(self: Self) -> Result<AstFile, Vec<Diagnostic>>
 syl_syntax|method|syl_syntax::parser::output::ParseOutput::new|fn(file: AstFile, diagnostics: Vec<Diagnostic>) -> Self
 syl_syntax|method|syl_syntax::parser::output::ParseOutput::node_index|fn(self: &Self) -> &crate::AstNodeIndex
@@ -3543,6 +3578,7 @@ syl_syntax|struct|syl_syntax::parser::Parser|public
 syl_syntax|struct|syl_syntax::parser::SourceParser|public
 syl_syntax|struct|syl_syntax::parser::output::ParseOutput|public
 syl_syntax|struct|syl_syntax::token::Token|public
+syl_syntax|type_alias|syl_syntax::parser::format::FormatTemplate|Result<Vec<FormatPart<T>>, Box<syl_span::Diagnostic>>
 syl_syntax|use|AstFile|named|source=ast::AstFile
 syl_syntax|use|AstNodeId|named|source=model::AstNodeId
 syl_syntax|use|AstNodeId|named|source=node_index::AstNodeId
@@ -3568,6 +3604,9 @@ syl_syntax|use|Expr|named|source=ast::Expr
 syl_syntax|use|ExternCellItem|named|source=ast::ExternCellItem
 syl_syntax|use|FieldDecl|named|source=ast::FieldDecl
 syl_syntax|use|FnItem|named|source=ast::FnItem
+syl_syntax|use|FormatPart|named|source=format::FormatPart
+syl_syntax|use|FormatSpec|named|source=format::FormatSpec
+syl_syntax|use|FormatTemplate|named|source=format::FormatTemplate
 syl_syntax|use|GenericParam|named|source=ast::GenericParam
 syl_syntax|use|InterfaceItem|named|source=ast::InterfaceItem
 syl_syntax|use|Item|named|source=ast::Item
@@ -3825,6 +3864,15 @@ syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::ViewField|unit
 syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::ViewSelectType|unit
 syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::WhileStmt|unit
 syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::WildcardPattern|unit
+syl_syntax|variant|syl_syntax::parser::format::FormatPart::Argument|{ index: usize, spec: FormatSpec }
+syl_syntax|variant|syl_syntax::parser::format::FormatPart::Capture|{ expr: T, spec: FormatSpec }
+syl_syntax|variant|syl_syntax::parser::format::FormatPart::Literal|(String)
+syl_syntax|variant|syl_syntax::parser::format::FormatSpec::Binary|{ prefix: bool, digits: u16 }
+syl_syntax|variant|syl_syntax::parser::format::FormatSpec::Debug|unit
+syl_syntax|variant|syl_syntax::parser::format::FormatSpec::Default|unit
+syl_syntax|variant|syl_syntax::parser::format::FormatSpec::Hex|{ upper: bool, prefix: bool, digits: u16 }
+syl_syntax|variant|syl_syntax::parser::format::FormatSpec::Signed|unit
+syl_syntax|variant|syl_syntax::parser::format::FormatSpec::Unsigned|unit
 syl_syntax|variant|syl_syntax::token::TokenKind::AndAnd|unit
 syl_syntax|variant|syl_syntax::token::TokenKind::Arrow|unit
 syl_syntax|variant|syl_syntax::token::TokenKind::At|unit

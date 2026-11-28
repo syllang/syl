@@ -6,52 +6,61 @@ use crate::{CompileError, hir::HirBodyExpr, ir::mir::MirTypeRef};
 use syl_hir::DefId;
 
 #[non_exhaustive]
-pub(super) struct MapReturnTypeResolver<'checker, 'callee> {
+pub(super) struct ReturnTypeResolver<'checker, 'callee> {
     checker: &'checker TypePhaseChecker,
     call_owner: DefId,
-    map_def: DefId,
+    callee_def: DefId,
     callee: &'callee HirBodyExpr,
 }
 
-impl<'checker, 'callee> MapReturnTypeResolver<'checker, 'callee> {
+impl<'checker, 'callee> ReturnTypeResolver<'checker, 'callee> {
     pub(super) fn new(
         checker: &'checker TypePhaseChecker,
         call_owner: DefId,
-        map_def: DefId,
+        callee_def: DefId,
         callee: &'callee HirBodyExpr,
     ) -> Self {
         Self {
             checker,
             call_owner,
-            map_def,
+            callee_def,
             callee,
         }
     }
 
     pub(super) fn resolve(&self) -> Option<TirType> {
-        let map = self.checker.hir.maps().get(&self.map_def)?;
-        let ret_ty = map.ret_ty.as_ref()?;
-        let bindings = self.generic_bindings().ok()?;
-        SubstitutingTypeResolver::new(self.checker, self.map_def, &bindings)
-            .resolve_mir_type_ref(&ret_ty.ty)
+        let (ret_ty, generics) = if let Some(map) = self.checker.hir.maps().get(&self.callee_def) {
+            (&map.ret_ty.as_ref()?.ty, &map.generics)
+        } else {
+            let callable = self.checker.hir.callables().get(&self.callee_def)?;
+            let generics = match callable {
+                syl_hir::HirCallable::Cell(item) => &item.generics,
+                syl_hir::HirCallable::Extern(item) => &item.generics,
+                _ => return None,
+            };
+            (&callable.result()?.ty, generics)
+        };
+        let bindings = self.generic_bindings(generics).ok()?;
+        SubstitutingTypeResolver::new(self.checker, self.callee_def, &bindings)
+            .resolve_mir_type_ref(ret_ty)
             .ok()
     }
 
-    fn generic_bindings(&self) -> Result<Vec<TirGenericBinding>, CompileError> {
-        let Some(map) = self.checker.hir.maps().get(&self.map_def) else {
-            return Ok(Vec::new());
-        };
+    fn generic_bindings(
+        &self,
+        generics: &[syl_hir::HirSignatureGenericParam],
+    ) -> Result<Vec<TirGenericBinding>, CompileError> {
         let inferred_args = self
             .checker
             .extension_method_call(self.call_owner, self.callee)
-            .filter(|call| call.method == self.map_def)
+            .filter(|call| call.method == self.callee_def)
             .map(|call| call.inferred_args)
             .unwrap_or_default();
         let explicit_args = self.callee_generic_args();
         if explicit_args.is_none() && !inferred_args.is_empty() {
             return Ok(inferred_args
                 .into_iter()
-                .zip(&map.generics)
+                .zip(generics)
                 .map(|(arg, generic)| TirGenericBinding {
                     name: generic.name.clone(),
                     arg,
@@ -62,7 +71,7 @@ impl<'checker, 'callee> MapReturnTypeResolver<'checker, 'callee> {
             return Ok(Vec::new());
         };
         args.iter()
-            .zip(&map.generics)
+            .zip(generics)
             .map(|(arg, generic)| {
                 let arg = if generic
                     .kind

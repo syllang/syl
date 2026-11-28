@@ -201,13 +201,30 @@ impl Lower<'_> {
             } => {
                 let clock = self.clock(clock, scope)?;
                 let (reset_mask, condition) = self.assertion(trigger, scope)?;
+                let message = self.message(message, scope)?;
                 let name = format!("assert[{}]", self.design.assertions.len());
                 self.design.assertions.push(SimAssert {
                     source: scope.source(&name, origin),
                     clock,
                     reset_mask,
                     condition,
-                    message: string(message)?.into(),
+                    message,
+                });
+            }
+            HwItem::ClockedLog {
+                clock,
+                trigger,
+                message,
+            } => {
+                let clock = self.clock(clock, scope)?;
+                let trigger = self.expression(trigger, scope)?;
+                let message = self.message(message, scope)?;
+                let source = scope.location("", "", origin);
+                self.design.logs.push(SimLog {
+                    source,
+                    clock,
+                    trigger,
+                    message,
                 });
             }
             HwItem::InitialError { message } => {
@@ -216,6 +233,22 @@ impl Lower<'_> {
             _ => return invalid(format!("unsupported item in {}: {item:?}", scope.path)),
         }
         Ok(())
+    }
+
+    fn message(
+        &mut self,
+        pieces: &[syl_hw::FormatPiece<HwExpr>],
+        scope: &Scope,
+    ) -> Result<Vec<syl_hw::FormatPiece<SimExpr, u32>>> {
+        pieces
+            .iter()
+            .map(|p| {
+                p.try_map(
+                    |expr| self.expression(expr, scope),
+                    |width| dimension(width, &scope.params),
+                )
+            })
+            .collect()
     }
 
     fn clock(&mut self, e: &HwExpr, scope: &Scope) -> Result<DomainId> {

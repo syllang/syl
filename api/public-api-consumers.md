@@ -342,6 +342,7 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_hir|field|syl_hir::model::body::HirBlock::span|syl_span::Span` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|field|syl_hir::model::body::HirBlock::stmts|Vec<HirStmt>` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|field|syl_hir::model::body::HirBlock::tail|Option<Box<HirExpr>>` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
+- `syl_hir|field|syl_hir::model::body::HirCallArg::format|Option<syl_syntax::parser::FormatTemplate<HirExpr>>` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|field|syl_hir::model::body::HirCallArg::name|Option<String>` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|field|syl_hir::model::body::HirCallArg::value|HirExpr` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|field|syl_hir::model::body::HirExpr::id|crate::ExprId` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
@@ -652,6 +653,8 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_hir|struct|syl_hir::name::HirPath|public` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|use|DefId|named|source=ids::DefId` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|use|ExprId|named|source=ids::ExprId` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
+- `syl_hir|use|FormatPart|named|source=syl_syntax::parser::FormatPart` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
+- `syl_hir|use|FormatSpec|named|source=syl_syntax::parser::FormatSpec` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|use|HirAttribute|named|source=item::HirAttribute` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|use|HirAttribute|named|source=model::HirAttribute` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
 - `syl_hir|use|HirBlock|named|source=body::HirBlock` - Semantic lowering, query, and session internals that consume stable HIR identifiers and typed HIR models.
@@ -873,6 +876,8 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_hw|enum|syl_hw::expr::HwExpr|public` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|enum|syl_hw::expr::HwSelectMode|public` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|enum|syl_hw::expr::HwUnaryOp|public` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|enum|syl_hw::format::FormatPiece|public` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|enum|syl_hw::format::FormatStyle|public` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|enum|syl_hw::parametric::ParametricHwItem|public` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|enum|syl_hw::place::HwPlaceExpr|public` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|enum|syl_hw::place::HwPlace|public` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
@@ -958,6 +963,7 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_hw|method|syl_hw::expr::HwSelectArm::new|fn(guard: HwExpr, value: HwExpr) -> Self` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::expr::HwSelectArm::value|fn(self: &Self) -> &HwExpr` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::expr::HwSelectMode::is_unique|fn(self: &Self) -> bool` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|method|syl_hw::format::FormatPiece::try_map|fn(self: &Self, expression: impl FnOnce, width_fn: impl FnOnce) -> Result<FormatPiece<F, V>, Err>` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::ids::ObjectId::get|fn(self: Self) -> usize` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::ids::ObjectId::new|fn(value: usize) -> Self` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|method|syl_hw::parametric::ParametricHwDesign::debug_dump|fn(self: &Self) -> String` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
@@ -1009,6 +1015,8 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_hw|struct|syl_hw::validate::HwValidator|public` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|struct|syl_hw::validate::NormalizedParametricHwDesign|public` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|struct|syl_hw::validate::diagnostic::HwValidationReport|public` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|use|FormatPiece|named|source=format::FormatPiece` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|use|FormatStyle|named|source=format::FormatStyle` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|use|HwBinaryOp|named|source=expr::HwBinaryOp` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|use|HwBindingKind|named|source=diagnostic::HwBindingKind` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|use|HwBindingKind|named|source=validate::HwBindingKind` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
@@ -1052,7 +1060,8 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_hw|variant|syl_hw::design::HwGuardFrame::IfElse|{ label: String }` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|variant|syl_hw::design::HwGuardFrame::IfThen|{ label: String }` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|variant|syl_hw::design::HwGuardFrame::Loop|{ label: String }` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
-- `syl_hw|variant|syl_hw::design::HwItem::ClockedAssert|{ clock: crate::HwExpr, trigger: crate::HwExpr, message: crate::HwExpr }` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|variant|syl_hw::design::HwItem::ClockedAssert|{ clock: crate::HwExpr, trigger: crate::HwExpr, message: Vec<crate::FormatPiece<crate::HwExpr>> }` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|variant|syl_hw::design::HwItem::ClockedLog|{ clock: crate::HwExpr, trigger: crate::HwExpr, message: Vec<crate::FormatPiece<crate::HwExpr>> }` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|variant|syl_hw::design::HwItem::ClockedStorage|{ clock: crate::HwExpr, target: crate::HwExpr, reset: Option<HwReset>, next: crate::HwExpr }` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|variant|syl_hw::design::HwItem::ContinuousDrive|{ lhs: crate::HwExpr, rhs: crate::HwExpr }` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|variant|syl_hw::design::HwItem::ControlSignalDecl|{ width: String, name: String, domain: crate::HwPortDomain }` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
@@ -1102,6 +1111,15 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_hw|variant|syl_hw::expr::HwSelectMode::Unique|unit` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|variant|syl_hw::expr::HwUnaryOp::Neg|unit` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|variant|syl_hw::expr::HwUnaryOp::Not|unit` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|variant|syl_hw::format::FormatPiece::Literal|(String)` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|variant|syl_hw::format::FormatPiece::Value|{ expr: E, width: Option<W>, style: FormatStyle }` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|variant|syl_hw::format::FormatStyle::Binary|{ prefix: bool, digits: u16 }` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|variant|syl_hw::format::FormatStyle::Bool|unit` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|variant|syl_hw::format::FormatStyle::Debug|unit` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|variant|syl_hw::format::FormatStyle::Enum|{ name: String, variants: Vec<(u64, String)>, debug: bool }` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|variant|syl_hw::format::FormatStyle::Hex|{ upper: bool, prefix: bool, digits: u16 }` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|variant|syl_hw::format::FormatStyle::Signed|unit` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
+- `syl_hw|variant|syl_hw::format::FormatStyle::Unsigned|unit` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|variant|syl_hw::parametric::ParametricHwItem::Core|{ item: crate::HwItem, origin: crate::HwOrigin }` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|variant|syl_hw::parametric::ParametricHwItem::StaticFor|{ index: String, start: crate::HwExpr, end: crate::HwExpr, label: String, items: Vec<ParametricHwItem>, origin: crate::HwOrigin }` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
 - `syl_hw|variant|syl_hw::parametric::ParametricHwItem::StaticIf|{ cond: crate::HwExpr, label: String, then_items: Vec<ParametricHwItem>, else_items: Vec<ParametricHwItem>, origin: crate::HwOrigin }` - Elaboration, emission, and backend validation code that consumes the hardware graph model.
@@ -2239,8 +2257,10 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_sema|variant|syl_sema::diagnostic::error::EirError::InplaceOnExternCell|{ name: String }` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
 - `syl_sema|variant|syl_sema::diagnostic::error::EirError::InstanceCalleeMustBeName|unit` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
 - `syl_sema|variant|syl_sema::diagnostic::error::EirError::InvalidElaborationExpression|unit` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
+- `syl_sema|variant|syl_sema::diagnostic::error::EirError::InvalidFormat|{ message: String }` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
 - `syl_sema|variant|syl_sema::diagnostic::error::EirError::InvalidInterfaceType|unit` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
 - `syl_sema|variant|syl_sema::diagnostic::error::EirError::LocalBindingLoweringUnsupported|unit` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
+- `syl_sema|variant|syl_sema::diagnostic::error::EirError::LogStatementOnly|unit` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
 - `syl_sema|variant|syl_sema::diagnostic::error::EirError::MemoryOpStatementOnly|unit` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
 - `syl_sema|variant|syl_sema::diagnostic::error::EirError::MemoryRequiresArrayType|unit` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
 - `syl_sema|variant|syl_sema::diagnostic::error::EirError::MemoryTargetMustBeMem|{ name: String }` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
@@ -2522,6 +2542,7 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_sema|variant|syl_sema::tir::builtin::BuiltinIntrinsic::Assert|unit` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
 - `syl_sema|variant|syl_sema::tir::builtin::BuiltinIntrinsic::Error|unit` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
 - `syl_sema|variant|syl_sema::tir::builtin::BuiltinIntrinsic::HighZ|unit` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
+- `syl_sema|variant|syl_sema::tir::builtin::BuiltinIntrinsic::Log|unit` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
 - `syl_sema|variant|syl_sema::tir::builtin::BuiltinIntrinsic::MemReadSync|unit` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
 - `syl_sema|variant|syl_sema::tir::builtin::BuiltinIntrinsic::MemWrite|unit` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
 - `syl_sema|variant|syl_sema::tir::builtin::BuiltinIntrinsic::Zero|unit` - Elaboration, session, query, and compiler tests that consume semantic facts, TIR, diagnostics, and opaque summary contracts.
@@ -2877,6 +2898,7 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_sim|field|syl_sim::batch_run::BatchResult::digest|u64` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|field|syl_sim::batch_run::BatchResult::failure|Option<(FailureCoordinate, AssertionFailure)>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|field|syl_sim::batch_run::BatchResult::kernel_ms|f64` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::batch_run::BatchResult::replay_logs|Vec<String>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|field|syl_sim::batch_run::FailureCoordinate::assert_id|AssertId` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|field|syl_sim::batch_run::FailureCoordinate::batch|usize` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|field|syl_sim::batch_run::FailureCoordinate::cycle|u64` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
@@ -2911,7 +2933,7 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_sim|field|syl_sim::design::SignalId::0|usize` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|field|syl_sim::design::SimAssert::clock|DomainId` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|field|syl_sim::design::SimAssert::condition|SimExpr` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
-- `syl_sim|field|syl_sim::design::SimAssert::message|String` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimAssert::message|Vec<syl_hw::FormatPiece<SimExpr, u32>>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|field|syl_sim::design::SimAssert::reset_mask|Option<ResetId>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|field|syl_sim::design::SimAssert::source|SourceLocation` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|field|syl_sim::design::SimDesign::assertions|Vec<SimAssert>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
@@ -2922,6 +2944,7 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_sim|field|syl_sim::design::SimDesign::externs|Vec<SimExternInstance>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|field|syl_sim::design::SimDesign::families|Vec<InstanceFamily>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|field|syl_sim::design::SimDesign::instances|Vec<SimInstance>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimDesign::logs|Vec<SimLog>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|field|syl_sim::design::SimDesign::memories|Vec<SimMem>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|field|syl_sim::design::SimDesign::regs|Vec<SimReg>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|field|syl_sim::design::SimDesign::resets|Vec<ResetDomain>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
@@ -2933,6 +2956,10 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_sim|field|syl_sim::design::SimInstance::ports|Vec<SimPort>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|field|syl_sim::design::SimInstance::source|SourceLocation` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|field|syl_sim::design::SimInstance::template|TemplateId` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimLog::clock|DomainId` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimLog::message|Vec<syl_hw::FormatPiece<SimExpr, u32>>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimLog::source|SourceLocation` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::design::SimLog::trigger|SimExpr` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|field|syl_sim::design::SimMem::comb_reads|Vec<MemCombReadPort>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|field|syl_sim::design::SimMem::depth|u32` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|field|syl_sim::design::SimMem::source|SourceLocation` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
@@ -2987,6 +3014,7 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_sim|field|syl_sim::runtime::AssertionFailure::message|String` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|field|syl_sim::runtime::AssertionFailure::path|String` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|field|syl_sim::runtime::AssertionFailure::span|syl_span::Span` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|field|syl_sim::runtime::Simulator::log_lines|Vec<String>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|field|syl_sim::runtime::Simulator::strict_unique|bool` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|field|syl_sim::runtime::Simulator::unique_violations|Vec<UniqueOverlapViolation>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|field|syl_sim::runtime::UniqueOverlapViolation::cycle|u64` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
@@ -3054,6 +3082,7 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_sim|method|syl_sim::runtime::Simulator::read_named|fn(self: &Self, name: &str) -> std::result::Result<&Value, RuntimeError>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|method|syl_sim::runtime::Simulator::read|fn(self: &Self, id: SignalId) -> &Value` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|method|syl_sim::runtime::Simulator::register_extern|fn(self: &mut Self, id: InstanceId, model: impl ExternModel + {"outlives": "'static"}) -> std::result::Result<(), RuntimeError>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|method|syl_sim::runtime::Simulator::set_log_sink|fn(self: &mut Self, sink: impl FnMut + {"outlives": "'d"})` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|method|syl_sim::runtime::Simulator::step_clocks|fn(self: &mut Self, events: &[ClockEvent]) -> std::result::Result<(), RuntimeError>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|method|syl_sim::runtime::Simulator::tick|fn(self: &mut Self, clock: &str) -> std::result::Result<(), RuntimeError>` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|method|syl_sim::runtime::Simulator::with_mode|fn(design: &SimDesign, mode: StateMode) -> Self` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
@@ -3107,6 +3136,7 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_sim|struct|syl_sim::design::SimDesign|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|struct|syl_sim::design::SimExternInstance|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|struct|syl_sim::design::SimInstance|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|struct|syl_sim::design::SimLog|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|struct|syl_sim::design::SimMem|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|struct|syl_sim::design::SimPort|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|struct|syl_sim::design::SimReg|public` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
@@ -3177,6 +3207,7 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_sim|use|SimExpr|named|source=design::SimExpr` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|use|SimExternInstance|named|source=design::SimExternInstance` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|use|SimInstance|named|source=design::SimInstance` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
+- `syl_sim|use|SimLog|named|source=design::SimLog` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|use|SimMem|named|source=design::SimMem` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|use|SimPort|named|source=design::SimPort` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
 - `syl_sim|use|SimReg|named|source=design::SimReg` - Reference and accelerated simulation engines consume concrete design arenas, source locations, templates and static schedules.
@@ -3327,6 +3358,8 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_syntax|enum|syl_syntax::lossless::LosslessSyntaxElement|public` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|enum|syl_syntax::lossless::LosslessTokenKind|public` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|enum|syl_syntax::node_index::model::AstNodeKind|public` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
+- `syl_syntax|enum|syl_syntax::parser::format::FormatPart|public` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
+- `syl_syntax|enum|syl_syntax::parser::format::FormatSpec|public` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|enum|syl_syntax::token::TokenKind|public` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|field|syl_syntax::ast::AstFile::doc|Option<String>` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|field|syl_syntax::ast::AstFile::items|Vec<Item>` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
@@ -3344,6 +3377,7 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_syntax|field|syl_syntax::ast::BundleItem::generics|Vec<GenericParam>` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|field|syl_syntax::ast::BundleItem::name|String` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|field|syl_syntax::ast::BundleItem::span|syl_span::Span` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
+- `syl_syntax|field|syl_syntax::ast::CallArg::format|Option<crate::parser::FormatTemplate<Expr>>` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|field|syl_syntax::ast::CallArg::name|Option<String>` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|field|syl_syntax::ast::CallArg::span|syl_span::Span` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|field|syl_syntax::ast::CallArg::value|Expr` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
@@ -3564,6 +3598,7 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_syntax|method|syl_syntax::parser::SourceParser::parse_file_partial|fn(self: &Self) -> ParseOutput` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|method|syl_syntax::parser::SourceParser::parse_file_with_lossless|fn(self: &Self) -> (ParseOutput, LosslessSyntaxFile)` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|method|syl_syntax::parser::SourceParser::parse_file|fn(self: &Self) -> Result<AstFile, Vec<Diagnostic>>` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
+- `syl_syntax|method|syl_syntax::parser::format::FormatPart::map|fn(self: &Self, f: impl FnOnce) -> FormatPart<U>` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|method|syl_syntax::parser::output::ParseOutput::into_result|fn(self: Self) -> Result<AstFile, Vec<Diagnostic>>` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|method|syl_syntax::parser::output::ParseOutput::new|fn(file: AstFile, diagnostics: Vec<Diagnostic>) -> Self` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|method|syl_syntax::parser::output::ParseOutput::node_index|fn(self: &Self) -> &crate::AstNodeIndex` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
@@ -3617,6 +3652,7 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_syntax|struct|syl_syntax::parser::SourceParser|public` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|struct|syl_syntax::parser::output::ParseOutput|public` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|struct|syl_syntax::token::Token|public` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
+- `syl_syntax|type_alias|syl_syntax::parser::format::FormatTemplate|Result<Vec<FormatPart<T>>, Box<syl_span::Diagnostic>>` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|use|AstFile|named|source=ast::AstFile` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|use|AstNodeId|named|source=model::AstNodeId` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|use|AstNodeId|named|source=node_index::AstNodeId` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
@@ -3642,6 +3678,9 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_syntax|use|ExternCellItem|named|source=ast::ExternCellItem` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|use|FieldDecl|named|source=ast::FieldDecl` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|use|FnItem|named|source=ast::FnItem` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
+- `syl_syntax|use|FormatPart|named|source=format::FormatPart` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
+- `syl_syntax|use|FormatSpec|named|source=format::FormatSpec` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
+- `syl_syntax|use|FormatTemplate|named|source=format::FormatTemplate` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|use|GenericParam|named|source=ast::GenericParam` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|use|InterfaceItem|named|source=ast::InterfaceItem` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|use|Item|named|source=ast::Item` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
@@ -3899,6 +3938,15 @@ exported; adding or changing a surface line requires updating this section.
 - `syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::ViewSelectType|unit` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::WhileStmt|unit` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|variant|syl_syntax::node_index::model::AstNodeKind::WildcardPattern|unit` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
+- `syl_syntax|variant|syl_syntax::parser::format::FormatPart::Argument|{ index: usize, spec: FormatSpec }` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
+- `syl_syntax|variant|syl_syntax::parser::format::FormatPart::Capture|{ expr: T, spec: FormatSpec }` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
+- `syl_syntax|variant|syl_syntax::parser::format::FormatPart::Literal|(String)` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
+- `syl_syntax|variant|syl_syntax::parser::format::FormatSpec::Binary|{ prefix: bool, digits: u16 }` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
+- `syl_syntax|variant|syl_syntax::parser::format::FormatSpec::Debug|unit` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
+- `syl_syntax|variant|syl_syntax::parser::format::FormatSpec::Default|unit` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
+- `syl_syntax|variant|syl_syntax::parser::format::FormatSpec::Hex|{ upper: bool, prefix: bool, digits: u16 }` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
+- `syl_syntax|variant|syl_syntax::parser::format::FormatSpec::Signed|unit` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
+- `syl_syntax|variant|syl_syntax::parser::format::FormatSpec::Unsigned|unit` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|variant|syl_syntax::token::TokenKind::AndAnd|unit` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|variant|syl_syntax::token::TokenKind::Arrow|unit` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.
 - `syl_syntax|variant|syl_syntax::token::TokenKind::At|unit` - Parser, HIR lowering, session, query, LSP, fuzz, and documentation checks that consume typed AST, lossless syntax, tokens, parser entrypoints, and node indexes.

@@ -38,6 +38,15 @@ struct FnLocalDecl<'a> {
 }
 
 impl TypePhaseChecker {
+    pub(super) fn check_format_const_expr(
+        &mut self,
+        expr: &HirBodyExpr,
+        errors: &mut Vec<CompileError>,
+    ) -> Result<(), CompileError> {
+        self.check_fn_expr(expr, &FnTypeEnv::default(), errors)
+            .map(|_| ())
+    }
+
     pub(super) fn check_fn_body(
         &mut self,
         owner: DefId,

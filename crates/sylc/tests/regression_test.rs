@@ -248,8 +248,10 @@ cell Top(clk: in Clock, x: in Bit, y: out Bit) {
         .1
         .split_once("`endif")
         .unwrap();
-    assert!(guarded.contains("always @(posedge clk) begin"));
-    assert!(guarded.contains("if ((!x)) $error(\"assert failed\");"));
+    assert!(guarded.contains("always_ff @(posedge clk) begin"));
+    assert!(guarded.contains("if ((!x)) begin"));
+    assert!(guarded.contains("syl$failure0 = $sformatf(\"assert failed\");"));
+    assert!(guarded.contains("$error(\"%s\", syl$failure0)"));
     assert!(hardware.contains("assign y = x;"));
 }
 

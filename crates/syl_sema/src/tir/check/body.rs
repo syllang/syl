@@ -1,4 +1,5 @@
 mod elab;
+mod format;
 
 use super::super::consts::{TirConstEnv, TirConstKind};
 use super::super::{
@@ -122,6 +123,10 @@ impl TypePhaseChecker {
                         );
                         Self::record_recoverable(errors, self.record_expr_type(value, explicit_ty));
                     }
+                    if ty.is_none() {
+                        let inferred = self.infer_expr_type(self.current_owner()?, value);
+                        self.record_decl_local_type(name, *id, *span, inferred)?;
+                    }
                     Self::record_recoverable(errors, self.record_phase(value, Phase::Const));
                     if let Some(kind) = ty.as_ref().and_then(|ty| self.mir_type_kind(ty))
                         && let Some(local_id) = local_id
@@ -157,6 +162,10 @@ impl TypePhaseChecker {
                         );
                     }
                     if let Some(value) = value {
+                        if ty.is_none() {
+                            let inferred = self.infer_expr_type(self.current_owner()?, value);
+                            self.record_decl_local_type(name, *id, *span, inferred)?;
+                        }
                         Self::record_recoverable(errors, self.record_phase(value, Phase::Hardware));
                         self.check_let_binding_expr(name, value, &env, errors)?;
                     }
@@ -395,15 +404,19 @@ impl TypePhaseChecker {
             }
             return self.check_runtime_error_stmt_expr(expr, errors);
         }
-        if self.is_assert_builtin_call(expr) {
+        if let Some(kind) = self.clocked_message_builtin(expr) {
             if !allow_stmt_builtins {
                 errors.push(CompileError::lowering_at(
-                    EirError::AssertionStatementOnly,
+                    if kind == BuiltinIntrinsic::Log {
+                        EirError::LogStatementOnly
+                    } else {
+                        EirError::AssertionStatementOnly
+                    },
                     expr.span(),
                 ));
                 return Ok(());
             }
-            return self.check_assert_stmt_expr(expr, errors);
+            return self.check_clocked_message(expr, kind, errors);
         }
         self.check_hardware_value_expr(expr, errors)
     }
@@ -422,14 +435,13 @@ impl TypePhaseChecker {
         )
     }
 
-    fn is_assert_builtin_call(&self, expr: &HirBodyExpr) -> bool {
+    fn clocked_message_builtin(&self, expr: &HirBodyExpr) -> Option<BuiltinIntrinsic> {
         let HirExprNode::Call { callee, .. } = &expr.node else {
-            return false;
+            return None;
         };
-        matches!(
-            BuiltinResolver::new(&self.hir, self.current_owner).resolve_call_callee(callee),
-            Some(BuiltinIntrinsic::Assert)
-        )
+        BuiltinResolver::new(&self.hir, self.current_owner)
+            .resolve_call_callee(callee)
+            .filter(|kind| matches!(kind, BuiltinIntrinsic::Assert | BuiltinIntrinsic::Log))
     }
 
     fn check_runtime_error_stmt_expr(
@@ -453,35 +465,6 @@ impl TypePhaseChecker {
         self.check_hardware_value_expr(&args[0].value, errors)
     }
 
-    fn check_assert_stmt_expr(
-        &mut self,
-        expr: &HirBodyExpr,
-        errors: &mut Vec<CompileError>,
-    ) -> Result<(), CompileError> {
-        let HirExprNode::Call { args, .. } = &expr.node else {
-            return Ok(());
-        };
-        if args.len() != 1 || args[0].name.is_some() {
-            errors.push(CompileError::lowering_at(
-                EirError::AssertionRequiresSingleCondition,
-                expr.span(),
-            ));
-            for arg in args {
-                self.check_hardware_value_expr(&arg.value, errors)?;
-            }
-            return Ok(());
-        }
-        let condition = &args[0].value;
-        self.check_hardware_value_expr(condition, errors)?;
-        let owner = self.current_owner()?;
-        if !matches!(self.infer_expr_type(owner, condition), TirType::Bit) {
-            errors.push(CompileError::lowering_at(
-                EirError::AssertionConditionMustBeBit,
-                condition.span(),
-            ));
-        }
-        Ok(())
-    }
     pub(super) fn check_hardware_drive_target(
         &mut self,
         target: &HirBodyExpr,

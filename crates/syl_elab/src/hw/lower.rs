@@ -285,14 +285,43 @@ impl<'a> HwLowerer<'a> {
                 message,
                 origin,
                 ..
-            } => Ok(vec![ParametricHwItem::core(
-                HwItem::ClockedAssert {
-                    clock: self.lower_expr(clock, origin.span())?,
-                    trigger: self.lower_expr(trigger, origin.span())?,
-                    message: self.lower_expr(message, origin.span())?,
-                },
-                self.lower_origin(origin),
-            )]),
+            }
+            | EirItem::ClockedLog {
+                clock,
+                trigger,
+                message,
+                origin,
+                ..
+            } => {
+                let clock = self.lower_expr(clock, origin.span())?;
+                let trigger = self.lower_expr(trigger, origin.span())?;
+                let message = message
+                    .iter()
+                    .map(|piece| {
+                        piece.try_map(
+                            |expr| self.lower_expr(expr, origin.span()),
+                            |w| Ok(w.clone()),
+                        )
+                    })
+                    .collect::<Result<_, _>>()?;
+                let core = if matches!(item, EirItem::ClockedLog { .. }) {
+                    HwItem::ClockedLog {
+                        clock,
+                        trigger,
+                        message,
+                    }
+                } else {
+                    HwItem::ClockedAssert {
+                        clock,
+                        trigger,
+                        message,
+                    }
+                };
+                Ok(vec![ParametricHwItem::core(
+                    core,
+                    self.lower_origin(origin),
+                )])
+            }
             EirItem::InitialError { message, origin } => Ok(vec![ParametricHwItem::core(
                 HwItem::InitialError {
                     message: self.lower_expr(message, origin.span())?,

@@ -198,7 +198,16 @@ pub struct SimAssert {
     pub clock: DomainId,
     pub reset_mask: Option<ResetId>,
     pub condition: SimExpr,
-    pub message: String,
+    pub message: Vec<syl_hw::FormatPiece<SimExpr, u32>>,
+}
+
+#[derive(Clone, Debug)]
+pub struct SimLog {
+    pub source: SourceLocation,
+    pub clock: DomainId,
+    /// Combined reset-deasserted and user-enable predicate.
+    pub trigger: SimExpr,
+    pub message: Vec<syl_hw::FormatPiece<SimExpr, u32>>,
 }
 
 #[derive(Clone, Debug)]
@@ -235,6 +244,7 @@ pub struct SimDesign {
     pub regs: Vec<SimReg>,
     pub memories: Vec<SimMem>,
     pub assertions: Vec<SimAssert>,
+    pub logs: Vec<SimLog>,
     pub clocks: Vec<ClockDomain>,
     pub resets: Vec<ResetDomain>,
     pub externs: Vec<SimExternInstance>,

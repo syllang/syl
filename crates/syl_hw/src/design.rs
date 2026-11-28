@@ -465,7 +465,12 @@ pub enum HwItem {
     ClockedAssert {
         clock: HwExpr,
         trigger: HwExpr,
-        message: HwExpr,
+        message: Vec<crate::FormatPiece<HwExpr>>,
+    },
+    ClockedLog {
+        clock: HwExpr,
+        trigger: HwExpr,
+        message: Vec<crate::FormatPiece<HwExpr>>,
     },
     /// A sub-module instance.
     Instance(HwInstance),

@@ -307,7 +307,12 @@ impl NamedExpr {
 
 impl CallArg {
     pub fn new(name: Option<String>, value: Expr, span: Span) -> Self {
-        Self { name, value, span }
+        Self {
+            name,
+            value,
+            span,
+            format: None,
+        }
     }
 }
 

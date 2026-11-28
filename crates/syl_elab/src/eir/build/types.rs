@@ -416,6 +416,10 @@ where
         ElabTypeDefinitionResolver::new(self.program).const_item(owner, ty)
     }
 
+    pub(super) fn type_def_id(&self, owner: Option<DefId>, ty: &MirTypeRef) -> Option<DefId> {
+        ElabTypeDefinitionResolver::new(self.program).def_id(owner?, ty)
+    }
+
     pub(super) fn enum_for_type(
         &self,
         owner: Option<DefId>,

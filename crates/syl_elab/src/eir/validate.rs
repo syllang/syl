@@ -132,11 +132,23 @@ impl<'a> EirValidator<'a> {
                 reads,
                 message,
                 origin,
+            }
+            | EirItem::ClockedLog {
+                clock,
+                trigger,
+                reads,
+                message,
+                origin,
             } => {
                 self.check_expr(clock, origin)?;
                 self.check_expr(trigger, origin)?;
                 self.check_exprs(reads, origin)?;
-                self.check_expr(message, origin)
+                for piece in message {
+                    if let syl_hw::FormatPiece::Value { expr, .. } = piece {
+                        self.check_expr(expr, origin)?;
+                    }
+                }
+                Ok(())
             }
             EirItem::InitialError { message, origin } => self.check_expr(message, origin),
         }

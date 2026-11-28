@@ -36,6 +36,7 @@ pub(crate) struct VarInfo {
 pub(crate) struct Env {
     pub(crate) vars: HashMap<String, VarInfo>,
     pub(crate) type_replacements: HashMap<String, MirTypeRef>,
+    control_aliases: HashMap<String, String>,
     vars_by_static_type: HashMap<String, Vec<String>>,
     pub(crate) expansion_stack: Vec<EirExpansion>,
     pub(crate) owner: Option<DefId>,
@@ -199,19 +200,75 @@ impl Env {
             .push(EirExpansion::new(callable, instance, span).with_source_name(source_name));
     }
 
-    pub(crate) fn single_by_type<C>(
-        &self,
-        type_name: &str,
-        _emitter: &crate::eir::build::EirBuilder<'_, C>,
-    ) -> Option<EirExpr>
-    where
-        C: crate::const_eval::ConstValueElaborator + ?Sized,
-    {
-        let names = self.vars_by_static_type.get(type_name)?;
-        if names.len() != 1 {
-            return None;
+    /// Record only direct wires between controls. A gate or an inverted reset
+    /// produces a distinct signal, even when all its inputs have the same domain.
+    pub(crate) fn record_control_alias<C: crate::const_eval::ConstValueElaborator + ?Sized>(
+        &mut self,
+        target: &str,
+        source: &str,
+        builder: &super::EirBuilder<'_, C>,
+    ) {
+        let (Some(target), Some(source)) = (self.var(target), self.var(source)) else {
+            return;
+        };
+        let kind = target.ty.type_name();
+        if !matches!(kind, Some("Clock" | "Reset")) {
+            return;
         }
-        self.vars.get(&names[0]).map(|var| var.code.clone())
+        let (EirExpr::Ident(lhs), EirExpr::Ident(rhs)) = (&target.code, &source.code) else {
+            return;
+        };
+        let domain = builder.port_domain(&target.ty);
+        if lhs != rhs
+            && (builder.port_domain(&source.ty) == domain
+                || self
+                    .vars
+                    .values()
+                    .any(|v| v.code == source.code && builder.port_domain(&v.ty) == domain))
+        {
+            self.control_aliases.insert(lhs.clone(), rhs.clone());
+        }
+    }
+
+    pub(crate) fn control_root(&self, code: &EirExpr) -> EirExpr {
+        let EirExpr::Ident(start) = code else {
+            return code.clone();
+        };
+        let mut name = start;
+        // A cyclic continuous drive is invalid. Leave it to driver validation.
+        for _ in 0..=self.control_aliases.len() {
+            let Some(parent) = self.control_aliases.get(name) else {
+                return EirExpr::ident(name);
+            };
+            name = parent;
+        }
+        code.clone()
+    }
+
+    fn unique_control(
+        &self,
+        kind: &str,
+        matches: impl Fn(&VarInfo) -> bool,
+    ) -> Result<Option<EirExpr>, (String, String)> {
+        let mut candidates = self
+            .vars_by_static_type
+            .get(kind)
+            .into_iter()
+            .flatten()
+            .filter_map(|name| self.var(name))
+            .filter(|v| matches(v))
+            .map(|v| self.control_root(&v.code));
+        let first = candidates.next();
+        if let Some(root) = &first
+            && let Some(other) = candidates.find(|v| v != root)
+        {
+            return Err((root.fact_key(), other.fact_key()));
+        }
+        Ok(first)
+    }
+
+    pub(crate) fn single_by_type(&self, kind: &str) -> Option<EirExpr> {
+        self.unique_control(kind, |_| true).ok().flatten()
     }
 
     pub(crate) fn clock_for_elab_reset_expr<C>(
@@ -234,53 +291,35 @@ impl Env {
             return None;
         }
         let reset_domain = emitter.reset_domain(&reset.ty)?;
-        let mut matches = self
-            .vars_by_static_type
-            .get("Clock")?
-            .iter()
-            .filter_map(|name| {
-                self.vars.get(name).and_then(|var| {
-                    (emitter.first_type_arg(&var.ty).and_then(MirTypeRef::path)
-                        == reset_domain.path())
-                    .then_some(var.code.clone())
-                })
-            });
-        let first = matches.next()?;
-        if matches.next().is_some() {
-            None
-        } else {
-            Some(first)
-        }
+        self.unique_control("Clock", |var| {
+            emitter.first_type_arg(&var.ty).and_then(MirTypeRef::path) == reset_domain.path()
+        })
+        .ok()
+        .flatten()
     }
 
-    pub(crate) fn reset_for_unique_clock<C>(
+    pub(crate) fn reset_for_clock<C>(
         &self,
+        selected: &EirExpr,
         emitter: &crate::eir::build::EirBuilder<'_, C>,
-    ) -> Option<EirExpr>
+        span: Span,
+    ) -> Result<Option<EirExpr>, crate::CompileError>
     where
         C: crate::const_eval::ConstValueElaborator + ?Sized,
     {
-        let clocks = self.vars_by_static_type.get("Clock")?;
-        if clocks.len() != 1 {
-            return None;
-        }
-        let clock = self.vars.get(&clocks[0])?;
+        let Some(clock) = self.vars.values().find(|var| {
+            &var.code == selected && emitter.static_type_name(&var.ty) == Some("Clock")
+        }) else {
+            return Ok(None);
+        };
         let clock_domain = emitter.first_type_arg(&clock.ty).and_then(MirTypeRef::path);
-        let mut matches = self
-            .vars_by_static_type
-            .get("Reset")?
-            .iter()
-            .filter_map(|name| {
-                self.vars.get(name).and_then(|var| {
-                    (emitter.reset_domain(&var.ty).and_then(MirTypeRef::path) == clock_domain)
-                        .then_some(var.code.clone())
-                })
-            });
-        let first = matches.next()?;
-        if matches.next().is_some() {
-            None
-        } else {
-            Some(first)
-        }
+        self.unique_control("Reset", |var| {
+            emitter.reset_domain(&var.ty).and_then(MirTypeRef::path) == clock_domain
+        })
+        .map_err(|(first, other)| {
+            let clock = selected.fact_key();
+            let message = format!("ambiguous reset for clock '{clock}': '{first}' and '{other}' are distinct reset sources; specify rst: explicitly");
+            crate::CompileError::lowering_at(crate::EirError::InvalidFormat { message }, span)
+        })
     }
 }

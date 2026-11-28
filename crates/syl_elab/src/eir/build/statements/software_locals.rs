@@ -373,14 +373,19 @@ where
                 for field in fields {
                     if let Some(field_ty) = self
                         .infer_software_expr_type(&field.value, env)
+                        .or_else(|| Self::software_local_type_from_env(Some(&field.value), env))
                         .or_else(|| Self::syntax_software_expr_type(&field.value))
                     {
+                        let field_name = format!("{name}.{}", field.name);
                         env.insert_software_local_with_numbering(
-                            format!("{name}.{}", field.name),
+                            &field_name,
                             self.elab_expr(&field.value, env),
                             field_ty,
                             None,
                         );
+                        if matches!(field.value.node, ElabExprNode::Aggregate { .. }) {
+                            self.sync_software_local_fields(&field_name, Some(&field.value), env);
+                        }
                     }
                 }
             }
@@ -652,12 +657,25 @@ where
         }
     }
 
-    fn tir_to_mir_type(&self, ty: &TirType, span: Span) -> Option<MirTypeRef> {
+    pub(super) fn tir_to_mir_type(&self, ty: &TirType, span: Span) -> Option<MirTypeRef> {
         match ty {
             TirType::Nat => Some(MirTypeRef::path_type(vec!["nat".to_string()], span)),
             TirType::Bool => Some(MirTypeRef::path_type(vec!["bool".to_string()], span)),
             TirType::Bit => Some(MirTypeRef::path_type(vec!["Bit".to_string()], span)),
             TirType::Str => Some(MirTypeRef::path_type(vec!["string".to_string()], span)),
+            TirType::UInt { width } | TirType::SInt { width } | TirType::Bits { width } => {
+                let name = match ty {
+                    TirType::UInt { .. } => "UInt",
+                    TirType::SInt { .. } => "SInt",
+                    _ => "Bits",
+                };
+                let base = MirTypeRef::path_type(vec![name.into()], span);
+                Some(MirTypeRef::generic_type(
+                    base,
+                    vec![MirTypeRef::path_type(vec![width.label()], span)],
+                    span,
+                ))
+            }
             TirType::Named {
                 name, def, args, ..
             } => {
@@ -672,7 +690,9 @@ where
                         .iter()
                         .map(|arg| match arg {
                             TirGenericArg::Type(ty) => self.tir_to_mir_type(ty, span),
-                            TirGenericArg::Const(_) => None,
+                            TirGenericArg::Const(term) => {
+                                Some(MirTypeRef::path_type(vec![term.label()], span))
+                            }
                             _ => None,
                         })
                         .collect::<Option<Vec<_>>>()?;

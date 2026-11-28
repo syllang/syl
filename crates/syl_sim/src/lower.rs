@@ -112,8 +112,10 @@ impl Scope {
             );
             prefix = format!("{instance}_");
         }
-        relative.push('.');
-        relative.push_str(leaf);
+        if !leaf.is_empty() {
+            relative.push('.');
+            relative.push_str(leaf);
+        }
         let mut field = field.to_owned();
         let mut path = self.path.clone();
         for generate in &self.generates {

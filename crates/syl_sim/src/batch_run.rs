@@ -46,6 +46,7 @@ pub struct FailureCoordinate {
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct BatchResult {
     pub digest: u64,
+    pub replay_logs: Vec<String>,
     pub failure: Option<(FailureCoordinate, AssertionFailure)>,
     pub cache_hit: Option<bool>,
     pub compile_ms: f64,
@@ -246,13 +247,13 @@ fn initial_sim(d: &SimDesign, mode: StateMode) -> Result<Simulator<'_>, RuntimeE
     Ok(sim)
 }
 
-fn trajectory<'a>(
-    mut sim: Simulator<'a>,
+fn trajectory(
+    sim: &mut Simulator<'_>,
     o: BatchOptions,
     ports: &Ports,
     lane: usize,
     mut sample: impl FnMut(&Simulator) -> Result<(), RuntimeError>,
-) -> Result<Simulator<'a>, RuntimeError> {
+) -> Result<(), RuntimeError> {
     let d = sim.design();
     sim.strict_unique = o.strict_unique;
     // A zero-edge run still settles and observes the initial inputs at step zero.
@@ -260,15 +261,15 @@ fn trajectory<'a>(
     for cycle in first_step..=o.cycles {
         sim.stimulus_step = Some(cycle);
         if cycle != 0 {
-            ports.drive(&mut sim, o.seed, lane, cycle)?;
+            ports.drive(sim, o.seed, lane, cycle)?;
         }
         let settled = sim.eval_comb();
-        sample(&sim)?;
+        sample(sim)?;
         settled?;
         if cycle != 0 && !ports.rising.is_empty() {
             for events in [&ports.rising, &ports.falling] {
                 let edge = sim.step_clocks(events);
-                sample(&sim)?;
+                sample(sim)?;
                 edge?;
             }
         }
@@ -285,7 +286,7 @@ fn trajectory<'a>(
             )));
         }
     }
-    Ok(sim)
+    Ok(())
 }
 
 fn reference(d: &SimDesign, o: BatchOptions, ports: &Ports) -> Result<Reduction, RuntimeError> {
@@ -293,7 +294,7 @@ fn reference(d: &SimDesign, o: BatchOptions, ports: &Ports) -> Result<Reduction,
     for lane in 0..o.batch {
         let mut sim = initial_sim(d, o.state_mode)?;
         sim.assertions = AssertionMode::Record(None);
-        let sim = trajectory(sim, o, ports, lane, |_| Ok(()))?;
+        trajectory(&mut sim, o, ports, lane, |_| Ok(()))?;
         if let AssertionMode::Record(Some((cycle, assert_id))) = sim.assertions {
             result.record(FailureCoordinate {
                 cycle,
@@ -322,6 +323,15 @@ pub fn replay_failure(
     expected: FailureCoordinate,
     writer: Option<&mut dyn Write>,
 ) -> Result<AssertionFailure, RuntimeError> {
+    replay(d, o, expected, writer).map(|(failure, _)| failure)
+}
+
+fn replay(
+    d: &SimDesign,
+    o: BatchOptions,
+    expected: FailureCoordinate,
+    writer: Option<&mut dyn Write>,
+) -> Result<(AssertionFailure, Vec<String>), RuntimeError> {
     let io_error = |e: std::io::Error| RuntimeError::Invalid(e.to_string());
     let mut wave = writer
         .map(|w| VcdWriter::new(w, d))
@@ -344,7 +354,7 @@ pub fn replay_failure(
         id: expected.assert_id,
     };
     let result = trajectory(
-        sim,
+        &mut sim,
         BatchOptions {
             cycles: expected.cycle.min(o.cycles),
             ..o
@@ -366,7 +376,7 @@ pub fn replay_failure(
         Err(RuntimeError::Assertion(f))
             if f.cycle == expected.cycle && f.assert_id == expected.assert_id =>
         {
-            Ok(f)
+            Ok((f, sim.log_lines))
         }
         Err(e) => Err(RuntimeError::Invalid(format!(
             "replay mismatch at {expected:?}: {e}"
@@ -481,8 +491,10 @@ impl LocalBackend<'_> {
             .failure
             .map(|c| {
                 let mut writer = open()?;
-                replay_failure(d, o, c, writer.as_mut().map(|w| w as &mut dyn Write))
-                    .map(|f| (c, f))
+                let (failure, lines) =
+                    replay(d, o, c, writer.as_mut().map(|w| w as &mut dyn Write))?;
+                result.replay_logs = lines;
+                Ok::<_, RuntimeError>((c, failure))
             })
             .transpose()?;
         Ok(result)
