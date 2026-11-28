@@ -81,6 +81,12 @@ On an assertion failure, `tick` returns the tile-local lane and one-based edge
 before committing the sequential updates. Add the tile offset to recover the
 global trajectory index.
 
+## Single trajectories
+
+For deterministic two-state runs, `JitProgram` compiles the input generator, combinational DAG, edge schedule and cycle loop with Cranelift. A compiled program can run independent trajectories concurrently. Its reusable `JitCpuSimulator` workspace starts each trajectory at zero. Registers cross native loop iterations as SSA block arguments. RAM stays in word-addressed storage. The final low-phase settle returns all output limbs, including at cycle zero.
+
+`FastTile` uses the scalar interpreter for a single lane. Continuous ticks settle once before sampling the edge. A read after the edge materializes the low-phase values and subsequent reads share that settlement. `FastFamilyProgram` uses SIMD rows for independent sibling subtrees with matching concrete programs. Scalar boundary operations pack and unpack parent pins, and parent and member storage sample the same old state.
+
 ## Routed batches
 
 `select_backend` uses the explicit GPU availability and cache-hit observations in

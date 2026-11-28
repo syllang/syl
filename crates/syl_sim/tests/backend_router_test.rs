@@ -1,7 +1,7 @@
 #[allow(dead_code)]
 #[path = "../examples/bench_gpu_2d/support.rs"]
 mod support;
-use ResolvedBackend::{CpuRef, CpuSimd, GpuCuda};
+use ResolvedBackend::{CpuJit, CpuRef, CpuSimd, GpuCuda};
 use syl_sim::{gpu_cuda::KernelMode::*, *};
 
 #[test]
@@ -25,7 +25,7 @@ fn family_and_batch_crossovers_are_host_independent() {
                 };
                 let choose = |r| select_backend(&design, &r).unwrap().backend;
                 let expected = if b == 1 {
-                    CpuRef
+                    CpuJit
                 } else if f >= 16 || b >= 4000 || (hot && b >= 256) {
                     GpuCuda(mode)
                 } else {
@@ -37,7 +37,7 @@ fn family_and_batch_crossovers_are_host_independent() {
                         gpu_available: false,
                         ..request
                     }),
-                    if b == 1 { CpuRef } else { CpuSimd }
+                    if b == 1 { CpuJit } else { CpuSimd }
                 );
                 for (forced, expected) in [
                     (GpuKernelMode::Auto, mode),
@@ -66,8 +66,8 @@ fn exact_work_thresholds_and_semantic_exclusions() {
         ..Default::default()
     };
     for (batch, cycles, hot, backend) in [
-        (1, 49999, false, CpuRef),
-        (1, 50000, false, CpuSimd),
+        (1, 999, false, CpuRef),
+        (1, 1000, false, CpuJit),
         (2, 127999, true, CpuSimd),
         (2, 128000, true, GpuCuda(BatchPerThread)),
         (2, 1999999, false, CpuSimd),
@@ -94,7 +94,7 @@ fn exact_work_thresholds_and_semantic_exclusions() {
         (256, 999, CpuSimd),
         (256, 1000, GpuCuda(InstanceFamilyParallel)),
         (257, 1000, GpuCuda(BatchPerThread)),
-        (1, 50_000, GpuCuda(InstanceFamilyParallel)),
+        (1, 50_000, CpuJit),
     ] {
         assert_eq!(
             select_backend(&family, &BackendRequest { batch, cycles, ..r })
@@ -128,6 +128,7 @@ fn exact_work_thresholds_and_semantic_exclusions() {
         for choice in [
             SimBackendChoice::Auto,
             SimBackendChoice::CpuRef,
+            SimBackendChoice::CpuJit,
             SimBackendChoice::CpuSimd,
             SimBackendChoice::GpuCuda,
         ] {
@@ -141,7 +142,7 @@ fn exact_work_thresholds_and_semantic_exclusions() {
             );
             if matches!(
                 choice,
-                SimBackendChoice::CpuSimd | SimBackendChoice::GpuCuda
+                SimBackendChoice::CpuJit | SimBackendChoice::CpuSimd | SimBackendChoice::GpuCuda
             ) {
                 assert!(s.is_err());
             } else {

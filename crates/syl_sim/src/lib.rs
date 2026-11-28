@@ -4,6 +4,8 @@ mod batch_cpu;
 mod constant;
 mod design;
 mod fast_cpu;
+mod jit_cpu;
+pub use jit_cpu::{JitCpuSimulator, JitProgram};
 pub mod gpu_cuda;
 mod lower;
 pub mod runtime;
@@ -31,7 +33,7 @@ pub use vcd::VcdWriter;
 mod backend;
 mod batch_run;
 pub use backend::{
-    BackendRequest, BackendSelection, GpuKernelMode, LocalBackend, ResolvedBackend,
+    BackendRequest, BackendSelection, CpuSimdMode, GpuKernelMode, LocalBackend, ResolvedBackend,
     SimBackendChoice, select_backend, select_local_backend,
 };
 pub use batch_run::{

@@ -93,7 +93,7 @@ fn batch_combinations_and_protected_destinations_report_e_sim() {
     ] {
         invoke(&args);
     }
-    for backend in ["cpu-simd", "gpu-cuda"] {
+    for backend in ["cpu-simd", "cpu-jit", "gpu-cuda"] {
         for flag in [
             vec!["--fail-on-x"],
             vec!["--strict-unique"],
@@ -119,6 +119,7 @@ fn gpu_and_simd_replay_identical_fault_wave_and_source_location() {
     let mut expected = None;
     for (backend, mode) in [
         ("cpu-simd", "auto"),
+        ("cpu-jit", "auto"),
         ("gpu-cuda", "batch"),
         ("gpu-cuda", "family"),
     ] {

@@ -6,24 +6,9 @@ use syl_sim::{
     *,
 };
 
-const SHAPES: [(&str, &str); 4] = [
-    (
-        "WideAluArray",
-        include_str!("../../../examples/benchmarks/wide_alu_array.syl"),
-    ),
-    (
-        "DeepFsmChain",
-        include_str!("../../../examples/benchmarks/deep_fsm_chain.syl"),
-    ),
-    (
-        "SharedRamArbiter",
-        include_str!("../../../examples/benchmarks/shared_ram_arbiter.syl"),
-    ),
-    (
-        "FaultHuntPipeline",
-        include_str!("../../../examples/benchmarks/fault_hunt_pipeline.syl"),
-    ),
-];
+#[path = "fixtures/shapes_test.rs"]
+mod shapes;
+use shapes::SHAPES;
 const FAULT_SEED: u64 = 2691343690239311708;
 fn design(top: &str, source: &str) -> SimDesign {
     SimDesign::lower(

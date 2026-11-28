@@ -307,6 +307,21 @@ impl FastOp {
         }
     }
 
+    pub(crate) fn dst(self) -> Option<usize> {
+        use FastOp::*;
+        match self {
+            Const(d, _)
+            | Copy(d, _)
+            | Bits { dst: d, .. }
+            | Lookup { dst: d, .. }
+            | Binary { dst: d, .. }
+            | SignedBinary { dst: d, .. }
+            | Mux { dst: d, .. }
+            | Gather { dst: d, .. } => Some(d),
+            Scatter { .. } | Check(..) | Stop => None,
+        }
+    }
+
     pub(super) fn reads(self, slot: usize) -> bool {
         self.operands().contains(&Some(slot))
     }

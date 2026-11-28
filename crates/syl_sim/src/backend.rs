@@ -12,7 +12,15 @@ pub enum SimBackendChoice {
     Auto,
     CpuRef,
     CpuSimd,
+    CpuJit,
     GpuCuda,
+}
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum CpuSimdMode {
+    #[default]
+    Auto,
+    Batch,
+    Family,
 }
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum GpuKernelMode {
@@ -25,6 +33,7 @@ pub enum GpuKernelMode {
 pub enum ResolvedBackend {
     CpuRef,
     CpuSimd,
+    CpuJit,
     GpuCuda(KernelMode),
 }
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -36,6 +45,7 @@ pub struct BackendSelection {
 #[derive(Clone, Copy, Debug)]
 pub struct BackendRequest {
     pub choice: SimBackendChoice,
+    pub cpu_mode: CpuSimdMode,
     pub gpu_mode: GpuKernelMode,
     pub batch: usize,
     pub cycles: u64,
@@ -52,6 +62,7 @@ impl Default for BackendRequest {
     fn default() -> Self {
         Self {
             choice: Default::default(),
+            cpu_mode: Default::default(),
             gpu_mode: Default::default(),
             batch: 1,
             cycles: 1,
@@ -132,17 +143,20 @@ pub(crate) fn gpu_program(
     ))
 }
 
-pub(crate) enum Program {
+pub(crate) enum Program<J> {
     Reference,
     Simd(FastProgram),
+    Jit(J),
+    Family(Box<crate::FastFamilyProgram>),
     Cuda(GeneratedCuda),
 }
 
-impl Program {
+impl<J> Program<J> {
     fn selection(&self, reason: &'static str) -> BackendSelection {
         let backend = match self {
             Self::Reference => ResolvedBackend::CpuRef,
-            Self::Simd(_) => ResolvedBackend::CpuSimd,
+            Self::Jit(_) => ResolvedBackend::CpuJit,
+            Self::Family(_) | Self::Simd(_) => ResolvedBackend::CpuSimd,
             Self::Cuda(p) => ResolvedBackend::GpuCuda(p.mode),
         };
         BackendSelection { backend, reason }
@@ -167,7 +181,7 @@ pub struct LocalBackend<'d> {
     pub selection: BackendSelection,
     pub(crate) design: &'d SimDesign,
     pub(crate) request: BackendRequest,
-    pub(crate) program: Program,
+    pub(crate) program: Program<Box<crate::JitProgram>>,
     pub(crate) toolchain: Option<Toolchain>,
 }
 
@@ -190,6 +204,19 @@ pub fn select_local_backend<'d>(
         }
         Ok(hot)
     })?;
+    let (program, reason) = match program {
+        Program::Jit(fast) => match crate::JitProgram::compile(d, &fast) {
+            Ok(jit) => (Program::Jit(Box::new(jit)), reason),
+            Err(_) if r.choice == SimBackendChoice::Auto => {
+                (Program::Simd(fast), "native JIT unavailable")
+            }
+            Err(e) => return Err(e.to_string()),
+        },
+        Program::Reference => (Program::Reference, reason),
+        Program::Simd(fast) => (Program::Simd(fast), reason),
+        Program::Family(family) => (Program::Family(family), reason),
+        Program::Cuda(cuda) => (Program::Cuda(cuda), reason),
+    };
     Ok(LocalBackend {
         selection: program.selection(reason),
         design: d,
@@ -203,7 +230,7 @@ fn select(
     d: &SimDesign,
     r: &BackendRequest,
     gpu: impl FnOnce(&str, bool) -> Result<bool, String>,
-) -> Result<(Program, &'static str), String> {
+) -> Result<(Program<FastProgram>, &'static str), String> {
     use SimBackendChoice as C;
     let cpu = |reason| Ok((Program::Reference, reason));
     if r.batch == 0 {
@@ -211,6 +238,10 @@ fn select(
     }
     if r.batch > 1 && (r.stimulus || r.direct_vcd) {
         return Err("--stimulus and --vcd require --batch 1".into());
+    }
+    let forced_simd = r.cpu_mode != CpuSimdMode::Auto;
+    if forced_simd && !matches!(r.choice, C::Auto | C::CpuSimd) {
+        return Err("--cpu-mode requires auto or cpu-simd".into());
     }
     if r.choice == C::CpuRef {
         return cpu("explicit cpu-ref");
@@ -221,21 +252,43 @@ fn select(
         || r.strict_unique
         || r.fail_on_x;
     if needs_ref {
-        if r.choice == C::Auto {
+        if r.choice == C::Auto && !forced_simd {
             return cpu("reference simulation semantics requested");
         }
         return Err("accelerated backends require two-state simulation without --stimulus, --vcd, --strict-unique or --fail-on-x".into());
     }
-    if r.choice == C::Auto && r.batch == 1 && r.cycles < 50_000 {
+    if r.cpu_mode == CpuSimdMode::Family && r.batch != 1 {
+        return Err("CPU family SIMD requires batch 1".into());
+    }
+    if r.batch == 1
+        && (r.cpu_mode == CpuSimdMode::Family
+            || (r.choice == C::CpuSimd && r.cpu_mode == CpuSimdMode::Auto))
+    {
+        match crate::FastFamilyProgram::new(d) {
+            Ok(p) => return Ok((Program::Family(Box::new(p)), "intra-trace family SIMD")),
+            Err(e) if r.cpu_mode == CpuSimdMode::Family => return Err(e.to_string()),
+            Err(_) => {}
+        }
+    }
+    if !forced_simd && r.choice == C::Auto && r.batch == 1 && r.cycles < 1_000 {
         return cpu("short single trajectory");
     }
     let simd = if r.choice != C::GpuCuda {
         match FastProgram::new(d) {
-            Ok(program) if r.choice == C::CpuSimd => {
+            Ok(program)
+                if r.choice == C::CpuJit
+                    || (!forced_simd && r.choice == C::Auto && r.batch == 1) =>
+            {
+                return Ok((Program::Jit(program), "native single trajectory"));
+            }
+            Ok(program) if r.choice == C::CpuSimd || forced_simd => {
                 return Ok((Program::Simd(program), "explicit cpu-simd"));
             }
             Ok(program) => Some(program),
-            Err(e) if r.choice == C::CpuSimd => return Err(format!("cpu-simd: {e}")),
+            Err(e) if r.choice == C::CpuJit => return Err(format!("cpu-jit: {e}")),
+            Err(e) if r.choice == C::CpuSimd || forced_simd => {
+                return Err(format!("cpu-simd: {e}"));
+            }
             Err(_) => return cpu("design outside CPU SIMD subset"),
         }
     } else {
